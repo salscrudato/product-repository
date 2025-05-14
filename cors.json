@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["http://localhost:3000","https://producthubapp-8bd3d.web.app"],
+    "method": ["GET","POST","PUT","DELETE"],
+    "responseHeader": ["Content-Type","Firebase-Storage-Resumable-Upload-Protocol-Version"],
+    "maxAgeSeconds": 3600
+  }
+]
