@@ -18,7 +18,8 @@ import {
   InformationCircleIcon,
   DocumentTextIcon,
   XMarkIcon,
-  WrenchIcon
+  WrenchIcon,
+  ChatBubbleLeftEllipsisIcon
 } from '@heroicons/react/24/solid';
 import * as pdfjsLib from 'pdfjs-dist';
 import {
@@ -229,6 +230,12 @@ const SummaryButton = styled(Button)`
   min-width: 100px;
 `;
 
+const ActionGroup = styled.div`
+  display: flex;
+  gap: 6px;
+  align-items: center;
+`;
+
 const NavLinkStyled = styled(Link)`
   transition: transform 0.1s ease, color 0.2s ease;
   &:hover {
@@ -323,6 +330,13 @@ export default function ProductHub() {
     if (digits.length < 3) return digits;
     return digits.slice(0,2) + '/' + digits.slice(2);
   };
+
+  /* chat modal */
+  const [chatModalOpen, setChatModalOpen]   = useState(false);
+  const [chatMessages, setChatMessages]     = useState([]);   // {role:'user'|'assistant', content:''}
+  const [chatInput, setChatInput]           = useState('');
+  const [chatLoading, setChatLoading]       = useState(false);
+  const [chatPdfText, setChatPdfText]       = useState('');   // cached pdf text for the selected product
 
   /* fetch once ----------------------------------------------------- */
   useEffect(() => {
@@ -483,6 +497,81 @@ export default function ProductHub() {
     }
   };
 
+  // --- open chat ---------------------------------------------------
+  const openChat = async (product) => {
+    try {
+      setChatModalOpen(true);
+      setChatMessages([]);               // reset
+      setChatInput('');
+      setChatLoading(false);
+
+      // if we already pulled text for this product in this session keep it
+      if (chatPdfText && selectedProduct?.id === product.id) return;
+
+      setSelectedProduct(product);
+
+      if (!product.formDownloadUrl) {
+        setChatPdfText('');
+        return;
+      }
+      // pull pdf text (same logic as summary)
+      const loadingTask = pdfjsLib.getDocument(product.formDownloadUrl);
+      const pdf = await loadingTask.promise;
+      let text = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(it => it.str).join(' ') + '\n';
+      }
+      // keep a large slice but stay safe
+      setChatPdfText( text.split(/\s+/).slice(0, 100000).join(' ') );
+    } catch (err) {
+      console.error(err);
+      alert('Failed to load document for chat.');
+    }
+  };
+
+  const sendChat = async () => {
+    if (!chatInput.trim()) return;
+    const userMsg = chatInput.trim();
+    setChatMessages(msgs => [...msgs, { role: 'user', content: userMsg }]);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const systemPrompt = `${SYSTEM_INSTRUCTIONS.trim()}
+
+      When responding to the user, adopt a concise, conversational tone and answer the question **directly**. 
+      Reference the document only as needed, avoid long JSON unless explicitly requested, and prefer short sentences or bullet‑points suitable for a chat bubble.`;
+
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: `${systemPrompt}\n\nDocument text:\n${chatPdfText}` },
+            { role: 'user', content: userMsg }
+          ]
+        })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { choices } = await res.json();
+      setChatMessages(msgs => [
+        ...msgs,
+        { role: 'assistant', content: choices[0].message.content.trim() }
+      ]);
+    } catch (err) {
+      console.error(err);
+      alert('Chat failed');
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   /* render --------------------------------------------------------- */
   const filtered = products.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -551,22 +640,29 @@ export default function ProductHub() {
                     <NavLinkStyled to={`/states/${p.id}`}>States</NavLinkStyled>
                   </Td>
                   <Td>
-                    <SummaryButton
-                      variant="primary"
-                      onClick={() => handleSummary(p.id, p.formDownloadUrl)}
-                      disabled={loadingSummary[p.id]}
-                    >
-                      {loadingSummary[p.id] ? (
-                        <AILoader>
-                          <div/><div/><div/>
-                        </AILoader>
-                      ) : (
-                        <>
-                          <DocumentTextIcon width={20} height={20} style={{ marginRight: 4 }}/>
-                          Summarize
-                        </>
-                      )}
-                    </SummaryButton>
+                    <ActionGroup>
+                      <SummaryButton
+                        variant="primary"
+                        onClick={() => handleSummary(p.id, p.formDownloadUrl)}
+                        disabled={loadingSummary[p.id]}
+                      >
+                        {loadingSummary[p.id] ? (
+                          <AILoader><div/><div/><div/></AILoader>
+                        ) : (
+                          <>
+                            <DocumentTextIcon width={20} height={20} style={{ marginRight: 4 }}/>
+                            Summarize
+                          </>
+                        )}
+                      </SummaryButton>
+
+                      <Button
+                        variant="ghost"
+                        onClick={() => openChat(p)}
+                        title="Chat about this form">
+                        <ChatBubbleLeftEllipsisIcon width={20} height={20}/>
+                      </Button>
+                    </ActionGroup>
                     {summaryError && <p style={{ color: 'red' }}>{summaryError}</p>}
                   </Td>
                   <Td align="center">
@@ -699,6 +795,64 @@ export default function ProductHub() {
             ) : (
               <p>Loading…</p>
             )}
+          </Modal>
+        </Overlay>
+      )}
+
+      {/* ---- Chat Modal ---- */}
+      {chatModalOpen && (
+        <Overlay onClick={() => setChatModalOpen(false)}>
+          <Modal onClick={e => e.stopPropagation()} style={{ maxWidth: 700 }}>
+            <ModalHeader>
+              <ModalTitle>AI Chat</ModalTitle>
+              <CloseBtn onClick={() => setChatModalOpen(false)}>✕</CloseBtn>
+            </ModalHeader>
+
+            <div style={{height:'50vh', overflowY:'auto', marginBottom:16, paddingRight:4}}>
+              {chatMessages.map((m, idx) => {
+                // rudimentary formatting for assistant replies
+                const isUser = m.role === 'user';
+                let html = m.content
+                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')     // **bold**
+                  .replace(/^-\\s+/gm, '• ')                                // dash bullets to dots
+                  .replace(/\n/g, '<br/>');                                // new lines
+
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      background: isUser ? '#EEF2FF' : '#F1F5F9',
+                      padding: 8,
+                      borderRadius: 6,
+                      margin: '4px 0',
+                      whiteSpace: 'pre-wrap'
+                    }}
+                  >
+                    <strong>{isUser ? 'You' : 'AI'}:&nbsp;</strong>
+                    {isUser ? (
+                      m.content
+                    ) : (
+                      /* render formatted HTML for AI response */
+                      <span dangerouslySetInnerHTML={{ __html: html }} />
+                    )}
+                  </div>
+                );
+              })}
+              {chatLoading && <p>AI is typing…</p>}
+            </div>
+
+            <div style={{display:'flex', gap:6}}>
+              <TextInput
+                placeholder="How can I help you?"
+                value={chatInput}
+                onChange={e=>setChatInput(e.target.value)}
+                onKeyDown={e=>{ if(e.key==='Enter') sendChat();}}
+                style={{flex:1}}
+              />
+              <Button onClick={sendChat} disabled={chatLoading || !chatInput.trim()}>
+                ↑
+              </Button>
+            </div>
           </Modal>
         </Overlay>
       )}
