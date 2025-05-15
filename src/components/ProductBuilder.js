@@ -4,7 +4,7 @@ import { db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import styled, { keyframes } from 'styled-components';
 import { XMarkIcon } from '@heroicons/react/24/solid';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
@@ -36,6 +36,36 @@ const Spinner = styled.div`
   margin: 100px auto;
 `;
 
+/* -------- navigation tabs reused from ProductHub -------- */
+const Tabs = styled.div`
+  display: flex;
+  gap: 24px;
+  align-items: center;
+`;
+
+const TabLink = styled(Link)`
+  padding: 8px 12px;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  color: ${({ theme }) => theme.colours.text};
+
+  &.active {
+    color: ${({ theme }) => theme.colours.primaryDark};
+    border-color: ${({ theme }) => theme.colours.primary};
+  }
+`;
+
+const TabButton = styled(Button).attrs({ variant: 'ghost' })`
+  padding: 8px 12px;
+  font-weight: 600;
+  border-bottom: 3px solid transparent;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colours.primary};
+  }
+`;
+
 const ProductBuilder = () => {
   const [coverages, setCoverages] = useState([]);
   const [forms, setForms] = useState([]);
@@ -51,6 +81,7 @@ const ProductBuilder = () => {
   const [modalItem, setModalItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Fetch all coverages, forms, and products on mount
   useEffect(() => {
@@ -255,10 +286,29 @@ const ProductBuilder = () => {
     <Page>
       <Container>
         <PageHeader>
-          <Title>Product Builder</Title>
-          <Button variant="ghost" onClick={() => navigate('/')}>
-            Back to Hub
-          </Button>
+          <Tabs>
+            <TabLink
+              to="/"
+              className={location.pathname === '/' ? 'active' : ''}
+            >
+              Products
+            </TabLink>
+
+            <TabLink
+              to="/product-builder"
+              className={location.pathname.startsWith('/product-builder') ? 'active' : ''}
+            >
+              Builder
+            </TabLink>
+
+            <TabLink
+              to="/product-explorer"
+              className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}
+            >
+              Explorer
+            </TabLink>
+
+          </Tabs>
         </PageHeader>
 
         <div style={{ display:'flex', gap:32, marginBottom:32, flexWrap:'wrap' }}>

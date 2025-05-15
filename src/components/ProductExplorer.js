@@ -5,7 +5,7 @@ import { db } from '../firebase';
 import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
 import { Button } from '../components/ui/Button';
 import styled, { keyframes } from 'styled-components';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
 
 /* ------------------- tiny spinner ------------------- */
 const spin = keyframes`0%{transform:rotate(0)}100%{transform:rotate(360deg)}`;
@@ -41,12 +41,34 @@ const Empty = styled.p`
   font-size:14px;color:#6B7280;font-style:italic;
 `;
 
+/* -------- navigation tabs (shared with Hub / Builder) -------- */
+const Tabs = styled.div`
+  display: flex;
+  gap: 24px;
+  align-items: center;
+`;
+
+const TabLink = styled(RouterLink)`
+  padding: 8px 12px;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  color: ${({ theme }) => theme.colours.text};
+
+  &.active {
+    color: ${({ theme }) => theme.colours.primaryDark};
+    border-color: ${({ theme }) => theme.colours.primary};
+  }
+`;
+
 export default function ProductExplorer() {
   const [loading,setLoading]      = useState(true);
   const [products,setProducts]    = useState([]);
   const [coverages,setCoverages]  = useState([]);
   const [selectedProduct,setSelProduct]   = useState(null);
   const [selectedCoverage,setSelCoverage] = useState(null);
+
+  const location = useLocation();
 
   /* fetch everything once */
   useEffect(()=>{
@@ -73,8 +95,28 @@ export default function ProductExplorer() {
     <Page>
       <Container>
         <PageHeader>
-          <Title>Product Explorer</Title>
-          <Button variant="ghost" as={RouterLink} to="/">Return Home</Button>
+          <Tabs>
+            <TabLink
+              to="/"
+              className={location.pathname === '/' ? 'active' : ''}
+            >
+              Products
+            </TabLink>
+
+            <TabLink
+              to="/product-builder"
+              className={location.pathname.startsWith('/product-builder') ? 'active' : ''}
+            >
+              Builder
+            </TabLink>
+
+            <TabLink
+              to="/product-explorer"
+              className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}
+            >
+              Explorer
+            </TabLink>
+          </Tabs>
         </PageHeader>
 
         <Grid>

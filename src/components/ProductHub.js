@@ -5,11 +5,13 @@ import {
   addDoc,
   deleteDoc,
   doc,
-  updateDoc
+  updateDoc,
+  getDoc,
+  setDoc
 } from 'firebase/firestore';
 import { db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -19,7 +21,9 @@ import {
   DocumentTextIcon,
   XMarkIcon,
   WrenchIcon,
-  ChatBubbleLeftEllipsisIcon
+  ChatBubbleLeftEllipsisIcon,
+  DocumentMagnifyingGlassIcon,
+  ArrowsRightLeftIcon
 } from '@heroicons/react/24/solid';
 import * as pdfjsLib from 'pdfjs-dist';
 import {
@@ -33,6 +37,9 @@ import { TextInput } from '../components/ui/Input';
 
 import GlobalSearch from '../components/GlobalSearch';
 import styled, { keyframes } from 'styled-components';
+
+// use PNG placed in the public folder (served from root)
+const Logo = '/logo.png';
 
 
 /* -------------------------------------------------- */
@@ -93,6 +100,62 @@ Persona: You are an expert in P&C insurance products. Your task is to analyze th
 }
 `;
 
+/* ---------- system prompt for RULE extraction ---------- */
+const RULES_SYSTEM_PROMPT = `
+You are an insurance policy analysis assistant. Extract all **Product Rules** and **Rating Rules** from the provided document text and output them in JSON.
+
+**Definitions**
+• *Product Rules* – Eligibility / underwriting / issuance criteria or restrictions for an insurance product.  
+• *Rating Rules*  – Instructions that determine premium, such as base rates, surcharges, credits, modifiers, discounts.
+
+**Output format**
+{
+  "rules":[
+    {
+      "ruleType":"Product",
+      "description":"short sentence",
+      "conditions":["condition1","condition2"],
+      "appliesTo":"context"
+    }
+  ]
+}
+
+Return **only** the JSON object. No commentary. Be concise.
+`;
+
+
+/* ---------- system prompt for FORM COMPARISON ---------- */
+const COMPARE_SYSTEM_PROMPT = `
+You are an insurance coverage-analysis assistant.
+
+**Task**
+Given two insurance policy documents (the product’s original form and an uploaded form), list all coverages, then indicate:
+• coverages unique to the original form
+• coverages unique to the uploaded form
+• coverages common to both (treat different wording for the same concept as the same).
+
+**Return ONLY this JSON:**
+{
+  "originalUnique": ["Coverage X"],
+  "uploadedUnique": ["Coverage Y"],
+  "commonCoverages": ["Coverage Z"]
+}
+Return empty arrays when a section has none.
+`;
+
+/* ---------- prompt to extract only coverage names ---------- */
+const COVERAGE_LIST_PROMPT = `
+You are an insurance coverage‑extraction assistant.
+
+**Task**  
+Read the supplied insurance policy text (all lines already concatenated) and return a JSON object with one key **"coverages"** whose value is an array of distinct coverage names found.  
+• Omit duplicates and obvious aliases (e.g. “Debris Removal Coverage” → “Debris Removal”).  
+• Do not include exclusions or conditions.  
+• When you do not find any coverages return an empty array.  
+
+**Return *only* the JSON – no markdown fencing, comments or prose.**
+`;
+
 // Make sure pdf.worker.min.js is copied to /public
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
@@ -116,7 +179,7 @@ const Tr = styled.tr`
 
 const Th = styled.th`
   padding: 12px;
-  text-align: ${({ align = 'left' }) => align};
+  text-align: ${({ align = 'center' }) => align};
   font-size: 14px;
   font-weight: 500;
   color: #6b7280;
@@ -124,8 +187,13 @@ const Th = styled.th`
 
 const Td = styled.td`
   padding: 12px;
-  text-align: ${({ align = 'left' }) => align};
+  text-align: ${({ align = 'center' }) => align};
   font-size: 14px;
+`;
+
+export const TdAI = styled(Td)`
+  width: 160px;
+  text-align: center;
 `;
 
 const Actions = styled.div`
@@ -197,17 +265,34 @@ const CloseBtn = styled(Button).attrs({ variant: 'ghost' })`
 
 /* ------------------------------------------------------------------ */
 
-const TopActions = styled.div`
+
+/* ---------- navigation tabs ---------- */
+const Tabs = styled.div`
   display: flex;
-  gap: 12px;
+  gap: 24px;
   align-items: center;
-  & > button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 36px;
-    padding: 0 12px;
-    font-size: 14px;
+`;
+
+const TabLink = styled(Link)`
+  padding: 8px 12px;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  color: ${({ theme }) => theme.colours.text};
+
+  &.active {
+    color: ${({ theme }) => theme.colours.primaryDark};
+    border-color: ${({ theme }) => theme.colours.primary};
+  }
+`;
+
+const TabButton = styled(Button).attrs({ variant: 'ghost' })`
+  padding: 8px 12px;
+  font-weight: 600;
+  border-bottom: 3px solid transparent;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colours.primary};
   }
 `;
 
@@ -224,10 +309,9 @@ const ModalLink = styled.a`
   cursor: pointer;
 `;
 
-const SummaryButton = styled(Button)`
+const SummaryButton = styled(Button).attrs({ variant: 'ghost' })`
   height: 36px;
   padding: 0 12px;
-  min-width: 100px;
 `;
 
 const ActionGroup = styled.div`
@@ -323,20 +407,60 @@ export default function ProductHub() {
 
   const [loading, setLoading] = useState(true);
 
+  const location = useLocation();
+
   const fileInputRef = useRef();
 
   const formatMMYY = value => {
-    const digits = value.replace(/\D/g, '').slice(0,4);
+    const digits = value.replace(/\D/g, '').slice(0, 4);
     if (digits.length < 3) return digits;
-    return digits.slice(0,2) + '/' + digits.slice(2);
+    return digits.slice(0, 2) + '/' + digits.slice(2);
   };
 
   /* chat modal */
-  const [chatModalOpen, setChatModalOpen]   = useState(false);
-  const [chatMessages, setChatMessages]     = useState([]);   // {role:'user'|'assistant', content:''}
-  const [chatInput, setChatInput]           = useState('');
-  const [chatLoading, setChatLoading]       = useState(false);
-  const [chatPdfText, setChatPdfText]       = useState('');   // cached pdf text for the selected product
+  const [chatModalOpen, setChatModalOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);   // {role:'user'|'assistant', content:''}
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatPdfText, setChatPdfText] = useState('');   // cached pdf text for the selected product
+
+  /* compare modal */
+  const [compareModalOpen, setCompareModalOpen] = useState(false);
+  const [compareProduct, setCompareProduct] = useState(null);
+  const [compareResult, setCompareResult] = useState(null);
+  const [compareError, setCompareError] = useState('');
+  const [compareWorking, setCompareWorking] = useState(false);
+  const compareInputRef = useRef();
+
+  /* ---- CHAT HISTORY persistence helpers ---- */
+  const loadChatHistory = async (productId) => {
+    try {
+      const snap = await getDoc(doc(db, 'productChats', productId));
+      if (snap.exists()) {
+        const data = snap.data();
+        if (Array.isArray(data.messages)) {
+          setChatMessages(data.messages);
+        }
+      }
+    } catch (err) {
+      console.error('Load chat history failed', err);
+    }
+  };
+
+  const saveChatHistory = async (productId, msgs) => {
+    try {
+      await setDoc(doc(db, 'productChats', productId), { messages: msgs });
+    } catch (err) {
+      console.error('Save chat history failed', err);
+    }
+  };
+
+  // ----- rules extraction modal -----
+  const [rulesModalOpen, setRulesModalOpen] = useState(false);
+  const [rulesProduct, setRulesProduct] = useState(null);
+  const [rulesFile, setRulesFile] = useState(null);
+  const [rulesLoading, setRulesLoading] = useState(false);
+  const [rulesData, setRulesData] = useState(null);   // array of extracted rules
 
   /* fetch once ----------------------------------------------------- */
   useEffect(() => {
@@ -505,6 +629,8 @@ export default function ProductHub() {
       setChatInput('');
       setChatLoading(false);
 
+      await loadChatHistory(product.id);
+
       // if we already pulled text for this product in this session keep it
       if (chatPdfText && selectedProduct?.id === product.id) return;
 
@@ -524,17 +650,212 @@ export default function ProductHub() {
         text += content.items.map(it => it.str).join(' ') + '\n';
       }
       // keep a large slice but stay safe
-      setChatPdfText( text.split(/\s+/).slice(0, 100000).join(' ') );
+      setChatPdfText(text.split(/\s+/).slice(0, 100000).join(' '));
     } catch (err) {
       console.error(err);
       alert('Failed to load document for chat.');
     }
   };
 
+  /* ===== Rules extraction helpers (top‑level) ===== */
+  const openRulesModal = (product) => {
+    setRulesProduct(product);
+    setRulesFile(null);
+    setRulesData(null);
+    setRulesModalOpen(true);
+  };
+
+  const handleRulesFile = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type === 'application/pdf') {
+      setRulesFile(file);
+    } else {
+      alert('Please choose a PDF.');
+    }
+  };
+
+  const extractRules = async () => {
+    if (!rulesFile) return;
+    setRulesLoading(true);
+    try {
+      /* --- read PDF file into text (client side) --- */
+      const arrayBuffer = await rulesFile.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let rawText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const { items } = await page.getTextContent();
+        rawText += items.map(it => it.str).join(' ') + '\n';
+      }
+      const snippet = rawText.split(/\s+/).slice(0, 100000).join(' ');
+
+      /* --- call OpenAI (same pattern as summary/chat) --- */
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: RULES_SYSTEM_PROMPT.trim() },
+            { role: 'user', content: snippet }
+          ]
+        })
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+      const { choices } = await res.json();
+
+      /* --- clean and parse JSON --- */
+      const cleaned = choices[0].message.content
+        .replace(/```json\n?/, '')
+        .replace(/\n?```/, '')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .trim();
+
+      const parsed = JSON.parse(cleaned);
+      setRulesData(Array.isArray(parsed.rules) ? parsed.rules : []);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to extract rules.');
+    } finally {
+      setRulesLoading(false);
+    }
+  };
+
+  {/* ---- Compare Modal ---- */ }
+  {
+    compareModalOpen && (
+      <Overlay onClick={() => setCompareModalOpen(false)}>
+        <Modal onClick={e => e.stopPropagation()} style={{ maxWidth: 650 }}>
+          <ModalHeader>
+            <ModalTitle>Compare Forms</ModalTitle>
+            <CloseBtn onClick={() => setCompareModalOpen(false)}>✕</CloseBtn>
+          </ModalHeader>
+
+          {!compareResult ? (
+            <>
+              <p>Upload a PDF to compare with <strong>{compareProduct?.name}</strong>.</p>
+              {compareError && <p style={{ color: 'red' }}>{compareError}</p>}
+              <input
+                type="file"
+                accept="application/pdf"
+                ref={compareInputRef}
+                disabled={compareWorking}
+                onChange={e => e.target.files[0] && compareForms(e.target.files[0])}
+              />
+              {compareWorking && <p style={{ marginTop: 12 }}>Comparing…</p>}
+            </>
+          ) : (
+            <div style={{ lineHeight: 1.5 }}>
+              <strong>This product has these unique coverages:</strong>
+              <ul>{compareResult.originalUnique.map((c, i) => <li key={i}>{c}</li>)}</ul>
+
+              <strong>The uploaded form has these unique coverages:</strong>
+              <ul>{compareResult.uploadedUnique.map((c, i) => <li key={i}>{c}</li>)}</ul>
+
+              <strong>Common coverages:</strong>
+              <ul>{compareResult.commonCoverages.map((c, i) => <li key={i}>{c}</li>)}</ul>
+            </div>
+          )}
+        </Modal>
+      </Overlay>
+    )
+  }
+
+  const openCompareModal = (product) => {
+    setCompareProduct(product);
+    setCompareResult(null);
+    setCompareError('');
+    setCompareModalOpen(true);
+  };
+
+  // ---- helper: extract coverage list with a small OpenAI call ----
+  const extractCoverageNames = async (plainText) => {
+    try {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',          // cheaper + lower context
+          messages: [
+            { role: 'system', content: COVERAGE_LIST_PROMPT.trim() },
+            { role: 'user',   content: plainText.slice(0, 15000) } // ~3‑4k tokens
+          ]
+        })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { choices } = await res.json();
+      const cleaned = choices[0].message.content
+        .replace(/```json\n?|\n?```/g, '')
+        .trim();
+      const parsed = JSON.parse(cleaned);
+      return Array.isArray(parsed.coverages) ? parsed.coverages : [];
+    } catch (err) {
+      console.error('Coverage extraction failed', err);
+      return [];
+    }
+  };
+
+  const compareForms = async (file) => {
+    if (!file || !compareProduct?.formDownloadUrl) return;
+    setCompareWorking(true);
+    try {
+      /* --- pull original form text --- */
+      const origPdf = await pdfjsLib.getDocument(compareProduct.formDownloadUrl).promise;
+      let origText = '';
+      for (let i = 1; i <= origPdf.numPages; i++) {
+        const pg = await origPdf.getPage(i);
+        const tc = await pg.getTextContent();
+        origText += tc.items.map(t => t.str).join(' ') + '\n';
+      }
+
+      /* --- pull uploaded form text --- */
+      const buf = await file.arrayBuffer();
+      const upPdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      let upText = '';
+      for (let i = 1; i <= upPdf.numPages; i++) {
+        const pg = await upPdf.getPage(i);
+        const tc = await pg.getTextContent();
+        upText += tc.items.map(t => t.str).join(' ') + '\n';
+      }
+
+      /* --- extract coverage names with two small calls --- */
+      const [origCov, upCov] = await Promise.all([
+        extractCoverageNames(origText),
+        extractCoverageNames(upText)
+      ]);
+
+      /* --- compare locally --- */
+      const origSet = new Set(origCov);
+      const upSet   = new Set(upCov);
+
+      const originalUnique = [...origSet].filter(c => !upSet.has(c));
+      const uploadedUnique = [...upSet].filter(c => !origSet.has(c));
+      const commonCoverages = [...origSet].filter(c => upSet.has(c));
+
+      setCompareResult({ originalUnique, uploadedUnique, commonCoverages });
+    } catch (err) {
+      console.error(err);
+      setCompareError(err.message || 'Compare failed');
+    } finally {
+      setCompareWorking(false);
+    }
+  };
+
   const sendChat = async () => {
     if (!chatInput.trim()) return;
     const userMsg = chatInput.trim();
-    setChatMessages(msgs => [...msgs, { role: 'user', content: userMsg }]);
+    setChatMessages(msgs => {
+      const updated = [...msgs, { role: 'user', content: userMsg }];
+      saveChatHistory(selectedProduct.id, updated);
+      return updated;
+    });
     setChatInput('');
     setChatLoading(true);
 
@@ -560,10 +881,14 @@ export default function ProductHub() {
       });
       if (!res.ok) throw new Error(await res.text());
       const { choices } = await res.json();
-      setChatMessages(msgs => [
-        ...msgs,
-        { role: 'assistant', content: choices[0].message.content.trim() }
-      ]);
+      setChatMessages(msgs => {
+        const updated = [
+          ...msgs,
+          { role: 'assistant', content: choices[0].message.content.trim() }
+        ];
+        saveChatHistory(selectedProduct.id, updated);
+        return updated;
+      });
     } catch (err) {
       console.error(err);
       alert('Chat failed');
@@ -591,22 +916,30 @@ export default function ProductHub() {
     <Page>
       <Container>
         <PageHeader>
-          <Title>Product Repository</Title>
-          <TopActions>
-            <Link to="/product-builder">
-              <Button>
-                <WrenchIcon width={20} height={20} style={{ marginRight: 4 }}/> Builder
-              </Button>
-            </Link>
-            <Link to="/product-explorer">
-              <ExplorerButton>
-                <MagnifyingGlassIcon width={20} height={20} style={{ marginRight: 4 }}/> Explorer
-              </ExplorerButton>
-            </Link>
-            <Button onClick={() => setModalOpen(true)}>
-              <PlusIcon width={20} height={20} style={{ marginRight: 4 }}/> Add Product
-            </Button>
-          </TopActions>
+          <Tabs>
+            <TabLink
+              to="/"
+              className={location.pathname === '/' ? 'active' : ''}
+            >
+              Products
+            </TabLink>
+
+            <TabLink
+              to="/product-builder"
+              className={location.pathname.startsWith('/product-builder') ? 'active' : ''}
+            >
+              Builder
+            </TabLink>
+
+            <TabLink
+              to="/product-explorer"
+              className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}
+            >
+              Explorer
+            </TabLink>
+
+            <TabButton onClick={() => setModalOpen(true)}>Add</TabButton>
+          </Tabs>
         </PageHeader>
 
         <GlobalSearch />
@@ -617,9 +950,9 @@ export default function ProductHub() {
             <THead>
               <Tr>
                 <Th>Name</Th>
-                <Th>Details</Th>
-                <Th>Navigation</Th>
-                <Th>AI Summary</Th>
+                <Th style={{ width: 400 }} align="center">AI</Th>
+                <Th style={{ width: 20 }}>Details</Th>
+                <Th style={{ width: 400 }}>Navigation</Th>
                 <Th align="center">Actions</Th>
               </Tr>
             </THead>
@@ -627,6 +960,47 @@ export default function ProductHub() {
               {filtered.map(p => (
                 <Tr key={p.id}>
                   <Td>{p.name}</Td>
+                  <TdAI>
+                    <ActionGroup>
+                      <SummaryButton
+                        onClick={() => handleSummary(p.id, p.formDownloadUrl)}
+                        disabled={loadingSummary[p.id]}
+                      >
+                        {loadingSummary[p.id] ? (
+                          <AILoader><div /><div /><div /></AILoader>
+                        ) : (
+                          <>
+                            <DocumentTextIcon width={20} height={20} style={{ marginRight: 4 }} />
+                            Summary
+                          </>
+                        )}
+                      </SummaryButton>
+
+                      <Button
+                        variant="ghost"
+                        onClick={() => openChat(p)}
+                        title="Chat about this form">
+                        <ChatBubbleLeftEllipsisIcon width={20} height={20} />
+                        <span style={{ marginLeft: 4 }}>Chat</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => openRulesModal(p)}
+                        title="Extract rules from PDF">
+                        <DocumentMagnifyingGlassIcon width={20} height={20} />
+                        <span style={{ marginLeft: 4 }}>Rules</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => openCompareModal(p)}
+                        title="Compare uploaded form"
+                      >
+                        <ArrowsRightLeftIcon width={20} height={20} />
+                        <span style={{ marginLeft: 4 }}>Compare</span>
+                      </Button>
+                    </ActionGroup>
+                    {summaryError && <p style={{ color: 'red' }}>{summaryError}</p>}
+                  </TdAI>
                   <Td>
                     <Button variant="ghost" onClick={() => handleOpenDetails(p)}>
                       <InformationCircleIcon width={20} height={20} style={{ marginRight: 4 }} />
@@ -639,41 +1013,15 @@ export default function ProductHub() {
                     <NavLinkStyled to="/forms">Forms</NavLinkStyled> |{' '}
                     <NavLinkStyled to={`/states/${p.id}`}>States</NavLinkStyled>
                   </Td>
-                  <Td>
-                    <ActionGroup>
-                      <SummaryButton
-                        variant="primary"
-                        onClick={() => handleSummary(p.id, p.formDownloadUrl)}
-                        disabled={loadingSummary[p.id]}
-                      >
-                        {loadingSummary[p.id] ? (
-                          <AILoader><div/><div/><div/></AILoader>
-                        ) : (
-                          <>
-                            <DocumentTextIcon width={20} height={20} style={{ marginRight: 4 }}/>
-                            Summarize
-                          </>
-                        )}
-                      </SummaryButton>
-
-                      <Button
-                        variant="ghost"
-                        onClick={() => openChat(p)}
-                        title="Chat about this form">
-                        <ChatBubbleLeftEllipsisIcon width={20} height={20}/>
-                      </Button>
-                    </ActionGroup>
-                    {summaryError && <p style={{ color: 'red' }}>{summaryError}</p>}
-                  </Td>
                   <Td align="center">
                     <Actions>
                       <Link to={`/coverage/${p.id}`}>
                         <Button variant="ghost">
-                          <PencilIcon width={20} height={20}/>
+                          <PencilIcon width={20} height={20} />
                         </Button>
                       </Link>
                       <Button variant="danger" onClick={() => handleDelete(p.id)}>
-                        <TrashIcon width={20} height={20}/>
+                        <TrashIcon width={20} height={20} />
                       </Button>
                     </Actions>
                   </Td>
@@ -706,7 +1054,7 @@ export default function ProductHub() {
               onChange={e => setEffectiveDate(formatMMYY(e.target.value))}
             />
             <FileUploader>
-              <HiddenFileInput ref={fileInputRef} onChange={e => setFile(e.target.files[0])}/>
+              <HiddenFileInput ref={fileInputRef} onChange={e => setFile(e.target.files[0])} />
               <Button onClick={() => fileInputRef.current.click()}>
                 Upload File
               </Button>
@@ -719,6 +1067,56 @@ export default function ProductHub() {
                 Cancel
               </Button>
             </div>
+          </Modal>
+        </Overlay>
+      )}
+
+      {/* ---- Rules Extraction Modal ---- */}
+      {rulesModalOpen && (
+        <Overlay onClick={() => setRulesModalOpen(false)}>
+          <Modal onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
+            <ModalHeader>
+              <ModalTitle>Extract Rules</ModalTitle>
+              <CloseBtn onClick={() => setRulesModalOpen(false)}>✕</CloseBtn>
+            </ModalHeader>
+
+            <p>Please upload the PDF rules manual for <strong>{rulesProduct?.name}</strong>.</p>
+            <input
+              type="file"
+              accept=".pdf"
+              onChange={handleRulesFile}
+              style={{ marginBottom: 12 }}
+            />
+            {rulesFile && <p>Selected: {rulesFile.name}</p>}
+
+            <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+              <Button
+                onClick={extractRules}
+                disabled={!rulesFile || rulesLoading}
+              >
+                {rulesLoading ? 'Extracting…' : 'Send'}
+              </Button>
+              <Button variant="ghost" onClick={() => setRulesModalOpen(false)}>Cancel</Button>
+            </div>
+
+            {rulesData && rulesData.length > 0 && (
+              <div style={{ marginTop: 24, maxHeight: '45vh', overflowY: 'auto' }}>
+                <strong>Extracted Rules</strong>
+                <ul style={{ paddingLeft: 20, lineHeight: 1.5 }}>
+                  {rulesData.map((r, i) => (
+                    <li key={i} style={{ marginBottom: 8 }}>
+                      <strong>{r.ruleType}:</strong> {r.description}
+                      {r.conditions?.length > 0 && (
+                        <ul style={{ paddingLeft: 18, margin: '4px 0' }}>
+                          {r.conditions.map((c, j) => <li key={j}>{c}</li>)}
+                        </ul>
+                      )}
+                      {r.appliesTo && <em>Applies to: {r.appliesTo}</em>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </Modal>
         </Overlay>
       )}
@@ -808,7 +1206,7 @@ export default function ProductHub() {
               <CloseBtn onClick={() => setChatModalOpen(false)}>✕</CloseBtn>
             </ModalHeader>
 
-            <div style={{height:'50vh', overflowY:'auto', marginBottom:16, paddingRight:4}}>
+            <div style={{ height: '50vh', overflowY: 'auto', marginBottom: 16, paddingRight: 4 }}>
               {chatMessages.map((m, idx) => {
                 // rudimentary formatting for assistant replies
                 const isUser = m.role === 'user';
@@ -841,13 +1239,13 @@ export default function ProductHub() {
               {chatLoading && <p>AI is typing…</p>}
             </div>
 
-            <div style={{display:'flex', gap:6}}>
+            <div style={{ display: 'flex', gap: 6 }}>
               <TextInput
                 placeholder="How can I help you?"
                 value={chatInput}
-                onChange={e=>setChatInput(e.target.value)}
-                onKeyDown={e=>{ if(e.key==='Enter') sendChat();}}
-                style={{flex:1}}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') sendChat(); }}
+                style={{ flex: 1 }}
               />
               <Button onClick={sendChat} disabled={chatLoading || !chatInput.trim()}>
                 ↑
@@ -856,6 +1254,43 @@ export default function ProductHub() {
           </Modal>
         </Overlay>
       )}
+
+      {/* ---- Compare Modal ---- */}
+{compareModalOpen && (
+  <Overlay onClick={() => setCompareModalOpen(false)}>
+    <Modal onClick={e => e.stopPropagation()} style={{ maxWidth: 650 }}>
+      <ModalHeader>
+        <ModalTitle>Compare Forms</ModalTitle>
+        <CloseBtn onClick={() => setCompareModalOpen(false)}>✕</CloseBtn>
+      </ModalHeader>
+
+      {!compareResult ? (
+        <>
+          <p>Upload a PDF to compare with <strong>{compareProduct?.name}</strong>.</p>
+          {compareError && <p style={{ color: 'red' }}>{compareError}</p>}
+          <input
+            type="file"
+            accept="application/pdf"
+            disabled={compareWorking}
+            onChange={e => e.target.files[0] && compareForms(e.target.files[0])}
+          />
+          {compareWorking && <p style={{ marginTop: 12 }}>Comparing…</p>}
+        </>
+      ) : (
+        <div style={{ lineHeight: 1.5 }}>
+          <strong>This product has these unique coverages:</strong>
+          <ul>{compareResult.originalUnique.map((c, i) => <li key={i}>{c}</li>)}</ul>
+
+          <strong>The uploaded form has these unique coverages:</strong>
+          <ul>{compareResult.uploadedUnique.map((c, i) => <li key={i}>{c}</li>)}</ul>
+
+          <strong>Common coverages:</strong>
+          <ul>{compareResult.commonCoverages.map((c, i) => <li key={i}>{c}</li>)}</ul>
+        </div>
+      )}
+    </Modal>
+  </Overlay>
+)}
 
       {/* ---- Details Modal ---- */}
       {detailsModalOpen && (
