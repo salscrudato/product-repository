@@ -41,6 +41,8 @@ function TableScreen() {
   const [editingDimensionId, setEditingDimensionId] = useState(null);
   const [tableData, setTableData] = useState({});
   const [modalOpen, setModalOpen] = useState(false);
+  // list of IT codes from data dictionary
+  const [itCodes, setItCodes] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,6 +60,12 @@ function TableScreen() {
           ...doc.data(),
           states: doc.data().states || [] // Ensure states is an array
         }));
+
+        // pull IT codes from dataDictionary collection
+        const codesSnap = await getDocs(collection(db, 'dataDictionary'));
+        const codeList = codesSnap.docs.map(d => (d.data().code || '').trim()).filter(Boolean);
+        setItCodes(codeList);
+
         setDimensions(dimensionList);
 
         // Initialize table data
@@ -263,7 +271,7 @@ function TableScreen() {
                 <Th>Type</Th>
                 <Th>Dimension Name</Th>
                 <Th>Dimension Values</Th>
-                <Th>Technical Code</Th>
+                <Th>IT&nbsp;Code</Th>
                 <Th>States</Th>
                 <Th>Actions</Th>
               </Tr>
@@ -274,7 +282,7 @@ function TableScreen() {
                   <Td>{dimension.type}</Td>
                   <Td>{dimension.name}</Td>
                   <Td>{dimension.values}</Td>
-                  <Td>{dimension.technicalCode}</Td>
+                  <Td>{dimension.technicalCode}</Td>   {/* keeps data but header now says IT Code */}
                   <Td>{dimension.states.join(', ')}</Td>
                   <Td>
                     <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
@@ -336,12 +344,17 @@ function TableScreen() {
                   placeholder="Dimension Values (e.g., 1-5, 6-10, 11-15)"
                 />
                 <TextInput
-                  type="text"
+                  as="select"
                   name="technicalCode"
                   value={newDimension.technicalCode}
                   onChange={handleInputChange}
-                  placeholder="IT Code (e.g., Roof Age or Risk_RoofAge)"
-                />
+                  style={{ minWidth: 180 }}
+                >
+                  <option value="">Select IT Code</option>
+                  {itCodes.map(code => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </TextInput>
                 {/* Select All / Clear All Buttons for States */}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                   <Button variant="ghost" onClick={() => setNewDimension(prev => ({ ...prev, states: selectAllStates() }))}>

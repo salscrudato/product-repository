@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, getDoc, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
@@ -139,6 +139,12 @@ export default function CoverageScreen() {
   const [productName, setProductName] = useState('');
   const [parentCoverageName, setParentCoverageName] = useState('');
 
+  // Data‑dictionary IT codes used for the “Upstream ID” dropdown
+  const [itCodes, setItCodes] = useState([]);
+  // Single IT Code selectors for limits/deductibles
+  const [limitItCode, setLimitItCode] = useState('');
+  const [deductibleItCode, setDeductibleItCode] = useState('');
+
   const loadCoverages = async () => {
     setLoading(true);
     try {
@@ -205,6 +211,21 @@ export default function CoverageScreen() {
   useEffect(() => {
     loadCoverages();
   }, [productId, parentCoverageId]);
+
+  // subscribe once – cleans up on unmount
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'dataDictionary'), snap => {
+      const codes = snap.docs
+        .map(d => {
+          const data = d.data();
+          // prefer “code”, fall back to “itCode” for backward‑compat
+          return data.code || data.itCode || null;
+        })
+        .filter(Boolean);
+      setItCodes([...new Set(codes)].sort());
+    }, err => console.error('dataDictionary listener', err));
+    return unsub;
+  }, []);
 
   const resetForm = () => {
     setForm({
@@ -357,12 +378,14 @@ export default function CoverageScreen() {
   const openLimitModal = coverage => {
     setCurrentCoverage(coverage);
     setLimitData(coverage.limits || []);
+    setLimitItCode(coverage.limitsItCode || '');
     setLimitModalOpen(true);
   };
 
   const openDeductibleModal = coverage => {
     setCurrentCoverage(coverage);
     setDeductibleData(coverage.deductibles || []);
+    setDeductibleItCode(coverage.deductiblesItCode || '');
     setDeductibleModalOpen(true);
   };
 
@@ -397,11 +420,12 @@ export default function CoverageScreen() {
       if (index + rowIndex < newLimits.length) {
         newLimits[index + rowIndex].value = formattedValue;
       } else if (row[0]) {
-        newLimits.push({ value: formattedValue, ruleId: null });
+        newLimits.push({ value: formattedValue, itCode: '', ruleId: null });
       }
     });
     setLimitData(newLimits);
   };
+
 
   const handleDeductiblePaste = (e, index) => {
     const pastedData = e.clipboardData.getData('Text').trim();
@@ -412,7 +436,7 @@ export default function CoverageScreen() {
       if (index + rowIndex < newDeductibles.length) {
         newDeductibles[index + rowIndex].value = formattedValue;
       } else if (row[0]) {
-        newDeductibles.push({ value: formattedValue, ruleId: null });
+        newDeductibles.push({ value: formattedValue, itCode: '', ruleId: null });
       }
     });
     setDeductibleData(newDeductibles);
@@ -422,6 +446,7 @@ export default function CoverageScreen() {
     try {
       await updateDoc(doc(db, `products/${productId}/coverages`, currentCoverage.id), {
         limits: limitData,
+        limitsItCode: limitItCode,
         updatedAt: serverTimestamp(),
       });
       setLimitModalOpen(false);
@@ -436,6 +461,7 @@ export default function CoverageScreen() {
     try {
       await updateDoc(doc(db, `products/${productId}/coverages`, currentCoverage.id), {
         deductibles: deductibleData,
+        deductiblesItCode: deductibleItCode,
         updatedAt: serverTimestamp(),
       });
       setDeductibleModalOpen(false);
@@ -588,11 +614,16 @@ export default function CoverageScreen() {
                   value={form.name}
                   onChange={e => setForm({ ...form, name: e.target.value })}
                 />
-                <TextInput
-                  placeholder="Coverage Code"
+                <select
                   value={form.coverageCode}
                   onChange={e => setForm({ ...form, coverageCode: e.target.value })}
-                />
+                  style={{ padding: 10, borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 14 }}
+                >
+                  <option value="">Select IT Code</option>
+                  {itCodes.map(code => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </select>
                 <select
                   value={form.category}
                   onChange={e => setForm({ ...form, category: e.target.value })}
@@ -663,6 +694,20 @@ export default function CoverageScreen() {
                   <XMarkIcon width={20} height={20} />
                 </CloseBtn>
               </ModalHeader>
+              {/* Single IT Code selector */}
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 13, color: '#444' }}>IT Code&nbsp;</label>
+                <select
+                  value={limitItCode}
+                  onChange={e => setLimitItCode(e.target.value)}
+                  style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 13, minWidth: 140 }}
+                >
+                  <option value="">Select</option>
+                  {itCodes.map(code => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </select>
+              </div>
               <div style={{ marginBottom: 16, overflowX: 'auto' }}>
                 <Table>
                   <THead>
@@ -717,6 +762,20 @@ export default function CoverageScreen() {
                   <XMarkIcon width={20} height={20} />
                 </CloseBtn>
               </ModalHeader>
+              {/* Single IT Code selector */}
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 13, color: '#444' }}>IT Code&nbsp;</label>
+                <select
+                  value={deductibleItCode}
+                  onChange={e => setDeductibleItCode(e.target.value)}
+                  style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 13, minWidth: 140 }}
+                >
+                  <option value="">Select</option>
+                  {itCodes.map(code => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </select>
+              </div>
               <div style={{ marginBottom: 16, overflowX: 'auto' }}>
                 <Table>
                   <THead>

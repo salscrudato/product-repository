@@ -7,7 +7,8 @@ import {
   doc,
   updateDoc,
   getDoc,
-  setDoc
+  setDoc,
+  onSnapshot
 } from 'firebase/firestore';
 import { db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -22,8 +23,7 @@ import {
   XMarkIcon,
   WrenchIcon,
   ChatBubbleLeftEllipsisIcon,
-  DocumentMagnifyingGlassIcon,
-  ArrowsRightLeftIcon
+  DocumentMagnifyingGlassIcon
 } from '@heroicons/react/24/solid';
 import * as pdfjsLib from 'pdfjs-dist';
 import {
@@ -175,6 +175,14 @@ const THead = styled.thead`
 
 const Tr = styled.tr`
   border-bottom: 1px solid #e5e7eb;
+
+  /* subtle zebra‑striping & hover highlight */
+  &:nth-child(even) {
+    background: #f9fafb;
+  }
+  &:hover {
+    background: #eef2ff;
+  }
 `;
 
 const Th = styled.th`
@@ -321,10 +329,28 @@ const ActionGroup = styled.div`
 `;
 
 const NavLinkStyled = styled(Link)`
-  transition: transform 0.1s ease, color 0.2s ease;
+  font-weight: 600;
+  position: relative;
+  transition: transform 0.15s ease, color 0.25s ease;
   &:hover {
-    transform: scale(1.05);
+    transform: scale(1.1);
     color: ${({ theme }) => theme.colours.primaryDark};
+  }
+  &:after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, ${({ theme }) => theme.colours.primary} 0%, ${({ theme }) => theme.colours.primaryDark} 100%);
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  &:hover:after {
+    opacity: 1;
+    transform: translateY(0);
   }
 `;
 
@@ -431,6 +457,61 @@ export default function ProductHub() {
   const [compareError, setCompareError] = useState('');
   const [compareWorking, setCompareWorking] = useState(false);
   const compareInputRef = useRef();
+
+  /* ---------- Data‑Dictionary (Firestore‑backed) ---------- */
+  const [dictModalOpen, setDictModalOpen] = useState(false);
+  const [dictRows, setDictRows] = useState([]);
+  const [dictSaving, setDictSaving] = useState(false);
+
+  // Live‑subscribe to the collection so all users see real‑time updates
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'dataDictionary'), snap => {
+      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setDictRows(rows);
+    });
+    return unsub;
+  }, []);
+
+  // Add a new, empty row (persisted immediately)
+  const addDictRow = async () => {
+    const docRef = await addDoc(collection(db, 'dataDictionary'), {
+      screen: '',
+      displayName: '',
+      code: ''
+    });
+    // local state will refresh automatically via onSnapshot
+  };
+
+  // Update a field in an existing row (debounced write would be nicer – keeping simple)
+  const updateDictRow = async (idx, field, value) => {
+    const row = dictRows[idx];
+    if (!row?.id) return;
+    const updated = { ...row, [field]: value };
+    setDictRows(r => {
+      const clone = [...r];
+      clone[idx] = updated;
+      return clone;
+    });
+    try {
+      await updateDoc(doc(db, 'dataDictionary', row.id), { [field]: value });
+    } catch (err) {
+      console.error('Dictionary update failed', err);
+      alert('Save failed – please retry');
+    }
+  };
+
+  // Delete a row
+  const deleteDictRow = async (idx) => {
+    const row = dictRows[idx];
+    if (!row?.id) return;
+    if (!window.confirm('Delete this entry?')) return;
+    try {
+      await deleteDoc(doc(db, 'dataDictionary', row.id));
+      // onSnapshot will auto‑refresh list
+    } catch (err) {
+      console.error('Delete failed', err);
+    }
+  };
 
   /* ---- CHAT HISTORY persistence helpers ---- */
   const loadChatHistory = async (productId) => {
@@ -938,6 +1019,7 @@ export default function ProductHub() {
               Explorer
             </TabLink>
 
+            <TabButton onClick={() => setDictModalOpen(true)}>Dictionary</TabButton>
             <TabButton onClick={() => setModalOpen(true)}>Add</TabButton>
           </Tabs>
         </PageHeader>
@@ -990,28 +1072,20 @@ export default function ProductHub() {
                         <DocumentMagnifyingGlassIcon width={20} height={20} />
                         <span style={{ marginLeft: 4 }}>Rules</span>
                       </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => openCompareModal(p)}
-                        title="Compare uploaded form"
-                      >
-                        <ArrowsRightLeftIcon width={20} height={20} />
-                        <span style={{ marginLeft: 4 }}>Compare</span>
-                      </Button>
                     </ActionGroup>
                     {summaryError && <p style={{ color: 'red' }}>{summaryError}</p>}
                   </TdAI>
                   <Td>
-                    <Button variant="ghost" onClick={() => handleOpenDetails(p)}>
-                      <InformationCircleIcon width={20} height={20} style={{ marginRight: 4 }} />
-                      Details
+                    <Button variant="ghost" title="Details" onClick={() => handleOpenDetails(p)}>
+                      <InformationCircleIcon width={22} height={22} />
                     </Button>
                   </Td>
                   <Td>
                     <NavLinkStyled to={`/coverage/${p.id}`}>Coverages</NavLinkStyled> |{' '}
                     <NavLinkStyled to={`/pricing/${p.id}`}>Pricing</NavLinkStyled> |{' '}
                     <NavLinkStyled to="/forms">Forms</NavLinkStyled> |{' '}
-                    <NavLinkStyled to={`/states/${p.id}`}>States</NavLinkStyled>
+                    <NavLinkStyled to={`/states/${p.id}`}>States</NavLinkStyled> |{' '}
+                    <NavLinkStyled to={`/rules/${p.id}`}>Rules</NavLinkStyled>
                   </Td>
                   <Td align="center">
                     <Actions>
@@ -1291,6 +1365,63 @@ export default function ProductHub() {
     </Modal>
   </Overlay>
 )}
+
+      {/* ---- Data‑Dictionary Modal ---- */}
+      {dictModalOpen && (
+        <Overlay onClick={() => setDictModalOpen(false)}>
+          <Modal onClick={(e) => e.stopPropagation()} style={{ maxWidth: 720 }}>
+            <ModalHeader>
+              <ModalTitle>Data Dictionary</ModalTitle>
+              <CloseBtn onClick={() => setDictModalOpen(false)}>✕</CloseBtn>
+            </ModalHeader>
+
+            <Table style={{ marginBottom: 24 }}>
+              <THead>
+                <Tr>
+                  <Th>Screen</Th>
+                  <Th>Display Name</Th>
+                  <Th>IT Code</Th>
+                  <Th align="center" style={{ width: 60 }} />
+                </Tr>
+              </THead>
+              <tbody>
+                {dictRows.map((row, i) => (
+                  <Tr key={row.id}>
+                    <Td>
+                      <input
+                        value={row.screen}
+                        onChange={(e) => updateDictRow(i, 'screen', e.target.value)}
+                        style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: 4, padding: 4 }}
+                      />
+                    </Td>
+                    <Td>
+                      <input
+                        value={row.displayName}
+                        onChange={(e) => updateDictRow(i, 'displayName', e.target.value)}
+                        style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: 4, padding: 4 }}
+                      />
+                    </Td>
+                    <Td>
+                      <input
+                        value={row.code}
+                        onChange={(e) => updateDictRow(i, 'code', e.target.value)}
+                        style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: 4, padding: 4 }}
+                      />
+                    </Td>
+                    <Td align="center">
+                      <Button variant="danger" onClick={() => deleteDictRow(i)} style={{ padding: '4px 8px' }}>
+                        Delete
+                      </Button>
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+
+            <Button onClick={addDictRow}>Add Row</Button>
+          </Modal>
+        </Overlay>
+      )}
 
       {/* ---- Details Modal ---- */}
       {detailsModalOpen && (

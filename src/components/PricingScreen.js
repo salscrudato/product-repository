@@ -133,7 +133,7 @@ const Spinner = styled.div`
 `;
 
 // StepModal Component
-function StepModal({ onClose, onSubmit, editingStep, steps, coverages }) {
+function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes }) {
   const defaultStep = {
     stepType: 'factor',
     coverages: [],
@@ -316,8 +316,18 @@ function StepModal({ onClose, onSubmit, editingStep, steps, coverages }) {
               </StateGrid>
             </FormGroup>
             <FormGroup>
-              <label>Upstream ID</label>
-              <TextInput name="upstreamId" value={stepData.upstreamId} onChange={handleUpstreamChange} placeholder="Enter upstream ID" />
+              <label>Upstream ID</label>
+              <select
+                name="upstreamId"
+                value={stepData.upstreamId}
+                onChange={handleChange}
+                style={{ width:'100%', padding:12, borderRadius:8, border:'1px solid #D1D5DB' }}
+              >
+                <option value="">Select IT Code</option>
+                {dataCodes.map(code => (
+                  <option key={code} value={code}>{code}</option>
+                ))}
+              </select>
             </FormGroup>
           </>
         ) : (
@@ -354,6 +364,20 @@ function PricingScreen() {
   const [price, setPrice] = useState('N/A');
   const [selectedCoverage, setSelectedCoverage] = useState(null);
   const [selectedStates, setSelectedStates] = useState([]);
+  const [dataCodes, setDataCodes] = useState([]);
+
+  useEffect(() => {
+    const fetchDictionary = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, 'dataDictionary'));
+        const codes = snapshot.docs.map(d => d.data().code).filter(Boolean).sort();
+        setDataCodes(codes);
+      } catch (err) {
+        console.error('Unable to load data‑dictionary codes', err);
+      }
+    };
+    fetchDictionary();
+  }, []);
 
   const [covModalOpen, setCovModalOpen] = useState(false);
   const [covModalList, setCovModalList] = useState([]);
@@ -732,6 +756,7 @@ function PricingScreen() {
             editingStep={editingStep}
             steps={steps}
             coverages={coverages}
+            dataCodes={dataCodes}
           />
         )}
         {covModalOpen && (
