@@ -1,12 +1,13 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+// src/App.js
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from 'styled-components';
 import { GlobalStyle } from './styles/GlobalStyle';
 import { theme } from './styles/theme';
 
-/* -------- public screen -------- */
+/* public */
 import Login from './components/Login';
 
-/* -------- protected screens -------- */
+/* protected */
 import ProductHub from './components/ProductHub';
 import CoverageScreen from './components/CoverageScreen';
 import PricingScreen from './components/PricingScreen';
@@ -18,7 +19,7 @@ import CoverageStatesScreen from './components/CoverageStatesScreen';
 import ProductExplorer from './components/ProductExplorer';
 import ProductBuilder from './components/ProductBuilder';
 
-/* -------- auth wrapper -------- */
+/* wrapper */
 import RequireAuth from './components/RequireAuth';
 
 function App() {
@@ -27,21 +28,20 @@ function App() {
       <GlobalStyle />
       <Router>
         <Routes>
-          {/* ---------- public route ---------- */}
+          {/* public */}
           <Route path="/login" element={<Login />} />
 
-          {/* ---------- protected routes ---------- */}
-          <Route path="/" element={<RequireAuth><ProductHub /></RequireAuth>} />
+          {/* protected */}
           <Route
-            path="/coverage/:productId"
+            path="/"
             element={
               <RequireAuth>
-                <CoverageScreen />
+                <ProductHub />
               </RequireAuth>
             }
           />
           <Route
-            path="/coverage/:productId/:parentCoverageId"
+            path="/coverage/:productId/*"
             element={
               <RequireAuth>
                 <CoverageScreen />
@@ -57,15 +57,7 @@ function App() {
             }
           />
           <Route
-            path="/forms"
-            element={
-              <RequireAuth>
-                <FormsScreen />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/forms/:productId"
+            path="/forms/*"
             element={
               <RequireAuth>
                 <FormsScreen />
@@ -120,6 +112,9 @@ function App() {
               </RequireAuth>
             }
           />
+
+          {/* catch-all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </ThemeProvider>

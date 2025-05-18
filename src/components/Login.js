@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
+import { auth } from '../firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 
 /* ---------- styled ---------- */
 const glow = keyframes`
@@ -37,36 +39,114 @@ const Button = styled.button`
   cursor:pointer;transition:.1s transform,.2s opacity;
   &:hover{opacity:.9;transform:translateY(-2px);}
 `;
+const Secondary = styled(Button)`
+  background:transparent;
+  border:1px solid #7c3aed;
+  color:#7c3aed;
+  margin-top:8px;
+`;
 const Error = styled.p`color:#dc2626;font-size:.8rem;margin-top:10px;min-height:1.2em;`;
 
 /* ---------- component ---------- */
 export default function Login() {
-  const nav   = useNavigate();
-  const [u,setU]=useState('Product');
-  const [p,setP]=useState('Repository');
-  const [err,setErr]=useState('');
+  const nav = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isRegister, setIsRegister] = useState(false);
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [secretKey, setSecretKey] = useState('');
+  const [err, setErr] = useState('');
 
-  const handle = e=>{
+  const handleLogin = async e => {
     e.preventDefault();
-    if(u==='Product' && p==='Repository'){
-      sessionStorage.setItem('ph-authed', '1');   // valid only for this tab/session
-      nav('/');                                // send to hub
-    }else{
-      setErr('Invalid credentials');
+    setErr('');
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+      sessionStorage.setItem('ph-authed','1');
+      nav('/');
+    } catch (error) {
+      setErr('Login failed: ' + error.message);
+    }
+  };
+
+  const handleRegister = async e => {
+    e.preventDefault();
+    setErr('');
+    if (secretKey !== 'acnproduct') {
+      setErr('Invalid secret key');
+      return;
+    }
+    try {
+      await createUserWithEmailAndPassword(auth, regEmail.trim(), regPassword);
+      sessionStorage.setItem('ph-authed','1');
+      nav('/');
+    } catch (error) {
+      setErr('Registration failed: ' + error.message);
     }
   };
 
   return (
     <Page>
-      <Card onSubmit={handle}>
-        <Logo src="/logo.png" alt="Product Hub" />
-        <Title>Sign in to Product&nbsp;Repo</Title>
-        <Label>Username</Label>
-        <Input value={u} onChange={e=>setU(e.target.value)} autoFocus/>
-        <Label>Password</Label>
-        <Input type="password" value={p} onChange={e=>setP(e.target.value)}/>
-        <Button type="submit">Log&nbsp;In</Button>
+      <Card onSubmit={isRegister ? handleRegister : handleLogin}>
+        <Logo src="/logo.svg" alt="Cover Cloud" />
+        <Title>
+          {isRegister ? 'Register for Cover Cloud' : 'Sign in to Cover Cloud'}
+        </Title>
+
+        {isRegister ? (
+          <>
+            <Label>Email</Label>
+            <Input
+              type="email"
+              value={regEmail}
+              onChange={e => setRegEmail(e.target.value)}
+              autoFocus
+            />
+            <Label>Password</Label>
+            <Input
+              type="password"
+              value={regPassword}
+              onChange={e => setRegPassword(e.target.value)}
+            />
+            <Label>Secret Key</Label>
+            <Input
+              type="password"
+              value={secretKey}
+              onChange={e => setSecretKey(e.target.value)}
+            />
+            <Button type="submit">Register</Button>
+          </>
+        ) : (
+          <>
+            <Label>Email</Label>
+            <Input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              autoFocus
+            />
+            <Label>Password</Label>
+            <Input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+            <Button type="submit">Log In</Button>
+          </>
+        )}
+
         <Error>{err}</Error>
+
+        <Secondary
+          type="button"
+          onClick={() => {
+            setErr('');
+            setIsRegister(prev => !prev);
+          }}
+        >
+          {isRegister ? 'Back to Login' : 'Create New Account'}
+        </Secondary>
       </Card>
     </Page>
   );
