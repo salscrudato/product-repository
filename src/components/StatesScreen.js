@@ -10,6 +10,10 @@ import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
 import { Table, THead, Tr, Th, Td } from '../components/ui/Table';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { auth } from '../firebase';
+import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
+import { ClockIcon } from '@heroicons/react/24/solid';
 
 // Spinner for loading state
 const spin = keyframes`
@@ -25,6 +29,24 @@ const Spinner = styled.div`
   animation: ${spin} 1s linear infinite;
   margin: 100px auto;
 `;
+const HistoryButton = styled.button`
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: #374151;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  cursor: pointer;
+  z-index: 1100;
+  &:hover { background: #1f2937; }
+`;
 
 const allStates = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
 
@@ -36,6 +58,7 @@ function StatesScreen() {
   const [selectedStates, setSelectedStates] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [newState, setNewState] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const stateNameToCode = {
     "Alabama": "AL",
@@ -143,9 +166,31 @@ function StatesScreen() {
 
   const handleSave = async () => {
     try {
-      await updateDoc(doc(db, 'products', productId), {
-        availableStates: selectedStates
-      });
+      const productRef = doc(db, 'products', productId);
+      const beforeSnap = await getDoc(productRef);
+      const beforeStates = beforeSnap.exists() ? (beforeSnap.data().availableStates || []) : [];
+
+      await updateDoc(productRef, { availableStates: selectedStates });
+
+      // Build diff
+      const added = selectedStates.filter(s => !beforeStates.includes(s));
+      const removed = beforeStates.filter(s => !selectedStates.includes(s));
+      const diff = {};
+      if (added.length) diff.added = added;
+      if (removed.length) diff.removed = removed;
+
+      await addDoc(
+        collection(db, 'products', productId, 'versionHistory'),
+        {
+          userEmail: auth.currentUser?.email || 'unknown',
+          ts: serverTimestamp(),
+          entityType: 'States',
+          entityId: productId,
+          entityName: 'State Availability',
+          action: 'update',
+          changes: diff
+        }
+      );
       alert("State availability saved successfully!");
     } catch (error) {
       console.error("Error saving states:", error);
@@ -264,6 +309,18 @@ function StatesScreen() {
             )}
           </div>
         </div>
+        <HistoryButton
+          style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
+          onClick={() => setHistoryOpen(true)}
+          aria-label="Version history"
+        >
+          <ClockIcon width={24} height={24}/>
+        </HistoryButton>
+        <VersionControlSidebar
+          open={historyOpen}
+          onClose={() => setHistoryOpen(false)}
+          productId={productId}
+        />
       </Container>
     </Page>
   );

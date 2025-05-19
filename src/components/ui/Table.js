@@ -35,7 +35,8 @@ export const Td = styled.td`
 export const Overlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.45);          /* dim only backdrop */
+  backdrop-filter: blur(2px);            /* subtle gaussian blur */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -43,14 +44,16 @@ export const Overlay = styled.div`
 `;
 
 export const Modal = styled.div`
-  background: ${({ theme }) => theme.colours.bg};
+  position: relative;
+  z-index: 1010;                         /* higher than overlay */
+  background: #ffffff;                   /* crisp white */
   border-radius: ${({ theme }) => theme.radius};
   padding: 24px;
   width: 90%;
   max-width: 600px;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.14);
 `;
 
 export const ModalHeader = styled.div`

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { db, storage } from '../firebase';
-import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, query, where, getDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, query, where, getDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { TrashIcon, DocumentTextIcon, PlusIcon, XMarkIcon, LinkIcon } from '@heroicons/react/24/solid';
+import { TrashIcon, DocumentTextIcon, PlusIcon, XMarkIcon, LinkIcon, ClockIcon } from '@heroicons/react/24/solid';
+import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
+import { auth } from '../firebase';
 import { Page, Container } from '../components/ui/Layout';
 import { PageHeader, Title } from '../components/ui/Layout';
 import { Button } from '../components/ui/Button';
@@ -37,6 +39,25 @@ const Spinner = styled.div`
   margin: 100px auto;
 `;
 
+const HistoryButton = styled.button`
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: #374151;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  cursor: pointer;
+  z-index: 1100;
+  &:hover { background: #1f2937; }
+`;
+
 
 export default function FormsScreen() {
   const { productId } = useParams();
@@ -66,6 +87,9 @@ export default function FormsScreen() {
   const [linkCoverageModalOpen, setLinkCoverageModalOpen] = useState(false);
   const [selectedForm, setSelectedForm] = useState(null);
   const [linkCoverageIds, setLinkCoverageIds] = useState([]);
+
+  // Version history sidebar
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     async function fetchAll() {
@@ -146,6 +170,19 @@ export default function FormsScreen() {
       const docRef = await addDoc(collection(db, 'forms'), payload);
       const formId = docRef.id;
 
+      // Version history log – create
+      await addDoc(
+        collection(db, 'products', selectedProduct, 'versionHistory'),
+        {
+          userEmail: auth.currentUser?.email || 'unknown',
+          ts: serverTimestamp(),
+          entityType: 'Form',
+          entityId: formId,
+          entityName: formName || formNumber,
+          action: 'create'
+        }
+      );
+
       for (const coverageId of selectedCoverages) {
         await addDoc(collection(db, 'formCoverages'), {
           formId,
@@ -212,6 +249,18 @@ export default function FormsScreen() {
           }
           await deleteDoc(doc(db, 'formCoverages', linkDoc.id));
         }
+        // Version history log – delete
+        await addDoc(
+          collection(db, 'products', formDoc.productId, 'versionHistory'),
+          {
+            userEmail: auth.currentUser?.email || 'unknown',
+            ts: serverTimestamp(),
+            entityType: 'Form',
+            entityId: id,
+            entityName: formDoc.formName || formDoc.formNumber,
+            action: 'delete'
+          }
+        );
       }
       await deleteDoc(doc(db, 'forms', id));
       setForms(forms.filter(f => f.id !== id));
@@ -275,6 +324,20 @@ export default function FormsScreen() {
       await updateDoc(doc(db, 'forms', formId), {
         coverageIds: linkCoverageIds
       });
+
+      // Version history log – update
+      await addDoc(
+        collection(db, 'products', productId, 'versionHistory'),
+        {
+          userEmail: auth.currentUser?.email || 'unknown',
+          ts: serverTimestamp(),
+          entityType: 'Form',
+          entityId: formId,
+          entityName: selectedForm.formName || selectedForm.formNumber,
+          action: 'update',
+          comment: 'Updated coverage links'
+        }
+      );
 
       setLinkCoverageModalOpen(false);
       setSelectedForm(null);
@@ -591,6 +654,18 @@ export default function FormsScreen() {
             </Modal>
           </Overlay>
         )}
+        <HistoryButton
+          style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
+          onClick={() => setHistoryOpen(true)}
+          aria-label="Version history"
+        >
+          <ClockIcon width={24} height={24}/>
+        </HistoryButton>
+        <VersionControlSidebar
+          open={historyOpen}
+          onClose={() => setHistoryOpen(false)}
+          productId={productId || selectedProduct}
+        />
       </Container>
     </Page>
   );

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { db } from '../firebase';
-import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { TrashIcon, PencilIcon, XMarkIcon, InformationCircleIcon, PlusCircleIcon, PlusIcon, MinusIcon, MapIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
+import { db, auth } from '../firebase';
+import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { TrashIcon, PencilIcon, XMarkIcon, InformationCircleIcon, PlusCircleIcon, PlusIcon, MinusIcon, MapIcon, ChevronUpIcon, ChevronDownIcon, ClockIcon } from '@heroicons/react/24/solid';
 import { FunnelIcon } from '@heroicons/react/24/solid';
+import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
 import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
@@ -132,6 +133,25 @@ const Spinner = styled.div`
   margin: 100px auto;
 `;
 
+const HistoryButton = styled.button`
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: #374151;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  cursor: pointer;
+  z-index: 1100;
+  &:hover { background: #1f2937; }
+`;
+
 // StepModal Component
 function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes }) {
   const defaultStep = {
@@ -149,10 +169,12 @@ function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes
 
   const [stepData, setStepData] = useState(editingStep ? { ...editingStep } : { ...defaultStep });
   const [errors, setErrors] = useState({});
+  const [comment, setComment] = useState('');
 
   useEffect(() => {
     setStepData(editingStep ? { ...editingStep } : { ...defaultStep });
     setErrors({});
+    setComment('');
   }, [editingStep]);
 
   const handleChange = (e) => {
@@ -205,13 +227,16 @@ function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes
     } else if (!stepData.operand) {
       newErrors.operand = 'Operand is required';
     }
+    if (editingStep && (!comment.trim() || comment.trim().length < 10)) {
+      newErrors.comment = 'Reason must be at least 10 characters';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = () => {
     if (validate()) {
-      onSubmit(stepData);
+      onSubmit(stepData, comment);
     }
   };
 
@@ -224,13 +249,6 @@ function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes
         <ModalHeader>
           <ModalTitle>{editingStep ? 'Edit Step' : 'Add Step'}</ModalTitle>
         </ModalHeader>
-        <FormGroup>
-          <label>Step Type</label>
-          <select name="stepType" value={stepData.stepType} onChange={handleChange} style={{ width: '100%', padding: 12, borderRadius: 8, border: '1px solid #D1D5DB' }}>
-            <option value="factor">Factor</option>
-            <option value="operand">Operand</option>
-          </select>
-        </FormGroup>
         {stepData.stepType === 'factor' ? (
           <>
             <FormGroup>
@@ -330,19 +348,24 @@ function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes
               </select>
             </FormGroup>
           </>
-        ) : (
-          <FormGroup>
-            <label>Operand {errors.operand && <span style={{ color: '#EF4444' }}>{errors.operand}</span>}</label>
-            <select name="operand" value={stepData.operand} onChange={handleChange} className={errors.operand ? 'error' : ''} style={{ width: '100%', padding: 12, borderRadius: 8, border: '1px solid #D1D5DB' }}>
-              <option value="">Select Operand</option>
-              <option value="+">+</option>
-              <option value="-">-</option>
-              <option value="*">*</option>
-              <option value="/">/</option>
-              <option value="=">=</option>
-            </select>
-          </FormGroup>
+        ) : null}
+        {editingStep && (
+          <textarea
+            rows="3"
+            placeholder="Reason for changes (required)"
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            style={{
+              width: '100%',
+              padding: 10,
+              borderRadius: 6,
+              border: '1px solid #e5e7eb',
+              fontSize: 14,
+              marginBottom: 12
+            }}
+          />
         )}
+        {editingStep && errors.comment && <div style={{ color: '#EF4444', marginBottom: 8 }}>{errors.comment}</div>}
         <Button onClick={handleSubmit} aria-label={editingStep ? 'Update step' : 'Add step'} style={{ marginTop: 16 }}>
           {editingStep ? 'Update Step' : 'Add Step'}
         </Button>
@@ -353,6 +376,8 @@ function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes
 
 // Main PricingScreen Component
 function PricingScreen() {
+  const [loading, setLoading] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const { productId } = useParams();
   const navigate = useNavigate();
   const [productName, setProductName] = useState('');
@@ -360,7 +385,7 @@ function PricingScreen() {
   const [steps, setSteps] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingStep, setEditingStep] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [comment, setComment] = useState('');
   const [price, setPrice] = useState('N/A');
   const [selectedCoverage, setSelectedCoverage] = useState(null);
   const [selectedStates, setSelectedStates] = useState([]);
@@ -417,6 +442,34 @@ function PricingScreen() {
     fetchData();
   }, [productId]);
 
+  // —— New: add operand row via buttons ——
+  const addOperand = async (operandChar) => {
+    try {
+      const docRef = await addDoc(collection(db, `products/${productId}/steps`), {
+        stepType: 'operand',
+        operand: operandChar,
+        order: steps.length
+      });
+      // Log creation
+      await addDoc(
+        collection(db, 'products', productId, 'versionHistory'),
+        {
+          userEmail: auth.currentUser?.email || 'unknown',
+          ts: serverTimestamp(),
+          entityType: 'Step',
+          entityId: docRef.id,
+          entityName: `(operand ${operandChar})`,
+          action: 'create'
+        }
+      );
+      setSteps(prev => [...prev, { id: docRef.id, stepType:'operand', operand:operandChar, order:steps.length }]
+        .sort((a,b)=>a.order-b.order));
+    } catch (err) {
+      console.error('Error adding operand:', err);
+      alert('Failed to add operand.');
+    }
+  };
+
 
   useEffect(() => {
     const calculatePricing = () => {
@@ -454,10 +507,34 @@ function PricingScreen() {
     );
   }
 
-  const handleModalSubmit = async (stepData) => {
+  const handleModalSubmit = async (stepData, comment) => {
     if (editingStep) {
       try {
         await updateDoc(doc(db, `products/${productId}/steps`, editingStep.id), stepData);
+        // Log update
+        const oldSnap = await getDoc(doc(db, `products/${productId}/steps`, editingStep.id));
+        const oldData = oldSnap.exists() ? oldSnap.data() : {};
+        const diff = {};
+        Object.keys(stepData).forEach(key => {
+          const before = oldData[key] ?? '';
+          const after = stepData[key];
+          if (JSON.stringify(before) !== JSON.stringify(after)) {
+            diff[key] = { before, after };
+          }
+        });
+        await addDoc(
+          collection(db, 'products', productId, 'versionHistory'),
+          {
+            userEmail: auth.currentUser?.email || 'unknown',
+            ts: serverTimestamp(),
+            entityType: 'Step',
+            entityId: editingStep.id,
+            entityName: stepData.stepName || '(operand)',
+            action: 'update',
+            changes: diff,
+            comment: comment.trim()
+          }
+        );
         const updatedSteps = steps.map(s => s.id === editingStep.id ? { ...s, ...stepData } : s);
         updatedSteps.sort((a, b) => a.order - b.order);
         setSteps(updatedSteps);
@@ -468,6 +545,18 @@ function PricingScreen() {
     } else {
       try {
         const docRef = await addDoc(collection(db, `products/${productId}/steps`), { ...stepData, order: steps.length });
+        // Log creation
+        await addDoc(
+          collection(db, 'products', productId, 'versionHistory'),
+          {
+            userEmail: auth.currentUser?.email || 'unknown',
+            ts: serverTimestamp(),
+            entityType: 'Step',
+            entityId: docRef.id,
+            entityName: stepData.stepName || '(operand)',
+            action: 'create'
+          }
+        );
         const updatedSteps = [...steps, { ...stepData, id: docRef.id, order: steps.length }];
         updatedSteps.sort((a, b) => a.order - b.order);
         setSteps(updatedSteps);
@@ -483,6 +572,18 @@ function PricingScreen() {
     if (window.confirm("Are you sure you want to delete this step?")) {
       try {
         await deleteDoc(doc(db, `products/${productId}/steps`, stepId));
+        // Log deletion
+        await addDoc(
+          collection(db, 'products', productId, 'versionHistory'),
+          {
+            userEmail: auth.currentUser?.email || 'unknown',
+            ts: serverTimestamp(),
+            entityType: 'Step',
+            entityId: stepId,
+            entityName: '(operand)',
+            action: 'delete'
+          }
+        );
         const updatedSteps = steps.filter(step => step.id !== stepId);
         updatedSteps.sort((a, b) => a.order - b.order);
         setSteps(updatedSteps);
@@ -494,11 +595,13 @@ function PricingScreen() {
   };
 
   const openAddModal = () => {
+    setComment('');
     setEditingStep(null);
     setModalOpen(true);
   };
 
   const openEditModal = (step) => {
+    setComment('');
     setEditingStep(step);
     setModalOpen(true);
   };
@@ -749,6 +852,13 @@ function PricingScreen() {
           )}
         </div>
         <Button onClick={openAddModal} style={{ marginBottom: 24 }} aria-label="Add new step">Add Step</Button>
+        <div style={{ marginBottom: 24, display: 'flex', gap: 8 }}>
+          {['+', '-', '*', '/', '='].map(op => (
+            <Button key={op} onClick={() => addOperand(op)}>
+              {op}
+            </Button>
+          ))}
+        </div>
         {modalOpen && (
           <StepModal
             onClose={() => setModalOpen(false)}
@@ -776,6 +886,18 @@ function PricingScreen() {
             </ModalBox>
           </Overlay>
         )}
+        <HistoryButton
+          style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
+          onClick={() => setHistoryOpen(true)}
+          aria-label="View version history"
+        >
+          <ClockIcon width={24} height={24}/>
+        </HistoryButton>
+        <VersionControlSidebar
+          open={historyOpen}
+          onClose={() => setHistoryOpen(false)}
+          productId={productId}
+        />
       </Container>
     </Page>
   );

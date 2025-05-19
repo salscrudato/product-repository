@@ -8,7 +8,11 @@ import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
 import { Link as RouterLink } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
-import { PencilIcon, TrashIcon, XMarkIcon, PlusIcon, InformationCircleIcon, LinkIcon } from '@heroicons/react/24/solid';
+import { PencilIcon, TrashIcon, XMarkIcon, PlusIcon, InformationCircleIcon, LinkIcon, ClockIcon } from '@heroicons/react/24/solid';
+import { Overlay, Modal, ModalHeader, ModalTitle, CloseBtn } from '../components/ui/Table';
+import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
+import { addDoc as addDocFirestore, collection as collectionFirestore, serverTimestamp as serverTimestampFirestore } from 'firebase/firestore';
+import { auth } from '../firebase';
 import GlobalSearch from './GlobalSearch';
 // --- ProductHub shared styled components ---
 const Table = styled.table`
@@ -42,56 +46,6 @@ const Actions = styled.div`
   justify-content: center;
 `;
 
-// Overlay, Modal, ModalHeader, ModalTitle, CloseBtn (from ProductHub)
-const Overlay = styled.div`
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0,0,0,0.18);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-const Modal = styled.div`
-  background: ${({ theme }) => theme.colours.bg};
-  border-radius: ${({ theme }) => theme.radius};
-  box-shadow: ${({ theme }) => theme.shadow};
-  padding: 32px 32px 24px 32px;
-  min-width: 360px;
-  max-width: 95vw;
-  min-height: 0;
-  position: relative;
-`;
-const ModalHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-`;
-const ModalTitle = styled.h3`
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 0;
-`;
-const CloseBtn = styled(Button).attrs(() => ({
-  variant: 'ghost',
-  'aria-label': 'Close'
-}))`
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  padding: 4px;
-  min-width: unset;
-  min-height: unset;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
 
 // Loading spinner
 const spin = keyframes`
@@ -106,6 +60,25 @@ const Spinner = styled.div`
   height: 40px;
   animation: ${spin} 1s linear infinite;
   margin: 100px auto;
+`;
+
+const HistoryButton = styled.button`
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: #374151;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  cursor: pointer;
+  z-index: 1100;
+  &:hover { background: #1f2937; }
 `;
 
 export default function CoverageScreen() {
@@ -125,6 +98,8 @@ export default function CoverageScreen() {
     category: 'Base Coverage',
   });
   const [editingId, setEditingId] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [changeSummary, setChangeSummary] = useState('');
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [linkFormModalOpen, setLinkFormModalOpen] = useState(false);
   const [selectedCoverage, setSelectedCoverage] = useState(null);
@@ -238,6 +213,7 @@ export default function CoverageScreen() {
       category: 'Base Coverage',
     });
     setEditingId(null);
+    setChangeSummary('');
   };
 
   const openAddModal = () => {
@@ -268,6 +244,10 @@ export default function CoverageScreen() {
   const handleAddOrUpdate = async () => {
     if (!form.name || !form.coverageCode) {
       alert('Name and Coverage Code are required.');
+      return;
+    }
+    if (editingId && changeSummary.trim().length < 10) {
+      alert('Please enter a reason for the change (at least 10 characters).');
       return;
     }
     try {
@@ -312,6 +292,20 @@ export default function CoverageScreen() {
         });
       }
 
+      // Version control: log create/update
+      await addDocFirestore(
+        collectionFirestore(db, 'products', productId, 'versionHistory'),
+        {
+          userEmail: auth.currentUser?.email || 'unknown',
+          ts: serverTimestampFirestore(),
+          entityType: 'Coverage',
+          entityId: editingId || coverageId,
+          entityName: form.name.trim(),
+          action: editingId ? 'update' : 'create',
+          ...(editingId && { comment: changeSummary.trim() })
+        }
+      );
+
       setAddModalOpen(false);
       resetForm();
       loadCoverages();
@@ -334,6 +328,18 @@ export default function CoverageScreen() {
       });
 
       await deleteDoc(doc(db, `products/${productId}/coverages`, id));
+      // Version control: log deletion
+      await addDocFirestore(
+        collectionFirestore(db, 'products', productId, 'versionHistory'),
+        {
+          userEmail: auth.currentUser?.email || 'unknown',
+          ts: serverTimestampFirestore(),
+          entityType: 'Coverage',
+          entityId: id,
+          entityName: 'Coverage',
+          action: 'delete'
+        }
+      );
       loadCoverages();
     } catch (error) {
       console.error('Error deleting coverage:', error);
@@ -642,6 +648,22 @@ export default function CoverageScreen() {
                     <option key={f.id} value={f.id}>{f.formName || f.formNumber}</option>
                   ))}
                 </select>
+                {editingId && (
+                  <textarea
+                    rows="3"
+                    placeholder="Reason for changes (required)"
+                    value={changeSummary}
+                    onChange={e => setChangeSummary(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: 10,
+                      borderRadius: 6,
+                      border: '1px solid #e5e7eb',
+                      fontSize: 14,
+                      marginBottom: 12
+                    }}
+                  />
+                )}
                 <Actions>
                   <Button onClick={handleAddOrUpdate}>{editingId ? 'Update' : 'Add'}</Button>
                   <Button variant="ghost" onClick={() => setAddModalOpen(false)}>Cancel</Button>
@@ -872,6 +894,18 @@ export default function CoverageScreen() {
             </Modal>
           </Overlay>
         )}
+        <HistoryButton
+          style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
+          onClick={() => setHistoryOpen(true)}
+          aria-label="View version history"
+        >
+          <ClockIcon width={24} height={24} />
+        </HistoryButton>
+        <VersionControlSidebar
+          open={historyOpen}
+          onClose={() => setHistoryOpen(false)}
+          productId={productId}
+        />
       </Container>
     </Page>
   );
