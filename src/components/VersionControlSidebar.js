@@ -3,7 +3,11 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { collection, collectionGroup, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getOpenAISummary } from '../api/openai';  // Uses Firebase Function to call OpenAI API
+
+// ---------- OpenAI setup ----------
+const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
+const OPENAI_MODEL = 'gpt-4o-mini';          // light, cheap, enough context
+const MAX_HISTORY_LINES = 60;                // limit to keep request small
 
 // Styled components for layout and styling
 const SidebarContainer = styled.div`
@@ -44,13 +48,13 @@ const CloseButton = styled.button`
 /* Filter bar styling */
 const FilterRow = styled.div`
   padding: 0.5rem;
-  border-bottom: 1px solid ${props => props.theme.colors.border};
+  
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem;
   align-items: center;
   background: ${props => props.theme.colors.backgroundAlt};
   border-radius: 8px;
-  margin: 0.75rem 0.75rem 0;
+  margin: 0.8rem 0.8rem 0;
   box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 `;
 const FilterSelect = styled.select`
@@ -99,12 +103,12 @@ const ChatContainer = styled.div`
   border-top: 1px solid ${props => props.theme.colors.border};
   display: flex;
   flex-direction: column;
-  padding: 0.75rem 1rem 0.75rem 0.75rem;
+  padding: 0.75rem 0.75rem 0.75rem 0.75rem;
   background: ${props => props.theme.colors.backgroundAlt};
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
   box-shadow: 0 -1px 3px rgba(0,0,0,0.04);
-  min-height: 140px;
+  min-height: 120px;
 `;
 const ChatMessages = styled.div`
   flex: 1 1 auto;
@@ -131,7 +135,7 @@ const ChatForm = styled.form`
 `;
 const ChatInput = styled.textarea`
   width: 100%;
-  height: 100px;           /* fill more of the shaded area */
+  height: 150px;           /* fill more of the shaded area */
   padding: 0.75rem 3.5rem 0.75rem 0.75rem; /* space for send button */
   font-size: 0.9rem;
   border-radius: 8px;
@@ -205,16 +209,78 @@ const VersionControlSidebar = ({ open, onClose, productId }) => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
+
     const question = chatInput.trim();
-    // Add user message to chat history
     setChatMessages(msgs => [...msgs, { sender: 'user', text: question }]);
     setChatInput('');
+
+    /* ---------- quick metrics ---------- */
+    const stats = filteredLogs.reduce(
+      (acc, l) => {
+        acc.total += 1;
+        acc[l.action] = (acc[l.action] || 0) + 1;
+        acc.entities[l.entityType] = (acc.entities[l.entityType] || 0) + 1;
+        return acc;
+      },
+      { total: 0, create: 0, update: 0, delete: 0, entities: {} }
+    );
+    const entityBreakdown = Object.entries(stats.entities)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(', ');
+
+    /* ---------- build history context ---------- */
+    const historyLines = filteredLogs
+      .slice(0, MAX_HISTORY_LINES)
+      .map(l => {
+        const ts = l.ts
+          ? new Date(l.ts.toDate?.() || l.ts).toLocaleString()
+          : '';
+        const base = `${ts} — ${l.userEmail} ${l.action} ${l.entityType} "${l.entityName}"`;
+        const comment = l.comment ? ` (Reason: ${l.comment})` : '';
+        return base + comment;
+      })
+      .join('\n');
+
+    const systemPrompt = `
+You are an expert, concise version‑history assistant for insurance products.
+
+**Context:** Below are the most‑recent change‑log entries from an insurance product repository UI.
+Each line is formatted:
+<timestamp> — <userEmail> <action> <entityType> "<entityName>" (Reason: <comment>)
+
+**Stats:** total entries ${stats.total}; creates ${stats.create}; updates ${stats.update}; deletes ${stats.delete}.
+Entity counts → ${entityBreakdown}.
+
+**Response requirements**
+1. Keep answers *concise* (aim ≤ 3 short paragraphs or ≤ 7 bullets).
+2. Where possible, group similar changes (e.g., multiple form deletions) instead of listing every line.
+3. If the user asks a direct list (“what was deleted?”) provide bullet points with entityType + name only.
+4. Do **not** invent data; if info isn’t in the log, reply “No data found in current log.”
+5. Do not repeat the entire change log.
+`;
+
     try {
-      // Call OpenAI summarization (via cloud function helper)
-      const answer = await getOpenAISummary(question, productId);
+      const res = await fetch(OPENAI_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
+        },
+        body: JSON.stringify({
+          model: OPENAI_MODEL,
+          messages: [
+            { role: 'system', content: systemPrompt.trim() + '\n\nChange log:\n' + historyLines },
+            { role: 'user', content: question }
+          ]
+        })
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+      const { choices } = await res.json();
+      const answer = choices[0]?.message?.content?.trim() || 'Sorry, I could not generate a response.';
       setChatMessages(msgs => [...msgs, { sender: 'ai', text: answer }]);
     } catch (err) {
-      console.error('AI summarization error:', err);
+      console.error('AI chat error:', err);
       setChatMessages(msgs => [...msgs, { sender: 'ai', text: "Sorry, I couldn't get the summary." }]);
     }
   };
@@ -235,20 +301,18 @@ const VersionControlSidebar = ({ open, onClose, productId }) => {
       <FilterRow>
         <FilterSelect value={scope} onChange={e => setScope(e.target.value)}>
           {productId && <option value="product">This Product</option>}
-          <option value="all">All Products</option>
+          <option value="all">(Products)</option>
         </FilterSelect>
-        <FilterSelect value={userFilter} onChange={e => setUserFilter(e.target.value)}>
-          <option value="">All Users</option>
-          {users.map(email => (
-            <option key={email} value={email}>{email}</option>
-          ))}
-        </FilterSelect>
+
         <FilterSelect value={entityFilter} onChange={e => setEntityFilter(e.target.value)}>
-          <option value="">All Pages</option>
+          <option value="">(Pages)</option>
           {entityTypes.map(type => (
             <option key={type} value={type}>{type}</option>
           ))}
         </FilterSelect>
+        <br/>
+      </FilterRow>
+      <FilterRow>
         <FilterInput 
           type="text" 
           placeholder="Search changes..." 
@@ -298,7 +362,7 @@ const VersionControlSidebar = ({ open, onClose, productId }) => {
             value={chatInput}
             onChange={e => setChatInput(e.target.value)}
             onKeyDown={e => {
-              if (e.key === 'Enter') {
+              if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSendMessage(e);
               }

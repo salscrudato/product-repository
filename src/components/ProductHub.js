@@ -1,7 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import VersionControlSidebar from '../components/VersionControlSidebar';
-import { auth } from '../firebase';
-import { serverTimestamp } from 'firebase/firestore';
+import VersionControlSidebar from './VersionControlSidebar';
 import {
   collection,
   getDocs,
@@ -26,7 +24,6 @@ import {
   XMarkIcon,
   WrenchIcon,
   ChatBubbleLeftEllipsisIcon,
-  ClockIcon,
   DocumentMagnifyingGlassIcon
 } from '@heroicons/react/24/solid';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -240,8 +237,7 @@ const SuggestionItem = styled.li`
 const Overlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.45);
-  backdrop-filter: blur(2px);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -249,16 +245,14 @@ const Overlay = styled.div`
 `;
 
 const Modal = styled.div`
-  position: relative;
-  z-index: 1010;
-  background: #ffffff;
+  background: ${({ theme }) => theme.colours.bg};
   border-radius: ${({ theme }) => theme.radius};
   padding: 24px;
   width: 90%;
   max-width: 600px;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
 `;
 
 const ModalHeader = styled.div`
@@ -387,27 +381,6 @@ const Spinner = styled.div`
   margin: 100px auto;
 `;
 
-const HistoryButton = styled.button`
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
-  width: 56px;
-  height: 56px;
-  border: none;
-  border-radius: 50%;
-  background: #374151;
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  cursor: pointer;
-  z-index: 1100;
-  &:hover {
-    background: #1f2937;
-  }
-`;
-
 /* Animated AI "working" dots --------------------------------------- */
 const dotWave = keyframes`
   0%, 80%, 100% { transform: scale(0); }
@@ -437,6 +410,8 @@ const AILoader = styled.div`
 export default function ProductHub() {
   /* data ----------------------------------------------------------- */
   const [products, setProducts] = useState([]);
+  // add history sidebar state
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState([]);
 
@@ -460,10 +435,6 @@ export default function ProductHub() {
   const [file, setFile] = useState(null);
 
   const [loading, setLoading] = useState(true);
-
-  // Version‑Control sidebar toggle
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [changeSummary, setChangeSummary] = useState('');
 
   const location = useLocation();
 
@@ -607,7 +578,6 @@ export default function ProductHub() {
     setProductCode('');
     setEffectiveDate('');
     setFile(null);
-    setChangeSummary('');
   };
 
   const refresh = async () => {
@@ -615,16 +585,10 @@ export default function ProductHub() {
     setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
 
-  // (version history helper removed)
-
   /* crud ----------------------------------------------------------- */
   const handleSave = async () => {
     if (!name || !formNumber || !effectiveDate) {
       alert('Name, Form # and Effective Date are required');
-      return;
-    }
-    if (editingId && changeSummary.trim().length < 10) {
-      alert('Please enter a reason for the change (at least 10 characters).');
       return;
     }
     try {
@@ -636,46 +600,19 @@ export default function ProductHub() {
       }
 
       if (editingId) {
-        // --- compute diff ---
-        const beforeSnap = await getDoc(doc(db, 'products', editingId));
-        const beforeData = beforeSnap.exists() ? beforeSnap.data() : {};
-        const afterData = { name, formNumber, productCode, effectiveDate };
-        const diff = {};
-        Object.entries(afterData).forEach(([k,v])=>{
-          if ((beforeData[k] ?? '') !== v) diff[k] = { before: beforeData[k] ?? '', after: v };
-        });
         await updateDoc(doc(db, 'products', editingId), {
           name,
           formNumber,
           productCode,
           formDownloadUrl: downloadUrl || undefined
         });
-        await addDoc(collection(db, 'products', editingId, 'versionHistory'), {
-          userEmail: auth.currentUser?.email || 'unknown',
-          ts: serverTimestamp(),
-          entityType: 'Product',
-          entityId: editingId,
-          entityName: name,
-          action: 'update',
-          changes: diff,
-          comment: changeSummary.trim()
-        });
       } else {
-        const docRef = await addDoc(collection(db, 'products'), {
+        await addDoc(collection(db, 'products'), {
           name,
           formNumber,
           productCode,
           effectiveDate,
           formDownloadUrl: downloadUrl
-        });
-        const newId = docRef.id;
-        await addDoc(collection(db, 'products', newId, 'versionHistory'), {
-          userEmail: auth.currentUser?.email || 'unknown',
-          ts: serverTimestamp(),
-          entityType: 'Product',
-          entityId: newId,
-          entityName: name,
-          action: 'create'
         });
       }
       await refresh();
@@ -687,18 +624,8 @@ export default function ProductHub() {
   };
 
   const handleDelete = async id => {
-    const snap = await getDoc(doc(db, 'products', id));
-    const prodName = snap.exists() ? snap.data().name : '';
     if (!window.confirm('Delete product?')) return;
     await deleteDoc(doc(db, 'products', id));
-    await addDoc(collection(db, 'products', id, 'versionHistory'), {
-      userEmail: auth.currentUser?.email || 'unknown',
-      ts: serverTimestamp(),
-      entityType: 'Product',
-      entityId: id,
-      entityName: prodName || 'Product',
-      action: 'delete'
-    });
     setProducts(ps => ps.filter(p => p.id !== id));
   };
 
@@ -1071,7 +998,9 @@ export default function ProductHub() {
 
   return (
     <Page>
-      <Container>
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1 }}>
+          <Container>
         <PageHeader>
           <Tabs>
             <TabLink
@@ -1097,7 +1026,9 @@ export default function ProductHub() {
 
             <TabButton onClick={() => setDictModalOpen(true)}>Dictionary</TabButton>
             <TabButton onClick={() => setModalOpen(true)}>Add</TabButton>
-            {/* History tab button removed */}
+            <TabButton onClick={() => setHistoryOpen(open => !open)}>
+              History
+            </TabButton>
           </Tabs>
         </PageHeader>
 
@@ -1183,7 +1114,14 @@ export default function ProductHub() {
         ) : (
           <p>No products found.</p>
         )}
-      </Container>
+          </Container>
+        </div>
+        <VersionControlSidebar
+          open={historyOpen}
+          onClose={() => setHistoryOpen(false)}
+          // optional: pass filters or userEmail if needed
+        />
+      </div>
 
       {/* Add / Edit Modal */}
       {modalOpen && (
@@ -1211,16 +1149,6 @@ export default function ProductHub() {
               </Button>
               {file && <span>{file.name}</span>}
             </FileUploader>
-
-            {editingId && (
-              <textarea
-                rows="3"
-                placeholder="Reason for changes (required)"
-                value={changeSummary}
-                onChange={e => setChangeSummary(e.target.value)}
-                style={{ padding: 10, borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 14, marginTop: 12 }}
-              />
-            )}
 
             <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
               <Button onClick={handleSave}>{editingId ? 'Update' : 'Create'}</Button>
@@ -1537,10 +1465,6 @@ export default function ProductHub() {
           </Modal>
         </Overlay>
       )}
-      <HistoryButton onClick={() => setHistoryOpen(true)} aria-label="Version History">
-        <ClockIcon width={24} height={24} />
-      </HistoryButton>
-      <VersionControlSidebar open={historyOpen} onClose={() => setHistoryOpen(false)} />
     </Page>
   );
 }

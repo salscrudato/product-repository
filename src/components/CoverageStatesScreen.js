@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -25,6 +25,81 @@ const Spinner = styled.div`
   margin: 100px auto;
 `;
 
+// --- NEW UI BITS (match StatesScreen) -----------------------------
+const HistoryButton = styled.button`
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: #374151;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  cursor: pointer;
+  z-index: 1100;
+  &:hover { background: #1f2937; }
+`;
+
+const Panel = styled.div`
+  flex: 1 1 360px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  max-width: ${props => (props.collapsed ? '48px' : '420px')};
+  transition: max-width 0.25s ease;
+  overflow: hidden;
+`;
+
+const TogglePanelBtn = styled.button`
+  position: absolute;
+  top: 16px;
+  right: -20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #7c3aed;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  &:hover { background:#5b21b6; }
+`;
+
+const Chip = styled.span`
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  background:#f3f4f6;
+  color:#374151;
+  border-radius:16px;
+  padding:4px 10px;
+  font-size:14px;
+  margin:4px;
+`;
+
+const ChipDelete = styled.button`
+  background:none;
+  border:none;
+  color:#ef4444;
+  cursor:pointer;
+  line-height:1;
+`;
+
+const FloatingBar = styled.div`
+  position:fixed;
+  bottom:24px;
+  right:96px;   /* leave room for history circle */
+  display:flex;
+  gap:12px;
+  z-index:1200;
+`;
+
 const allStates = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
 
 export default function CoverageStatesScreen() {
@@ -38,6 +113,28 @@ export default function CoverageStatesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [newState, setNewState] = useState('');
   const [loading, setLoading] = useState(true);
+
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const searchRef = useRef(null);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+
+  // keyboard shortcut `/` to jump to search
+  useEffect(() => {
+    const handler = e => {
+      if (e.key === '/' && !e.target.matches('input, textarea, select')) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // debounce search
+  useEffect(() => {
+    const t = setTimeout(() => setSearchQuery(debouncedQuery), 250);
+    return () => clearTimeout(t);
+  }, [debouncedQuery]);
 
   const stateNameToCode = {
     "Alabama": "AL",
@@ -243,58 +340,52 @@ export default function CoverageStatesScreen() {
             </ComposableMap>
           </div>
 
-          {/* States panel */}
-          <div style={{ flex:'1 1 50%', background:'#fff', borderRadius:12, padding:20, boxShadow:'0 4px 12px rgba(0,0,0,0.1)' }}>
-            <h2 style={{fontSize:24,fontWeight:600,marginBottom:16}}>Applicable States</h2>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:12, marginBottom:16 }}>
-              <TextInput as="select" value={newState} onChange={e=>setNewState(e.target.value)} style={{ minWidth:160 }}>
-                <option value="">Select State</option>
-                {availableStates.map(s=> <option key={s} value={s}>{s}</option>)}
-              </TextInput>
-              <Button onClick={handleAddState}>Add State</Button>
-              <Button variant="ghost" onClick={handleSelectAll}>Select All</Button>
-              <Button variant="ghost" onClick={handleClearAll}>Clear All</Button>
-              <Button onClick={handleSave}>Save</Button>
-            </div>
-            <TextInput
-              placeholder="Search States"
-              value={searchQuery}
-              onChange={e=>setSearchQuery(e.target.value)}
-              style={{ marginBottom:16 }}
-            />
-            {filteredStates.length > 0 ? (
-              <div style={{ maxHeight: '24rem', overflowY:'auto', borderRadius:8 }}>
-                <Table>
-                  <THead>
-                    <Tr>
-                      <Th>State</Th>
-                      <Th>Action</Th>
-                    </Tr>
-                  </THead>
-                  <tbody>
-                    {filteredStates.map(state => (
-                      <Tr key={state}>
-                        <Td align="center">{state}</Td>
-                        <Td align="center">
-                          <Button variant="danger" onClick={() => handleRemoveState(state)} title="Remove state">
-                            <TrashIcon width={16} height={16} />
-                          </Button>
-                        </Td>
-                      </Tr>
+          {/* CONTROL PANEL */}
+          <Panel collapsed={panelCollapsed}>
+            <TogglePanelBtn onClick={() => setPanelCollapsed(c=>!c)}>
+              {panelCollapsed ? '⟨' : '⟩'}
+            </TogglePanelBtn>
+            {!panelCollapsed && (
+              <>
+                <h2 style={{ fontSize:24, fontWeight:600, color:'#1F2937', marginBottom:16 }}>Applicable States</h2>
+                <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:16 }}>
+                  <TextInput as="select" value={newState} onChange={e=>setNewState(e.target.value)}>
+                    <option value="">Select State</option>
+                    {availableStates.map(s=> <option key={s} value={s}>{s}</option>)}
+                  </TextInput>
+                  <Button primary onClick={handleAddState}>Add</Button>
+                </div>
+                <TextInput
+                  ref={searchRef}
+                  placeholder="Search States"
+                  value={debouncedQuery}
+                  onChange={e=>setDebouncedQuery(e.target.value)}
+                  style={{ marginBottom:16 }}
+                />
+                {filteredStates.length > 0 ? (
+                  <div style={{ maxHeight:260, overflowY:'auto' }}>
+                    {filteredStates.map(state=>(
+                      <Chip key={state}>
+                        {state}
+                        <ChipDelete onClick={()=>handleRemoveState(state)}>×</ChipDelete>
+                      </Chip>
                     ))}
-                  </tbody>
-                </Table>
-              </div>
-            ) : (
-              <p style={{ textAlign:'center', fontSize:16, color:'#6B7280' }}>No States Selected</p>
+                  </div>
+                ) : (
+                  <p style={{ textAlign:'center', fontSize:18, color:'#6B7280' }}>No States Selected</p>
+                )}
+              </>
             )}
-            <p style={{ marginTop:16, fontSize:14, color:'#6B7280' }}>
-              {parentCoverage
-                ? `Available states are limited to those of the parent coverage: ${parentCoverage.states?.join(', ') || 'None'}`
-                : `Available states are limited to those of the product: ${product.availableStates?.join(', ') || 'None'}`}
-            </p>
-          </div>
+          </Panel>
         </div>
+        <FloatingBar>
+          <Button ghost onClick={handleSelectAll}>Select&nbsp;All</Button>
+          <Button ghost onClick={handleClearAll}>Clear&nbsp;All</Button>
+          <Button success onClick={handleSave}>Save</Button>
+        </FloatingBar>
+        <HistoryButton aria-label="Back" onClick={()=>navigate(-1)}>
+          ↩
+        </HistoryButton>
       </Container>
     </Page>
   );
