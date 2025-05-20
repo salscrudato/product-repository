@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { auth } from '../firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
+} from 'firebase/auth';
 
 /* ---------- styled ---------- */
 const glow = keyframes`
@@ -45,13 +48,17 @@ const Secondary = styled(Button)`
   color:#7c3aed;
   margin-top:8px;
 `;
+const Ghost = styled(Secondary)`
+  border-color:#9ca3af;
+  color:#6b7280;
+`;
 const Error = styled.p`color:#dc2626;font-size:.8rem;margin-top:10px;min-height:1.2em;`;
 
 /* ---------- component ---------- */
 export default function Login() {
   const nav = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('test@email.com');
+  const [password, setPassword] = useState('test1234');
   const [isRegister, setIsRegister] = useState(false);
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
@@ -86,13 +93,17 @@ export default function Login() {
     }
   };
 
+  const continueAsGuest = () => {
+    setErr('');
+    sessionStorage.setItem('ph-authed', 'guest');
+    nav('/');
+  };
+
   return (
     <Page>
       <Card onSubmit={isRegister ? handleRegister : handleLogin}>
         <Logo src="/logo.svg" alt="Cover Cloud" />
-        <Title>
-          {isRegister ? 'Register for Cover Cloud' : 'Sign in to Cover Cloud'}
-        </Title>
+        <Title>{isRegister ? 'Register for Cover Cloud' : 'Sign in to Cover Cloud'}</Title>
 
         {isRegister ? (
           <>
@@ -133,6 +144,13 @@ export default function Login() {
               onChange={e => setPassword(e.target.value)}
             />
             <Button type="submit">Log In</Button>
+            <Ghost
+              type="button"
+              style={{ marginTop: 12 }}
+              onClick={continueAsGuest}
+            >
+              Continue as Guest
+            </Ghost>
           </>
         )}
 

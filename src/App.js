@@ -40,28 +40,7 @@ const HistoryWrapper = () => {
   return (
     <>
       {/* Floating “history” button (bottom‑right) */}
-      <button
-        onClick={() => setHistoryOpen(true)}
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          width: '48px',
-          height: '48px',
-          borderRadius: '50%',
-          border: 'none',
-          background: '#7c3aed',
-          color: '#fff',
-          cursor: 'pointer',
-          fontSize: '1.25rem',
-          boxShadow: '0 4px 12px rgba(0,0,0,.25)',
-          zIndex: 1100,
-        }}
-        aria-label="Open version history"
-        title="Version history"
-      >
-        🕘
-      </button>
+
 
       <VersionControlSidebar
         open={historyOpen}
