@@ -100,7 +100,7 @@ const Spinner = styled.div`
 const HistoryButton = styled.button`
   position: fixed;
   bottom: 16px;
-  right: 16px;
+  right: calc(16px + var(--vc-offset, 0));
   width: 45px;
   height: 45px;
   border: none;
@@ -114,6 +114,15 @@ const HistoryButton = styled.button`
   cursor: pointer;
   z-index: 1100;
   &:hover { background: #1f2937; }
+`;
+
+// Transparent backdrop that collapses the sidebar when clicked
+const VcBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  z-index: 1090;             /* just beneath sidebar (1100) */
+  cursor: default;
 `;
 
 /* Wide modal for more spacious editing */
@@ -148,6 +157,13 @@ const AddFab = styled.button`
     transform: translateY(0);
     box-shadow: 0 3px 8px rgba(124, 92, 255, 0.35);
   }
+`;
+
+const ExportBtn = styled(AddFab)`
+  margin: 0;                 /* align with existing buttons */
+  padding: 8px 18px;
+  font-size: 14px;
+  box-shadow: 0 3px 8px rgba(124, 92, 255, 0.3);
 `;
 
 /* ---------- version‐history utilities (JS scope) ---------- */
@@ -241,6 +257,12 @@ export default function CoverageScreen() {
   });
   const [editingId, setEditingId] = useState(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+
+  // Push VC sidebar width to a CSS var so global fixed elements (e.g. profile icon) can react
+  useEffect(() => {
+    document.body.style.setProperty('--vc-offset', historyOpen ? `${SIDEBAR_WIDTH}px` : '0');
+    return () => document.body.style.removeProperty('--vc-offset');
+  }, [historyOpen]);
   const [changeSummary, setChangeSummary] = useState('');
   const [limitModalOpen, setLimitModalOpen] = useState(false);
   const [deductibleModalOpen, setDeductibleModalOpen] = useState(false);
@@ -692,9 +714,10 @@ export default function CoverageScreen() {
         />
 
         <div style={{ display:'flex', flexWrap:'wrap', gap:12, marginBottom:20 }}>
-          <Button onClick={handleExportXLSX}>
-            <DownloadIcon20 width={16} className="mr-1"/> Export&nbsp;XLSX
-          </Button>
+          <ExportBtn onClick={handleExportXLSX}>
+            <DownloadIcon20 width={16} style={{ marginRight: 4 }} />
+            Export&nbsp;XLSX
+          </ExportBtn>
 
           {/* --- Import XLSX --- */}
           <input
@@ -952,8 +975,7 @@ export default function CoverageScreen() {
         )}
 
         <HistoryButton
-          style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
-          onClick={() => setHistoryOpen(true)}
+          onClick={() => setHistoryOpen(o => !o)}
           aria-label="View version history"
         >
           <ClockIcon width={25} height={25} />
@@ -963,6 +985,9 @@ export default function CoverageScreen() {
           onClose={() => setHistoryOpen(false)}
           productId={productId}
         />
+        {historyOpen && (
+          <VcBackdrop onClick={() => setHistoryOpen(false)} />
+        )}
       </Container>
     </Page>
   );

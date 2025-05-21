@@ -37,8 +37,33 @@ const OverlayFixed = styled(Overlay)`
 
 
 const ActionsContainer = styled.div`
+  width: 100%;
   display: flex;
-  gap: 10px;
+  justify-content: center;   /* center whole icon group */
+  align-items: center;
+  gap: 12px;
+
+  /* ensure each ghost‑button icon is itself centered */
+  button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+`;
+
+// Ensure every header & body cell in the pricing table is centered
+const PricingTable = styled(Table)`
+  th, td {
+    text-align: center !important;
+  }
+`;
+
+// Ensures any button/link used inside table cells fills the cell width and centers its text
+const CellButton = styled(Button)`
+  width: 100%;
   justify-content: center;
 `;
 
@@ -715,28 +740,30 @@ const OperandRow = styled(TableRow)`
   }
 `;
 
-// OperandConnector styled component
-const OperandConnector = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  /* horizontal hair‑lines */
-  &::before,
-  &::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: #d1d5db;
-    margin: 0 4px;
-  }
-  /* make sure the glyph is consistently sized */
-  svg,
-  span {
-    width: 20px !important;
-    height: 20px !important;
-  }
+// Center the operand perfectly in its column
+const OperandStepCell = styled(TableCell)`
+  padding: 0;
+  vertical-align: middle;
+  text-align: center;
 `;
+
+// Helper to render operand icon/glyph
+function operandGlyph(op) {
+  switch (op) {
+    case '+':
+      return <PlusIcon width={16} height={16} />;
+    case '-':
+      return <MinusIcon width={16} height={16} />;
+    case '*':
+      return <XMarkIcon width={16} height={16} />;
+    case '/':
+      return <span style={{ fontSize: 16, fontWeight: 700 }}>/</span>;
+    case '=':
+      return <span style={{ fontSize: 16, fontWeight: 700 }}>=</span>;
+    default:
+      return op;
+  }
+}
 
   const moveStep = (id, idx, dir) => {
     const newSteps = [...steps];
@@ -752,14 +779,14 @@ const OperandConnector = styled.div`
   const renderCalculationPreview = () => {
     if (loading) {
       return (
-        <Table>
+        <PricingTable>
           <TableHead>
             <TableRow>
               <TableHeader>Coverage</TableHeader>
               <TableHeader>Step Name</TableHeader>
               <TableHeader>States</TableHeader>
               <TableHeader>Value</TableHeader>
-              <TableHeader style={{width:110,textAlign:'right'}}>Actions</TableHeader>
+              <TableHeader style={{ width: 110 }}>Actions</TableHeader>
             </TableRow>
           </TableHead>
           <tbody>
@@ -773,18 +800,18 @@ const OperandConnector = styled.div`
               </TableRow>
             ))}
           </tbody>
-        </Table>
+        </PricingTable>
       );
     }
     return (
-      <Table>
+      <PricingTable>
         <TableHead>
           <TableRow>
             <TableHeader>Coverage</TableHeader>
             <TableHeader>Step Name</TableHeader>
             <TableHeader>States</TableHeader>
             <TableHeader>Value</TableHeader>
-            <TableHeader style={{width:110,textAlign:'right'}}>Actions</TableHeader>
+            <TableHeader style={{ width: 110 }}>Actions</TableHeader>
           </TableRow>
         </TableHead>
         <tbody>
@@ -794,29 +821,29 @@ const OperandConnector = styled.div`
                 <TableCell>
                   {step.coverages.length > 1
                     ? (
-                      <Button variant="ghost" onClick={() => openCovModal(step.coverages)}>
+                      <CellButton variant="ghost" onClick={() => openCovModal(step.coverages)}>
                         Coverages ({step.coverages.length})
-                      </Button>
+                      </CellButton>
                     )
                     : (
-                      <span>{step.coverages[0] || 'All'}</span>
+                      <CellButton as="span">{step.coverages[0] || 'All'}</CellButton>
                     )
                   }
                 </TableCell>
                 <TableCell>
                   {step.table ? (
-                    <Button
+                    <CellButton
                       variant="ghost"
                       onClick={() => navigate(`/table/${productId}/${step.id}`)}
                     >
                       {step.stepName}
-                    </Button>
+                    </CellButton>
                   ) : (
-                    step.stepName
+                    <CellButton as="span">{step.stepName}</CellButton>
                   )}
                 </TableCell>
                 <TableCell>
-                  <Button
+                  <CellButton
                     variant="ghost"
                     title="Edit states for this step"
                     onClick={() => openEditModal(step)}
@@ -824,11 +851,11 @@ const OperandConnector = styled.div`
                     {getStatesDisplay(step.states || [])}&nbsp;(
                     {(step.states && step.states.length) ? step.states.length : allStates.length}
                     )
-                  </Button>
+                  </CellButton>
                 </TableCell>
                 <TableCell>{step.value || 0}</TableCell>
-                <TableCell style={{textAlign:'right',paddingRight:8}}>
-                  <ActionsContainer style={{justifyContent:'flex-end'}}>
+                <TableCell>
+                  <ActionsContainer>
                     <Button variant="ghost" onClick={() => openStepDetails(step)}>
                       <InformationCircleIcon width={20} height={20} />
                     </Button>
@@ -852,38 +879,17 @@ const OperandConnector = styled.div`
                 {/* Empty coverage cell */}
                 <TableCell />
 
-                {/* Centred operand connector inside the Step‑Name column */}
-                <TableCell>
-                  <OperandConnector>
-                    {(() => {
-                      switch (step.operand) {
-                        case '+':
-                          return <PlusIcon width={16} height={16} />;
-                        case '-':
-                          return <MinusIcon width={16} height={16} />;
-                        case '*':
-                          return <XMarkIcon width={16} height={16} />;
-                        case '/':
-                          return (
-                            <span style={{ fontSize: 16, fontWeight: 700 }}>/</span>
-                          );
-                        case '=':
-                          return (
-                            <span style={{ fontSize: 16, fontWeight: 700 }}>=</span>
-                          );
-                        default:
-                          return step.operand;
-                      }
-                    })()}
-                  </OperandConnector>
-                </TableCell>
+                {/* Centred operand glyph inside the Step‑Name column */}
+                <OperandStepCell>
+                  {operandGlyph(step.operand)}
+                </OperandStepCell>
                 {/* Empty states cell for alignment */}
                 <TableCell />
                 {/* Empty Value column to preserve alignment */}
                 <TableCell />
-                {/* Actions cell aligned right */}
-                <TableCell style={{ textAlign: 'right', paddingRight: 8 }}>
-                  <ActionsContainer style={{ justifyContent: 'flex-end' }}>
+                {/* Actions cell centered */}
+                <TableCell>
+                  <ActionsContainer>
                     <Button variant="ghost" onClick={() => openEditModal(step)}>
                       <PencilIcon width={16} height={16} />
                     </Button>
@@ -912,7 +918,7 @@ const OperandConnector = styled.div`
             )
           ))}
         </tbody>
-      </Table>
+      </PricingTable>
     );
   };
 
@@ -1010,7 +1016,16 @@ const OperandConnector = styled.div`
         )}
         <HistoryButton
           style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
-          onClick={() => setHistoryOpen(true)}
+          onClick={() => {
+            setHistoryOpen(prev => {
+              const next = !prev;
+              document.documentElement.style.setProperty(
+                '--vc-offset',
+                next ? `${SIDEBAR_WIDTH}px` : '0px'
+              );
+              return next;
+            });
+          }}
           aria-label="View version history"
         >
           <ClockIcon width={24} height={24}/>

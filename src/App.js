@@ -25,7 +25,7 @@ import RulesScreen from './components/RulesScreen';
 import CoverageStatesScreen from './components/CoverageStatesScreen';
 import ProductExplorer from './components/ProductExplorer';
 import ProductBuilder from './components/ProductBuilder';
-import VersionControlSidebar from './components/VersionControlSidebar';
+import VersionControlSidebar, { SIDEBAR_WIDTH } from './components/VersionControlSidebar';
 
 /* wrapper */
 import RequireAuth from './components/RequireAuth';
@@ -33,8 +33,9 @@ import RequireAuth from './components/RequireAuth';
 const ProfileWrapper = styled.div`
   position: fixed;
   top: 16px;
-  right: 16px;
-  z-index: 1400;        /* below VersionControlSidebar (1500) */
+  right: ${props => props.shiftRight || 16}px;
+  z-index: 1400; /* below VersionControlSidebar (1500) */
+  transition: right 0.3s ease;
 `;
 
 const ProfileIconBtn = styled.button`
@@ -103,7 +104,10 @@ const HistoryWrapper = () => {
 
       {/* hide on login route */}
       {!location.pathname.startsWith('/login') && (
-        <ProfileWrapper id="profile-menu">
+        <ProfileWrapper
+          id="profile-menu"
+          shiftRight={historyOpen ? SIDEBAR_WIDTH + 16 : 16}
+        >
           <ProfileIconBtn onClick={() => setProfileOpen(o => !o)}>
             <FaUserCircle size={30} />
           </ProfileIconBtn>

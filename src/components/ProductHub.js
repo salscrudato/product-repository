@@ -48,6 +48,8 @@ import GlobalSearch from '../components/GlobalSearch';
 import styled, { keyframes } from 'styled-components';
 import DataDictionaryModal from './DataDictionaryModal';
 import BulkFormUploadModal from './BulkFormUploadModal';
+// Context‑aware in‑app helper ("?" FAB + spotlight guidance)
+import HelpBeacon from './HelpBeacon';
 
 /* --- lazy-load pdfjs only when needed -------------------------------- */
 let pdfjsLib = null;
@@ -478,12 +480,58 @@ const SendBtn = styled(Button)`
 /* ------------------------------------------------------------------ */
 
 export default function ProductHub() {
+  // Help beacon definitions  ------------------------------------------------
+  const helpSections = [
+    {
+      id: 'add',
+      title: 'Add Product',
+      body: 'Create a new product shell. Opens a modal where you can enter core metadata and attach the base form.',
+      selector: '#add-product-btn'
+    },
+    {
+      id: 'bulk',
+      title: 'Bulk Upload Forms',
+      body: 'Upload multiple PDFs at once – the system extracts form metadata automatically.',
+      selector: '#bulk-upload-btn'
+    },
+    {
+      id: 'history',
+      title: 'Version Control',
+      body: 'Track every change. Click again to collapse.',
+      selector: '#history-toggle'
+    },
+    {
+      id:'summary',
+      title:'Summary',
+      body:'AI‑generated overview of the base coverage form.',
+      selector:'#help-summary-btn'
+    },
+    {
+      id:'chat',
+      title:'Chat',
+      body:'Ask questions about the product – the AI has full context.',
+      selector:'#help-chat-btn'
+    },
+    {
+      id:'rules',
+      title:'Rules',
+      body:'Upload a rules manual and extract underwriting & rating rules.',
+      selector:'#help-rules-btn'
+    }
+  ];
   /* ---------- React state -------------------------------------------------- */
   // Anything related to server‑data is grouped first, followed by UI & modal state.
   // This ordering makes the render‑tree easier to scan.
   const [products, setProducts] = useState([]);
   // add history sidebar state
   const [historyOpen, setHistoryOpen] = useState(false);
+  // When the version‑control sidebar slides, push its width to a CSS
+  // custom property so global fixed elements (e.g. the profile icon in App.js)
+  // can read it without prop‑drilling.
+  useEffect(() => {
+    document.body.style.setProperty('--vc-offset', historyOpen ? `${SIDEBAR_WIDTH}px` : '0');
+    return () => document.body.style.removeProperty('--vc-offset');
+  }, [historyOpen]);
   const [searchTerm, setSearchTerm] = useState('');
   const [rawSearch, setRawSearch] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -1012,14 +1060,8 @@ export default function ProductHub() {
 
   return (
     <Page>
-      {/* Log-out button wrapper (top-right corner) */}
-      <div style={{ position:'fixed', top:16, right: historyOpen ? SIDEBAR_WIDTH + 24 : 16, zIndex:1050 }}>
-        {/* Place your logout button here, or wrap the existing logout button with this div if it's elsewhere */}
-        {/* ...logout button... */}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1 }}>
-          <Container>
+      <div style={{ flex: 1 }}>
+        <Container>
         <PageHeader>
           {/* Primary navigation */}
           <Tabs>
@@ -1068,6 +1110,7 @@ export default function ProductHub() {
                   <TdAI>
                     <ActionGroup>
                       <SummaryButton
+                        id="help-summary-btn"
                         onClick={() => handleSummary(p.id, p.formDownloadUrl)}
                         disabled={loadingSummary[p.id]}
                       >
@@ -1082,6 +1125,7 @@ export default function ProductHub() {
                       </SummaryButton>
 
                       <Button
+                        id="help-chat-btn"
                         variant="ghost"
                         onClick={() => openChat(p)}
                         title="Chat about this form">
@@ -1089,6 +1133,7 @@ export default function ProductHub() {
                         <span style={{ marginLeft: 4 }}>Chat</span>
                       </Button>
                       <Button
+                        id="help-rules-btn"
                         variant="ghost"
                         onClick={() => openRulesModal(p)}
                         title="Extract rules from PDF">
@@ -1131,31 +1176,38 @@ export default function ProductHub() {
         )}
         {/* Action FABs (below table, left‑aligned) */}
         <div style={{ display:'flex', gap:16, marginTop:32 }}>
-          <AddFab onClick={() => setModalOpen(true)}>
+          <AddFab id="add-product-btn" onClick={() => setModalOpen(true)}>
             <PlusIcon width={16} height={16} />
             Add&nbsp;Product
           </AddFab>
-          <AddFab onClick={() => setBulkOpen(true)}>
+          <AddFab id="bulk-upload-btn" onClick={() => setBulkOpen(true)}>
             <PlusIcon width={16} height={16} />
             Bulk&nbsp;Upload&nbsp;Forms
           </AddFab>
         </div>
-          </Container>
-        </div>
-        {/* Floating history button */}
-        <HistoryButton
-          style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
-          onClick={() => setHistoryOpen(o => !o)}
-          aria-label="Version history"
-        >
-          <ClockIcon width={24} height={24} />
-        </HistoryButton>
-        <VersionControlSidebar
-          open={historyOpen}
-          onClose={() => setHistoryOpen(false)}
-          // optional: pass filters or userEmail if needed
-        />
+        </Container>
       </div>
+      {/* Floating history button */}
+      <HistoryButton
+        id="history-toggle"
+        style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
+        onClick={() => setHistoryOpen(o => !o)}
+        aria-label="Version history"
+      >
+        <ClockIcon width={24} height={24} />
+      </HistoryButton>
+      {/* click‑away overlay for Version Control */}
+      {historyOpen && (
+        <div
+          onClick={() => setHistoryOpen(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 1098 }}
+        />
+      )}
+      <VersionControlSidebar
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        // optional: pass filters or userEmail if needed
+      />
 
       {/* Add / Edit Modal */}
       {modalOpen && (
@@ -1457,6 +1509,7 @@ export default function ProductHub() {
           </Modal>
         </Overlay>
       )}
+      <HelpBeacon sections={helpSections} />
     </Page>
   );
 }
