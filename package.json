@@ -14,13 +14,16 @@
     "polished": "^4.3.1",
     "react": "18.0.0",
     "react-dom": "18.0.0",
+    "react-icons": "^5.5.0",
     "react-router-dom": "^6.23.1",
     "react-scripts": "5.0.1",
     "react-select": "^5.10.1",
     "react-simple-maps": "^3.0.0",
+    "react-window": "^1.8.11",
     "styled-components": "^6.1.18",
     "web-vitals": "^2.1.4",
-    "worker-loader": "^3.0.8"
+    "worker-loader": "^3.0.8",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.0",

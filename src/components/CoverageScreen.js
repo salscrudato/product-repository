@@ -1,18 +1,21 @@
 // src/components/CoverageScreen.js
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 import {
   collection,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  doc,
+  updateDoc,
+  getDoc,
+  setDoc,
+  onSnapshot,
   query,
   where,
-  getDocs,
-  updateDoc,
-  doc,
-  deleteDoc,
-  serverTimestamp,
-  getDoc,
-  onSnapshot,
-  addDoc
+  limit,
+  writeBatch,
+  serverTimestamp
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage, auth } from '../firebase';
@@ -30,14 +33,21 @@ import {
   CloseBtn
 } from '../components/ui/Table';
 import {
-  PencilIcon,
-  TrashIcon,
-  XMarkIcon,
-  PlusIcon,
+  ArrowUpTrayIcon,
   InformationCircleIcon,
   LinkIcon,
+  PencilIcon,
+  PlusIcon,
+  TrashIcon,
+  XMarkIcon,
   ClockIcon
 } from '@heroicons/react/24/solid';
+// lazy imported when needed
+import { ArrowDownTrayIcon as DownloadIcon20, ArrowUpTrayIcon as UploadIcon20 } from '@heroicons/react/20/solid';
+import { makeCoverageSheet } from '../utils/xlsx';
+import { sheetToCoverageObjects } from '../utils/xlsx';
+  // XLSX import handler for per-product import (for ProductHub)
+  // (no-op here, but present for completeness)
 
 /* ---------- styled components ---------- */
 const Table = styled.table`
@@ -151,9 +161,24 @@ export default function CoverageScreen() {
   }
 
   // state hooks...
+  const fileInputRef = useRef(null);
   const [coverages, setCoverages] = useState([]);
   const [forms, setForms] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  // memo maps
+  const formMap = useMemo(
+    () => Object.fromEntries(forms.map(f => [f.id, f.formName || f.formNumber || 'Unnamed Form'])),
+    [forms]
+  );
+  const [rawSearch, setRawSearch] = useState('');
+  useEffect(() => {
+    const id = setTimeout(() => setSearchQuery(rawSearch.trim()), 250);
+    return () => clearTimeout(id);
+  }, [rawSearch]);
+  const filteredCoverages = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return coverages.filter(c => !q || c.name.toLowerCase().includes(q));
+  }, [coverages, searchQuery]);
   // product / breadcrumb labels
   const [productName, setProductName] = useState('');
   const [parentCoverageName, setParentCoverageName] = useState('');
@@ -177,6 +202,7 @@ export default function CoverageScreen() {
   const [deductibleData, setDeductibleData] = useState([]);
   const [limitItCode, setLimitItCode] = useState('');
   const [deductibleItCode, setDeductibleItCode] = useState('');
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   // ---------- data loader ----------
   const loadCoverages = useCallback(async () => {
@@ -190,34 +216,35 @@ export default function CoverageScreen() {
         return;
       }
 
-      console.log(`Loading coverages for productId: ${productId}, parentCoverageId: ${parentCoverageId || 'root'}`);
-
-      /* --- get every coverage once --- */
-      const allSnap = await getDocs(
-        collection(db, `products/${productId}/coverages`)
-      );
+      /* --- query coverages --- */
+      const baseQ = parentCoverageId
+        ? query(
+            collection(db, `products/${productId}/coverages`),
+            where('parentCoverageId', '==', parentCoverageId),
+            limit(500)
+          )
+        : query(
+            collection(db, `products/${productId}/coverages`),
+            where('parentCoverageId', '==', null),
+            limit(500)
+          );
+      const allSnap = await getDocs(baseQ);
       const allCoverages = allSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      console.log(`Found ${allCoverages.length} total coverages`);
-
-      /* --- slice for this screen --- */
-      const coverageList = parentCoverageId
-        ? allCoverages.filter(c => c.parentCoverageId === parentCoverageId)
-        : allCoverages.filter(c => !c.parentCoverageId || c.parentCoverageId === '');
-
-      console.log(`Filtered to ${coverageList.length} coverages for this view`);
-
-      /* --- sub‑coverage counts for root view --- */
-      const subCounts = {};
-      allCoverages.forEach(c => {
-        if (c.parentCoverageId) {
-          subCounts[c.parentCoverageId] =
-            (subCounts[c.parentCoverageId] || 0) + 1;
-        }
-      });
-
+      allCoverages.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      // For subCounts, fetch all docs (could be optimized, but keep for now)
+      let subCounts = {};
+      try {
+        const allDocsSnap = await getDocs(collection(db, `products/${productId}/coverages`));
+        const allDocs = allDocsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        allDocs.forEach(c => {
+          if (c.parentCoverageId) {
+            subCounts[c.parentCoverageId] =
+              (subCounts[c.parentCoverageId] || 0) + 1;
+          }
+        });
+      } catch {}
       setCoverages(
-        coverageList.map(c => ({
+        allCoverages.map(c => ({
           ...c,
           subCount: subCounts[c.id] || 0
         }))
@@ -242,13 +269,12 @@ export default function CoverageScreen() {
         })
       );
       setForms(formList);
-      console.log(`Loaded ${formList.length} forms`);
+      // (removed console.log)
 
       /* --- product / parent‑coverage names --- */
       const productDoc = await getDoc(doc(db, 'products', productId));
       if (productDoc.exists()) {
         setProductName(productDoc.data().name);
-        console.log(`Product name: ${productDoc.data().name}`);
       } else {
         console.error(`Product document not found for ID: ${productId}`);
         setProductName('Unknown Product');
@@ -265,7 +291,7 @@ export default function CoverageScreen() {
         setParentCoverageName('');
       }
     } catch (err) {
-      console.error('Error loading coverages', err);
+      // console.error('Error loading coverages', err);
       alert('Failed to load coverages: ' + err.message);
     } finally {
       setLoading(false);
@@ -296,7 +322,10 @@ export default function CoverageScreen() {
     setEditingId(null);
     setChangeSummary('');
   };
-  const openAddModal = () => { /* ... */ };
+  const openAddModal = () => {
+    resetForm();
+    setAddModalOpen(true);
+  };
   const openEditModal = coverage => { /* ... */ };
   const openLimitModal = coverage => {
     setCurrentCoverage(coverage);
@@ -310,6 +339,147 @@ export default function CoverageScreen() {
     setDeductibleData(coverage.deductibles || []);
     setDeductibleItCode(coverage.deductiblesItCode || '');
     setDeductibleModalOpen(true);
+  };
+
+  /* ---------- XLSX helpers ---------- */
+
+  // List of all 50 U.S. state abbreviations
+  const ALL_STATES = [
+    'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+    'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+    'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'
+  ];
+
+  const handleExportXLSX = async () => {
+    try {
+      const XLSXmod = await import('xlsx');
+      const XLSX = XLSXmod.default || XLSXmod;
+      const fsMod = await import('file-saver');
+      const saveAs = fsMod.saveAs || fsMod.default;   // works for both ESM / CJS builds
+
+      const ws = makeCoverageSheet(coverages);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Coverages');
+      const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      saveAs(new Blob([buf], { type: 'application/octet-stream' }), `coverages_${productName}.xlsx`);
+    } catch (err) {
+      alert('Failed to export: ' + err.message);
+    }
+  };
+
+  const handleImportXLSX = async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      /* --- parse workbook --- */
+      const XLSXmod = await import('xlsx');
+      const XLSX = XLSXmod.default || XLSXmod;
+      const buf = await file.arrayBuffer();
+      const ws = XLSX.read(buf).Sheets[XLSX.read(buf).SheetNames[0]];
+      const rows = sheetToCoverageObjects(ws);           // includes parentCoverageCode
+
+      // enrich rows -> derive `category` + `states[]`
+      const enrichedRows = rows.map(r => {
+        // category column may be named exactly 'Category' (case‑insensitive)
+        const category = r.Category || r.category || '';
+
+        // gather state columns flagged truthy (e.g. "Y", "Yes", "1", true)
+        const states = ALL_STATES.filter(st => {
+          const cellVal = r[st];
+          if (cellVal === undefined || cellVal === null) return false;
+          const v = String(cellVal).trim().toLowerCase();
+          return v === 'y' || v === 'yes' || v === '1' || v === 'true';
+        });
+
+        return {
+          ...r,
+          category,
+          states
+        };
+      });
+
+      /* --- basic validation --- */
+      const bad = enrichedRows.filter(r => !r.name || !r.coverageCode);
+      if (bad.length) {
+        alert('Rows missing Coverage Name or Coverage Code. Fix sheet and retry.');
+        return;
+      }
+
+      /* --- 1) pull existing coverages by coverageCode --- */
+      const codeToId = {};
+      const codes = enrichedRows.map(r => r.coverageCode);
+      // Firestore 'in' is max 10 values – chunk array
+      const chunk = (arr, n) => {
+        const out = [];
+        for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+        return out;
+      };
+      for (const slice of chunk(codes, 10)) {
+        const snap = await getDocs(
+          query(
+            collection(db, `products/${productId}/coverages`),
+            where('coverageCode', 'in', slice)
+          )
+        );
+        snap.docs.forEach(d => (codeToId[d.data().coverageCode] = d.id));
+      }
+
+      /* --- 2) batch create / update up to 500 per commit --- */
+      const makeBatch = () => writeBatch(db);
+      let batch = makeBatch();
+      let opCount = 0;
+
+      const commitIfFull = async () => {
+        if (opCount >= 450) {
+          await batch.commit();
+          batch = makeBatch();
+          opCount = 0;
+        }
+      };
+
+      for (const r of enrichedRows) {
+        const parentId = r.parentCoverageCode
+          ? codeToId[r.parentCoverageCode] || null
+          : null;
+
+        if (codeToId[r.coverageCode]) {
+          // update existing
+          batch.set(
+            doc(db, `products/${productId}/coverages`, codeToId[r.coverageCode]),
+            {
+              ...r,
+              parentCoverageId: parentId,
+              productId,
+              updatedAt: serverTimestamp()
+            },
+            { merge: true }
+          );
+        } else {
+          // create new
+          const newRef = doc(collection(db, `products/${productId}/coverages`));
+          batch.set(newRef, {
+            ...r,
+            productId,
+            parentCoverageId: parentId,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+          codeToId[r.coverageCode] = newRef.id; // so later rows can link as parent
+        }
+        opCount++;
+        await commitIfFull();
+      }
+      await batch.commit();
+
+      alert('Import complete – coverages added/updated!');
+      loadCoverages();
+    } catch (err) {
+      console.error(err);
+      alert('Import failed: ' + err.message);
+    } finally {
+      e.target.value = ''; // reset file input
+    }
   };
 
   const handleAddOrUpdate = async () => {
@@ -431,35 +601,37 @@ export default function CoverageScreen() {
         </PageHeader>
 
         <div style={{ marginBottom: '20px' }}>
-          <GlobalSearch />
+          <GlobalSearch
+            value={rawSearch}
+            onChange={e => setRawSearch(e.target.value)}
+          />
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '20px' }}>
-          <div>
-            {searchQuery && (
-              <p>
-                Showing results for: <strong>{searchQuery}</strong>
-                <Button variant="ghost" onClick={() => setSearchQuery('')}>
-                  <XMarkIcon width={16} height={16} />
-                </Button>
-              </p>
-            )}
-          </div>
-          <Button onClick={() => {
-            setForm({
-              name: '',
-              coverageCode: '',
-              formIds: [],
-              limits: [],
-              deductibles: [],
-              states: [],
-              category: ''
-            });
-            setEditingId(null);
-            // Call openAddModal if it's implemented
-          }}>
-            <PlusIcon width={20} height={20} style={{ marginRight: '4px' }} />
-            Add Coverage
+        <div style={{ display:'flex', flexWrap:'wrap', gap:12, marginBottom:20 }}>
+          <Button onClick={handleExportXLSX}>
+            <DownloadIcon20 width={16} className="mr-1"/> Export&nbsp;XLSX
+          </Button>
+
+          {/* --- Import XLSX --- */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xls,.xlsx"
+            style={{ display: 'none' }}
+            onChange={handleImportXLSX}
+          />
+          <Button
+            variant="ghost"
+            onClick={() => fileInputRef.current?.click()}
+            title="Import coverages from Excel"
+          >
+            <UploadIcon20 width={16} className="mr-1" />
+            Import&nbsp;XLSX
+          </Button>
+
+          <Button onClick={openAddModal}>
+            <PlusIcon width={20} height={20} style={{ marginRight:'4px' }}/>
+            Add&nbsp;Coverage
           </Button>
         </div>
 
@@ -479,102 +651,73 @@ export default function CoverageScreen() {
               </Tr>
             </THead>
             <tbody>
-              {coverages
-                .filter(c => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                .map(coverage => (
-                  <Tr key={coverage.id}>
-                    <Td>{coverage.name}</Td>
-                    <Td>{coverage.coverageCode}</Td>
-                    <Td>{coverage.category || '-'}</Td>
+              {filteredCoverages.map(coverage => (
+                <Tr key={coverage.id}>
+                  <Td>{coverage.name}</Td>
+                  <Td>{coverage.coverageCode}</Td>
+                  <Td>{coverage.category || '-'}</Td>
 
-                    {/* Limits */}
-                    <Td align="center">
-                      <Button variant="ghost" onClick={() => openLimitModal(coverage)}>
-                        Limits{coverage.limits && coverage.limits.length > 0 ? ` (${coverage.limits.length})` : ''}
-                      </Button>
-                    </Td>
+                  {/* Limits */}
+                  <Td align="center">
+                    <Button variant="ghost" onClick={() => openLimitModal(coverage)}>
+                      Limits{coverage.limits && coverage.limits.length > 0 ? ` (${coverage.limits.length})` : ''}
+                    </Button>
+                  </Td>
 
                   {/* Deductibles */}
-                    <Td align="center">
-                      <Button variant="ghost" onClick={() => openDeductibleModal(coverage)}>
-                        Deductibles{coverage.deductibles && coverage.deductibles.length > 0 ? ` (${coverage.deductibles.length})` : ''}
+                  <Td align="center">
+                    <Button variant="ghost" onClick={() => openDeductibleModal(coverage)}>
+                      Deductibles{coverage.deductibles && coverage.deductibles.length > 0 ? ` (${coverage.deductibles.length})` : ''}
+                    </Button>
+                  </Td>
+
+                  {/* States */}
+                  <Td align="center">
+                    <RouterLink
+                      to={`/coverage-states/${productId}/${coverage.id}`}
+                      style={{ textDecoration: 'none', color: '#2563eb' }}
+                    >
+                      States{coverage.states && coverage.states.length > 0 ? ` (${coverage.states.length})` : ''}
+                    </RouterLink>
+                  </Td>
+
+                  {/* Linked Forms */}
+                  <Td align="center">
+                    <RouterLink
+                      to={`/forms/${productId}`}
+                      state={{ coverageId: coverage.id }}
+                      style={{ color: '#2563eb', textDecoration: 'none' }}
+                    >
+                      Forms{coverage.formIds && coverage.formIds.length > 0 ? ` (${coverage.formIds.length})` : ''}
+                    </RouterLink>
+                  </Td>
+
+                  {/* Sub‑Coverages */}
+                  <Td align="center">
+                    {coverage.subCount > 0 ? (
+                      <RouterLink to={`${location.pathname}/${coverage.id}`}>
+                        Sub‑Coverages ({coverage.subCount})
+                      </RouterLink>
+                    ) : (
+                      <RouterLink to={`${location.pathname}/${coverage.id}`}>
+                        Add&nbsp;Sub‑Coverage
+                      </RouterLink>
+                    )}
+                  </Td>
+
+                  {/* Actions */}
+                  <Td>
+                    <Actions>
+                      <Button variant="ghost" onClick={() => openEditModal(coverage)}>
+                        <PencilIcon width={20} height={20} />
                       </Button>
-                    </Td>
-
-                    {/* States */}
-                    <Td align="center">
-                      <RouterLink
-                        to={`/coverage-states/${productId}/${coverage.id}`}
-                        style={{ textDecoration: 'none', color: '#2563eb' }}
-                      >
-                        States{coverage.states && coverage.states.length > 0 ? ` (${coverage.states.length})` : ''}
-                      </RouterLink>
-                    </Td>
-
-                    {/* Linked Forms */}
-                    <Td align="center">
-                      <RouterLink
-                        to={`/forms/${productId}`}
-                        state={{ coverageId: coverage.id }}
-                        style={{ color: '#2563eb', textDecoration: 'none' }}
-                      >
-                        Forms{coverage.formIds && coverage.formIds.length > 0 ? ` (${coverage.formIds.length})` : ''}
-                      </RouterLink>
-                    </Td>
-
-                    {/* Sub‑Coverages */}
-                    <Td align="center">
-                      {coverage.subCount > 0 ? (
-                        <RouterLink to={`${location.pathname}/${coverage.id}`}>
-                          Sub‑Coverages ({coverage.subCount})
-                        </RouterLink>
-                      ) : (
-                        <RouterLink to={`${location.pathname}/${coverage.id}`}>
-                          Add&nbsp;Sub‑Coverage
-                        </RouterLink>
-                      )}
-                    </Td>
-
-                    <Td>
-                      <Actions>
-                        <Button
-                          variant="ghost"
-                          onClick={() => {
-                            // Call openEditModal if it's implemented
-                            setForm({
-                              name: coverage.name,
-                              coverageCode: coverage.coverageCode,
-                              formIds: coverage.formIds || [],
-                              limits: coverage.limits || [],
-                              deductibles: coverage.deductibles || [],
-                              states: coverage.states || [],
-                              category: coverage.category || ''
-                            });
-                            setEditingId(coverage.id);
-                          }}
-                        >
-                          <PencilIcon width={20} height={20} />
-                        </Button>
-                        <Button
-                          variant="danger"
-                          onClick={() => {
-                            if (window.confirm('Delete this coverage?')) {
-                              // Call handleDelete if it's implemented
-                              deleteDoc(doc(db, `products/${productId}/coverages`, coverage.id))
-                                .then(() => loadCoverages())
-                                .catch(err => {
-                                  console.error(err);
-                                  alert('Failed to delete coverage.');
-                                });
-                            }
-                          }}
-                        >
-                          <TrashIcon width={20} height={20} />
-                        </Button>
-                      </Actions>
-                    </Td>
-                  </Tr>
-                ))}
+                      <Button variant="danger" onClick={() => handleDelete(coverage.id)}>
+                        <TrashIcon width={20} height={20} />
+                      </Button>
+                    </Actions>
+                  </Td>
+                </Tr>
+              ))}
             </tbody>
           </Table>
         ) : (
@@ -684,6 +827,54 @@ export default function CoverageScreen() {
                   Cancel
                 </Button>
               </Actions>
+            </Modal>
+          </Overlay>
+        )}
+
+        {/* ----- Add / Edit Coverage Modal ----- */}
+        {addModalOpen && (
+          <Overlay onClick={() => setAddModalOpen(false)}>
+            <Modal onClick={e => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>{editingId ? 'Edit Coverage' : 'Add Coverage'}</ModalTitle>
+                <CloseBtn onClick={() => setAddModalOpen(false)}>
+                  <XMarkIcon width={20} height={20}/>
+                </CloseBtn>
+              </ModalHeader>
+
+              <div style={{ display:'flex', flexDirection:'column', gap:14, marginTop:8 }}>
+                <TextInput
+                  placeholder="Coverage Name"
+                  value={form.name}
+                  onChange={e => setForm({ ...form, name: e.target.value })}
+                />
+                <TextInput
+                  placeholder="Coverage Code"
+                  value={form.coverageCode}
+                  onChange={e => setForm({ ...form, coverageCode: e.target.value })}
+                />
+                <select
+                  value={form.category}
+                  onChange={e => setForm({ ...form, category: e.target.value })}
+                  style={{ padding:10, borderRadius:6, border:'1px solid #e5e7eb', fontSize:14 }}
+                >
+                  <option value="Base Coverage">Base Coverage</option>
+                  <option value="Endorsement Coverage">Endorsement Coverage</option>
+                </select>
+                {editingId && (
+                  <textarea
+                    rows="3"
+                    placeholder="Reason for changes (required)"
+                    value={changeSummary}
+                    onChange={e => setChangeSummary(e.target.value)}
+                    style={{ width:'100%', padding:10, borderRadius:6, border:'1px solid #e5e7eb', fontSize:14 }}
+                  />
+                )}
+                <Actions>
+                  <Button onClick={handleAddOrUpdate}>{editingId ? 'Update' : 'Add'}</Button>
+                  <Button variant="ghost" onClick={() => setAddModalOpen(false)}>Cancel</Button>
+                </Actions>
+              </div>
             </Modal>
           </Overlay>
         )}

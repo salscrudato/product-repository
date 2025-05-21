@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -19,6 +19,52 @@ import {
   CloseBtn
 } from '../components/ui/Table';
 
+import styled, { keyframes } from 'styled-components';
+
+/* ---------- styled helpers ---------- */
+const Card = styled.div`
+  background:#ffffff;
+  border-radius:12px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.08);
+  padding:24px;
+  margin-bottom:24px;
+  overflow-x:auto;
+`;
+
+const TableContainer = styled.div`
+  overflow:auto;
+  max-width:100%;
+`;
+
+const StickyTh = styled(Th)`
+  position:sticky;
+  top:0;
+  background:#F9FAFB;
+  z-index:2;
+`;
+
+const RowHeaderTd = styled(Td)`
+  position:sticky;
+  left:0;
+  background:#ffffff;
+  font-weight:500;
+  z-index:1;
+`;
+
+const spin = keyframes`
+  0%{transform:rotate(0deg);}
+  100%{transform:rotate(360deg);}
+`;
+const Spinner = styled.div`
+  border:4px solid #f3f3f3;
+  border-top:4px solid #6366f1;
+  border-radius:50%;
+  width:40px;
+  height:40px;
+  animation:${spin} 1s linear infinite;
+  margin:100px auto;
+`;
+
 
 // List of U.S. state abbreviations
 const usStates = [
@@ -36,7 +82,25 @@ function TableScreen() {
   const navigate = useNavigate();
   const [step, setStep] = useState(null);
   const [dimensions, setDimensions] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [rawSearch,setRawSearch]=useState('');
+  const [searchQuery,setSearchQuery]=useState('');
+  const searchRef = useRef(null);
+  // debounce search
+  useEffect(()=>{
+    const id=setTimeout(()=>setSearchQuery(rawSearch.trim()),250);
+    return ()=>clearTimeout(id);
+  },[rawSearch]);
+
+  useEffect(()=>{
+    const handler=e=>{
+      if(e.key==='/' && !e.target.matches('input,textarea,select')){
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown',handler);
+    return ()=>window.removeEventListener('keydown',handler);
+  },[]);
   const [newDimension, setNewDimension] = useState({ name: '', values: '', technicalCode: '', type: 'Row', states: [] });
   const [editingDimensionId, setEditingDimensionId] = useState(null);
   const [tableData, setTableData] = useState({});
@@ -240,6 +304,11 @@ function TableScreen() {
   const rowValues = rowDimension ? rowDimension.values.split(',').map(val => val.trim()) : [''];
   const colValues = colDimension ? colDimension.values.split(',').map(val => val.trim()) : [''];
 
+  // Loading spinner
+  if(!dimensions.length && !step){
+    return (<Page><Container><Spinner/></Container></Page>);
+  }
+
   return (
     <Page>
       <Container>
@@ -252,10 +321,11 @@ function TableScreen() {
 
         {/* Search Bar */}
         <TextInput
-          placeholder="Search dimensions…"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          style={{ marginBottom: 24 }}
+          placeholder="Search dimensions…  (press “/” to focus)"
+          value={rawSearch}
+          ref={searchRef}
+          onChange={e=>setRawSearch(e.target.value)}
+          style={{marginBottom:24}}
         />
 
         {/* Add Dimension Button */}
@@ -264,51 +334,53 @@ function TableScreen() {
         </Button>
 
         {/* Dimensions Table */}
-        <div style={{ overflowX: 'auto', marginBottom: 20 }}>
-          <Table>
-            <THead>
-              <Tr>
-                <Th>Type</Th>
-                <Th>Dimension Name</Th>
-                <Th>Dimension Values</Th>
-                <Th>IT&nbsp;Code</Th>
-                <Th>States</Th>
-                <Th>Actions</Th>
-              </Tr>
-            </THead>
-            <tbody>
-              {filteredDimensions.map(dimension => (
-                <Tr key={dimension.id}>
-                  <Td>{dimension.type}</Td>
-                  <Td>{dimension.name}</Td>
-                  <Td>{dimension.values}</Td>
-                  <Td>{dimension.technicalCode}</Td>   {/* keeps data but header now says IT Code */}
-                  <Td>{dimension.states.join(', ')}</Td>
-                  <Td>
-                    <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                      <Button
-                        variant="ghost"
-                        onClick={() => openEditModal(dimension)}
-                        title="Edit dimension"
-                        style={{ padding: 4, minWidth: 0 }}
-                      >
-                        <PencilIcon width={16} height={16} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleDeleteDimension(dimension.id)}
-                        title="Delete dimension"
-                        style={{ color: '#DC2626', padding: 4, minWidth: 0 }}
-                      >
-                        <TrashIcon width={16} height={16} />
-                      </Button>
-                    </div>
-                  </Td>
+        <Card>
+          <TableContainer>
+            <Table>
+              <THead>
+                <Tr>
+                  <StickyTh>Type</StickyTh>
+                  <StickyTh>Dimension Name</StickyTh>
+                  <StickyTh>Dimension Values</StickyTh>
+                  <StickyTh>IT&nbsp;Code</StickyTh>
+                  <StickyTh>States</StickyTh>
+                  <StickyTh>Actions</StickyTh>
                 </Tr>
-              ))}
-            </tbody>
-          </Table>
-        </div>
+              </THead>
+              <tbody>
+                {filteredDimensions.map(dimension => (
+                  <Tr key={dimension.id}>
+                    <Td>{dimension.type}</Td>
+                    <Td>{dimension.name}</Td>
+                    <Td>{dimension.values}</Td>
+                    <Td>{dimension.technicalCode}</Td>
+                    <Td>{dimension.states.join(', ')}</Td>
+                    <Td>
+                      <div style={{display:'flex',gap:10}}>
+                        <Button
+                          variant="ghost"
+                          onClick={() => openEditModal(dimension)}
+                          title="Edit dimension"
+                          style={{ padding: 4, minWidth: 0 }}
+                        >
+                          <PencilIcon width={16} height={16} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleDeleteDimension(dimension.id)}
+                          title="Delete dimension"
+                          style={{ color: '#DC2626', padding: 4, minWidth: 0 }}
+                        >
+                          <TrashIcon width={16} height={16} />
+                        </Button>
+                      </div>
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableContainer>
+        </Card>
 
         {/* Modal for Adding/Editing Dimension */}
         {modalOpen && (
@@ -396,55 +468,56 @@ function TableScreen() {
             Column Dimension: {colDimension?.name || 'None'}
           </p>
         </div>
-        <div
-          style={{ overflowX: 'auto', marginBottom: 20 }}
-          onPaste={e => {
-            // Parse pasted CSV/TSV into tableData
-            const text = e.clipboardData.getData('text');
-            const rows = text.trim().split(/\r?\n/).map(r => r.split(/\t|,/));
-            // Build new data object
-            const newData = { ...tableData };
-            rows.forEach((rowArr, rIdx) => {
-              const rowKey = rowValues[rIdx];
-              rowArr.forEach((cellValue, cIdx) => {
-                const colKey = colValues[cIdx];
-                if (rowKey && colKey) {
-                  newData[`${rowKey}-${colKey}`] = cellValue;
-                }
+        <Card>
+          <TableContainer
+            onPaste={e => {
+              // Parse pasted CSV/TSV into tableData
+              const text = e.clipboardData.getData('text');
+              const rows = text.trim().split(/\r?\n/).map(r => r.split(/\t|,/));
+              // Build new data object
+              const newData = { ...tableData };
+              rows.forEach((rowArr, rIdx) => {
+                const rowKey = rowValues[rIdx];
+                rowArr.forEach((cellValue, cIdx) => {
+                  const colKey = colValues[cIdx];
+                  if (rowKey && colKey) {
+                    newData[`${rowKey}-${colKey}`] = cellValue;
+                  }
+                });
               });
-            });
-            setTableData(newData);
-            e.preventDefault();
-          }}
-        >
-          <Table>
-            <THead>
-              <Tr>
-                <Th>{rowDimension?.name || 'Table Preview'}</Th>
-                {colValues.map((col, index) => (
-                  <Th key={index}>{col}</Th>
-                ))}
-              </Tr>
-            </THead>
-            <tbody>
-              {rowValues.map((row, rowIndex) => (
-                <Tr key={rowIndex}>
-                  <Td>{row}</Td>
-                  {colValues.map((col, colIndex) => (
-                    <Td key={colIndex}>
-                      <TextInput
-                        type="text"
-                        value={tableData[`${row}-${col}`] || ''}
-                        onChange={(e) => handleTableDataChange(`${row}-${col}`, e.target.value)}
-                        placeholder="Enter value"
-                      />
-                    </Td>
+              setTableData(newData);
+              e.preventDefault();
+            }}
+          >
+            <Table>
+              <THead>
+                <Tr>
+                  <StickyTh>{rowDimension?.name || 'Table Preview'}</StickyTh>
+                  {colValues.map((col,index)=>(
+                    <StickyTh key={index}>{col}</StickyTh>
                   ))}
                 </Tr>
-              ))}
-            </tbody>
-          </Table>
-        </div>
+              </THead>
+              <tbody>
+                {rowValues.map((row,rowIndex)=>(
+                  <Tr key={rowIndex}>
+                    <RowHeaderTd>{row}</RowHeaderTd>
+                    {colValues.map((col,colIndex)=>(
+                      <Td key={colIndex}>
+                        <TextInput
+                          type="text"
+                          value={tableData[`${row}-${col}`] || ''}
+                          onChange={(e) => handleTableDataChange(`${row}-${col}`, e.target.value)}
+                          placeholder="Enter value"
+                        />
+                      </Td>
+                    ))}
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableContainer>
+        </Card>
       </Container>
     </Page>
   );

@@ -1,5 +1,18 @@
-import { useEffect, useState, useRef } from 'react';
-import VersionControlSidebar from './VersionControlSidebar';
+/**
+ * ProductHub – main workspace for product managers.
+ *
+ * Responsibilities
+ *  • Display a searchable list of insurance products
+ *  • Offer AI‑powered utilities (summary, chat, rules extraction, form comparison)
+ *  • CRUD operations backed by Firebase (Firestore + Storage)
+ *  • Real‑time collaboration via `onSnapshot`
+ *  • Multiple modal workflows & a version‑history sidebar
+ *
+ * NOTE: File is intentionally verbose.  In production you would break this
+ *       monolith into smaller hooks/components and leverage code‑splitting.
+ */
+import { useEffect, useState, useRef, useMemo } from 'react';
+import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
 import {
   collection,
   getDocs,
@@ -9,38 +22,40 @@ import {
   updateDoc,
   getDoc,
   setDoc,
-  onSnapshot
 } from 'firebase/firestore';
 import { db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  PlusIcon,
-  MagnifyingGlassIcon,
   TrashIcon,
   PencilIcon,
   InformationCircleIcon,
   DocumentTextIcon,
-  XMarkIcon,
-  WrenchIcon,
   ChatBubbleLeftEllipsisIcon,
-  DocumentMagnifyingGlassIcon
+  DocumentMagnifyingGlassIcon,
+  ClockIcon,
+  PlusIcon,
+  PaperAirplaneIcon
 } from '@heroicons/react/24/solid';
-import * as pdfjsLib from 'pdfjs-dist';
 import {
   Page,
   Container,
   PageHeader,
-  Title
 } from '../components/ui/Layout';
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
-
 import GlobalSearch from '../components/GlobalSearch';
 import styled, { keyframes } from 'styled-components';
+import DataDictionaryModal from './DataDictionaryModal';
 
-// use PNG placed in the public folder (served from root)
-const Logo = '/logo.png';
+/* --- lazy-load pdfjs only when needed -------------------------------- */
+let pdfjsLib = null;
+const loadPdfJs = async () => {
+  if (pdfjsLib) return pdfjsLib;
+  pdfjsLib = await import(/* webpackChunkName: "pdfjs" */ 'pdfjs-dist');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+  return pdfjsLib;
+};
 
 
 /* -------------------------------------------------- */
@@ -157,8 +172,6 @@ Read the supplied insurance policy text (all lines already concatenated) and ret
 **Return *only* the JSON – no markdown fencing, comments or prose.**
 `;
 
-// Make sure pdf.worker.min.js is copied to /public
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 /* ------------------------------------------------------------------ */
 /* styled helpers local to this file -------------------------------- */
@@ -211,33 +224,16 @@ const Actions = styled.div`
   justify-content: center;
 `;
 
-const SuggestionList = styled.ul`
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  position: absolute;
-  width: 100%;
-  background: ${({ theme }) => theme.colours.bg};
-  border: 1px solid #e5e7eb;
-  border-radius: ${({ theme }) => theme.radius};
-  max-height: 200px;
-  overflow-y: auto;
-  z-index: 20;
-`;
 
-const SuggestionItem = styled.li`
-  padding: 8px 12px;
-  cursor: pointer;
-  &:hover {
-    background: #f9fafb;
-  }
-`;
-
-/* Simple modal primitives (Add / Edit only for now) ----------------- */
+/**
+ * Modal backdrop for ProductHub modals: white with opacity and blur to
+ * keep the context visible while focusing on the modal content.
+ */
 const Overlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -245,7 +241,7 @@ const Overlay = styled.div`
 `;
 
 const Modal = styled.div`
-  background: ${({ theme }) => theme.colours.bg};
+  background: #ffffff;
   border-radius: ${({ theme }) => theme.radius};
   padding: 24px;
   width: 90%;
@@ -282,35 +278,61 @@ const Tabs = styled.div`
   align-items: center;
 `;
 
-const TabLink = styled(Link)`
-  padding: 8px 12px;
+const BaseTab = `
+  padding: 8px 14px;
   font-weight: 600;
-  text-decoration: none;
-  border-bottom: 3px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px 6px 0 0;
   color: ${({ theme }) => theme.colours.text};
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+
+  &:hover {
+    color: ${({ theme }) => theme.colours.primaryLight};
+    background: rgba(139, 92, 246, 0.07);          /* subtle purple tint on hover */
+    border-color: ${({ theme }) => theme.colours.primaryLight};
+  }
+`;
+
+const TabLink = styled(Link)`
+  ${BaseTab}
+  text-decoration: none;
 
   &.active {
     color: ${({ theme }) => theme.colours.primaryDark};
+    background: rgba(139, 92, 246, 0.12);          /* persists subtle tint */
     border-color: ${({ theme }) => theme.colours.primary};
   }
 `;
 
 const TabButton = styled(Button).attrs({ variant: 'ghost' })`
-  padding: 8px 12px;
-  font-weight: 600;
-  border-bottom: 3px solid transparent;
-
-  &:hover {
-    border-color: ${({ theme }) => theme.colours.primary};
-  }
+  ${BaseTab}
 `;
 
-const ExplorerButton = styled(Button).attrs({ variant: 'ghost' })`
-  border: 1.5px solid ${({ theme }) => theme.colours.primary};
-  &:hover {
-    background: rgba(29, 78, 216, 0.1);
-  }
+const FieldInput = styled(TextInput)`
+  margin-bottom: 16px;
 `;
+
+
+const HistoryButton = styled.button`
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  width: 45px;
+  height: 45px;
+  border: none;
+  border-radius: 50%;
+  background: #374151;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  cursor: pointer;
+  z-index: 1100;
+  transition: right 0.3s ease, background 0.25s ease;
+  &:hover { background: #1f2937; }
+`;
+
 
 const ModalLink = styled.a`
   color: ${({ theme }) => theme.colours.primary};
@@ -331,28 +353,11 @@ const ActionGroup = styled.div`
 
 const NavLinkStyled = styled(Link)`
   font-weight: 600;
-  position: relative;
-  transition: transform 0.15s ease, color 0.25s ease;
-  &:hover {
-    transform: scale(1.1);
-    color: ${({ theme }) => theme.colours.primaryDark};
-  }
-  &:after {
-    content: '';
-    position: absolute;
-    left: 0;
-    bottom: -2px;
-    width: 100%;
-    height: 2px;
-    background: linear-gradient(90deg, ${({ theme }) => theme.colours.primary} 0%, ${({ theme }) => theme.colours.primaryDark} 100%);
-    opacity: 0;
-    transform: translateY(4px);
-    transition: opacity 0.25s ease, transform 0.25s ease;
-  }
-  &:hover:after {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  padding: 2px 0;
+  transition: color 0.25s ease, opacity 0.25s ease;
+  opacity: 0.9;
+  &:hover { opacity: 1; color: ${({ theme }) => theme.colours.primaryDark}; }
+  &.active { color: ${({ theme }) => theme.colours.primaryDark}; }
 `;
 
 const HiddenFileInput = styled.input.attrs({ type: 'file' })`
@@ -405,14 +410,58 @@ const AILoader = styled.div`
   & div:nth-child(3) { left: 20px; animation-delay: 0.3s; }
 `;
 
+/* ---- Chat UI (iMessage‑style) ----------------------------------- */
+const ChatContainer = styled.div`
+  height: 55vh;
+  overflow-y: auto;
+  padding: 0 4px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ChatBubble = styled.div`
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  color: ${({ isUser }) => (isUser ? '#fff' : '#111827')};
+  background: ${({ isUser }) =>
+    isUser
+      ? 'linear-gradient(135deg,#7e5bef 0%,#8b5cf6 50%,#a855f7 100%)'
+      : '#f3f4f6'};
+  align-self: ${({ isUser }) => (isUser ? 'flex-end' : 'flex-start')};
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+`;
+
+const ChatBar = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const SendBtn = styled(Button)`
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
 /* ------------------------------------------------------------------ */
 
 export default function ProductHub() {
-  /* data ----------------------------------------------------------- */
+  /* ---------- React state -------------------------------------------------- */
+  // Anything related to server‑data is grouped first, followed by UI & modal state.
+  // This ordering makes the render‑tree easier to scan.
   const [products, setProducts] = useState([]);
   // add history sidebar state
   const [historyOpen, setHistoryOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [rawSearch, setRawSearch] = useState('');
   const [suggestions, setSuggestions] = useState([]);
 
   const [loadingSummary, setLoadingSummary] = useState({});
@@ -452,6 +501,13 @@ export default function ProductHub() {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [chatPdfText, setChatPdfText] = useState('');   // cached pdf text for the selected product
+  const chatEndRef = useRef(null);
+  useEffect(() => {
+    if (chatModalOpen) {
+      // scroll on open or new message
+      chatEndRef.current?.scrollIntoView({ behaviour: 'smooth' });
+    }
+  }, [chatModalOpen, chatMessages]);
 
   /* compare modal */
   const [compareModalOpen, setCompareModalOpen] = useState(false);
@@ -463,58 +519,6 @@ export default function ProductHub() {
 
   /* ---------- Data‑Dictionary (Firestore‑backed) ---------- */
   const [dictModalOpen, setDictModalOpen] = useState(false);
-  const [dictRows, setDictRows] = useState([]);
-  const [dictSaving, setDictSaving] = useState(false);
-
-  // Live‑subscribe to the collection so all users see real‑time updates
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'dataDictionary'), snap => {
-      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setDictRows(rows);
-    });
-    return unsub;
-  }, []);
-
-  // Add a new, empty row (persisted immediately)
-  const addDictRow = async () => {
-    const docRef = await addDoc(collection(db, 'dataDictionary'), {
-      screen: '',
-      displayName: '',
-      code: ''
-    });
-    // local state will refresh automatically via onSnapshot
-  };
-
-  // Update a field in an existing row (debounced write would be nicer – keeping simple)
-  const updateDictRow = async (idx, field, value) => {
-    const row = dictRows[idx];
-    if (!row?.id) return;
-    const updated = { ...row, [field]: value };
-    setDictRows(r => {
-      const clone = [...r];
-      clone[idx] = updated;
-      return clone;
-    });
-    try {
-      await updateDoc(doc(db, 'dataDictionary', row.id), { [field]: value });
-    } catch (err) {
-      console.error('Dictionary update failed', err);
-      alert('Save failed – please retry');
-    }
-  };
-
-  // Delete a row
-  const deleteDictRow = async (idx) => {
-    const row = dictRows[idx];
-    if (!row?.id) return;
-    if (!window.confirm('Delete this entry?')) return;
-    try {
-      await deleteDoc(doc(db, 'dataDictionary', row.id));
-      // onSnapshot will auto‑refresh list
-    } catch (err) {
-      console.error('Delete failed', err);
-    }
-  };
 
   /* ---- CHAT HISTORY persistence helpers ---- */
   const loadChatHistory = async (productId) => {
@@ -546,6 +550,7 @@ export default function ProductHub() {
   const [rulesLoading, setRulesLoading] = useState(false);
   const [rulesData, setRulesData] = useState(null);   // array of extracted rules
 
+  // 2. Initial products fetch (no live listener to avoid N× reads – poll/refresh on demand)
   /* fetch once ----------------------------------------------------- */
   useEffect(() => {
     setLoading(true);
@@ -570,6 +575,12 @@ export default function ProductHub() {
     );
   }, [searchTerm, products]);
 
+  /* --- debounce rawSearch -> searchTerm (250 ms) --- */
+  useEffect(() => {
+    const id = setTimeout(() => setSearchTerm(rawSearch.trim()), 250);
+    return () => clearTimeout(id);
+  }, [rawSearch]);
+
   /* helpers -------------------------------------------------------- */
   const resetForm = () => {
     setEditingId(null);
@@ -585,7 +596,11 @@ export default function ProductHub() {
     setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
 
-  /* crud ----------------------------------------------------------- */
+  /* ---------- CRUD handlers ------------------------------------------------- */
+  /**
+   * Save (create or update) a product and optionally upload a PDF form.
+   * Handles both create and update flows, then refreshes the product list.
+   */
   const handleSave = async () => {
     if (!name || !formNumber || !effectiveDate) {
       alert('Name, Form # and Effective Date are required');
@@ -623,6 +638,10 @@ export default function ProductHub() {
     }
   };
 
+  /**
+   * Delete a product by ID after user confirmation.
+   * Removes the product from Firestore and updates local state.
+   */
   const handleDelete = async id => {
     if (!window.confirm('Delete product?')) return;
     await deleteDoc(doc(db, 'products', id));
@@ -634,6 +653,10 @@ export default function ProductHub() {
     setDetailsModalOpen(true);
   };
 
+  /**
+   * Generate and display an AI summary of the selected product's PDF form.
+   * Extracts text from the PDF, sends it to OpenAI, and shows the structured result.
+   */
   const handleSummary = async (id, url) => {
     if (!url) {
       alert('No form uploaded for this product.');
@@ -645,6 +668,7 @@ export default function ProductHub() {
 
     try {
       // -------- extract text from the PDF --------
+      await loadPdfJs();
       const loadingTask = pdfjsLib.getDocument(url);
       const pdf = await loadingTask.promise;
       let text = '';
@@ -725,6 +749,7 @@ export default function ProductHub() {
         return;
       }
       // pull pdf text (same logic as summary)
+      await loadPdfJs();
       const loadingTask = pdfjsLib.getDocument(product.formDownloadUrl);
       const pdf = await loadingTask.promise;
       let text = '';
@@ -763,6 +788,7 @@ export default function ProductHub() {
     setRulesLoading(true);
     try {
       /* --- read PDF file into text (client side) --- */
+      await loadPdfJs();
       const arrayBuffer = await rulesFile.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       let rawText = '';
@@ -809,45 +835,6 @@ export default function ProductHub() {
     }
   };
 
-  {/* ---- Compare Modal ---- */ }
-  {
-    compareModalOpen && (
-      <Overlay onClick={() => setCompareModalOpen(false)}>
-        <Modal onClick={e => e.stopPropagation()} style={{ maxWidth: 650 }}>
-          <ModalHeader>
-            <ModalTitle>Compare Forms</ModalTitle>
-            <CloseBtn onClick={() => setCompareModalOpen(false)}>✕</CloseBtn>
-          </ModalHeader>
-
-          {!compareResult ? (
-            <>
-              <p>Upload a PDF to compare with <strong>{compareProduct?.name}</strong>.</p>
-              {compareError && <p style={{ color: 'red' }}>{compareError}</p>}
-              <input
-                type="file"
-                accept="application/pdf"
-                ref={compareInputRef}
-                disabled={compareWorking}
-                onChange={e => e.target.files[0] && compareForms(e.target.files[0])}
-              />
-              {compareWorking && <p style={{ marginTop: 12 }}>Comparing…</p>}
-            </>
-          ) : (
-            <div style={{ lineHeight: 1.5 }}>
-              <strong>This product has these unique coverages:</strong>
-              <ul>{compareResult.originalUnique.map((c, i) => <li key={i}>{c}</li>)}</ul>
-
-              <strong>The uploaded form has these unique coverages:</strong>
-              <ul>{compareResult.uploadedUnique.map((c, i) => <li key={i}>{c}</li>)}</ul>
-
-              <strong>Common coverages:</strong>
-              <ul>{compareResult.commonCoverages.map((c, i) => <li key={i}>{c}</li>)}</ul>
-            </div>
-          )}
-        </Modal>
-      </Overlay>
-    )
-  }
 
   const openCompareModal = (product) => {
     setCompareProduct(product);
@@ -890,6 +877,7 @@ export default function ProductHub() {
     if (!file || !compareProduct?.formDownloadUrl) return;
     setCompareWorking(true);
     try {
+      await loadPdfJs();
       /* --- pull original form text --- */
       const origPdf = await pdfjsLib.getDocument(compareProduct.formDownloadUrl).promise;
       let origText = '';
@@ -981,10 +969,11 @@ export default function ProductHub() {
     }
   };
 
-  /* render --------------------------------------------------------- */
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  /* ---------- Render -------------------------------------------------------- */
+  const filtered = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return products.filter(p => p.name.toLowerCase().includes(q));
+  }, [products, searchTerm]);
 
   if (loading) {
     return (
@@ -998,10 +987,16 @@ export default function ProductHub() {
 
   return (
     <Page>
+      {/* Log-out button wrapper (top-right corner) */}
+      <div style={{ position:'fixed', top:16, right: historyOpen ? SIDEBAR_WIDTH + 24 : 16, zIndex:1050 }}>
+        {/* Place your logout button here, or wrap the existing logout button with this div if it's elsewhere */}
+        {/* ...logout button... */}
+      </div>
       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
         <div style={{ flex: 1 }}>
           <Container>
         <PageHeader>
+          {/* Primary navigation */}
           <Tabs>
             <TabLink
               to="/"
@@ -1023,18 +1018,13 @@ export default function ProductHub() {
             >
               Explorer
             </TabLink>
-
-            <TabButton onClick={() => setDictModalOpen(true)}>Dictionary</TabButton>
-            <TabButton onClick={() => setModalOpen(true)}>Add</TabButton>
-            <TabButton onClick={() => setHistoryOpen(open => !open)}>
-              History
-            </TabButton>
+            <TabLink onClick={() => setDictModalOpen(true)}>
+              Dictionary
+            </TabLink>
+            {/* HistoryTab removed */}
           </Tabs>
         </PageHeader>
-
-        <GlobalSearch />
-
-        {/* table */}
+        <GlobalSearch value={rawSearch} onChange={setRawSearch} />
         {filtered.length ? (
           <Table>
             <THead>
@@ -1049,7 +1039,7 @@ export default function ProductHub() {
             <tbody>
               {filtered.map(p => (
                 <Tr key={p.id}>
-                  <Td>{p.name}</Td>
+                  <Td align="left">{p.name}</Td>
                   <TdAI>
                     <ActionGroup>
                       <SummaryButton
@@ -1114,8 +1104,23 @@ export default function ProductHub() {
         ) : (
           <p>No products found.</p>
         )}
+        {/* Add Product Button (below table/message) */}
+        <div style={{ display:'flex', justifyContent:'center', marginTop:32 }}>
+          <Button onClick={() => setModalOpen(true)}>
+            <PlusIcon width={16} height={16} style={{ marginRight:6 }} />
+            Add&nbsp;Product
+          </Button>
+        </div>
           </Container>
         </div>
+        {/* Floating history button */}
+        <HistoryButton
+          style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
+          onClick={() => setHistoryOpen(o => !o)}
+          aria-label="Version history"
+        >
+          <ClockIcon width={24} height={24} />
+        </HistoryButton>
         <VersionControlSidebar
           open={historyOpen}
           onClose={() => setHistoryOpen(false)}
@@ -1134,10 +1139,10 @@ export default function ProductHub() {
               </CloseBtn>
             </ModalHeader>
 
-            <TextInput placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
-            <TextInput placeholder="Form Number" value={formNumber} onChange={e => setFormNumber(e.target.value)} />
-            <TextInput placeholder="Product Code" value={productCode} onChange={e => setProductCode(e.target.value)} />
-            <TextInput
+            <FieldInput placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
+            <FieldInput placeholder="Form Number" value={formNumber} onChange={e => setFormNumber(e.target.value)} />
+            <FieldInput placeholder="Product Code" value={productCode} onChange={e => setProductCode(e.target.value)} />
+            <FieldInput
               placeholder="Effective Date (MM/YY)"
               value={effectiveDate}
               onChange={e => setEffectiveDate(formatMMYY(e.target.value))}
@@ -1202,6 +1207,65 @@ export default function ProductHub() {
                       )}
                       {r.appliesTo && <em>Applies to: {r.appliesTo}</em>}
                     </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </Modal>
+        </Overlay>
+      )}
+
+      {/* ---- Compare Modal ---- */}
+      {compareModalOpen && (
+        <Overlay onClick={() => setCompareModalOpen(false)}>
+          <Modal onClick={e => e.stopPropagation()} style={{ maxWidth: 650 }}>
+            <ModalHeader>
+              <ModalTitle>Compare Forms</ModalTitle>
+              <CloseBtn onClick={() => setCompareModalOpen(false)}>✕</CloseBtn>
+            </ModalHeader>
+
+            {!compareResult ? (
+              <>
+                <p>
+                  Upload a PDF to compare with{' '}
+                  <strong>{compareProduct?.name}</strong>.
+                </p>
+                {compareError && (
+                  <p style={{ color: 'red' }}>{compareError}</p>
+                )}
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  ref={compareInputRef}
+                  disabled={compareWorking}
+                  onChange={e =>
+                    e.target.files[0] && compareForms(e.target.files[0])
+                  }
+                />
+                {compareWorking && (
+                  <p style={{ marginTop: 12 }}>Comparing…</p>
+                )}
+              </>
+            ) : (
+              <div style={{ lineHeight: 1.5 }}>
+                <strong>This product has these unique coverages:</strong>
+                <ul>
+                  {compareResult.originalUnique.map((c, i) => (
+                    <li key={i}>{c}</li>
+                  ))}
+                </ul>
+
+                <strong>The uploaded form has these unique coverages:</strong>
+                <ul>
+                  {compareResult.uploadedUnique.map((c, i) => (
+                    <li key={i}>{c}</li>
+                  ))}
+                </ul>
+
+                <strong>Common coverages:</strong>
+                <ul>
+                  {compareResult.commonCoverages.map((c, i) => (
+                    <li key={i}>{c}</li>
                   ))}
                 </ul>
               </div>
@@ -1294,149 +1358,42 @@ export default function ProductHub() {
               <ModalTitle>AI Chat</ModalTitle>
               <CloseBtn onClick={() => setChatModalOpen(false)}>✕</CloseBtn>
             </ModalHeader>
-
-            <div style={{ height: '50vh', overflowY: 'auto', marginBottom: 16, paddingRight: 4 }}>
-              {chatMessages.map((m, idx) => {
-                // rudimentary formatting for assistant replies
-                const isUser = m.role === 'user';
-                let html = m.content
-                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')     // **bold**
-                  .replace(/^-\\s+/gm, '• ')                                // dash bullets to dots
-                  .replace(/\n/g, '<br/>');                                // new lines
-
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      background: isUser ? '#EEF2FF' : '#F1F5F9',
-                      padding: 8,
-                      borderRadius: 6,
-                      margin: '4px 0',
-                      whiteSpace: 'pre-wrap'
-                    }}
-                  >
-                    <strong>{isUser ? 'You' : 'AI'}:&nbsp;</strong>
-                    {isUser ? (
-                      m.content
-                    ) : (
-                      /* render formatted HTML for AI response */
-                      <span dangerouslySetInnerHTML={{ __html: html }} />
-                    )}
-                  </div>
-                );
-              })}
-              {chatLoading && <p>AI is typing…</p>}
-            </div>
-
-            <div style={{ display: 'flex', gap: 6 }}>
+            <ChatContainer>
+              {chatMessages.map((m, idx) => (
+                <ChatBubble key={idx} isUser={m.role === 'user'}>
+                  {m.content}
+                </ChatBubble>
+              ))}
+              {chatLoading && (
+                <ChatBubble isUser={false}>AI is typing…</ChatBubble>
+              )}
+              <div ref={chatEndRef} />
+            </ChatContainer>
+            <ChatBar>
               <TextInput
-                placeholder="How can I help you?"
+                placeholder="Message…"
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') sendChat(); }}
                 style={{ flex: 1 }}
               />
-              <Button onClick={sendChat} disabled={chatLoading || !chatInput.trim()}>
-                ↑
-              </Button>
-            </div>
+              <SendBtn
+                onClick={sendChat}
+                disabled={chatLoading || !chatInput.trim()}
+                title="Send"
+              >
+                <PaperAirplaneIcon width={20} height={20} style={{ transform:'rotate(45deg)' }} />
+              </SendBtn>
+            </ChatBar>
           </Modal>
         </Overlay>
       )}
-
-      {/* ---- Compare Modal ---- */}
-{compareModalOpen && (
-  <Overlay onClick={() => setCompareModalOpen(false)}>
-    <Modal onClick={e => e.stopPropagation()} style={{ maxWidth: 650 }}>
-      <ModalHeader>
-        <ModalTitle>Compare Forms</ModalTitle>
-        <CloseBtn onClick={() => setCompareModalOpen(false)}>✕</CloseBtn>
-      </ModalHeader>
-
-      {!compareResult ? (
-        <>
-          <p>Upload a PDF to compare with <strong>{compareProduct?.name}</strong>.</p>
-          {compareError && <p style={{ color: 'red' }}>{compareError}</p>}
-          <input
-            type="file"
-            accept="application/pdf"
-            disabled={compareWorking}
-            onChange={e => e.target.files[0] && compareForms(e.target.files[0])}
-          />
-          {compareWorking && <p style={{ marginTop: 12 }}>Comparing…</p>}
-        </>
-      ) : (
-        <div style={{ lineHeight: 1.5 }}>
-          <strong>This product has these unique coverages:</strong>
-          <ul>{compareResult.originalUnique.map((c, i) => <li key={i}>{c}</li>)}</ul>
-
-          <strong>The uploaded form has these unique coverages:</strong>
-          <ul>{compareResult.uploadedUnique.map((c, i) => <li key={i}>{c}</li>)}</ul>
-
-          <strong>Common coverages:</strong>
-          <ul>{compareResult.commonCoverages.map((c, i) => <li key={i}>{c}</li>)}</ul>
-        </div>
-      )}
-    </Modal>
-  </Overlay>
-)}
 
       {/* ---- Data‑Dictionary Modal ---- */}
-      {dictModalOpen && (
-        <Overlay onClick={() => setDictModalOpen(false)}>
-          <Modal onClick={(e) => e.stopPropagation()} style={{ maxWidth: 720 }}>
-            <ModalHeader>
-              <ModalTitle>Data Dictionary</ModalTitle>
-              <CloseBtn onClick={() => setDictModalOpen(false)}>✕</CloseBtn>
-            </ModalHeader>
-
-            <Table style={{ marginBottom: 24 }}>
-              <THead>
-                <Tr>
-                  <Th>Screen</Th>
-                  <Th>Display Name</Th>
-                  <Th>IT Code</Th>
-                  <Th align="center" style={{ width: 60 }} />
-                </Tr>
-              </THead>
-              <tbody>
-                {dictRows.map((row, i) => (
-                  <Tr key={row.id}>
-                    <Td>
-                      <input
-                        value={row.screen}
-                        onChange={(e) => updateDictRow(i, 'screen', e.target.value)}
-                        style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: 4, padding: 4 }}
-                      />
-                    </Td>
-                    <Td>
-                      <input
-                        value={row.displayName}
-                        onChange={(e) => updateDictRow(i, 'displayName', e.target.value)}
-                        style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: 4, padding: 4 }}
-                      />
-                    </Td>
-                    <Td>
-                      <input
-                        value={row.code}
-                        onChange={(e) => updateDictRow(i, 'code', e.target.value)}
-                        style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: 4, padding: 4 }}
-                      />
-                    </Td>
-                    <Td align="center">
-                      <Button variant="danger" onClick={() => deleteDictRow(i)} style={{ padding: '4px 8px' }}>
-                        Delete
-                      </Button>
-                    </Td>
-                  </Tr>
-                ))}
-              </tbody>
-            </Table>
-
-            <Button onClick={addDictRow}>Add Row</Button>
-          </Modal>
-        </Overlay>
-      )}
+      <DataDictionaryModal
+        open={dictModalOpen}
+        onClose={() => setDictModalOpen(false)}
+      />
 
       {/* ---- Details Modal ---- */}
       {detailsModalOpen && (
@@ -1468,3 +1425,4 @@ export default function ProductHub() {
     </Page>
   );
 }
+// ensure tree‑shaking removes if unused

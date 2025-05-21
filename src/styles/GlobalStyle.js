@@ -2,9 +2,9 @@ import { createGlobalStyle, keyframes } from 'styled-components';
 
 /* -------- Gentle background pulse animation -------- */
 const backgroundPulse = keyframes`
-  0%   { transform: scale(1);   opacity:.35; filter: blur(80px); }
-  50%  { transform: scale(1.05);opacity:.55; filter: blur(100px); }
-  100% { transform: scale(1);   opacity:.35; filter: blur(80px); }
+  0%   { transform: scale(1);   opacity:.15; filter: blur(80px); }
+  50%  { transform: scale(1.50);opacity:.25; filter: blur(100px); }
+  100% { transform: scale(1);   opacity:.15; filter: blur(80px); }
 `;
 
 /* gentle diagonal wave scroll */
@@ -18,7 +18,7 @@ export const GlobalStyle = createGlobalStyle`
   body {
     margin:0;
     font-family:${({ theme }) => theme.font};
-    background:#f5f5f5;
+    background: linear-gradient(135deg,#f7f8fc 0%,#ffffff 35%,#f7f8fc 100%);
     color:${({ theme }) => theme.colours.text};
     -webkit-font-smoothing: antialiased;
   }
@@ -37,12 +37,12 @@ export const GlobalStyle = createGlobalStyle`
     background:
       radial-gradient(
         circle at 30% 30%,
-        ${({ theme }) => theme.colours.primary}44 0%,
+        ${({ theme }) => theme.colours.primary}22 0%,
         transparent 60%
       ),
       radial-gradient(
         circle at 70% 70%,
-        ${({ theme }) => theme.colours.primaryDark}40 0%,
+        ${({ theme }) => theme.colours.primaryDark}1A 0%,
         transparent 55%
       );
 
@@ -63,8 +63,8 @@ export const GlobalStyle = createGlobalStyle`
     background:
       repeating-linear-gradient(
         120deg,
-        ${({ theme }) => theme.colours.primaryDark}15 0px,
-        ${({ theme }) => theme.colours.primaryDark}15 2px,
+        ${({ theme }) => theme.colours.primaryDark}08 0px,
+        ${({ theme }) => theme.colours.primaryDark}08 2px,
         transparent 2px,
         transparent 12px
       );

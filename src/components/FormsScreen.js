@@ -1,30 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useLocation, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { db, storage } from '../firebase';
-import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, query, where, getDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  collection, getDocs, addDoc, deleteDoc, doc, updateDoc,
+  query, where, getDoc, serverTimestamp
+} from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { TrashIcon, DocumentTextIcon, PlusIcon, XMarkIcon, LinkIcon, ClockIcon } from '@heroicons/react/24/solid';
+import {
+  TrashIcon, DocumentTextIcon, PlusIcon, XMarkIcon,
+  LinkIcon, ClockIcon
+} from '@heroicons/react/24/solid';
 import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
 import { auth } from '../firebase';
-import { Page, Container } from '../components/ui/Layout';
-import { PageHeader, Title } from '../components/ui/Layout';
+import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
 import {
-  Table,
-  THead,
-  Tr,
-  Th,
-  Td,
-  Overlay,
-  Modal,
-  ModalHeader,
-  ModalTitle,
-  CloseBtn
+  Table, THead, Tr, Th, Td,
+  Overlay, Modal, ModalHeader, ModalTitle, CloseBtn
 } from '../components/ui/Table';
 
 import styled, { keyframes } from 'styled-components';
 
+/* ---------- styled helpers ---------- */
 const spin = keyframes`
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
@@ -58,21 +56,40 @@ const HistoryButton = styled.button`
   &:hover { background: #1f2937; }
 `;
 
+/* high‑z blurred backdrop */
+const OverlayFixed = styled(Overlay)`
+  position: fixed !important;
+  inset: 0;
+  background: rgba(17,24,39,0.55);
+  backdrop-filter: blur(2px);
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
 
+/* ---------- component ---------- */
 export default function FormsScreen() {
   const { productId } = useParams();
   const location = useLocation();
   const { coverageId } = location.state || {};
   const navigate = useNavigate();
 
+  /* data state */
   const [forms, setForms] = useState([]);
   const [products, setProducts] = useState([]);
   const [coverages, setCoverages] = useState([]);
+
+  /* search state (debounced) */
+  const [rawSearch, setRawSearch] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const searchRef = useRef(null);
+
+  /* ui state */
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Modal & form state for adding a new form
+  /* add‑form modal */
   const [showModal, setShowModal] = useState(false);
   const [formName, setFormName] = useState('');
   const [formNumber, setFormNumber] = useState('');
@@ -83,25 +100,49 @@ export default function FormsScreen() {
   const [selectedCoverages, setSelectedCoverages] = useState([]);
   const [file, setFile] = useState(null);
 
-  // State for linking coverages to an existing form
+  /* link‑coverage modal */
   const [linkCoverageModalOpen, setLinkCoverageModalOpen] = useState(false);
   const [selectedForm, setSelectedForm] = useState(null);
   const [linkCoverageIds, setLinkCoverageIds] = useState([]);
 
-  // Version history sidebar
+  /* link‑product modal */
+  const [linkProductModalOpen, setLinkProductModalOpen] = useState(false);
+  const [linkProductIds, setLinkProductIds] = useState([]);
+
+  /* version sidebar */
   const [historyOpen, setHistoryOpen] = useState(false);
 
+  /* ---------- side‑effects ---------- */
+  /* debounce rawSearch */
   useEffect(() => {
-    async function fetchAll() {
+    const id = setTimeout(() => setSearchQuery(rawSearch.trim()), 250);
+    return () => clearTimeout(id);
+  }, [rawSearch]);
+
+  /* `/` shortcut to focus */
+  useEffect(() => {
+    const handler = e => {
+      if (e.key === '/' && !e.target.matches('input,textarea,select')) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  /* fetch data */
+  useEffect(() => {
+    const fetchAll = async () => {
       setLoading(true);
       setError(null);
       try {
-        // Fetch products
+        /* products */
         const pSnap = await getDocs(collection(db, 'products'));
         const productList = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         setProducts(productList);
 
-        // Fetch coverages
+        /* coverages */
         let coverageList = [];
         if (productId) {
           const cSnap = await getDocs(collection(db, `products/${productId}/coverages`));
@@ -109,22 +150,31 @@ export default function FormsScreen() {
         } else {
           for (const product of productList) {
             const cSnap = await getDocs(collection(db, `products/${product.id}/coverages`));
-            const productCoverages = cSnap.docs.map(d => ({ id: d.id, ...d.data(), productId: product.id }));
-            coverageList = [...coverageList, ...productCoverages];
+            coverageList = [
+              ...coverageList,
+              ...cSnap.docs.map(d => ({ id: d.id, ...d.data(), productId: product.id }))
+            ];
           }
         }
         setCoverages(coverageList);
 
-        // Fetch forms
+        /* forms */
         const fSnap = await getDocs(collection(db, 'forms'));
-        const formList = await Promise.all(fSnap.docs.map(async d => {
-          const data = d.data();
-          let url = null;
-          if (data.filePath) {
-            try { url = await getDownloadURL(ref(storage, data.filePath)); } catch {}
-          }
-          return { ...data, id: d.id, downloadUrl: url };
-        }));
+        const formList = await Promise.all(
+          fSnap.docs.map(async d => {
+            const data = d.data();
+            let url = null;
+            if (data.filePath) {
+              try { url = await getDownloadURL(ref(storage, data.filePath)); } catch {}
+            }
+            return {
+              ...data,
+              id: d.id,
+              downloadUrl: url,
+              productIds: data.productIds || (data.productId ? [data.productId] : [])
+            };
+          })
+        );
         setForms(formList);
       } catch (err) {
         console.error(err);
@@ -132,29 +182,68 @@ export default function FormsScreen() {
       } finally {
         setLoading(false);
       }
-    }
+    };
     fetchAll();
   }, [productId]);
 
-  const productMap = Object.fromEntries(products.map(p => [p.id, p.name]));
-  const coverageMap = Object.fromEntries(coverages.map(c => [c.id, c.name]));
+  /* maps */
+  const productMap = useMemo(() =>
+    Object.fromEntries(products.map(p => [p.id, p.name])), [products]);
 
-  const filteredForms = forms.filter(f => {
-    const matchesSearch = (f.formName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         f.formNumber.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesProduct = productId ? f.productId === productId : true;
-    return matchesSearch && matchesProduct;
-  });
+  const coverageMap = useMemo(() =>
+    Object.fromEntries(coverages.map(c => [c.id, c.name])), [coverages]);
 
+  /* filtered forms – memoised */
+  const filteredForms = useMemo(() => {
+    return forms.filter(f => {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
+        (f.formName || '').toLowerCase().includes(q) ||
+        f.formNumber.toLowerCase().includes(q);
+      const matchesProduct = productId ? (f.productIds || []).includes(productId) : true;
+      return matchesSearch && matchesProduct;
+    });
+  }, [forms, searchQuery, productId]);
+
+  /* ---------- handlers (add, delete, link) ---------- */
+  const openLinkProductModal = form => {
+    setSelectedForm(form);
+    setLinkProductIds(form.productIds || (form.productId ? [form.productId] : []));
+    setLinkProductModalOpen(true);
+  };
+
+  const handleLinkProducts = async () => {
+    if (!selectedForm) return;
+    try {
+      const formId = selectedForm.id;
+      await updateDoc(doc(db, 'forms', formId), {
+        productIds: linkProductIds,
+        /* keep legacy single‑ID field for older code paths */
+        productId: linkProductIds[0] || null
+      });
+      setForms(fs => fs.map(f =>
+        f.id === formId ? { ...f, productIds: linkProductIds } : f
+      ));
+      setLinkProductModalOpen(false);
+      setSelectedForm(null);
+      setLinkProductIds([]);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to link products.');
+    }
+  };
   const handleAddForm = async () => {
     if (!formNumber || !effectiveDate || !selectedProduct || !file) {
       alert('Please fill in Form Number, Effective Date, Product, and upload a file.');
       return;
     }
     try {
+      /* upload pdf */
       const storageRef = ref(storage, `forms/${file.name}`);
       await uploadBytes(storageRef, file);
       const downloadUrl = await getDownloadURL(storageRef);
+
+      /* add form */
       const payload = {
         formName: formName || null,
         formNumber,
@@ -162,7 +251,8 @@ export default function FormsScreen() {
         effectiveDate,
         type,
         category,
-        productId: selectedProduct,
+        productIds: selectedProduct ? [selectedProduct] : [],
+        productId: selectedProduct, // legacy field
         coverageIds: selectedCoverages,
         filePath: storageRef.fullPath,
         downloadUrl
@@ -170,7 +260,7 @@ export default function FormsScreen() {
       const docRef = await addDoc(collection(db, 'forms'), payload);
       const formId = docRef.id;
 
-      // Version history log – create
+      /* version log */
       await addDoc(
         collection(db, 'products', selectedProduct, 'versionHistory'),
         {
@@ -183,6 +273,7 @@ export default function FormsScreen() {
         }
       );
 
+      /* link to coverages */
       for (const coverageId of selectedCoverages) {
         await addDoc(collection(db, 'formCoverages'), {
           formId,
@@ -190,17 +281,21 @@ export default function FormsScreen() {
           productId: selectedProduct,
         });
 
-        const coverageDoc = await getDoc(doc(db, `products/${selectedProduct}/coverages`, coverageId));
+        const coverageDoc = await getDoc(
+          doc(db, `products/${selectedProduct}/coverages`, coverageId)
+        );
         if (coverageDoc.exists()) {
           const currentFormIds = coverageDoc.data().formIds || [];
           if (!currentFormIds.includes(formId)) {
-            await updateDoc(doc(db, `products/${selectedProduct}/coverages`, coverageId), {
-              formIds: [...currentFormIds, formId]
-            });
+            await updateDoc(
+              doc(db, `products/${selectedProduct}/coverages`, coverageId),
+              { formIds: [...currentFormIds, formId] }
+            );
           }
         }
       }
 
+      /* reset ui */
       setFormName('');
       setFormNumber('');
       setEffectiveDate('');
@@ -211,15 +306,18 @@ export default function FormsScreen() {
       setFile(null);
       setShowModal(false);
 
+      /* refresh forms list */
       const snap = await getDocs(collection(db, 'forms'));
-      const formList = await Promise.all(snap.docs.map(async d => {
-        const data = d.data();
-        let url = null;
-        if (data.filePath) {
-          try { url = await getDownloadURL(ref(storage, data.filePath)); } catch {}
-        }
-        return { ...data, id: d.id, downloadUrl: url };
-      }));
+      const formList = await Promise.all(
+        snap.docs.map(async d => {
+          const data = d.data();
+          let url = null;
+          if (data.filePath) {
+            try { url = await getDownloadURL(ref(storage, data.filePath)); } catch {}
+          }
+          return { ...data, id: d.id, downloadUrl: url };
+        })
+      );
       setForms(formList);
     } catch (err) {
       console.error(err);
@@ -228,28 +326,30 @@ export default function FormsScreen() {
   };
 
   const handleDeleteForm = async id => {
-    if (!window.confirm('Are you sure you want to delete this form?')) return;
+    if (!window.confirm('Delete this form?')) return;
     try {
       const formDoc = forms.find(f => f.id === id);
       if (formDoc) {
-        const linksQuery = query(
-          collection(db, 'formCoverages'),
-          where('formId', '==', id)
+        /* remove link docs and update coverages */
+        const linksSnap = await getDocs(
+          query(collection(db, 'formCoverages'), where('formId', '==', id))
         );
-        const linksSnap = await getDocs(linksQuery);
         for (const linkDoc of linksSnap.docs) {
-          const linkData = linkDoc.data();
-          const coverageId = linkData.coverageId;
-          const coverageDoc = await getDoc(doc(db, `products/${formDoc.productId}/coverages`, coverageId));
-          if (coverageDoc.exists()) {
-            const currentFormIds = coverageDoc.data().formIds || [];
-            await updateDoc(doc(db, `products/${formDoc.productId}/coverages`, coverageId), {
-              formIds: currentFormIds.filter(fid => fid !== id)
-            });
+          const { coverageId } = linkDoc.data();
+          const covDoc = await getDoc(
+            doc(db, `products/${formDoc.productId}/coverages`, coverageId)
+          );
+          if (covDoc.exists()) {
+            const formIds = (covDoc.data().formIds || []).filter(fid => fid !== id);
+            await updateDoc(
+              doc(db, `products/${formDoc.productId}/coverages`, coverageId),
+              { formIds }
+            );
           }
           await deleteDoc(doc(db, 'formCoverages', linkDoc.id));
         }
-        // Version history log – delete
+
+        /* version */
         await addDoc(
           collection(db, 'products', formDoc.productId, 'versionHistory'),
           {
@@ -270,7 +370,7 @@ export default function FormsScreen() {
     }
   };
 
-  const openLinkCoverageModal = async (form) => {
+  const openLinkCoverageModal = form => {
     setSelectedForm(form);
     setLinkCoverageIds(form.coverageIds || []);
     setLinkCoverageModalOpen(true);
@@ -282,26 +382,26 @@ export default function FormsScreen() {
       const formId = selectedForm.id;
       const productId = selectedForm.productId;
 
-      // Delete existing linkages for this form
-      const existingLinksQuery = query(
-        collection(db, 'formCoverages'),
-        where('formId', '==', formId)
+      /* delete old links */
+      const existingLinksSnap = await getDocs(
+        query(collection(db, 'formCoverages'), where('formId', '==', formId))
       );
-      const existingLinksSnap = await getDocs(existingLinksQuery);
       for (const linkDoc of existingLinksSnap.docs) {
-        const linkData = linkDoc.data();
-        const coverageId = linkData.coverageId;
-        const coverageDoc = await getDoc(doc(db, `products/${productId}/coverages`, coverageId));
-        if (coverageDoc.exists()) {
-          const currentFormIds = coverageDoc.data().formIds || [];
-          await updateDoc(doc(db, `products/${productId}/coverages`, coverageId), {
-            formIds: currentFormIds.filter(fid => fid !== formId)
-          });
+        const { coverageId } = linkDoc.data();
+        const covDoc = await getDoc(
+          doc(db, `products/${productId}/coverages`, coverageId)
+        );
+        if (covDoc.exists()) {
+          const formIds = (covDoc.data().formIds || []).filter(fid => fid !== formId);
+          await updateDoc(
+            doc(db, `products/${productId}/coverages`, coverageId),
+            { formIds }
+          );
         }
         await deleteDoc(doc(db, 'formCoverages', linkDoc.id));
       }
 
-      // Add new linkages
+      /* add new links */
       for (const coverageId of linkCoverageIds) {
         await addDoc(collection(db, 'formCoverages'), {
           formId,
@@ -309,23 +409,24 @@ export default function FormsScreen() {
           productId,
         });
 
-        const coverageDoc = await getDoc(doc(db, `products/${productId}/coverages`, coverageId));
-        if (coverageDoc.exists()) {
-          const currentFormIds = coverageDoc.data().formIds || [];
-          if (!currentFormIds.includes(formId)) {
-            await updateDoc(doc(db, `products/${productId}/coverages`, coverageId), {
-              formIds: [...currentFormIds, formId]
-            });
+        const covDoc = await getDoc(
+          doc(db, `products/${productId}/coverages`, coverageId)
+        );
+        if (covDoc.exists()) {
+          const formIds = covDoc.data().formIds || [];
+          if (!formIds.includes(formId)) {
+            await updateDoc(
+              doc(db, `products/${productId}/coverages`, coverageId),
+              { formIds: [...formIds, formId] }
+            );
           }
         }
       }
 
-      // Update the form's coverageIds
-      await updateDoc(doc(db, 'forms', formId), {
-        coverageIds: linkCoverageIds
-      });
+      /* update form doc */
+      await updateDoc(doc(db, 'forms', formId), { coverageIds: linkCoverageIds });
 
-      // Version history log – update
+      /* version */
       await addDoc(
         collection(db, 'products', productId, 'versionHistory'),
         {
@@ -343,16 +444,18 @@ export default function FormsScreen() {
       setSelectedForm(null);
       setLinkCoverageIds([]);
 
-      // Refresh forms
+      /* refresh forms */
       const snap = await getDocs(collection(db, 'forms'));
-      const formList = await Promise.all(snap.docs.map(async d => {
-        const data = d.data();
-        let url = null;
-        if (data.filePath) {
-          try { url = await getDownloadURL(ref(storage, data.filePath)); } catch {}
-        }
-        return { ...data, id: d.id, downloadUrl: url };
-      }));
+      const formList = await Promise.all(
+        snap.docs.map(async d => {
+          const data = d.data();
+          let url = null;
+          if (data.filePath) {
+            try { url = await getDownloadURL(ref(storage, data.filePath)); } catch {}
+          }
+          return { ...data, id: d.id, downloadUrl: url };
+        })
+      );
       setForms(formList);
     } catch (err) {
       console.error(err);
@@ -360,62 +463,67 @@ export default function FormsScreen() {
     }
   };
 
+  /* ---------- render ---------- */
   if (loading) {
     return (
       <Page>
-        <Container>
-          <Spinner />
-        </Container>
+        <Container><Spinner /></Container>
       </Page>
     );
   }
   if (error) {
     return (
       <Page>
-        <Container>
-          {error}
-        </Container>
+        <Container>{error}</Container>
       </Page>
     );
   }
 
-  const title = coverageId && coverageMap[coverageId]
-    ? `Forms for ${coverageMap[coverageId]}`
-    : productId && productMap[productId]
-      ? `Forms for ${productMap[productId]}`
-      : 'Forms';
+  const title =
+    coverageId && coverageMap[coverageId]
+      ? `Forms for ${coverageMap[coverageId]}`
+      : productId && productMap[productId]
+        ? `Forms for ${productMap[productId]}`
+        : 'Forms';
 
   return (
     <Page>
       <Container>
+        {/* header */}
         <PageHeader>
           <Title>{title}</Title>
           <Button variant="ghost" onClick={() => navigate('/')}>
             Return Home
           </Button>
         </PageHeader>
+
+        {/* search & actions */}
         <TextInput
           placeholder="Search forms by name or number..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
+          ref={searchRef}
+          value={rawSearch}
+          onChange={e => setRawSearch(e.target.value)}
           style={{ marginBottom: 24 }}
         />
         <Button onClick={() => setShowModal(true)} style={{ marginBottom: 24 }}>
-          <PlusIcon width={16} height={16} style={{ marginRight: 4 }}/> Add New Form
+          <PlusIcon width={16} height={16} style={{ marginRight: 4 }} />
+          Add New Form
         </Button>
-        {filteredForms.length > 0 ? (
+
+        {/* table */}
+        {filteredForms.length ? (
           <div style={{ overflowX: 'auto', marginBottom: 24 }}>
             <Table>
               <THead>
                 <Tr>
-                  <Th style={{ width: '15%' }}>Name</Th>
-                  <Th style={{ width: '20%' }}>Number&nbsp;–&nbsp;Edition</Th>
-                  <Th style={{ width: '10%' }}>Type</Th>
-                  <Th style={{ width: '15%' }}>Category</Th>
-                  <Th style={{ width: '15%' }}>Product</Th>
-                  <Th style={{ width: '15%' }}>Coverages</Th>
-                  <Th style={{ width: '10%' }}>Link to Coverages</Th>
-                  <Th style={{ width: '10%' }}>Delete</Th>
+                  <Th style={{ width:'15%' }}>Name</Th>
+                  <Th style={{ width:'20%' }}>Number&nbsp;–&nbsp;Edition</Th>
+                  <Th style={{ width:'10%' }}>Type</Th>
+                  <Th style={{ width:'15%' }}>Category</Th>
+                  <Th style={{ width:'15%' }}>Products</Th>
+                  <Th style={{ width:'15%' }}>Coverages</Th>
+                  <Th style={{ width:'10%' }}>Link</Th>
+                  <Th style={{ width:'10%' }}>Delete</Th>
                 </Tr>
               </THead>
               <tbody>
@@ -438,20 +546,22 @@ export default function FormsScreen() {
                     <Td>{`${f.formNumber || '—'} – ${f.effectiveDate || '—'}`}</Td>
                     <Td>{f.type}</Td>
                     <Td>{f.category}</Td>
-                    <Td>{productMap[f.productId] || '—'}</Td>
                     <Td align="center">
-                      {f.coverageIds && f.coverageIds.length > 0
-                        ? `Coverages (${f.coverageIds.length})`
-                        : '—'}
+                      <Button variant="ghost" onClick={() => openLinkProductModal(f)}>
+                        Products{f.productIds?.length ? ` (${f.productIds.length})` : ''}
+                      </Button>
+                    </Td>
+                    <Td align="center">
+                      {f.coverageIds?.length ? `Coverages (${f.coverageIds.length})` : '—'}
                     </Td>
                     <Td>
-                      <Button variant="ghost" onClick={() => openLinkCoverageModal(f)} title="Link to Coverages">
-                        <LinkIcon width={16} height={16}/>
+                      <Button variant="ghost" onClick={() => openLinkCoverageModal(f)} title="Link coverages">
+                        <LinkIcon width={16} height={16} />
                       </Button>
                     </Td>
                     <Td>
-                      <Button variant="ghost" onClick={() => handleDeleteForm(f.id)} title="Delete form">
-                        <TrashIcon width={16} height={16}/>
+                      <Button variant="ghost" onClick={() => handleDeleteForm(f.id)} title="Delete">
+                        <TrashIcon width={16} height={16} />
                       </Button>
                     </Td>
                   </Tr>
@@ -460,18 +570,21 @@ export default function FormsScreen() {
             </Table>
           </div>
         ) : (
-          <p style={{ textAlign: 'center', fontSize: 16, color: '#6B7280' }}>No forms found</p>
+          <p style={{ textAlign:'center', fontSize:16, color:'#6B7280' }}>No forms found</p>
         )}
+
+        {/* ---------- Add Form Modal ---------- */}
         {showModal && (
-          <Overlay>
-            <Modal>
+          <OverlayFixed>
+            <Modal onClick={e => e.stopPropagation()}>
               <CloseBtn onClick={() => setShowModal(false)}>
-                <XMarkIcon width={16} height={16}/>
+                <XMarkIcon width={16} height={16} />
               </CloseBtn>
               <ModalTitle>Add New Form</ModalTitle>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
-                <div style={{ flex: 1, minWidth: 140 }}>
-                  <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
+              {/* ---------- form fields ---------- */}
+              <div style={{ display:'flex', flexWrap:'wrap', gap:16, marginBottom:16 }}>
+                <div style={{ flex:1, minWidth:140 }}>
+                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
                     Product*
                   </label>
                   <TextInput
@@ -486,15 +599,17 @@ export default function FormsScreen() {
                     ))}
                   </TextInput>
                 </div>
-                <div style={{ flex: 1, minWidth: 140 }}>
-                  <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
+                <div style={{ flex:1, minWidth:140 }}>
+                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
                     Link Coverages (optional)
                   </label>
                   <TextInput
                     as="select"
                     multiple
                     value={selectedCoverages}
-                    onChange={e => setSelectedCoverages(Array.from(e.target.selectedOptions, option => option.value))}
+                    onChange={e => setSelectedCoverages(
+                      Array.from(e.target.selectedOptions, o => o.value)
+                    )}
                   >
                     {coverages
                       .filter(c => !productId || c.productId === productId)
@@ -504,9 +619,10 @@ export default function FormsScreen() {
                   </TextInput>
                 </div>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
-                <div style={{ flex: 1, minWidth: 140 }}>
-                  <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
+
+              <div style={{ display:'flex', flexWrap:'wrap', gap:16, marginBottom:16 }}>
+                <div style={{ flex:1, minWidth:140 }}>
+                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
                     Form Name (optional)
                   </label>
                   <TextInput
@@ -515,8 +631,8 @@ export default function FormsScreen() {
                     onChange={e => setFormName(e.target.value)}
                   />
                 </div>
-                <div style={{ flex: 1, minWidth: 140 }}>
-                  <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
+                <div style={{ flex:1, minWidth:140 }}>
+                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
                     Form Number*
                   </label>
                   <TextInput
@@ -526,9 +642,10 @@ export default function FormsScreen() {
                   />
                 </div>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
-                <div style={{ flex: 1, minWidth: 140 }}>
-                  <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
+
+              <div style={{ display:'flex', flexWrap:'wrap', gap:16, marginBottom:16 }}>
+                <div style={{ flex:1, minWidth:140 }}>
+                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
                     Effective Date (MM/YY)*
                   </label>
                   <TextInput
@@ -537,22 +654,30 @@ export default function FormsScreen() {
                     onChange={e => setEffectiveDate(e.target.value)}
                   />
                 </div>
-                <div style={{ flex: 1, minWidth: 140 }}>
-                  <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
+                <div style={{ flex:1, minWidth:140 }}>
+                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
                     Type
                   </label>
-                  <TextInput as="select" value={type} onChange={e => setType(e.target.value)}>
+                  <TextInput
+                    as="select"
+                    value={type}
+                    onChange={e => setType(e.target.value)}
+                  >
                     <option value="ISO">ISO</option>
                     <option value="Proprietary">Proprietary</option>
                     <option value="NAICS">NAICS</option>
                     <option value="Other">Other</option>
                   </TextInput>
                 </div>
-                <div style={{ flex: 1, minWidth: 140 }}>
-                  <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
+                <div style={{ flex:1, minWidth:140 }}>
+                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
                     Category
                   </label>
-                  <TextInput as="select" value={category} onChange={e => setCategory(e.target.value)}>
+                  <TextInput
+                    as="select"
+                    value={category}
+                    onChange={e => setCategory(e.target.value)}
+                  >
                     <option value="Base Coverage Form">Base Coverage Form</option>
                     <option value="Endorsement">Endorsement</option>
                     <option value="Exclusion">Exclusion</option>
@@ -562,110 +687,103 @@ export default function FormsScreen() {
                   </TextInput>
                 </div>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
-                <div style={{ flex: 1, minWidth: 140 }}>
-                  <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
+
+              <div style={{ display:'flex', flexWrap:'wrap', gap:16, marginBottom:16 }}>
+                <div style={{ flex:1, minWidth:140 }}>
+                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
                     Upload PDF*
                   </label>
                   <input
                     id="file-upload"
                     type="file"
                     accept=".pdf"
-                    style={{ display: 'none' }}
+                    style={{ display:'none' }}
                     onChange={e => setFile(e.target.files[0])}
                   />
                   <label
                     htmlFor="file-upload"
                     style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: 12,
-                      border: '1px dashed #D1D5DB',
-                      borderRadius: 8,
-                      cursor: 'pointer',
-                      color: '#6B7280',
-                      fontSize: 14,
-                      ...(file ? { color: '#1D4ED8', borderColor: '#1D4ED8' } : {}),
+                      width:'100%',
+                      display:'flex',
+                      alignItems:'center',
+                      gap:8,
+                      padding:12,
+                      border:'1px dashed #D1D5DB',
+                      borderRadius:8,
+                      cursor:'pointer',
+                      color:'#6B7280',
+                      fontSize:14,
+                      ...(file ? { color:'#1D4ED8', borderColor:'#1D4ED8' } : {})
                     }}
                   >
-                    <DocumentTextIcon width={20} height={20}/>
+                    <DocumentTextIcon width={20} height={20} />
                     {file ? file.name : 'Upload PDF'}
                   </label>
                 </div>
               </div>
+
               <Button onClick={handleAddForm}>Save Form</Button>
             </Modal>
-          </Overlay>
+          </OverlayFixed>
         )}
-        {linkCoverageModalOpen && (
-          <Overlay>
-            <Modal>
-              <CloseBtn onClick={() => setLinkCoverageModalOpen(false)}>
-                <XMarkIcon width={16} height={16}/>
-              </CloseBtn>
-              <ModalTitle>Link Form to Coverages</ModalTitle>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
-                <div style={{ flex: 1, minWidth: 140 }}>
-                  <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
-                    Form: {selectedForm?.formName || selectedForm?.formNumber}
-                  </label>
-                </div>
-                <div style={{ flex: 1, minWidth: 140 }}>
-                  <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
-                    Select Coverages
-                  </label>
-                  {/* Select All / Clear All */}
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                    <Button variant="ghost" onClick={() => setLinkCoverageIds(coverages.map(c => c.id))}>
-                      Select All
-                    </Button>
-                    <Button variant="ghost" onClick={() => setLinkCoverageIds([])}>
-                      Clear All
-                    </Button>
-                  </div>
-                  {/* Checkbox list */}
-                  <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #E5E7EB', borderRadius: 4 }}>
-                    {coverages
-                      .filter(c => !productId || c.productId === productId)
-                      .map(c => (
-                        <label key={c.id} style={{ display:'block', padding:8 }}>
-                          <input
-                            type="checkbox"
-                            value={c.id}
-                            checked={linkCoverageIds.includes(c.id)}
-                            onChange={e => {
-                              const val = e.target.value;
-                              setLinkCoverageIds(prev =>
-                                prev.includes(val)
-                                  ? prev.filter(x => x !== val)
-                                  : [...prev, val]
-                              );
-                            }}
-                          />
-                          <span style={{ marginLeft:8 }}>{c.name}</span>
-                        </label>
-                      ))}
-                  </div>
-                </div>
+
+        {/* Link Products Modal */}
+        {linkProductModalOpen && (
+          <OverlayFixed onClick={() => setLinkProductModalOpen(false)}>
+            <Modal onClick={e => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>Link Form to Products</ModalTitle>
+                <CloseBtn onClick={() => setLinkProductModalOpen(false)}>✕</CloseBtn>
+              </ModalHeader>
+
+              <p style={{ margin:'8px 0 12px' }}>
+                Form:&nbsp;<strong>{selectedForm?.formName || selectedForm?.formNumber}</strong>
+              </p>
+
+              <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                <Button variant="ghost" onClick={() => setLinkProductIds(products.map(p => p.id))}>Select All</Button>
+                <Button variant="ghost" onClick={() => setLinkProductIds([])}>Clear All</Button>
               </div>
-              <Button onClick={handleLinkCoverage}>Link Coverages</Button>
+
+              <div style={{ maxHeight:220, overflowY:'auto', border:'1px solid #E5E7EB', borderRadius:4, padding:8 }}>
+                {products.map(p => (
+                  <label key={p.id} style={{ display:'block', padding:4 }}>
+                    <input
+                      type="checkbox"
+                      value={p.id}
+                      checked={linkProductIds.includes(p.id)}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setLinkProductIds(prev =>
+                          prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]
+                        );
+                      }}
+                    />{' '}
+                    {p.name}
+                  </label>
+                ))}
+              </div>
+
+              <div style={{ marginTop:16, display:'flex', gap:12 }}>
+                <Button onClick={handleLinkProducts}>Save</Button>
+                <Button variant="ghost" onClick={() => setLinkProductModalOpen(false)}>Cancel</Button>
+              </div>
             </Modal>
-          </Overlay>
+          </OverlayFixed>
         )}
-        <HistoryButton
-          style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
-          onClick={() => setHistoryOpen(true)}
-          aria-label="Version history"
-        >
-          <ClockIcon width={24} height={24}/>
+
+        {/* ---------- version history ---------- */}
+        {historyOpen && (
+          <VersionControlSidebar
+            open={historyOpen}
+            onClose={() => setHistoryOpen(false)}
+            width={SIDEBAR_WIDTH}
+          />
+        )}
+
+        <HistoryButton onClick={() => setHistoryOpen(!historyOpen)}>
+          <ClockIcon width={24} height={24} />
         </HistoryButton>
-        <VersionControlSidebar
-          open={historyOpen}
-          onClose={() => setHistoryOpen(false)}
-          productId={productId || selectedProduct}
-        />
       </Container>
     </Page>
   );

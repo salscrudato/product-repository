@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -20,8 +20,21 @@ import {
   ModalTitle,
   CloseBtn
 } from '../components/ui/Table';
-import Select from 'react-select';
 import styled, { keyframes } from 'styled-components';
+import Select from 'react-select';
+
+/* Override the default Overlay with higher z-index & blur */
+const OverlayFixed = styled(Overlay)`
+  position: fixed !important;
+  inset: 0;
+  background: rgba(17,24,39,0.55);
+  backdrop-filter: blur(2px);
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
 
 const ActionsContainer = styled.div`
   display: flex;
@@ -98,12 +111,6 @@ const StepLabel = styled.span`
 // State filter options
 const usStates = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 const stateOptions = usStates.map(s => ({ value: s, label: s }));
-const FiltersContainer = styled.div`
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 24px;
-`;
 
 const Skeleton = styled.div`
   width: 100%;
@@ -116,6 +123,40 @@ const Skeleton = styled.div`
     50% { opacity: 0.5; }
     100% { opacity: 1; }
   }
+`;
+
+/* ---------- enhanced layout ---------- */
+const Card = styled.div`
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+  padding: 24px;
+  margin-bottom: 32px;
+`;
+
+const FiltersBar = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-end;
+  margin-bottom: 24px;
+`;
+
+const PriceBar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1F2937;
+  margin-top: 24px;
+`;
+
+const OperandGroup = styled.div`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
 `;
 
 // Loading spinner
@@ -243,7 +284,7 @@ function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes
   const allStates = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
 
   return (
-    <Overlay onClick={onClose}>
+    <OverlayFixed onClick={onClose}>
       <ModalBox onClick={e => e.stopPropagation()}>
         <CloseBtn onClick={onClose} aria-label="Close modal"><XMarkIcon width={24} height={24} /></CloseBtn>
         <ModalHeader>
@@ -370,7 +411,7 @@ function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes
           {editingStep ? 'Update Step' : 'Add Step'}
         </Button>
       </ModalBox>
-    </Overlay>
+    </OverlayFixed>
   );
 }
 
@@ -496,6 +537,19 @@ function PricingScreen() {
     };
     setPrice(calculatePricing());
   }, [steps]);
+
+  const filteredSteps = useMemo(() => {
+    return steps
+      .filter(step =>
+        step.stepType === 'operand'
+        || (!selectedCoverage || step.coverages.includes(selectedCoverage))
+      )
+      .filter(step =>
+        step.stepType === 'operand'
+        || (selectedStates.length === 0
+            || selectedStates.every(s => step.states && step.states.includes(s)))
+      );
+  }, [steps, selectedCoverage, selectedStates]);
 
   if (loading) {
     return (
@@ -635,16 +689,6 @@ function PricingScreen() {
     ...coverages.map(c => ({ value: c.name, label: c.name }))
   ].sort((a, b) => a.label.localeCompare(b.label));
 
-  const filteredSteps = steps
-    .filter(step =>
-      step.stepType === 'operand'
-      || (!selectedCoverage || step.coverages.includes(selectedCoverage))
-    )
-    .filter(step =>
-      step.stepType === 'operand'
-      || (selectedStates.length === 0
-          || selectedStates.every(s => step.states && step.states.includes(s)))
-    );
 
   // Table row styling
   const FactorRow = styled(TableRow)`
@@ -806,59 +850,64 @@ function PricingScreen() {
           <Title>Pricing for {productName}</Title>
           <Button variant="ghost" onClick={() => navigate('/')}>Return Home</Button>
         </PageHeader>
-        <FiltersContainer>
-          <FormGroup>
-            <label>Select Coverage</label>
-            <FilterWrapper>
-              <FunnelIcon width={16} height={16} style={{ color: '#6B7280' }} />
-              <Select
-                options={coverageOptions}
-                value={coverageOptions.find(o => o.value === selectedCoverage)}
-                onChange={o => setSelectedCoverage(o.value)}
-                styles={{ control: base => ({ ...base, width: '100%' }), menu: base => ({ ...base, background: '#fff', borderRadius: '8px' }), option: (base, state) => ({ ...base, background: state.isFocused ? '#F9FAFB' : '#fff' }) }}
-              />
-            </FilterWrapper>
-          </FormGroup>
-          <FormGroup>
-            <label>Select State</label>
-            <FilterWrapper>
-              <MapIcon width={16} height={16} style={{ color: '#6B7280' }} />
-              <Select
-                options={stateOptions}
-                value={stateOptions.filter(o => selectedStates.includes(o.value))}
-                onChange={opts => setSelectedStates(opts.map(o => o.value))}
-                isMulti
-                styles={{ control: base => ({ ...base, width: '100%' }), menu: base => ({ ...base, background: '#fff', borderRadius: '8px' }), option: (base, state) => ({ ...base, background: state.isFocused ? '#F9FAFB' : '#fff' }) }}
-              />
-            </FilterWrapper>
-          </FormGroup>
-        </FiltersContainer>
-        <div style={{
-          marginBottom: 24,
-          padding: 16,
-          background: '#ffffff',
-          borderRadius: 8,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-          fontSize: 16,
-          color: '#1F2937'
-        }}>
-          {steps.length > 0 ? (
+        <Card>
+          <FiltersBar>
+            <FormGroup>
+              <label>Select Coverage</label>
+              <FilterWrapper>
+                <FunnelIcon width={16} height={16} style={{ color: '#6B7280' }} />
+                <Select
+                  options={coverageOptions}
+                  value={coverageOptions.find(o => o.value === selectedCoverage)}
+                  onChange={o => setSelectedCoverage(o.value)}
+                  styles={{
+                    control: base => ({ ...base, width: '100%' }),
+                    menu: base => ({ ...base, background: '#fff', borderRadius: 8 }),
+                    option: (base, state) => ({ ...base, background: state.isFocused ? '#F9FAFB' : '#fff' })
+                  }}
+                />
+              </FilterWrapper>
+            </FormGroup>
+
+            <FormGroup>
+              <label>Select State</label>
+              <FilterWrapper>
+                <MapIcon width={16} height={16} style={{ color: '#6B7280' }} />
+                <Select
+                  options={stateOptions}
+                  value={stateOptions.filter(o => selectedStates.includes(o.value))}
+                  onChange={opts => setSelectedStates(opts.map(o => o.value))}
+                  isMulti
+                  styles={{
+                    control: base => ({ ...base, width: '100%' }),
+                    menu: base => ({ ...base, background: '#fff', borderRadius: 8 }),
+                    option: (base, state) => ({ ...base, background: state.isFocused ? '#F9FAFB' : '#fff' })
+                  }}
+                />
+              </FilterWrapper>
+            </FormGroup>
+          </FiltersBar>
+
+          {steps.length ? (
             <>
               {renderCalculationPreview()}
-              <StepLabel>Price: ${price}</StepLabel>
+              <PriceBar>
+                <span>Price:</span>
+                <span>${price}</span>
+              </PriceBar>
             </>
           ) : (
             <p style={{ color: '#6B7280' }}>Start by adding a step to build your pricing model.</p>
           )}
-        </div>
+        </Card>
         <Button onClick={openAddModal} style={{ marginBottom: 24 }} aria-label="Add new step">Add Step</Button>
-        <div style={{ marginBottom: 24, display: 'flex', gap: 8 }}>
+        <OperandGroup>
           {['+', '-', '*', '/', '='].map(op => (
             <Button key={op} onClick={() => addOperand(op)}>
               {op}
             </Button>
           ))}
-        </div>
+        </OperandGroup>
         {modalOpen && (
           <StepModal
             onClose={() => setModalOpen(false)}
@@ -870,7 +919,7 @@ function PricingScreen() {
           />
         )}
         {covModalOpen && (
-          <Overlay onClick={() => setCovModalOpen(false)}>
+          <OverlayFixed onClick={() => setCovModalOpen(false)}>
             <ModalBox onClick={e => e.stopPropagation()}>
               <ModalHeader>
                 <ModalTitle>Applied Coverages</ModalTitle>
@@ -884,7 +933,7 @@ function PricingScreen() {
                 ))}
               </ul>
             </ModalBox>
-          </Overlay>
+          </OverlayFixed>
         )}
         <HistoryButton
           style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
