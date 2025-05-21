@@ -47,6 +47,7 @@ import { TextInput } from '../components/ui/Input';
 import GlobalSearch from '../components/GlobalSearch';
 import styled, { keyframes } from 'styled-components';
 import DataDictionaryModal from './DataDictionaryModal';
+import BulkFormUploadModal from './BulkFormUploadModal';
 
 /* --- lazy-load pdfjs only when needed -------------------------------- */
 let pdfjsLib = null;
@@ -498,6 +499,7 @@ export default function ProductHub() {
   /* modal state ---------------------------------------------------- */
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   /* form state */
   const [name, setName] = useState('');
@@ -1127,11 +1129,17 @@ export default function ProductHub() {
         ) : (
           <p>No products found.</p>
         )}
-        {/* Add Product FAB (below table, left‑aligned) */}
-        <AddFab onClick={() => setModalOpen(true)} style={{ marginTop: 32 }}>
-          <PlusIcon width={16} height={16} />
-          Add&nbsp;Product
-        </AddFab>
+        {/* Action FABs (below table, left‑aligned) */}
+        <div style={{ display:'flex', gap:16, marginTop:32 }}>
+          <AddFab onClick={() => setModalOpen(true)}>
+            <PlusIcon width={16} height={16} />
+            Add&nbsp;Product
+          </AddFab>
+          <AddFab onClick={() => setBulkOpen(true)}>
+            <PlusIcon width={16} height={16} />
+            Bulk&nbsp;Upload&nbsp;Forms
+          </AddFab>
+        </div>
           </Container>
         </div>
         {/* Floating history button */}
@@ -1414,6 +1422,12 @@ export default function ProductHub() {
       <DataDictionaryModal
         open={dictModalOpen}
         onClose={() => setDictModalOpen(false)}
+      />
+
+      <BulkFormUploadModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        products={products}
       />
 
       {/* ---- Details Modal ---- */}
