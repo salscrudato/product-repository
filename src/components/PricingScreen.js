@@ -431,6 +431,9 @@ function PricingScreen() {
   const [selectedCoverage, setSelectedCoverage] = useState(null);
   const [selectedStates, setSelectedStates] = useState([]);
   const [dataCodes, setDataCodes] = useState([]);
+  // Step Details Modal state
+  const [stepDetailsOpen, setStepDetailsOpen] = useState(false);
+  const [detailsStep, setDetailsStep] = useState(null);
 
   useEffect(() => {
     const fetchDictionary = async () => {
@@ -690,21 +693,50 @@ function PricingScreen() {
   ].sort((a, b) => a.label.localeCompare(b.label));
 
 
-  // Table row styling
-  const FactorRow = styled(TableRow)`
-    background-color: #F0F5FF;
-    &:hover {
-      background: #E6EEFF;
-    }
-  `;
-  const OperandRow = styled(TableRow)`
-    background: rgb(255, 255, 255);
-    border-top: 2px solid #E5E7EB;
-    border-bottom: 2px solid #E5E7EB;
-    &:hover {
-      background: rgba(228, 188, 255, 0.49);
-    }
-  `;
+// Table row styling
+const FactorRow = styled(TableRow)`
+  background-color: #F0F5FF;
+  td {
+    padding: 8px 12px;
+  }
+  &:hover {
+    background: #E6EEFF;
+  }
+`;
+const OperandRow = styled(TableRow)`
+  background: #fff;
+  border-top: 2px solid #E5E7EB;
+  border-bottom: 2px solid #E5E7EB;
+  td {
+    padding: 0px 2px;
+  }
+  &:hover {
+    background: rgba(228, 188, 255, 0.49);
+  }
+`;
+
+// OperandConnector styled component
+const OperandConnector = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  /* horizontal hair‑lines */
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #d1d5db;
+    margin: 0 4px;
+  }
+  /* make sure the glyph is consistently sized */
+  svg,
+  span {
+    width: 20px !important;
+    height: 20px !important;
+  }
+`;
 
   const moveStep = (id, idx, dir) => {
     const newSteps = [...steps];
@@ -715,6 +747,8 @@ function PricingScreen() {
     // Optionally update `order` in Firestore here
   };
 
+  const openStepDetails = step => { setDetailsStep(step); setStepDetailsOpen(true); };
+
   const renderCalculationPreview = () => {
     if (loading) {
       return (
@@ -723,18 +757,14 @@ function PricingScreen() {
             <TableRow>
               <TableHeader>Coverage</TableHeader>
               <TableHeader>Step Name</TableHeader>
-              <TableHeader>Rounding</TableHeader>
               <TableHeader>States</TableHeader>
-              <TableHeader>Upstream ID</TableHeader>
               <TableHeader>Value</TableHeader>
-              <TableHeader>Actions</TableHeader>
+              <TableHeader style={{width:110,textAlign:'right'}}>Actions</TableHeader>
             </TableRow>
           </TableHead>
           <tbody>
             {Array(3).fill().map((_, i) => (
               <TableRow key={i}>
-                <TableCell><Skeleton /></TableCell>
-                <TableCell><Skeleton /></TableCell>
                 <TableCell><Skeleton /></TableCell>
                 <TableCell><Skeleton /></TableCell>
                 <TableCell><Skeleton /></TableCell>
@@ -752,11 +782,9 @@ function PricingScreen() {
           <TableRow>
             <TableHeader>Coverage</TableHeader>
             <TableHeader>Step Name</TableHeader>
-            <TableHeader>Rounding</TableHeader>
             <TableHeader>States</TableHeader>
-            <TableHeader>Upstream ID</TableHeader>
             <TableHeader>Value</TableHeader>
-            <TableHeader>Actions</TableHeader>
+            <TableHeader style={{width:110,textAlign:'right'}}>Actions</TableHeader>
           </TableRow>
         </TableHead>
         <tbody>
@@ -777,63 +805,108 @@ function PricingScreen() {
                 </TableCell>
                 <TableCell>
                   {step.table ? (
-                    <Button variant="ghost" onClick={() => navigate(`/table/${productId}/${step.id}`)}>
+                    <Button
+                      variant="ghost"
+                      onClick={() => navigate(`/table/${productId}/${step.id}`)}
+                    >
                       {step.stepName}
                     </Button>
                   ) : (
                     step.stepName
                   )}
                 </TableCell>
-                <TableCell>{step.rounding}</TableCell>
-                <TableCell>{getStatesDisplay(step.states)}</TableCell>
-                <TableCell>{step.upstreamId || '-'}</TableCell>
-                <TableCell>{step.value || 0}</TableCell>
                 <TableCell>
-<ActionsContainer>
-  <Button variant="ghost" onClick={() => openEditModal(step)}>
-    <PencilIcon width={16} height={16}/>
-  </Button>
-  <Button variant="ghost" onClick={() => handleDeleteStep(step.id)} style={{ color: '#dc2626' }}>
-    <TrashIcon width={16} height={16}/>
-  </Button>
-  <Button variant="ghost" onClick={() => moveStep(step.id, index, 'up')}>
-    <ChevronUpIcon width={16} height={16}/>
-  </Button>
-  <Button variant="ghost" onClick={() => moveStep(step.id, index, 'down')}>
-    <ChevronDownIcon width={16} height={16}/>
-  </Button>
-</ActionsContainer>
+                  <Button
+                    variant="ghost"
+                    title="Edit states for this step"
+                    onClick={() => openEditModal(step)}
+                  >
+                    {getStatesDisplay(step.states || [])}&nbsp;(
+                    {(step.states && step.states.length) ? step.states.length : allStates.length}
+                    )
+                  </Button>
+                </TableCell>
+                <TableCell>{step.value || 0}</TableCell>
+                <TableCell style={{textAlign:'right',paddingRight:8}}>
+                  <ActionsContainer style={{justifyContent:'flex-end'}}>
+                    <Button variant="ghost" onClick={() => openStepDetails(step)}>
+                      <InformationCircleIcon width={20} height={20} />
+                    </Button>
+                    <Button variant="ghost" onClick={() => openEditModal(step)}>
+                      <PencilIcon width={16} height={16}/>
+                    </Button>
+                    <Button variant="ghost" onClick={() => handleDeleteStep(step.id)} style={{ color: '#dc2626' }}>
+                      <TrashIcon width={16} height={16}/>
+                    </Button>
+                    <Button variant="ghost" onClick={() => moveStep(step.id, index, 'up')}>
+                      <ChevronUpIcon width={16} height={16}/>
+                    </Button>
+                    <Button variant="ghost" onClick={() => moveStep(step.id, index, 'down')}>
+                      <ChevronDownIcon width={16} height={16}/>
+                    </Button>
+                  </ActionsContainer>
                 </TableCell>
               </FactorRow>
             ) : (
               <OperandRow key={step.id}>
-                <TableCell colSpan={6} style={{ textAlign: 'center', color: '#6B7280' }}>
-                  {(() => {
-                    switch (step.operand) {
-                      case '+': return <PlusIcon width={32} height={32} />;
-                      case '-': return <MinusIcon width={32} height={32} />;
-                      case '*': return <XMarkIcon width={32} height={32} />;
-                      case '/': return <span style={{ fontSize: 32, fontWeight: 700 }}>/</span>;
-                      case '=': return <span style={{ fontSize: 32, fontWeight: 700 }}>=</span>;
-                      default: return step.operand;
-                    }
-                  })()}
-                </TableCell>
+                {/* Empty coverage cell */}
+                <TableCell />
+
+                {/* Centred operand connector inside the Step‑Name column */}
                 <TableCell>
-<ActionsContainer>
-  <Button variant="ghost" onClick={() => openEditModal(step)}>
-    <PencilIcon width={16} height={16}/>
-  </Button>
-  <Button variant="ghost" onClick={() => handleDeleteStep(step.id)} style={{ color: '#dc2626' }}>
-    <TrashIcon width={16} height={16}/>
-  </Button>
-  <Button variant="ghost" onClick={() => moveStep(step.id, index, 'up')}>
-    <ChevronUpIcon width={16} height={16}/>
-  </Button>
-  <Button variant="ghost" onClick={() => moveStep(step.id, index, 'down')}>
-    <ChevronDownIcon width={16} height={16}/>
-  </Button>
-</ActionsContainer>
+                  <OperandConnector>
+                    {(() => {
+                      switch (step.operand) {
+                        case '+':
+                          return <PlusIcon width={16} height={16} />;
+                        case '-':
+                          return <MinusIcon width={16} height={16} />;
+                        case '*':
+                          return <XMarkIcon width={16} height={16} />;
+                        case '/':
+                          return (
+                            <span style={{ fontSize: 16, fontWeight: 700 }}>/</span>
+                          );
+                        case '=':
+                          return (
+                            <span style={{ fontSize: 16, fontWeight: 700 }}>=</span>
+                          );
+                        default:
+                          return step.operand;
+                      }
+                    })()}
+                  </OperandConnector>
+                </TableCell>
+                {/* Empty states cell for alignment */}
+                <TableCell />
+                {/* Empty Value column to preserve alignment */}
+                <TableCell />
+                {/* Actions cell aligned right */}
+                <TableCell style={{ textAlign: 'right', paddingRight: 8 }}>
+                  <ActionsContainer style={{ justifyContent: 'flex-end' }}>
+                    <Button variant="ghost" onClick={() => openEditModal(step)}>
+                      <PencilIcon width={16} height={16} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleDeleteStep(step.id)}
+                      style={{ color: '#dc2626' }}
+                    >
+                      <TrashIcon width={16} height={16} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => moveStep(step.id, index, 'up')}
+                    >
+                      <ChevronUpIcon width={16} height={16} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => moveStep(step.id, index, 'down')}
+                    >
+                      <ChevronDownIcon width={16} height={16} />
+                    </Button>
+                  </ActionsContainer>
                 </TableCell>
               </OperandRow>
             )
@@ -947,6 +1020,25 @@ function PricingScreen() {
           onClose={() => setHistoryOpen(false)}
           productId={productId}
         />
+        {/* Step Details Modal */}
+        {stepDetailsOpen && (
+          <OverlayFixed onClick={() => setStepDetailsOpen(false)}>
+            <ModalBox onClick={e => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>Step Details</ModalTitle>
+                <CloseBtn onClick={() => setStepDetailsOpen(false)}>✕</CloseBtn>
+              </ModalHeader>
+              {detailsStep && (
+                <>
+                  <p><strong>Step&nbsp;Name:</strong> {detailsStep.stepName || '-'}</p>
+                  <p><strong>Rounding:</strong> {detailsStep.rounding || '-'}</p>
+                  <p><strong>States:</strong> {getStatesDisplay(detailsStep.states || [])}</p>
+                  <p><strong>Upstream&nbsp;ID:</strong> {detailsStep.upstreamId || '-'}</p>
+                </>
+              )}
+            </ModalBox>
+          </OverlayFixed>
+        )}
       </Container>
     </Page>
   );

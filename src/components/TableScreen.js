@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -82,31 +82,21 @@ function TableScreen() {
   const navigate = useNavigate();
   const [step, setStep] = useState(null);
   const [dimensions, setDimensions] = useState([]);
-  const [rawSearch,setRawSearch]=useState('');
-  const [searchQuery,setSearchQuery]=useState('');
-  const searchRef = useRef(null);
-  // debounce search
-  useEffect(()=>{
-    const id=setTimeout(()=>setSearchQuery(rawSearch.trim()),250);
-    return ()=>clearTimeout(id);
-  },[rawSearch]);
-
-  useEffect(()=>{
-    const handler=e=>{
-      if(e.key==='/' && !e.target.matches('input,textarea,select')){
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown',handler);
-    return ()=>window.removeEventListener('keydown',handler);
-  },[]);
+  // (search state and key handler effect removed)
   const [newDimension, setNewDimension] = useState({ name: '', values: '', technicalCode: '', type: 'Row', states: [] });
   const [editingDimensionId, setEditingDimensionId] = useState(null);
   const [tableData, setTableData] = useState({});
   const [modalOpen, setModalOpen] = useState(false);
   // list of IT codes from data dictionary
   const [itCodes, setItCodes] = useState([]);
+
+  const [statesModalOpen, setStatesModalOpen] = useState(false);
+  const [statesList, setStatesList] = useState([]);
+
+  const openStatesModal = (statesArr = []) => {
+    setStatesList(statesArr);
+    setStatesModalOpen(true);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -292,11 +282,7 @@ function TableScreen() {
     }
   };
 
-  const filteredDimensions = dimensions.filter(dim =>
-    dim.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    dim.values.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    dim.technicalCode.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // (filteredDimensions removed, just use dimensions)
 
   // Prepare dynamic table data
   const rowDimension = dimensions.find(dim => dim.type === 'Row');
@@ -319,19 +305,72 @@ function TableScreen() {
           </Button>
         </PageHeader>
 
-        {/* Search Bar */}
-        <TextInput
-          placeholder="Search dimensions…  (press “/” to focus)"
-          value={rawSearch}
-          ref={searchRef}
-          onChange={e=>setRawSearch(e.target.value)}
-          style={{marginBottom:24}}
-        />
+        {/* Dynamic Excel-like Table with Dimension Labels */}
+        <div>
+          <p style={{ fontSize: 16, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
+            Row Dimension: {rowDimension?.name || 'None'}
+          </p>
+          <p style={{ fontSize: 16, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
+            Column Dimension: {colDimension?.name || 'None'}
+          </p>
+        </div>
+        <Card>
+          <TableContainer
+            onPaste={e => {
+              // Parse pasted CSV/TSV into tableData
+              const text = e.clipboardData.getData('text');
+              const rows = text.trim().split(/\r?\n/).map(r => r.split(/\t|,/));
+              // Build new data object
+              const newData = { ...tableData };
+              rows.forEach((rowArr, rIdx) => {
+                const rowKey = rowValues[rIdx];
+                rowArr.forEach((cellValue, cIdx) => {
+                  const colKey = colValues[cIdx];
+                  if (rowKey && colKey) {
+                    newData[`${rowKey}-${colKey}`] = cellValue;
+                  }
+                });
+              });
+              setTableData(newData);
+              e.preventDefault();
+            }}
+          >
+            <Table>
+              <THead>
+                <Tr>
+                  <StickyTh>{rowDimension?.name || 'Table Preview'}</StickyTh>
+                  {colValues.map((col,index)=>(
+                    <StickyTh key={index}>{col}</StickyTh>
+                  ))}
+                </Tr>
+              </THead>
+              <tbody>
+                {rowValues.map((row,rowIndex)=>(
+                  <Tr key={rowIndex}>
+                    <RowHeaderTd>{row}</RowHeaderTd>
+                    {colValues.map((col,colIndex)=>(
+                      <Td key={colIndex}>
+                        <TextInput
+                          type="text"
+                          value={tableData[`${row}-${col}`] || ''}
+                          onChange={(e) => handleTableDataChange(`${row}-${col}`, e.target.value)}
+                          placeholder="Enter value"
+                        />
+                      </Td>
+                    ))}
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableContainer>
+        </Card>
 
         {/* Add Dimension Button */}
-        <Button onClick={openAddModal} style={{ marginBottom: 24 }}>
-          + Add Dimension
-        </Button>
+        <div style={{margin:'16px 0'}}>
+          <Button onClick={openAddModal}>
+            + Add Dimension
+          </Button>
+        </div>
 
         {/* Dimensions Table */}
         <Card>
@@ -348,13 +387,24 @@ function TableScreen() {
                 </Tr>
               </THead>
               <tbody>
-                {filteredDimensions.map(dimension => (
+                {dimensions.map(dimension => (
                   <Tr key={dimension.id}>
                     <Td>{dimension.type}</Td>
                     <Td>{dimension.name}</Td>
                     <Td>{dimension.values}</Td>
                     <Td>{dimension.technicalCode}</Td>
-                    <Td>{dimension.states.join(', ')}</Td>
+                    <Td>
+                      {dimension.states && dimension.states.length ? (
+                        <Button
+                          variant="ghost"
+                          onClick={() => openStatesModal(dimension.states)}
+                          style={{ padding: 0, fontSize: 14, color: '#2563eb' }}
+                          title="View / edit states"
+                        >
+                          States&nbsp;({dimension.states.length})
+                        </Button>
+                      ) : '—'}
+                    </Td>
                     <Td>
                       <div style={{display:'flex',gap:10}}>
                         <Button
@@ -459,65 +509,20 @@ function TableScreen() {
           </Overlay>
         )}
 
-        {/* Dynamic Excel-like Table with Dimension Labels */}
-        <div>
-          <p style={{ fontSize: 16, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
-            Row Dimension: {rowDimension?.name || 'None'}
-          </p>
-          <p style={{ fontSize: 16, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
-            Column Dimension: {colDimension?.name || 'None'}
-          </p>
-        </div>
-        <Card>
-          <TableContainer
-            onPaste={e => {
-              // Parse pasted CSV/TSV into tableData
-              const text = e.clipboardData.getData('text');
-              const rows = text.trim().split(/\r?\n/).map(r => r.split(/\t|,/));
-              // Build new data object
-              const newData = { ...tableData };
-              rows.forEach((rowArr, rIdx) => {
-                const rowKey = rowValues[rIdx];
-                rowArr.forEach((cellValue, cIdx) => {
-                  const colKey = colValues[cIdx];
-                  if (rowKey && colKey) {
-                    newData[`${rowKey}-${colKey}`] = cellValue;
-                  }
-                });
-              });
-              setTableData(newData);
-              e.preventDefault();
-            }}
-          >
-            <Table>
-              <THead>
-                <Tr>
-                  <StickyTh>{rowDimension?.name || 'Table Preview'}</StickyTh>
-                  {colValues.map((col,index)=>(
-                    <StickyTh key={index}>{col}</StickyTh>
-                  ))}
-                </Tr>
-              </THead>
-              <tbody>
-                {rowValues.map((row,rowIndex)=>(
-                  <Tr key={rowIndex}>
-                    <RowHeaderTd>{row}</RowHeaderTd>
-                    {colValues.map((col,colIndex)=>(
-                      <Td key={colIndex}>
-                        <TextInput
-                          type="text"
-                          value={tableData[`${row}-${col}`] || ''}
-                          onChange={(e) => handleTableDataChange(`${row}-${col}`, e.target.value)}
-                          placeholder="Enter value"
-                        />
-                      </Td>
-                    ))}
-                  </Tr>
-                ))}
-              </tbody>
-            </Table>
-          </TableContainer>
-        </Card>
+        {/* States Modal */}
+        {statesModalOpen && (
+          <Overlay onClick={() => setStatesModalOpen(false)}>
+            <Modal onClick={e => e.stopPropagation()}>
+              <CloseBtn onClick={() => setStatesModalOpen(false)}>
+                <XMarkIcon width={16} height={16} />
+              </CloseBtn>
+              <ModalTitle>States ({statesList.length})</ModalTitle>
+              <div style={{ maxHeight: 300, overflowY: 'auto', padding: 12, lineHeight: 1.6 }}>
+                {statesList.join(', ')}
+              </div>
+            </Modal>
+          </Overlay>
+        )}
       </Container>
     </Page>
   );
