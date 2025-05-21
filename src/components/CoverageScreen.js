@@ -1,5 +1,6 @@
 // src/components/CoverageScreen.js
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import _ from 'lodash';
 import { useParams, useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 import {
   collection,
@@ -23,7 +24,6 @@ import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
 import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
-import GlobalSearch from './GlobalSearch';
 import styled, { keyframes } from 'styled-components';
 import {
   Overlay,
@@ -101,8 +101,8 @@ const HistoryButton = styled.button`
   position: fixed;
   bottom: 16px;
   right: 16px;
-  width: 56px;
-  height: 56px;
+  width: 45px;
+  height: 45px;
   border: none;
   border-radius: 50%;
   background: #374151;
@@ -114,6 +114,40 @@ const HistoryButton = styled.button`
   cursor: pointer;
   z-index: 1100;
   &:hover { background: #1f2937; }
+`;
+
+/* Wide modal for more spacious editing */
+const WideModal = styled(Modal)`
+  max-width: 820px;
+  width: 90%;
+`;
+
+/* Gradient pill‑button used for “Add Coverage” */
+const AddFab = styled.button`
+  margin: 32px 0 8px;            /* extra breathing room below table */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, #7C5CFF 0%, #AA5CFF 48%, #C15CFF 100%);
+  border: none;
+  border-radius: 9999px;         /* pill */
+  box-shadow: 0 4px 12px rgba(124, 92, 255, 0.35);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(124, 92, 255, 0.45);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 8px rgba(124, 92, 255, 0.35);
+  }
 `;
 
 /* ---------- version‐history utilities (JS scope) ---------- */
@@ -146,6 +180,13 @@ const logVersionChange = async (
   );
 };
 
+// Format a number string as money (e.g., 10000 -> "10,000")
+const fmtMoney = n => {
+  if (n === '' || n === null || n === undefined) return '';
+  const num = Number(String(n).replace(/[^0-9]/g, ''));
+  return Number.isFinite(num) ? num.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '';
+};
+
 /* ---------- main component ---------- */
 export default function CoverageScreen() {
   const routeParams = useParams();
@@ -162,6 +203,7 @@ export default function CoverageScreen() {
 
   // state hooks...
   const fileInputRef = useRef(null);
+  const searchRef = useRef(null);
   const [coverages, setCoverages] = useState([]);
   const [forms, setForms] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -177,7 +219,12 @@ export default function CoverageScreen() {
   }, [rawSearch]);
   const filteredCoverages = useMemo(() => {
     const q = searchQuery.toLowerCase();
-    return coverages.filter(c => !q || c.name.toLowerCase().includes(q));
+    return coverages.filter(c =>
+      !q ||
+      (c.name || '').toLowerCase().includes(q) ||
+      (c.coverageCode || '').toLowerCase().includes(q) ||
+      (c.category || '').toLowerCase().includes(q)
+    );
   }, [coverages, searchQuery]);
   // product / breadcrumb labels
   const [productName, setProductName] = useState('');
@@ -326,17 +373,30 @@ export default function CoverageScreen() {
     resetForm();
     setAddModalOpen(true);
   };
-  const openEditModal = coverage => { /* ... */ };
+  const openEditModal = coverage => {
+    setForm({
+      name: coverage.name || '',
+      coverageCode: coverage.coverageCode || '',
+      formIds: coverage.formIds || [],
+      limits: coverage.limits || [],
+      deductibles: coverage.deductibles || [],
+      states: coverage.states || [],
+      category: coverage.category || ''
+    });
+    setEditingId(coverage.id);
+    setChangeSummary('');
+    setAddModalOpen(true);
+  };
   const openLimitModal = coverage => {
     setCurrentCoverage(coverage);
-    setLimitData(coverage.limits || []);
+    setLimitData((coverage.limits || []).map(l => String(typeof l === 'object' ? l.value ?? '' : l)));
     setLimitItCode(coverage.limitsItCode || '');
     setLimitModalOpen(true);
   };
 
   const openDeductibleModal = coverage => {
     setCurrentCoverage(coverage);
-    setDeductibleData(coverage.deductibles || []);
+    setDeductibleData((coverage.deductibles || []).map(d => String(typeof d === 'object' ? d.value ?? '' : d)));
     setDeductibleItCode(coverage.deductiblesItCode || '');
     setDeductibleModalOpen(true);
   };
@@ -574,6 +634,29 @@ export default function CoverageScreen() {
 
   // ... other save/link/limit/deductible handlers all using computeDiff & logVersionChange
 
+  // --- helpers to persist limits / deductibles ------------------------
+  const saveLimits = async () => {
+    if (!currentCoverage) return;
+    const clean = limitData.filter(v => v !== '');
+    await updateDoc(
+      doc(db, `products/${productId}/coverages`, currentCoverage.id),
+      { limits: clean, limitsItCode: limitItCode }
+    );
+    await loadCoverages();
+    setLimitModalOpen(false);
+  };
+
+  const saveDeductibles = async () => {
+    if (!currentCoverage) return;
+    const clean = deductibleData.filter(v => v !== '');
+    await updateDoc(
+      doc(db, `products/${productId}/coverages`, currentCoverage.id),
+      { deductibles: clean, deductiblesItCode: deductibleItCode }
+    );
+    await loadCoverages();
+    setDeductibleModalOpen(false);
+  };
+
   if (loading) {
     return (
       <Page>
@@ -600,12 +683,13 @@ export default function CoverageScreen() {
           <Button variant="ghost" onClick={() => navigate('/')}>Return Home</Button>
         </PageHeader>
 
-        <div style={{ marginBottom: '20px' }}>
-          <GlobalSearch
-            value={rawSearch}
-            onChange={e => setRawSearch(e.target.value)}
-          />
-        </div>
+        <TextInput
+          placeholder="Search coverages by name or code…"
+          ref={searchRef}
+          value={rawSearch}
+          onChange={e => setRawSearch(e.target.value)}
+          style={{ marginBottom: 24, width: '100%', maxWidth: 480, borderRadius: 32, paddingLeft: 20 }}
+        />
 
         <div style={{ display:'flex', flexWrap:'wrap', gap:12, marginBottom:20 }}>
           <Button onClick={handleExportXLSX}>
@@ -628,106 +712,111 @@ export default function CoverageScreen() {
             <UploadIcon20 width={16} className="mr-1" />
             Import&nbsp;XLSX
           </Button>
-
-          <Button onClick={openAddModal}>
-            <PlusIcon width={20} height={20} style={{ marginRight:'4px' }}/>
-            Add&nbsp;Coverage
-          </Button>
         </div>
 
         {coverages.length > 0 ? (
-          <Table>
-            <THead>
-              <Tr>
-                <Th>Name</Th>
-                <Th>Coverage Code</Th>
-                <Th>Category</Th>
-                <Th align="center">Limits</Th>
-                <Th align="center">Deductibles</Th>
-                <Th align="center">States</Th>
-                <Th align="center">Linked&nbsp;Forms</Th>
-                <Th align="center">Sub‑Coverages</Th>
-                <Th align="center">Actions</Th>
-              </Tr>
-            </THead>
-            <tbody>
-              {filteredCoverages.map(coverage => (
-                <Tr key={coverage.id}>
-                  <Td>{coverage.name}</Td>
-                  <Td>{coverage.coverageCode}</Td>
-                  <Td>{coverage.category || '-'}</Td>
-
-                  {/* Limits */}
-                  <Td align="center">
-                    <Button variant="ghost" onClick={() => openLimitModal(coverage)}>
-                      Limits{coverage.limits && coverage.limits.length > 0 ? ` (${coverage.limits.length})` : ''}
-                    </Button>
-                  </Td>
-
-                  {/* Deductibles */}
-                  <Td align="center">
-                    <Button variant="ghost" onClick={() => openDeductibleModal(coverage)}>
-                      Deductibles{coverage.deductibles && coverage.deductibles.length > 0 ? ` (${coverage.deductibles.length})` : ''}
-                    </Button>
-                  </Td>
-
-                  {/* States */}
-                  <Td align="center">
-                    <RouterLink
-                      to={`/coverage-states/${productId}/${coverage.id}`}
-                      style={{ textDecoration: 'none', color: '#2563eb' }}
-                    >
-                      States{coverage.states && coverage.states.length > 0 ? ` (${coverage.states.length})` : ''}
-                    </RouterLink>
-                  </Td>
-
-                  {/* Linked Forms */}
-                  <Td align="center">
-                    <RouterLink
-                      to={`/forms/${productId}`}
-                      state={{ coverageId: coverage.id }}
-                      style={{ color: '#2563eb', textDecoration: 'none' }}
-                    >
-                      Forms{coverage.formIds && coverage.formIds.length > 0 ? ` (${coverage.formIds.length})` : ''}
-                    </RouterLink>
-                  </Td>
-
-                  {/* Sub‑Coverages */}
-                  <Td align="center">
-                    {coverage.subCount > 0 ? (
-                      <RouterLink to={`${location.pathname}/${coverage.id}`}>
-                        Sub‑Coverages ({coverage.subCount})
-                      </RouterLink>
-                    ) : (
-                      <RouterLink to={`${location.pathname}/${coverage.id}`}>
-                        Add&nbsp;Sub‑Coverage
-                      </RouterLink>
-                    )}
-                  </Td>
-
-                  {/* Actions */}
-                  <Td>
-                    <Actions>
-                      <Button variant="ghost" onClick={() => openEditModal(coverage)}>
-                        <PencilIcon width={20} height={20} />
-                      </Button>
-                      <Button variant="danger" onClick={() => handleDelete(coverage.id)}>
-                        <TrashIcon width={20} height={20} />
-                      </Button>
-                    </Actions>
-                  </Td>
+          <>
+            <Table>
+              <THead>
+                <Tr>
+                  <Th>Name</Th>
+                  <Th>Coverage Code</Th>
+                  <Th>Category</Th>
+                  <Th align="center">Limits</Th>
+                  <Th align="center">Deductibles</Th>
+                  <Th align="center">States</Th>
+                  <Th align="center">Linked&nbsp;Forms</Th>
+                  <Th align="center">Sub‑Coverages</Th>
+                  <Th align="center">Actions</Th>
                 </Tr>
-              ))}
-            </tbody>
-          </Table>
+              </THead>
+              <tbody>
+                {filteredCoverages.map(coverage => (
+                  <Tr key={coverage.id}>
+                    <Td>{coverage.name}</Td>
+                    <Td>{coverage.coverageCode}</Td>
+                    <Td>{coverage.category || '-'}</Td>
+
+                    {/* Limits */}
+                    <Td align="center">
+                      <Button variant="ghost" onClick={() => openLimitModal(coverage)} aria-label="Edit limits">
+                        Limits{coverage.limits && coverage.limits.length > 0 ? ` (${coverage.limits.length})` : ''}
+                      </Button>
+                    </Td>
+
+                    {/* Deductibles */}
+                    <Td align="center">
+                      <Button variant="ghost" onClick={() => openDeductibleModal(coverage)} aria-label="Edit deductibles">
+                        Deductibles{coverage.deductibles && coverage.deductibles.length > 0 ? ` (${coverage.deductibles.length})` : ''}
+                      </Button>
+                    </Td>
+
+                    {/* States */}
+                    <Td align="center">
+                      <RouterLink
+                        to={`/coverage-states/${productId}/${coverage.id}`}
+                        style={{ textDecoration: 'none', color: '#2563eb' }}
+                      >
+                        States{coverage.states && coverage.states.length > 0 ? ` (${coverage.states.length})` : ''}
+                      </RouterLink>
+                    </Td>
+
+                    {/* Linked Forms */}
+                    <Td align="center">
+                      <RouterLink
+                        to={`/forms/${productId}`}
+                        state={{ coverageId: coverage.id }}
+                        style={{ color: '#2563eb', textDecoration: 'none' }}
+                      >
+                        Forms{coverage.formIds && coverage.formIds.length > 0 ? ` (${coverage.formIds.length})` : ''}
+                      </RouterLink>
+                    </Td>
+
+                    {/* Sub‑Coverages */}
+                    <Td align="center">
+                      {coverage.subCount > 0 ? (
+                        <RouterLink to={`${location.pathname}/${coverage.id}`}>
+                          Sub‑Coverages ({coverage.subCount})
+                        </RouterLink>
+                      ) : (
+                        <RouterLink to={`${location.pathname}/${coverage.id}`}>
+                          Add&nbsp;Sub‑Coverage
+                        </RouterLink>
+                      )}
+                    </Td>
+
+                    {/* Actions */}
+                    <Td>
+                      <Actions>
+                        <Button variant="ghost" onClick={() => openEditModal(coverage)} aria-label="Edit coverage">
+                          <PencilIcon width={20} height={20} />
+                        </Button>
+                        <Button variant="danger" onClick={() => handleDelete(coverage.id)} aria-label="Delete coverage">
+                          <TrashIcon width={20} height={20} />
+                        </Button>
+                      </Actions>
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          </>
         ) : (
-          <p>No coverages found. {searchQuery ? 'Try a different search term.' : 'Add a coverage to get started.'}</p>
+          <>
+            <p>No coverages found. {searchQuery ? 'Try a different search term.' : 'Add a coverage to get started.'}</p>
+          </>
         )}
+
+        {/* “Add coverage” FAB below table, left‑aligned */}
+        <AddFab onClick={openAddModal} aria-label="Add coverage">
+          <PlusIcon width={16} height={16} />
+          <span>Add&nbsp;Coverage</span>
+        </AddFab>
 
         {/* ----- Limits Modal ----- */}
         {limitModalOpen && (
           <Overlay onClick={() => setLimitModalOpen(false)}>
-            <Modal onClick={e => e.stopPropagation()}>
+            <WideModal onClick={e => e.stopPropagation()}>
               <ModalHeader>
                 <ModalTitle>Manage Limits for {currentCoverage?.name}</ModalTitle>
                 <CloseBtn onClick={() => setLimitModalOpen(false)}>
@@ -737,51 +826,42 @@ export default function CoverageScreen() {
 
               <div style={{ maxHeight: 400, overflowY: 'auto', marginBottom: 16 }}>
                 {limitData.map((lim, idx) => (
-                  <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <div key={idx} style={{ display:'flex', gap:8, marginBottom:8, alignItems:'center' }}>
                     <TextInput
-                      value={lim.value}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setLimitData(d =>
-                          d.map((row, i) => (i === idx ? { ...row, value: val } : row))
-                        );
-                      }}
-                      style={{ flex: 1 }}
+                      value={lim}
+                      onChange={e =>
+                        setLimitData(d => d.map((row,i)=> i===idx ? e.target.value.replace(/[^0-9]/g,'') : row))
+                      }
+                      onBlur={() =>
+                        setLimitData(d => d.map((row,i)=> i===idx ? fmtMoney(row) : row))
+                      }
+                      style={{ flex:1 }}
                     />
-                    <Button
-                      variant="ghost"
-                      style={{ color: '#dc2626' }}
-                      onClick={() => setLimitData(d => d.filter((_, i) => i !== idx))}
-                    >
-                      <TrashIcon width={16} height={16} />
+                    <Button variant="ghost" style={{ color:'#dc2626' }}
+                      onClick={()=> setLimitData(d => d.filter((_,i)=> i!==idx))}>
+                      <TrashIcon width={16} height={16}/>
                     </Button>
                   </div>
                 ))}
               </div>
 
               <Actions>
-                <Button onClick={() => setLimitData(d => [...d, { value: '' }])}>
+                <Button onClick={() => setLimitData(d => [...d, ''])}>
                   Add Limit
                 </Button>
-                <Button onClick={() => {
-                  // simple save – write back to state; persist logic handled elsewhere
-                  setCurrentCoverage(c => ({ ...c, limits: limitData }));
-                  setLimitModalOpen(false);
-                }}>
-                  Save
-                </Button>
+                <Button onClick={saveLimits}>Save</Button>
                 <Button variant="ghost" onClick={() => setLimitModalOpen(false)}>
                   Cancel
                 </Button>
               </Actions>
-            </Modal>
+            </WideModal>
           </Overlay>
         )}
 
         {/* ----- Deductibles Modal ----- */}
         {deductibleModalOpen && (
           <Overlay onClick={() => setDeductibleModalOpen(false)}>
-            <Modal onClick={e => e.stopPropagation()}>
+            <WideModal onClick={e => e.stopPropagation()}>
               <ModalHeader>
                 <ModalTitle>Manage Deductibles for {currentCoverage?.name}</ModalTitle>
                 <CloseBtn onClick={() => setDeductibleModalOpen(false)}>
@@ -791,50 +871,42 @@ export default function CoverageScreen() {
 
               <div style={{ maxHeight: 400, overflowY: 'auto', marginBottom: 16 }}>
                 {deductibleData.map((ded, idx) => (
-                  <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <div key={idx} style={{ display:'flex', gap:8, marginBottom:8, alignItems:'center' }}>
                     <TextInput
-                      value={ded.value}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setDeductibleData(d =>
-                          d.map((row, i) => (i === idx ? { ...row, value: val } : row))
-                        );
-                      }}
-                      style={{ flex: 1 }}
+                      value={ded}
+                      onChange={e =>
+                        setDeductibleData(d => d.map((row,i)=> i===idx ? e.target.value.replace(/[^0-9]/g,'') : row))
+                      }
+                      onBlur={() =>
+                        setDeductibleData(d => d.map((row,i)=> i===idx ? fmtMoney(row) : row))
+                      }
+                      style={{ flex:1 }}
                     />
-                    <Button
-                      variant="ghost"
-                      style={{ color: '#dc2626' }}
-                      onClick={() => setDeductibleData(d => d.filter((_, i) => i !== idx))}
-                    >
-                      <TrashIcon width={16} height={16} />
+                    <Button variant="ghost" style={{ color:'#dc2626' }}
+                      onClick={()=> setDeductibleData(d => d.filter((_,i)=> i!==idx))}>
+                      <TrashIcon width={16} height={16}/>
                     </Button>
                   </div>
                 ))}
               </div>
 
               <Actions>
-                <Button onClick={() => setDeductibleData(d => [...d, { value: '' }])}>
+                <Button onClick={() => setDeductibleData(d => [...d, ''])}>
                   Add Deductible
                 </Button>
-                <Button onClick={() => {
-                  setCurrentCoverage(c => ({ ...c, deductibles: deductibleData }));
-                  setDeductibleModalOpen(false);
-                }}>
-                  Save
-                </Button>
+                <Button onClick={saveDeductibles}>Save</Button>
                 <Button variant="ghost" onClick={() => setDeductibleModalOpen(false)}>
                   Cancel
                 </Button>
               </Actions>
-            </Modal>
+            </WideModal>
           </Overlay>
         )}
 
         {/* ----- Add / Edit Coverage Modal ----- */}
         {addModalOpen && (
           <Overlay onClick={() => setAddModalOpen(false)}>
-            <Modal onClick={e => e.stopPropagation()}>
+            <WideModal onClick={e => e.stopPropagation()}>
               <ModalHeader>
                 <ModalTitle>{editingId ? 'Edit Coverage' : 'Add Coverage'}</ModalTitle>
                 <CloseBtn onClick={() => setAddModalOpen(false)}>
@@ -875,7 +947,7 @@ export default function CoverageScreen() {
                   <Button variant="ghost" onClick={() => setAddModalOpen(false)}>Cancel</Button>
                 </Actions>
               </div>
-            </Modal>
+            </WideModal>
           </Overlay>
         )}
 
@@ -884,7 +956,7 @@ export default function CoverageScreen() {
           onClick={() => setHistoryOpen(true)}
           aria-label="View version history"
         >
-          <ClockIcon width={24} height={24} />
+          <ClockIcon width={25} height={25} />
         </HistoryButton>
         <VersionControlSidebar
           open={historyOpen}

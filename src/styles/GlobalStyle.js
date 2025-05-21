@@ -2,8 +2,8 @@ import { createGlobalStyle, keyframes } from 'styled-components';
 
 /* -------- Gentle background pulse animation -------- */
 const backgroundPulse = keyframes`
-  0%   { transform: scale(1);   opacity:.15; filter: blur(80px); }
-  50%  { transform: scale(1.50);opacity:.25; filter: blur(100px); }
+  0%   { transform: scale(1);   opacity:1; filter: blur(60px); }
+  50%  { transform: scale(1.50);opacity:.75; filter: blur(100px); }
   100% { transform: scale(1);   opacity:.15; filter: blur(80px); }
 `;
 
@@ -27,8 +27,8 @@ export const GlobalStyle = createGlobalStyle`
   body::before {
     content:'';
     position:fixed;
-    top:-20vmax;
-    left:-20vmax;
+    top:-10vmax;
+    left:-10vmax;
     width:60vmax;
     height:60vmax;
     z-index:-1;
@@ -37,7 +37,7 @@ export const GlobalStyle = createGlobalStyle`
     background:
       radial-gradient(
         circle at 30% 30%,
-        ${({ theme }) => theme.colours.primary}22 0%,
+        ${({ theme }) => theme.colours.primary}20 25%,
         transparent 60%
       ),
       radial-gradient(
@@ -46,7 +46,7 @@ export const GlobalStyle = createGlobalStyle`
         transparent 55%
       );
 
-    animation:${backgroundPulse} 12s ease-in-out infinite alternate;
+    animation:${backgroundPulse} 4s ease-in-out infinite alternate;
   }
 
   /* very soft diagonal grid wave – only over top‑left quadrant */
@@ -69,7 +69,7 @@ export const GlobalStyle = createGlobalStyle`
         transparent 12px
       );
 
-    animation:${waveScroll} 24s linear infinite;
+    animation:${waveScroll} 2s linear infinite;
     mix-blend-mode: soft-light;
   }
 

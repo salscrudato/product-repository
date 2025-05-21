@@ -313,6 +313,7 @@ const FieldInput = styled(TextInput)`
 `;
 
 
+
 const HistoryButton = styled.button`
   position: fixed;
   bottom: 16px;
@@ -331,6 +332,28 @@ const HistoryButton = styled.button`
   z-index: 1100;
   transition: right 0.3s ease, background 0.25s ease;
   &:hover { background: #1f2937; }
+`;
+
+/** Floating Action‑Button (consistent with CoverageScreen) */
+const AddFab = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg,#7e5bef 0%,#8b5cf6 50%,#a855f7 100%);
+  color: #fff;
+  border: none;
+  border-radius: 28px;
+  padding: 10px 18px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.16);
+  }
+  &:active { transform: translateY(0); }
 `;
 
 
@@ -1104,13 +1127,11 @@ export default function ProductHub() {
         ) : (
           <p>No products found.</p>
         )}
-        {/* Add Product Button (below table/message) */}
-        <div style={{ display:'flex', justifyContent:'center', marginTop:32 }}>
-          <Button onClick={() => setModalOpen(true)}>
-            <PlusIcon width={16} height={16} style={{ marginRight:6 }} />
-            Add&nbsp;Product
-          </Button>
-        </div>
+        {/* Add Product FAB (below table, left‑aligned) */}
+        <AddFab onClick={() => setModalOpen(true)} style={{ marginTop: 32 }}>
+          <PlusIcon width={16} height={16} />
+          Add&nbsp;Product
+        </AddFab>
           </Container>
         </div>
         {/* Floating history button */}
