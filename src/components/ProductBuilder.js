@@ -1,70 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { collection, collectionGroup, getDocs, getDoc, addDoc, updateDoc, doc, query, where } from 'firebase/firestore';
 import { db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import styled, { keyframes } from 'styled-components';
-import { XMarkIcon } from '@heroicons/react/24/solid';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Button } from '../components/ui/Button';
-import { TextInput } from '../components/ui/Input';
+import styled from 'styled-components';
+import { XMarkIcon, MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/24/solid';
+import { useNavigate } from 'react-router-dom';
 import MainNavigation from '../components/ui/Navigation';
-import {
-  Table,
-  THead,
-  Tr,
-  Th,
-  Td,
-  Overlay,
-  Modal,
-  ModalHeader,
-  ModalTitle,
-  CloseBtn
-} from '../components/ui/Table';
-
-// Loading spinner
-const spin = keyframes`
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-`;
-const Spinner = styled.div`
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #6366f1;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: ${spin} 1s linear infinite;
-  margin: 100px auto;
-`;
-
-/* -------- navigation tabs reused from ProductHub -------- */
-const Tabs = styled.div`
-  display: flex;
-  gap: 24px;
-  align-items: center;
-`;
-
-const TabLink = styled(Link)`
-  padding: 8px 12px;
-  font-weight: 600;
-  text-decoration: none;
-  border-bottom: 3px solid transparent;
-  color: ${({ theme }) => theme.colours.text};
-
-  &.active {
-    color: ${({ theme }) => theme.colours.primaryDark};
-    border-color: ${({ theme }) => theme.colours.primary};
-  }
-`;
-
-const TabButton = styled(Button).attrs({ variant: 'ghost' })`
-  padding: 8px 12px;
-  font-weight: 600;
-  border-bottom: 3px solid transparent;
-
-  &:hover {
-    border-color: ${({ theme }) => theme.colours.primary};
-  }
-`;
 
 /* ---------- Modern Styled Components ---------- */
 
@@ -89,75 +30,6 @@ const Page = styled.div`
   }
 `;
 
-const Navigation = styled.nav`
-  display: flex;
-  justify-content: center;
-  padding: 24px 0;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-  position: relative;
-  z-index: 10;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-`;
-
-const NavList = styled.ul`
-  display: flex;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  gap: 48px;
-
-  @media (max-width: 768px) {
-    gap: 24px;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-`;
-
-const NavItem = styled.li``;
-
-const NavLink = styled(Link)`
-  text-decoration: none;
-  color: #64748b;
-  font-weight: 600;
-  font-size: 15px;
-  padding: 12px 20px;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  position: relative;
-  letter-spacing: -0.01em;
-
-  &:hover {
-    color: #1e293b;
-    background: rgba(99, 102, 241, 0.08);
-    transform: translateY(-1px);
-  }
-
-  &.active {
-    color: #6366f1;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
-
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: -24px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 4px;
-      height: 4px;
-      background: #6366f1;
-      border-radius: 50%;
-    }
-  }
-
-  @media (max-width: 768px) {
-    font-size: 14px;
-    padding: 10px 16px;
-  }
-`;
-
 // Main Content - Modern layout
 const MainContent = styled.main`
   flex: 1;
@@ -173,7 +45,22 @@ const MainContent = styled.main`
   }
 `;
 
-// Page Title - Modern typography matching Home and ProductHub
+// Header Section - Horizontal layout with title and actions
+const HeaderSection = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  gap: 24px;
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+  }
+`;
+
+// Page Title - Modern typography matching other pages
 const PageTitle = styled.h1`
   font-size: 2rem;
   font-weight: 700;
@@ -181,14 +68,336 @@ const PageTitle = styled.h1`
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  margin: 0 0 32px 0;
+  margin: 0;
   text-align: center;
   letter-spacing: -0.02em;
   line-height: 1.1;
 
   @media (max-width: 768px) {
     font-size: 1.5rem;
-    margin-bottom: 24px;
+  }
+`;
+
+// Content Grid - Two column layout with much wider cards
+const ContentGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-bottom: 40px;
+  max-width: 2000px;
+  margin-left: auto;
+  margin-right: auto;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+`;
+
+// Section Card - Modern card container with less padding
+const SectionCard = styled.div`
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+`;
+
+// Section Title - Modern section headers
+const SectionTitle = styled.h2`
+  font-size: 1.5rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #1e293b 0%, #475569 50%, #64748b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 24px 0;
+  letter-spacing: -0.01em;
+`;
+
+// Search Container - Modern search input
+const SearchContainer = styled.div`
+  position: relative;
+  margin-bottom: 24px;
+`;
+
+// Search Input - Modern styled input
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 12px 20px 12px 56px;
+  font-size: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  font-weight: 400;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.2), 0 0 0 4px rgba(99, 102, 241, 0.1);
+    background: rgba(255, 255, 255, 0.95);
+    transform: translateY(-2px);
+  }
+
+  &::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+  }
+`;
+
+// Search Icon
+const SearchIcon = styled(MagnifyingGlassIcon)`
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  color: #6366f1;
+  pointer-events: none;
+`;
+
+// Form Input - Modern styled input
+const FormInput = styled.input`
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  font-weight: 400;
+  margin-bottom: 16px;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.2), 0 0 0 4px rgba(99, 102, 241, 0.1);
+    background: rgba(255, 255, 255, 0.95);
+    transform: translateY(-2px);
+  }
+
+  &::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+  }
+`;
+
+// File Input Container
+const FileInputContainer = styled.div`
+  position: relative;
+  margin-bottom: 16px;
+`;
+
+// File Input - Modern styled file input
+const FileInput = styled.input`
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.2), 0 0 0 4px rgba(99, 102, 241, 0.1);
+    background: rgba(255, 255, 255, 0.95);
+  }
+
+  &:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+    transform: translateY(-1px);
+  }
+`;
+
+// Modern Button
+const ModernButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    background: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+`;
+
+// Table Container - Modern table styling with less padding
+const TableContainer = styled.div`
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  margin-bottom: 20px;
+`;
+
+// Modern Table
+const ModernTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+`;
+
+// Table Header
+const TableHead = styled.thead`
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+`;
+
+// Table Row
+const TableRow = styled.tr`
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.02);
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+// Table Header Cell
+const TableHeaderCell = styled.th`
+  padding: 16px 20px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  font-size: 14px;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+  border-bottom: 2px solid rgba(226, 232, 240, 0.8);
+`;
+
+// Table Cell
+const TableCell = styled.td`
+  padding: 16px 20px;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.5;
+  vertical-align: middle;
+`;
+
+// Loading Spinner
+const LoadingSpinner = styled.div`
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #6366f1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 100px auto;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
+// Modal Overlay
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+`;
+
+// Modal Container
+const ModalContainer = styled.div`
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 32px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+`;
+
+// Modal Header
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+`;
+
+// Modal Title
+const ModalTitle = styled.h3`
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+`;
+
+// Close Button
+const CloseButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.2);
+    transform: scale(1.05);
   }
 `;
 
@@ -210,7 +419,6 @@ const ProductBuilder = () => {
   const [cloneModalOpen, setCloneModalOpen] = useState(false);
   const [cloneTargetId, setCloneTargetId] = useState('');
   const navigate = useNavigate();
-  const location = useLocation();
 
   // Fetch all coverages, forms, and products on mount
   useEffect(() => {
@@ -393,49 +601,15 @@ const ProductBuilder = () => {
 
 
   // Helper to get form names for a coverage
-  // (no longer used)
 
-  // Helper to get coverage names for a form
-  const getAssociatedCoverages = (form) => {
-    const coverageIds = form.coverageIds || [];
-    return coverageIds.map(id => coverages.find(c => c.id === id)?.name || 'Unknown Coverage').join(', ');
-  };
 
   if (cloneLoading) {
     return (
       <Page>
-        <Navigation>
-          <NavList>
-            <NavItem>
-              <NavLink to="/" className={location.pathname === '/' ? 'active' : ''}>
-                Home
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/products" className={location.pathname === '/products' ? 'active' : ''}>
-                Products
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/product-builder" className={location.pathname.startsWith('/product-builder') ? 'active' : ''}>
-                Builder
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/product-explorer" className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}>
-                Explorer
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/data-dictionary" className={location.pathname === '/data-dictionary' ? 'active' : ''}>
-                Data Dictionary
-              </NavLink>
-            </NavItem>
-          </NavList>
-        </Navigation>
+        <MainNavigation />
         <MainContent>
-          <Spinner />
-          <p style={{textAlign:'center',marginTop:12}}>Cloning product…</p>
+          <LoadingSpinner />
+          <p style={{textAlign:'center',marginTop:12, color: '#6b7280'}}>Cloning product…</p>
         </MainContent>
       </Page>
     );
@@ -444,37 +618,9 @@ const ProductBuilder = () => {
   if (loading) {
     return (
       <Page>
-        <Navigation>
-          <NavList>
-            <NavItem>
-              <NavLink to="/" className={location.pathname === '/' ? 'active' : ''}>
-                Home
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/products" className={location.pathname === '/products' ? 'active' : ''}>
-                Products
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/product-builder" className={location.pathname.startsWith('/product-builder') ? 'active' : ''}>
-                Builder
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/product-explorer" className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}>
-                Explorer
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/data-dictionary" className={location.pathname === '/data-dictionary' ? 'active' : ''}>
-                Data Dictionary
-              </NavLink>
-            </NavItem>
-          </NavList>
-        </Navigation>
+        <MainNavigation />
         <MainContent>
-          <Spinner />
+          <LoadingSpinner />
         </MainContent>
       </Page>
     );
@@ -563,85 +709,39 @@ const ProductBuilder = () => {
 
   return (
     <Page>
-      <Navigation>
-        <NavList>
-          <NavItem>
-            <NavLink
-              to="/"
-              className={location.pathname === '/' ? 'active' : ''}
-            >
-              Home
-            </NavLink>
-          </NavItem>
-          <NavItem>
-            <NavLink
-              to="/products"
-              className={location.pathname === '/products' ? 'active' : ''}
-            >
-              Products
-            </NavLink>
-          </NavItem>
-          <NavItem>
-            <NavLink
-              to="/product-builder"
-              className={location.pathname.startsWith('/product-builder') ? 'active' : ''}
-            >
-              Builder
-            </NavLink>
-          </NavItem>
-          <NavItem>
-            <NavLink
-              to="/product-explorer"
-              className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}
-            >
-              Explorer
-            </NavLink>
-          </NavItem>
-          <NavItem>
-            <NavLink
-              to="/data-dictionary"
-              className={location.pathname === '/data-dictionary' ? 'active' : ''}
-            >
-              Data Dictionary
-            </NavLink>
-          </NavItem>
-        </NavList>
-      </Navigation>
+      <MainNavigation />
 
       <MainContent>
-        <PageTitle>Product Builder</PageTitle>
+        <HeaderSection>
+          <PageTitle>Product Builder</PageTitle>
+        </HeaderSection>
 
-        <div style={{ display:'flex', gap:32, marginBottom:32, flexWrap:'wrap' }}>
-          {/* Coverage Section (flex:1) */}
-          <div style={{ flex:1 }}>
-            <h2 style={{
-              fontSize: 24,
-              fontWeight: 550,
-              marginBottom: 16,
-              background: 'linear-gradient(90deg, #0074E1, #60419F)',
-              WebkitBackgroundClip: 'text',
-              color: 'transparent'
-            }}>Coverages</h2>
-            <TextInput
-              placeholder="Search coverages by name..."
-              value={coverageSearchQuery}
-              onChange={e => setCoverageSearchQuery(e.target.value)}
-              style={{ marginBottom: 16 }}
-            />
-            <div style={{ overflowX:'auto', marginBottom:24 }}>
-              <Table>
-                <THead>
-                  <Tr>
-                    <Th>Select</Th>
-                    <Th>Name</Th>
-                    <Th>Product Name</Th>
-                    <Th>Associated Forms</Th>
-                  </Tr>
-                </THead>
+        <ContentGrid>
+          {/* Coverage Section */}
+          <SectionCard>
+            <SectionTitle>Coverages</SectionTitle>
+            <SearchContainer>
+              <SearchIcon />
+              <SearchInput
+                placeholder="Search coverages by name..."
+                value={coverageSearchQuery}
+                onChange={e => setCoverageSearchQuery(e.target.value)}
+              />
+            </SearchContainer>
+            <TableContainer>
+              <ModernTable>
+                <TableHead>
+                  <TableRow>
+                    <TableHeaderCell>Select</TableHeaderCell>
+                    <TableHeaderCell>Name</TableHeaderCell>
+                    <TableHeaderCell>Product Name</TableHeaderCell>
+                    <TableHeaderCell>Associated Forms</TableHeaderCell>
+                  </TableRow>
+                </TableHead>
                 <tbody>
                   {filteredCoverages.map(coverage => (
-                    <Tr key={coverage.id}>
-                      <Td>
+                    <TableRow key={coverage.id}>
+                      <TableCell>
                         <input
                           type="checkbox"
                           checked={!!selectedCoverages[coverage.id]}
@@ -649,101 +749,108 @@ const ProductBuilder = () => {
                           style={{ marginRight: 8 }}
                         />
                         {!!selectedCoverages[coverage.id] && (
-                      <Button
-                        variant="ghost"
-                        style={{ padding: 0, marginLeft: 4 }}
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleCoverageSelect(coverage);
-                        }}
-                        title="Deselect"
-                      >
-                        <XMarkIcon style={{ width: 18, height: 18 }} />
-                      </Button>
+                          <button
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              marginLeft: 4,
+                              cursor: 'pointer',
+                              color: '#ef4444'
+                            }}
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleCoverageSelect(coverage);
+                            }}
+                            title="Deselect"
+                          >
+                            <XMarkIcon style={{ width: 18, height: 18 }} />
+                          </button>
                         )}
-                      </Td>
-                      <Td>{coverage.name}</Td>
-                      <Td>{products[coverage.productId] || 'Unknown Product'}</Td>
-                      <Td align="center">
-                        <Button variant="ghost" onClick={() => {
-                          setModalItem(coverage);
-                          setModalOpen(true);
-                        }}>
+                      </TableCell>
+                      <TableCell>{coverage.name}</TableCell>
+                      <TableCell>{products[coverage.productId] || 'Unknown Product'}</TableCell>
+                      <TableCell style={{ textAlign: 'center' }}>
+                        <button
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#6366f1',
+                            cursor: 'pointer',
+                            textDecoration: 'underline'
+                          }}
+                          onClick={() => {
+                            setModalItem(coverage);
+                            setModalOpen(true);
+                          }}
+                        >
                           Forms ({selectedCoverages[coverage.id]?.length || 0})
-                        </Button>
-                      </Td>
-                    </Tr>
+                        </button>
+                      </TableCell>
+                    </TableRow>
                   ))}
                 </tbody>
-              </Table>
-            </div>
-          </div>
-          {/* New Product Details (right column) */}
-          <div style={{ flex:1 }}>
-            <h2 style={{
-              fontSize: 24,
-              fontWeight: 550,
-              marginBottom: 16,
-              background: 'linear-gradient(90deg, #0074E1, #60419F)',
-              WebkitBackgroundClip: 'text',
-              color: 'transparent'
-            }}>New Product Details</h2>
-            <TextInput
+              </ModernTable>
+            </TableContainer>
+          </SectionCard>
+          {/* New Product Details */}
+          <SectionCard>
+            <SectionTitle>New Product Details</SectionTitle>
+            <FormInput
               placeholder="Enter product name"
               value={newProductName}
               onChange={e => setNewProductName(e.target.value)}
-              style={{ marginBottom: 16 }}
             />
-            <TextInput
+            <FormInput
               placeholder="Form Number"
               value={formNumber}
               onChange={e => setFormNumber(e.target.value)}
-              style={{ marginBottom: 16 }}
             />
-            <TextInput
+            <FormInput
               placeholder="Product Code"
               value={productCode}
               onChange={e => setProductCode(e.target.value)}
-              style={{ marginBottom: 16 }}
             />
-            <TextInput
+            <FormInput
               placeholder="Effective Date (MM/YYYY)"
               value={effectiveDate}
               onChange={e => setEffectiveDate(e.target.value)}
-              style={{ marginBottom: 16 }}
             />
-            <div style={{ marginBottom: 16 }}>
-              <input
+            <FileInputContainer>
+              <FileInput
                 type="file"
                 onChange={e => setFile(e.target.files[0])}
-                style={{ width: '100%' }}
               />
-            </div>
-            <div style={{ marginTop: 16, marginBottom: 16, width: '100%' }}>
-              <Table>
-                <THead>
-                  <Tr>
-                    <Th>Coverage</Th>
-                    <Th>Forms</Th>
-                  </Tr>
-                </THead>
-                <tbody>
-                  {Object.keys(selectedCoverages).map(coverageId => {
-                    const coverage = coverages.find(c => c.id === coverageId);
-                    const formNames = selectedCoverages[coverageId]
-                      .map(formId => forms.find(f => f.id === formId)?.formName || 'Unknown Form')
-                      .join(', ');
-                    return (
-                      <Tr key={coverageId}>
-                        <Td>{coverage?.name}</Td>
-                        <Td>{formNames}</Td>
-                      </Tr>
-                    );
-                  })}
-                </tbody>
-              </Table>
-            </div>
-            <Button
+            </FileInputContainer>
+
+            {Object.keys(selectedCoverages).length > 0 && (
+              <TableContainer>
+                <ModernTable>
+                  <TableHead>
+                    <TableRow>
+                      <TableHeaderCell>Coverage</TableHeaderCell>
+                      <TableHeaderCell>Forms</TableHeaderCell>
+                    </TableRow>
+                  </TableHead>
+                  <tbody>
+                    {Object.keys(selectedCoverages).map(coverageId => {
+                      const coverage = coverages.find(c => c.id === coverageId);
+                      const formNames = selectedCoverages[coverageId]
+                        .map(formId => forms.find(f => f.id === formId)?.formName || 'Unknown Form')
+                        .join(', ');
+                      return (
+                        <TableRow key={coverageId}>
+                          <TableCell>{coverage?.name}</TableCell>
+                          <TableCell>{formNames}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </tbody>
+                </ModernTable>
+              </TableContainer>
+            )}
+
+            <ModernButton
               onClick={handleCreateProduct}
               disabled={
                 !newProductName ||
@@ -753,23 +860,24 @@ const ProductBuilder = () => {
                 Object.keys(selectedCoverages).length === 0
               }
             >
+              <PlusIcon style={{ width: 20, height: 20 }} />
               Create Product
-            </Button>
-          </div>
-        </div>
+            </ModernButton>
+          </SectionCard>
+        </ContentGrid>
 
 
         {/* Modal for Multiple Associations */}
         {modalOpen && (
-          <Overlay>
-            <Modal>
+          <ModalOverlay onClick={() => setModalOpen(false)}>
+            <ModalContainer onClick={e => e.stopPropagation()}>
               <ModalHeader>
                 <ModalTitle>
                   Select Forms for {modalItem.name}
                 </ModalTitle>
-                <CloseBtn onClick={() => setModalOpen(false)}>
-                  <XMarkIcon style={{ width: 24, height: 24 }} />
-                </CloseBtn>
+                <CloseButton onClick={() => setModalOpen(false)}>
+                  <XMarkIcon style={{ width: 20, height: 20 }} />
+                </CloseButton>
               </ModalHeader>
               <div style={{ marginTop: 16 }}>
                 {forms
@@ -777,7 +885,16 @@ const ProductBuilder = () => {
                   .map(form => {
                     const checked = selectedCoverages[modalItem.id]?.includes(form.id) || false;
                     return (
-                      <div key={form.id} style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                      <div key={form.id} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        marginBottom: 12,
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: checked ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                        border: '1px solid rgba(226, 232, 240, 0.6)',
+                        transition: 'all 0.2s ease'
+                      }}>
                         <input
                           type="checkbox"
                           checked={checked}
@@ -789,47 +906,66 @@ const ProductBuilder = () => {
                               handleModalSubmit(modalItem.id, currentForms.filter(id => id !== form.id));
                             }
                           }}
-                          style={{ marginRight: 8 }}
+                          style={{ marginRight: 12 }}
                         />
-                        {form.formName || form.formNumber}
+                        <span style={{
+                          color: '#374151',
+                          fontWeight: checked ? '600' : '400'
+                        }}>
+                          {form.formName || form.formNumber}
+                        </span>
                       </div>
                     );
                   })}
               </div>
-            </Modal>
-          </Overlay>
+            </ModalContainer>
+          </ModalOverlay>
         )}
         {/* Clone Product Modal */}
         {cloneModalOpen && (
-          <Overlay onClick={() => setCloneModalOpen(false)}>
-            <Modal onClick={e => e.stopPropagation()}>
+          <ModalOverlay onClick={() => setCloneModalOpen(false)}>
+            <ModalContainer onClick={e => e.stopPropagation()}>
               <ModalHeader>
                 <ModalTitle>Select Product to Clone</ModalTitle>
-                <CloseBtn onClick={() => setCloneModalOpen(false)}>
+                <CloseButton onClick={() => setCloneModalOpen(false)}>
                   <XMarkIcon width={20} height={20} />
-                </CloseBtn>
+                </CloseButton>
               </ModalHeader>
 
               <div style={{ maxHeight: 320, overflowY: 'auto', marginTop: 12 }}>
                 {Object.entries(products)
                   .sort((a, b) => a[1].localeCompare(b[1]))
                   .map(([pid, name]) => (
-                    <label key={pid} style={{ display: 'block', padding: 6 }}>
+                    <label key={pid} style={{
+                      display: 'block',
+                      padding: '12px 16px',
+                      margin: '4px 0',
+                      borderRadius: '8px',
+                      background: cloneTargetId === pid ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                      border: '1px solid rgba(226, 232, 240, 0.6)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}>
                       <input
                         type="radio"
                         name="cloneTarget"
                         value={pid}
                         checked={cloneTargetId === pid}
                         onChange={() => setCloneTargetId(pid)}
-                        style={{ marginRight: 8 }}
+                        style={{ marginRight: 12 }}
                       />
-                      {name}
+                      <span style={{
+                        color: '#374151',
+                        fontWeight: cloneTargetId === pid ? '600' : '400'
+                      }}>
+                        {name}
+                      </span>
                     </label>
                   ))}
               </div>
 
-              <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
-                <Button
+              <div style={{ marginTop: 24, display: 'flex', gap: 12 }}>
+                <ModernButton
                   disabled={!cloneTargetId}
                   onClick={async () => {
                     await cloneProduct(cloneTargetId);
@@ -837,13 +973,25 @@ const ProductBuilder = () => {
                   }}
                 >
                   Clone
-                </Button>
-                <Button variant="ghost" onClick={() => setCloneModalOpen(false)}>
+                </ModernButton>
+                <button
+                  style={{
+                    padding: '12px 24px',
+                    border: '1px solid rgba(226, 232, 240, 0.6)',
+                    borderRadius: '12px',
+                    background: 'transparent',
+                    color: '#6b7280',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => setCloneModalOpen(false)}
+                >
                   Cancel
-                </Button>
+                </button>
               </div>
-            </Modal>
-          </Overlay>
+            </ModalContainer>
+          </ModalOverlay>
         )}
       </MainContent>
     </Page>

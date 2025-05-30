@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { ArrowUpIcon, NewspaperIcon, CalendarIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/solid';
 import MainNavigation from './ui/Navigation';
+import useProducts from '../hooks/useProducts';
+import { collection, getDocs, collectionGroup } from 'firebase/firestore';
+import { db } from '../firebase';
+import MarkdownRenderer from '../utils/markdownParser';
 
 /* ---------- styled components ---------- */
 const Page = styled.div`
@@ -58,33 +62,62 @@ const TitleSection = styled.div`
 `;
 
 const SearchSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 60px;
+  width: 100%;
+`;
+
+const SearchContainer = styled.div`
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto 40px auto;
+  position: relative;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  gap: 16px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+
+  &:focus-within {
+    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.5);
+  }
+
+  @media (max-width: 768px) {
+    max-width: 100%;
+    padding: 8px 16px;
+  }
+`;
+
+const ContentGrid = styled.div`
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 1fr 1fr;
   gap: 40px;
-  margin-bottom: 40px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
   align-items: start;
 
-  @media (max-width: 1200px) {
+  @media (max-width: 1024px) {
     grid-template-columns: 1fr;
     gap: 32px;
   }
 `;
 
-const SearchColumn = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`;
-
 const QueueColumn = styled.div`
   width: 100%;
-  max-width: 400px;
-  justify-self: end;
-
-  @media (max-width: 1200px) {
-    justify-self: center;
-    max-width: 600px;
-  }
 `;
 
 // Product Management Queue Components
@@ -234,37 +267,7 @@ const WelcomeTitle = styled.h1`
   }
 `;
 
-const SearchContainer = styled.div`
-  width: 100%;
-  max-width: 600px;
-  margin: 0 auto;
-  position: relative;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  display: flex;
-  align-items: center;
-  padding: 10px 20px;
-  gap: 16px;
-  transition: all 0.3s ease;
 
-  &:hover {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
-    border-color: rgba(99, 102, 241, 0.3);
-  }
-
-  &:focus-within {
-    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.5);
-  }
-
-  @media (max-width: 768px) {
-    max-width: 100%;
-    padding: 8px 16px;
-  }
-`;
 
 const SearchInput = styled.input`
   flex: 1;
@@ -324,7 +327,7 @@ const SearchButton = styled.button`
 
 const ResponseContainer = styled.div`
   width: 100%;
-  max-width: 600px;
+  max-width: 700px;
   margin: 24px auto 0;
   padding: 24px;
   background: rgba(255, 255, 255, 0.95);
@@ -337,6 +340,12 @@ const ResponseContainer = styled.div`
   color: #374151;
   font-size: 15px;
   text-align: left;
+
+  @media (max-width: 768px) {
+    padding: 20px;
+    margin-top: 20px;
+    font-size: 14px;
+  }
 `;
 
 const LoadingSpinner = styled.div`
@@ -361,10 +370,7 @@ const NewsSection = styled.div`
   padding: 32px;
   border: 1px solid rgba(226, 232, 240, 0.6);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  margin-top: 40px;
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
+  width: 100%;
 `;
 
 const NewsHeader = styled.div`
@@ -473,6 +479,45 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState('');
 
+  // Data for context
+  const { products, loading: productsLoading } = useProducts();
+  const [coverages, setCoverages] = useState([]);
+  const [forms, setForms] = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
+
+  // Fetch additional context data
+  useEffect(() => {
+    const fetchContextData = async () => {
+      try {
+        setDataLoading(true);
+
+        // Fetch all coverages across all products
+        const coveragesSnap = await getDocs(collectionGroup(db, 'coverages'));
+        const coverageList = coveragesSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          productId: doc.ref.parent.parent.id,
+        }));
+        setCoverages(coverageList);
+
+        // Fetch all forms
+        const formsSnap = await getDocs(collection(db, 'forms'));
+        const formList = formsSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setForms(formList);
+
+      } catch (error) {
+        console.error('Error fetching context data:', error);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    fetchContextData();
+  }, []);
+
   // Product Management Queue Data
   const productQueue = [
     {
@@ -561,6 +606,85 @@ export default function Home() {
     }
   ];
 
+  // Build comprehensive context for AI assistant
+  const buildContext = () => {
+    const context = {
+      timestamp: new Date().toISOString(),
+      company: "Insurance Product Management System",
+
+      // Products data
+      products: products.map(p => ({
+        id: p.id,
+        name: p.name,
+        formNumber: p.formNumber,
+        productCode: p.productCode,
+        effectiveDate: p.effectiveDate,
+        hasForm: !!p.formDownloadUrl
+      })),
+
+      // Coverages data
+      coverages: coverages.map(c => ({
+        id: c.id,
+        productId: c.productId,
+        productName: products.find(p => p.id === c.productId)?.name || 'Unknown Product',
+        coverageCode: c.coverageCode,
+        coverageName: c.coverageName,
+        scopeOfCoverage: c.scopeOfCoverage,
+        limits: c.limits,
+        perilsCovered: c.perilsCovered,
+        parentCoverage: c.parentCoverage,
+        isSubCoverage: !!c.parentCoverage
+      })),
+
+      // Forms data
+      forms: forms.map(f => ({
+        id: f.id,
+        name: f.name,
+        formNumber: f.formNumber,
+        category: f.category,
+        productIds: f.productIds || [],
+        associatedProducts: (f.productIds || []).map(pid =>
+          products.find(p => p.id === pid)?.name || 'Unknown Product'
+        ).filter(Boolean)
+      })),
+
+      // Current task queue
+      taskQueue: productQueue.map(task => ({
+        title: task.title,
+        assignee: task.assignee,
+        dueDate: task.dueDate,
+        status: task.status,
+        priority: task.priority
+      })),
+
+      // Market news and trends
+      marketNews: marketNews.map(news => ({
+        title: news.title,
+        content: news.content,
+        date: news.date,
+        trend: news.trend,
+        trendText: news.trendText
+      })),
+
+      // Summary statistics
+      summary: {
+        totalProducts: products.length,
+        totalCoverages: coverages.length,
+        totalForms: forms.length,
+        activeTasks: productQueue.filter(t => t.status === 'in-progress').length,
+        highPriorityTasks: productQueue.filter(t => t.priority === 'high').length,
+        upcomingDeadlines: productQueue.filter(t => {
+          const dueDate = new Date(t.dueDate);
+          const now = new Date();
+          const diffDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+          return diffDays <= 7 && diffDays >= 0;
+        }).length
+      }
+    };
+
+    return context;
+  };
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim() || isLoading) return;
@@ -571,6 +695,30 @@ export default function Home() {
     setResponse('');
 
     try {
+      // Build comprehensive context
+      const context = buildContext();
+
+      // Create enhanced system prompt with full context
+      const systemPrompt = `You are an expert AI assistant for an insurance product management system. You have access to comprehensive real-time data about the company's insurance products, coverages, forms, task management queue, and market news.
+
+**Your Role:**
+- Insurance product management expert and business analyst
+- Help with product analysis, coverage questions, task prioritization, and strategic insights
+- Provide actionable recommendations based on current data
+- Answer questions about specific products, coverages, forms, deadlines, and market trends
+
+**Current System Context:**
+${JSON.stringify(context, null, 2)}
+
+**Instructions:**
+- Use the provided context data to give accurate, specific answers
+- Reference actual product names, coverage details, task statuses, and deadlines when relevant
+- Provide insights and recommendations based on the current state of the business
+- If asked about trends, use the market news data
+- For task-related questions, reference the actual queue and priorities
+- Be concise but comprehensive in your responses
+- Format responses clearly with bullet points or sections when appropriate`;
+
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -582,11 +730,11 @@ export default function Home() {
           messages: [
             {
               role: 'system',
-              content: 'You are a helpful AI assistant for a product management system. Provide clear, concise, and helpful responses.'
+              content: systemPrompt
             },
             { role: 'user', content: query }
           ],
-          max_tokens: 1000,
+          max_tokens: 1500,
           temperature: 0.7
         })
       });
@@ -626,34 +774,45 @@ export default function Home() {
         <HeaderSection>
           <TitleSection>
             <WelcomeTitle>What can I help with?</WelcomeTitle>
+            {(dataLoading || productsLoading) && (
+              <div style={{
+                fontSize: '14px',
+                color: '#64748b',
+                marginTop: '8px',
+                textAlign: 'center'
+              }}>
+                Loading system data for enhanced assistance...
+              </div>
+            )}
           </TitleSection>
         </HeaderSection>
 
         <SearchSection>
-          <SearchColumn>
-            <SearchContainer>
-              <SearchInput
-                placeholder="Ask anything"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={handleKeyPress}
-              />
-              <SearchButton
-                onClick={handleSearch}
-                disabled={!searchQuery.trim() || isLoading}
-                aria-label="Search"
-              >
-                {isLoading ? <LoadingSpinner /> : <ArrowUpIcon width={18} height={18} />}
-              </SearchButton>
-            </SearchContainer>
+          <SearchContainer>
+            <SearchInput
+              placeholder="Ask about products, coverages, tasks, deadlines, or market trends..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={handleKeyPress}
+              disabled={dataLoading || productsLoading}
+            />
+            <SearchButton
+              onClick={handleSearch}
+              disabled={!searchQuery.trim() || isLoading}
+              aria-label="Search"
+            >
+              {isLoading ? <LoadingSpinner /> : <ArrowUpIcon width={18} height={18} />}
+            </SearchButton>
+          </SearchContainer>
 
-            {response && (
-              <ResponseContainer>
-                {response}
-              </ResponseContainer>
-            )}
-          </SearchColumn>
+          {response && (
+            <ResponseContainer>
+              <MarkdownRenderer>{response}</MarkdownRenderer>
+            </ResponseContainer>
+          )}
+        </SearchSection>
 
+        <ContentGrid>
           <QueueColumn>
             <QueueContainer>
               <QueueHeader>
@@ -677,9 +836,8 @@ export default function Home() {
               ))}
             </QueueContainer>
           </QueueColumn>
-        </SearchSection>
 
-        <NewsSection>
+          <NewsSection>
           <NewsHeader>
             <NewsIcon />
             <NewsTitle>Market News</NewsTitle>
@@ -708,7 +866,8 @@ export default function Home() {
               </NewsItem>
             ))}
           </NewsGrid>
-        </NewsSection>
+          </NewsSection>
+        </ContentGrid>
       </MainContent>
     </Page>
   );
