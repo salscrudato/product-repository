@@ -1,14 +1,32 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
-import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { TrashIcon, PencilIcon, XMarkIcon, InformationCircleIcon, PlusCircleIcon, PlusIcon, MinusIcon, MapIcon, ChevronUpIcon, ChevronDownIcon, ClockIcon } from '@heroicons/react/24/solid';
+import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import {
+  TrashIcon,
+  PencilIcon,
+  XMarkIcon,
+  InformationCircleIcon,
+  PlusCircleIcon,
+  PlusIcon,
+  MinusIcon,
+  MapIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  ClockIcon,
+  DocumentDuplicateIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  ArrowsUpDownIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  Bars3Icon
+} from '@heroicons/react/24/solid';
 import { ArrowDownTrayIcon as DownloadIcon20, ArrowUpTrayIcon as UploadIcon20 } from '@heroicons/react/20/solid';
-import { FunnelIcon } from '@heroicons/react/24/solid';
 import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
-import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
 import { Button } from '../components/ui/Button';
-import { TextInput } from '../components/ui/Input';
 import MainNavigation from '../components/ui/Navigation';
 import {
   Table,
@@ -24,42 +42,262 @@ import {
 } from '../components/ui/Table';
 import styled, { keyframes } from 'styled-components';
 import Select from 'react-select';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { toast } from 'react-hot-toast';
 
-/* Override the default Overlay with higher z-index & blur */
-const OverlayFixed = styled(Overlay)`
-  position: fixed !important;
-  inset: 0;
-  background: rgba(17,24,39,0.55);
-  backdrop-filter: blur(2px);
-  z-index: 1400;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+// Import our new custom hooks and components
+import { usePricingSteps } from '../hooks/usePricingSteps';
+import { useSearchFilter } from '../hooks/useSearchFilter';
+import PricingStepItem from './pricing/PricingStepItem';
+import StepForm from './pricing/StepForm';
+
+/* ========== MODERN STYLED COMPONENTS ========== */
+
+// Enhanced animations
+const slideIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 `;
 
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
 
-const ActionsContainer = styled.div`
-  width: 100%;
+// Modern Container with responsive design
+const ModernContainer = styled.div`
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  position: relative;
+`;
+
+const ContentWrapper = styled.div`
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+  transition: margin-right 0.3s ease;
+  margin-right: ${props => props.sidebarOpen ? `${SIDEBAR_WIDTH}px` : '0'};
+
+  @media (max-width: 768px) {
+    margin-right: 0;
+    padding: 16px;
+  }
+`;
+
+// Enhanced Header Section
+const HeaderSection = styled.div`
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 32px;
+  margin-bottom: 32px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  animation: ${slideIn} 0.6s ease-out;
+`;
+
+const HeaderContent = styled.div`
   display: flex;
-  justify-content: center;   /* center whole icon group */
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  margin-bottom: 24px;
 
-  /* ensure each ghost‑button icon is itself centered */
-  button {
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    display: flex;
-    align-items: center;
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+`;
+
+const TitleSection = styled.div`
+  flex: 1;
+`;
+
+const PageTitle = styled.h1`
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1e293b 0%, #475569 50%, #64748b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+`;
+
+const PageSubtitle = styled.p`
+  color: #64748b;
+  font-size: 16px;
+  margin: 0;
+  font-weight: 400;
+`;
+
+// Action Bar with modern controls
+const ActionBar = styled.div`
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
     justify-content: center;
   }
 `;
 
-// Ensure every header & body cell in the pricing table is centered
-const PricingTable = styled(Table)`
+// Enhanced Search and Filter Section
+const SearchFilterSection = styled.div`
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+`;
+
+const SearchContainer = styled.div`
+  position: relative;
+  flex: 1;
+  min-width: 300px;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 12px 16px 12px 44px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  font-size: 14px;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    background: white;
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+`;
+
+const SearchIcon = styled(MagnifyingGlassIcon)`
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: #9ca3af;
+  pointer-events: none;
+`;
+
+// Modern Table Styling
+const ModernTable = styled(Table)`
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  animation: ${fadeIn} 0.6s ease-out;
+
   th, td {
-    text-align: center !important;
+    text-align: center;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.4);
+  }
+
+  th {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    font-weight: 600;
+    color: #374151;
+    padding: 16px 12px;
+    font-size: 14px;
+    letter-spacing: 0.025em;
+  }
+
+  td {
+    padding: 16px 12px;
+    transition: background-color 0.2s ease;
+  }
+
+  tbody tr:hover {
+    background: rgba(99, 102, 241, 0.02);
+  }
+`;
+
+// Price Display
+const PriceDisplay = styled.div`
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  padding: 20px 32px;
+  border-radius: 16px;
+  text-align: center;
+  margin-top: 24px;
+  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.3);
+
+  .label {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+`;
+
+// Loading States
+const LoadingSpinner = styled.div`
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid #6366f1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
+const SkeletonRow = styled.div`
+  display: flex;
+  gap: 12px;
+  padding: 16px 12px;
+
+  .skeleton {
+    background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+    height: 20px;
+
+    &.coverage { width: 120px; }
+    &.step { width: 180px; }
+    &.states { width: 100px; }
+    &.value { width: 80px; }
+    &.actions { width: 100px; }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
   }
 `;
 

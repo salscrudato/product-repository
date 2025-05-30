@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { ArrowUpIcon, NewspaperIcon, CalendarIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/solid';
+import { ArrowUpIcon } from '@heroicons/react/24/solid';
 import MainNavigation from './ui/Navigation';
 import useProducts from '../hooks/useProducts';
 import { collection, getDocs, collectionGroup } from 'firebase/firestore';
 import { db } from '../firebase';
 import MarkdownRenderer from '../utils/markdownParser';
+import InsuranceNewsFeed from './InsuranceNewsFeed';
 
 /* ---------- styled components ---------- */
 const Page = styled.div`
@@ -362,114 +363,7 @@ const LoadingSpinner = styled.div`
   }
 `;
 
-// Market News Components
-const NewsSection = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  padding: 32px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  width: 100%;
-`;
-
-const NewsHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-`;
-
-const NewsTitle = styled.h2`
-  font-size: 24px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0;
-  letter-spacing: -0.01em;
-`;
-
-const NewsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 24px;
-  margin-top: 24px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-`;
-
-const NewsIcon = styled(NewspaperIcon)`
-  width: 28px;
-  height: 28px;
-  color: #6366f1;
-`;
-
-const NewsItem = styled.div`
-  background: rgba(248, 250, 252, 0.8);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 12px;
-  padding: 20px;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: rgba(99, 102, 241, 0.02);
-    border-color: rgba(99, 102, 241, 0.3);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  }
-`;
-
-const NewsItemHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-`;
-
-const NewsItemTitle = styled.h3`
-  font-size: 16px;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0;
-  line-height: 1.4;
-  letter-spacing: -0.01em;
-`;
-
-const NewsItemDate = styled.span`
-  font-size: 12px;
-  color: #64748b;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-`;
-
-const NewsItemContent = styled.p`
-  font-size: 14px;
-  color: #64748b;
-  line-height: 1.5;
-  margin: 0;
-`;
-
-const NewsItemTrend = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  color: ${({ trend }) => trend === 'up' ? '#22c55e' : trend === 'down' ? '#ef4444' : '#6366f1'};
-`;
-
-const TrendIcon = styled(ArrowTrendingUpIcon)`
-  width: 14px;
-  height: 14px;
-  transform: ${({ trend }) => trend === 'down' ? 'rotate(180deg)' : 'none'};
-`;
+// Removed unused news components - now using InsuranceNewsFeed component
 
 
 
@@ -837,36 +731,7 @@ ${JSON.stringify(context, null, 2)}
             </QueueContainer>
           </QueueColumn>
 
-          <NewsSection>
-          <NewsHeader>
-            <NewsIcon />
-            <NewsTitle>Market News</NewsTitle>
-          </NewsHeader>
-
-          <NewsGrid>
-            {marketNews.map((news) => (
-              <NewsItem key={news.id}>
-                <NewsItemHeader>
-                  <NewsItemDate>
-                    <CalendarIcon width={12} height={12} />
-                    {new Date(news.date).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric'
-                    })}
-                  </NewsItemDate>
-                </NewsItemHeader>
-
-                <NewsItemTitle>{news.title}</NewsItemTitle>
-                <NewsItemContent>{news.content}</NewsItemContent>
-
-                <NewsItemTrend trend={news.trend}>
-                  <TrendIcon trend={news.trend} />
-                  {news.trendText}
-                </NewsItemTrend>
-              </NewsItem>
-            ))}
-          </NewsGrid>
-          </NewsSection>
+          <InsuranceNewsFeed />
         </ContentGrid>
       </MainContent>
     </Page>

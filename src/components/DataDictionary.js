@@ -36,10 +36,7 @@ const MainContent = styled.div`
   z-index: 1;
 `;
 
-// Header Section
-const HeaderSection = styled.div`
-  margin-bottom: 40px;
-`;
+
 
 const PageTitle = styled.h1`
   font-size: 2rem;
@@ -413,9 +410,7 @@ export default function DataDictionary() {
     <Container>
       <MainNavigation />
       <MainContent>
-        <HeaderSection>
-          <PageTitle>Data Dictionary</PageTitle>
-        </HeaderSection>
+        <PageTitle>Data Dictionary</PageTitle>
 
         <SearchContainer>
           <SearchIcon />

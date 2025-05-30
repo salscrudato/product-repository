@@ -52,16 +52,7 @@ const CELL_WIDTH = 120;     // px
 const CELL_HEIGHT = 40;     // px
 
 
-// List of U.S. state abbreviations
-const usStates = [
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA',
-  'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR',
-  'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
-];
 
-// Helpers for state select all/clear
-const selectAllStates = () => [...usStates];
-const clearAllStates = () => [];
 
 // helper to normalise a dimension's values into an array
 const getDimValues = (dim) => {
@@ -79,7 +70,9 @@ function TableScreen() {
   const [step, setStep] = useState(null);
   const [dimensions, setDimensions] = useState([]);
   // (search state and key handler effect removed)
-  const [newDimension, setNewDimension] = useState({ name: '', values: [], technicalCode: '', type: 'Row', states: [] });
+  const [newDimension, setNewDimension] = useState({ name: '', values: [], technicalCode: '' });
+  const [selectedDimensions, setSelectedDimensions] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [valueInput, setValueInput] = useState('');
   const [editingDimensionId, setEditingDimensionId] = useState(null);
   const [tableData, setTableData] = useState({});
@@ -87,25 +80,19 @@ function TableScreen() {
   // list of IT codes from data dictionary
   const [itCodes, setItCodes] = useState([]);
 
-  const [statesModalOpen, setStatesModalOpen] = useState(false);
-  const [statesList, setStatesList] = useState([]);
 
-  const openStatesModal = (statesArr = []) => {
-    setStatesList(statesArr);
-    setStatesModalOpen(true);
-  };
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const stepDoc = await getDoc(doc(db, `products/${productId}/steps`, stepId));
+        const stepDoc = await getDoc(doc(db, `products/${productId}/pricingSteps`, stepId));
         if (stepDoc.exists()) {
           setStep(stepDoc.data());
         } else {
           throw new Error("Step not found");
         }
 
-        const dimensionsSnapshot = await getDocs(collection(db, `products/${productId}/steps/${stepId}/dimensions`));
+        const dimensionsSnapshot = await getDocs(collection(db, `products/${productId}/pricingSteps/${stepId}/dimensions`));
         const dimensionList = dimensionsSnapshot.docs.map(d => {
           const data = d.data();
           const valuesArr = Array.isArray(data.values)
@@ -117,8 +104,7 @@ function TableScreen() {
           return {
             id: d.id,
             ...data,
-            values: valuesArr.join(', '),       // keep string form for consistency
-            states: data.states || []
+            values: valuesArr.join(', ')       // keep string form for consistency
           };
         });
 
@@ -155,23 +141,35 @@ function TableScreen() {
     setNewDimension(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleStatesChange = (e) => {
-    const options = e.target.options;
-    const selectedStates = [];
-    for (let i = 0; i < options.length; i++) {
-      if (options[i].selected) {
-        selectedStates.push(options[i].value);
-      }
-    }
-    setNewDimension(prev => ({ ...prev, states: selectedStates }));
-  };
+
 
   const handleTableDataChange = (key, value) => {
     setTableData(prev => ({ ...prev, [key]: value }));
   };
 
+  // Dimension selection handlers
+  const handleSelectDimension = (dimension) => {
+    if (selectedDimensions.some(d => d.id === dimension.id)) {
+      // Remove if already selected
+      setSelectedDimensions(prev => prev.filter(d => d.id !== dimension.id));
+    } else if (selectedDimensions.length < 2) {
+      // Add if under limit
+      setSelectedDimensions(prev => [...prev, dimension]);
+    }
+  };
+
+  const handleRemoveDimension = (dimensionId) => {
+    setSelectedDimensions(prev => prev.filter(d => d.id !== dimensionId));
+  };
+
+  // Filter dimensions based on search query
+  const filteredDimensions = dimensions.filter(dimension =>
+    dimension.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (dimension.values || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const openAddModal = () => {
-    setNewDimension({ name: '', values: [], technicalCode: '', type: 'Row', states: [] });
+    setNewDimension({ name: '', values: [], technicalCode: '' });
     setEditingDimensionId(null);
     setModalOpen(true);
   };
@@ -181,9 +179,7 @@ function TableScreen() {
     setNewDimension({
       name: dimension.name,
       values: (dimension.values || '').split(',').map(v => v.trim()).filter(Boolean),
-      technicalCode: dimension.technicalCode,
-      type: dimension.type,
-      states: dimension.states || []
+      technicalCode: dimension.technicalCode
     });
     setModalOpen(true);
   };
@@ -193,17 +189,11 @@ function TableScreen() {
       alert('Please fill in the Name and Values fields');
       return;
     }
-    if (dimensions.length >= 2) {
-      alert('You can only add up to 2 dimensions (Row and Column).');
-      return;
-    }
     try {
-      const docRef = await addDoc(collection(db, `products/${productId}/steps/${stepId}/dimensions`), {
+      const docRef = await addDoc(collection(db, `products/${productId}/pricingSteps/${stepId}/dimensions`), {
         name: newDimension.name,
         values: newDimension.values.join(', '),
-        technicalCode: newDimension.technicalCode,
-        type: newDimension.type,
-        states: newDimension.states
+        technicalCode: newDimension.technicalCode
       });
       const updatedDimensions = [...dimensions, {
         id: docRef.id,
@@ -237,12 +227,10 @@ function TableScreen() {
       return;
     }
     try {
-      await updateDoc(doc(db, `products/${productId}/steps/${stepId}/dimensions`, editingDimensionId), {
+      await updateDoc(doc(db, `products/${productId}/pricingSteps/${stepId}/dimensions`, editingDimensionId), {
         name: newDimension.name,
         values: newDimension.values.join(', '),
-        technicalCode: newDimension.technicalCode,
-        type: newDimension.type,
-        states: newDimension.states
+        technicalCode: newDimension.technicalCode
       });
       const updatedDimensions = dimensions.map(dim =>
         dim.id === editingDimensionId
@@ -274,7 +262,7 @@ function TableScreen() {
   const handleDeleteDimension = async (dimensionId) => {
     if (window.confirm("Are you sure you want to delete this dimension?")) {
       try {
-        await deleteDoc(doc(db, `products/${productId}/steps/${stepId}/dimensions`, dimensionId));
+        await deleteDoc(doc(db, `products/${productId}/pricingSteps/${stepId}/dimensions`, dimensionId));
         const updatedDimensions = dimensions.filter(dim => dim.id !== dimensionId);
         setDimensions(updatedDimensions);
 
@@ -299,11 +287,19 @@ function TableScreen() {
 
   // (filteredDimensions removed, just use dimensions)
 
-  // Prepare dynamic table data
-  const rowDimension = dimensions.find(dim => dim.type === 'Row');
-  const colDimension = dimensions.find(dim => dim.type === 'Column');
+  // Prepare dynamic table data from selected dimensions
+  const rowDimension = selectedDimensions[0];
+  const colDimension = selectedDimensions[1];
   const rowValues = getDimValues(rowDimension);
   const colValues = getDimValues(colDimension);
+
+  // Ensure we have valid dimensions for the grid
+  const safeRowValues = rowValues.length > 0 ? rowValues : ['No Data'];
+  const safeColValues = colValues.length > 0 ? colValues : ['No Data'];
+  const gridColumnCount = Math.max(1, safeColValues.length + 1);
+  const gridRowCount = Math.max(1, safeRowValues.length + 1);
+  const gridWidth = Math.max(200, gridColumnCount * CELL_WIDTH);
+  const gridHeight = Math.max(100, gridRowCount * CELL_HEIGHT);
 
   // Loading spinner
   if(!dimensions.length && !step){
@@ -319,7 +315,7 @@ function TableScreen() {
 
     // column headers (first row, >0 col)
     if (rowIndex === 0) {
-      const col = colValues[columnIndex - 1];
+      const col = safeColValues[columnIndex - 1];
       return (
         <div style={{ ...style, fontWeight: 600, background: '#F9FAFB', display:'flex',alignItems:'center',justifyContent:'center',borderBottom:'1px solid #E5E7EB',borderRight:'1px solid #E5E7EB' }}>
           {col}
@@ -329,7 +325,7 @@ function TableScreen() {
 
     // row headers (first col, >0 row)
     if (columnIndex === 0) {
-      const row = rowValues[rowIndex - 1];
+      const row = safeRowValues[rowIndex - 1];
       return (
         <div style={{ ...style, fontWeight: 600, background: '#FFFFFF', display:'flex',alignItems:'center',justifyContent:'center',borderBottom:'1px solid #E5E7EB',borderRight:'1px solid #E5E7EB' }}>
           {row}
@@ -338,8 +334,8 @@ function TableScreen() {
     }
 
     // data cell
-    const rowKey = rowValues[rowIndex - 1];
-    const colKey = colValues[columnIndex - 1];
+    const rowKey = safeRowValues[rowIndex - 1];
+    const colKey = safeColValues[columnIndex - 1];
     const cellKey = `${rowKey}-${colKey}`;
     return (
       <div style={{ ...style, padding:4, borderBottom:'1px solid #E5E7EB',borderRight:'1px solid #E5E7EB' }}>
@@ -364,42 +360,138 @@ function TableScreen() {
         </PageHeader>
 
         {/* Dynamic Excel-like Table with Dimension Labels */}
-        <div>
-          <p style={{ fontSize: 16, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
-            Row Dimension: {rowDimension?.name || 'None'}
-          </p>
-          <p style={{ fontSize: 16, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
-            Column Dimension: {colDimension?.name || 'None'}
-          </p>
-        </div>
-        <Card
-          onPaste={e => {
-            const text = e.clipboardData.getData('text');
-            const rows = text.trim().split(/\r?\n/).map(r => r.split(/\t|,/));
-            const newData = { ...tableData };
-            rows.forEach((rowArr, rIdx) => {
-              const rowKey = rowValues[rIdx];
-              rowArr.forEach((cellValue, cIdx) => {
-                const colKey = colValues[cIdx];
-                if (rowKey && colKey) {
-                  newData[`${rowKey}-${colKey}`] = cellValue;
-                }
-              });
-            });
-            setTableData(newData);
-            e.preventDefault();
-          }}
-        >
-          <Grid
-            columnCount={colValues.length + 1}
-            rowCount={rowValues.length + 1}
-            columnWidth={CELL_WIDTH}
-            rowHeight={CELL_HEIGHT}
-            height={Math.min(400, (rowValues.length + 1) * CELL_HEIGHT)}
-            width={Math.min(800, (colValues.length + 1) * CELL_WIDTH)}
-          >
-            {renderGridCell}
-          </Grid>
+        {selectedDimensions.length === 2 ? (
+          <>
+            <div style={{ marginBottom: '16px' }}>
+              <p style={{ fontSize: 16, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
+                Row Dimension: {rowDimension?.name || 'None'} ({rowValues.length} values)
+              </p>
+              <p style={{ fontSize: 16, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
+                Column Dimension: {colDimension?.name || 'None'} ({colValues.length} values)
+              </p>
+            </div>
+            <Card
+              onPaste={e => {
+                const text = e.clipboardData.getData('text');
+                const rows = text.trim().split(/\r?\n/).map(r => r.split(/\t|,/));
+                const newData = { ...tableData };
+                rows.forEach((rowArr, rIdx) => {
+                  const rowKey = safeRowValues[rIdx];
+                  rowArr.forEach((cellValue, cIdx) => {
+                    const colKey = safeColValues[cIdx];
+                    if (rowKey && colKey && rowKey !== 'No Data' && colKey !== 'No Data') {
+                      newData[`${rowKey}-${colKey}`] = cellValue;
+                    }
+                  });
+                });
+                setTableData(newData);
+                e.preventDefault();
+              }}
+            >
+              <Grid
+                columnCount={gridColumnCount}
+                rowCount={gridRowCount}
+                columnWidth={CELL_WIDTH}
+                rowHeight={CELL_HEIGHT}
+                height={Math.min(400, gridHeight)}
+                width={Math.min(800, gridWidth)}
+              >
+                {renderGridCell}
+              </Grid>
+            </Card>
+          </>
+        ) : (
+          <Card style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>
+            <h3 style={{ margin: '0 0 8px 0', color: '#374151' }}>No Table to Display</h3>
+            <p style={{ margin: '0' }}>
+              Please select exactly 2 dimensions above to generate a table.
+            </p>
+          </Card>
+        )}
+
+        {/* Dimension Selection Section */}
+        <Card style={{ marginBottom: '24px' }}>
+          <div style={{ padding: '20px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600', color: '#374151' }}>
+              Select Dimensions for Table (Choose up to 2)
+            </h3>
+
+            {/* Search Box */}
+            <div style={{ marginBottom: '16px' }}>
+              <TextInput
+                type="text"
+                placeholder="Search dimensions..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ width: '100%', maxWidth: '400px' }}
+              />
+            </div>
+
+            {/* Selected Dimensions Display */}
+            {selectedDimensions.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '500', color: '#374151' }}>
+                  Selected Dimensions ({selectedDimensions.length}/2):
+                </p>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {selectedDimensions.map((dim, index) => (
+                    <span key={dim.id} style={{
+                      background: '#EEF2FF',
+                      borderRadius: '12px',
+                      padding: '6px 12px',
+                      fontSize: '13px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      border: '1px solid #C7D2FE'
+                    }}>
+                      {index === 0 ? 'Rows' : 'Columns'}: {dim.name}
+                      <XMarkIcon
+                        width={14}
+                        height={14}
+                        style={{ cursor: 'pointer', color: '#6366f1' }}
+                        onClick={() => handleRemoveDimension(dim.id)}
+                      />
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Available Dimensions */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '12px' }}>
+              {filteredDimensions.map(dimension => (
+                <div
+                  key={dimension.id}
+                  onClick={() => handleSelectDimension(dimension)}
+                  style={{
+                    padding: '12px',
+                    border: selectedDimensions.some(d => d.id === dimension.id)
+                      ? '2px solid #6366f1'
+                      : '1px solid #E5E7EB',
+                    borderRadius: '8px',
+                    cursor: selectedDimensions.length < 2 || selectedDimensions.some(d => d.id === dimension.id)
+                      ? 'pointer'
+                      : 'not-allowed',
+                    background: selectedDimensions.some(d => d.id === dimension.id)
+                      ? 'rgba(99, 102, 241, 0.05)'
+                      : 'white',
+                    opacity: selectedDimensions.length >= 2 && !selectedDimensions.some(d => d.id === dimension.id)
+                      ? 0.5
+                      : 1,
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <div style={{ fontWeight: '500', fontSize: '14px', color: '#374151', marginBottom: '4px' }}>
+                    {dimension.name}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#6B7280' }}>
+                    {dimension.values} ({(dimension.values || '').split(',').length} values)
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </Card>
 
         {/* Add Dimension Button */}
@@ -414,33 +506,18 @@ function TableScreen() {
           <Table>
             <THead>
               <Tr>
-                <Th>Type</Th>
                 <Th>Dimension Name</Th>
                 <Th>Dimension Values</Th>
                 <Th>IT&nbsp;Code</Th>
-                <Th>States</Th>
                 <Th>Actions</Th>
               </Tr>
             </THead>
             <tbody>
               {dimensions.map(dimension => (
                 <Tr key={dimension.id}>
-                  <Td>{dimension.type}</Td>
                   <Td>{dimension.name}</Td>
                   <Td>{dimension.values}</Td>
                   <Td>{dimension.technicalCode}</Td>
-                  <Td>
-                    {dimension.states && dimension.states.length ? (
-                      <Button
-                        variant="ghost"
-                        onClick={() => openStatesModal(dimension.states)}
-                        style={{ padding: 0, fontSize: 14, color: '#2563eb' }}
-                        title="View / edit states"
-                      >
-                        States&nbsp;({dimension.states.length})
-                      </Button>
-                    ) : '—'}
-                  </Td>
                   <Td>
                     <div style={{display:'flex',gap:10}}>
                       <Button
@@ -476,16 +553,6 @@ function TableScreen() {
               </CloseBtn>
               <ModalTitle>{editingDimensionId ? 'Edit Dimension' : 'Add New Dimension'}</ModalTitle>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
-                <TextInput
-                  as="select"
-                  name="type"
-                  value={newDimension.type}
-                  onChange={handleInputChange}
-                  style={{ minWidth: 120 }}
-                >
-                  <option value="Row">Row</option>
-                  <option value="Column">Column</option>
-                </TextInput>
                 <TextInput
                   type="text"
                   name="name"
@@ -537,45 +604,7 @@ function TableScreen() {
                     </span>
                   ))}
                 </div>
-                {/* Select All / Clear All Buttons for States */}
-                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  <Button variant="ghost" onClick={() => setNewDimension(prev => ({ ...prev, states: selectAllStates() }))}>
-                    Select All
-                  </Button>
-                  <Button variant="ghost" onClick={() => setNewDimension(prev => ({ ...prev, states: clearAllStates() }))}>
-                    Clear All
-                  </Button>
-                </div>
-                {/* Checkbox list for states */}
-                <div
-                  style={{
-                    width:'100%',
-                    maxHeight:160,
-                    overflowY:'auto',
-                    border:'1px solid #E5E7EB',
-                    borderRadius:4,
-                    padding:8
-                  }}
-                >
-                  {usStates.map(state => (
-                    <label key={state} style={{ display: 'block', padding: 4 }}>
-                      <input
-                        type="checkbox"
-                        value={state}
-                        checked={newDimension.states.includes(state)}
-                        onChange={e => {
-                          const val = e.target.value;
-                          setNewDimension(prev =>
-                            prev.states.includes(val)
-                              ? { ...prev, states: prev.states.filter(s => s !== val) }
-                              : { ...prev, states: [...prev.states, val] }
-                          );
-                        }}
-                      />{' '}
-                      {state}
-                    </label>
-                  ))}
-                </div>
+
                 {/* IT Code select moved below states */}
                 <label style={{ fontSize: 14, color: '#374151', marginBottom: 2, width: '100%' }}>IT&nbsp;Code (optional)</label>
                 <TextInput
@@ -603,20 +632,7 @@ function TableScreen() {
           </Overlay>
         )}
 
-        {/* States Modal */}
-        {statesModalOpen && (
-          <Overlay onClick={() => setStatesModalOpen(false)}>
-            <Modal onClick={e => e.stopPropagation()}>
-              <CloseBtn onClick={() => setStatesModalOpen(false)}>
-                <XMarkIcon width={16} height={16} />
-              </CloseBtn>
-              <ModalTitle>States ({statesList.length})</ModalTitle>
-              <div style={{ maxHeight: 300, overflowY: 'auto', padding: 12, lineHeight: 1.6 }}>
-                {statesList.join(', ')}
-              </div>
-            </Modal>
-          </Overlay>
-        )}
+
       </Container>
     </Page>
   );

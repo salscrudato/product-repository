@@ -45,22 +45,7 @@ const MainContent = styled.main`
   }
 `;
 
-// Header Section - Horizontal layout with title and actions
-const HeaderSection = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 40px;
-  gap: 24px;
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    align-items: center;
-    gap: 32px;
-  }
-`;
-
-// Page Title - Modern typography matching other pages
+// Page Title - Consistent with ProductHub
 const PageTitle = styled.h1`
   font-size: 2rem;
   font-weight: 700;
@@ -68,20 +53,89 @@ const PageTitle = styled.h1`
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  margin: 0;
+  margin: 0 0 32px 0;
   text-align: center;
   letter-spacing: -0.02em;
   line-height: 1.1;
 
   @media (max-width: 768px) {
     font-size: 1.5rem;
+    margin-bottom: 24px;
   }
 `;
 
-// Content Grid - Two column layout with much wider cards
+// Search Container - Matching ProductHub style
+const SearchContainer = styled.div`
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto 60px;
+  position: relative;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  gap: 16px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+
+  &:focus-within {
+    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.5);
+  }
+
+  @media (max-width: 768px) {
+    max-width: 100%;
+    margin-bottom: 40px;
+    padding: 8px 16px;
+  }
+`;
+
+const SearchInput = styled.input`
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 17px;
+  color: #1e293b;
+  padding: 10px 0;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+
+  &::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+  }
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+    padding: 6px 0;
+  }
+`;
+
+const SearchIcon = styled(MagnifyingGlassIcon)`
+  width: 24px;
+  height: 24px;
+  color: #6366f1;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+
+  ${SearchContainer}:focus-within & {
+    opacity: 1;
+  }
+`;
+
+// Content Grid - Two column layout with wider coverage card
 const ContentGrid = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 2fr 1fr;
   gap: 32px;
   margin-bottom: 40px;
   max-width: 2000px;
@@ -122,50 +176,7 @@ const SectionTitle = styled.h2`
   letter-spacing: -0.01em;
 `;
 
-// Search Container - Modern search input
-const SearchContainer = styled.div`
-  position: relative;
-  margin-bottom: 24px;
-`;
 
-// Search Input - Modern styled input
-const SearchInput = styled.input`
-  width: 100%;
-  padding: 12px 20px 12px 56px;
-  font-size: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-  font-weight: 400;
-
-  &:focus {
-    outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.2), 0 0 0 4px rgba(99, 102, 241, 0.1);
-    background: rgba(255, 255, 255, 0.95);
-    transform: translateY(-2px);
-  }
-
-  &::placeholder {
-    color: #94a3b8;
-    font-weight: 400;
-  }
-`;
-
-// Search Icon
-const SearchIcon = styled(MagnifyingGlassIcon)`
-  position: absolute;
-  left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 20px;
-  height: 20px;
-  color: #6366f1;
-  pointer-events: none;
-`;
 
 // Form Input - Modern styled input
 const FormInput = styled.input`
@@ -270,7 +281,7 @@ const TableContainer = styled.div`
   padding: 16px;
   border: 1px solid rgba(226, 232, 240, 0.6);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
+  overflow-x: auto;
   margin-bottom: 20px;
 `;
 
@@ -318,18 +329,32 @@ const TableCell = styled.td`
   font-size: 14px;
   line-height: 1.5;
   vertical-align: middle;
+
+  /* Prevent text wrapping for name columns */
+  &:nth-child(2), &:nth-child(3) {
+    white-space: nowrap;
+    min-width: 200px;
+  }
+`;
+
+// Loading Container
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
 `;
 
 // Loading Spinner
 const LoadingSpinner = styled.div`
-  display: inline-block;
   width: 40px;
   height: 40px;
   border: 4px solid #f3f3f3;
   border-top: 4px solid #6366f1;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin: 100px auto;
 
   @keyframes spin {
     to { transform: rotate(360deg); }
@@ -608,8 +633,10 @@ const ProductBuilder = () => {
       <Page>
         <MainNavigation />
         <MainContent>
-          <LoadingSpinner />
-          <p style={{textAlign:'center',marginTop:12, color: '#6b7280'}}>Cloning product…</p>
+          <LoadingContainer>
+            <LoadingSpinner />
+            <p style={{marginTop: 16, color: '#6b7280'}}>Cloning product…</p>
+          </LoadingContainer>
         </MainContent>
       </Page>
     );
@@ -620,7 +647,9 @@ const ProductBuilder = () => {
       <Page>
         <MainNavigation />
         <MainContent>
-          <LoadingSpinner />
+          <LoadingContainer>
+            <LoadingSpinner />
+          </LoadingContainer>
         </MainContent>
       </Page>
     );
@@ -712,22 +741,21 @@ const ProductBuilder = () => {
       <MainNavigation />
 
       <MainContent>
-        <HeaderSection>
-          <PageTitle>Product Builder</PageTitle>
-        </HeaderSection>
+        <PageTitle>Builder</PageTitle>
+
+        <SearchContainer>
+          <SearchIcon />
+          <SearchInput
+            placeholder="Search coverages by name or product..."
+            value={coverageSearchQuery}
+            onChange={e => setCoverageSearchQuery(e.target.value)}
+          />
+        </SearchContainer>
 
         <ContentGrid>
           {/* Coverage Section */}
           <SectionCard>
             <SectionTitle>Coverages</SectionTitle>
-            <SearchContainer>
-              <SearchIcon />
-              <SearchInput
-                placeholder="Search coverages by name..."
-                value={coverageSearchQuery}
-                onChange={e => setCoverageSearchQuery(e.target.value)}
-              />
-            </SearchContainer>
             <TableContainer>
               <ModernTable>
                 <TableHead>

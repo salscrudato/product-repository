@@ -1,8 +1,19 @@
 const functions = require('firebase-functions');
+const admin = require('firebase-admin');
 const axios = require('axios');
+const fetch = require('node-fetch');
 require('dotenv').config();
 
+// Initialize Firebase Admin (only if not already initialized)
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+const db = admin.firestore();
+
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
+// Get API keys from environment config
+const NEWS_KEY = functions.config().newsapi?.key;
+const OPENAI_CONFIG_KEY = functions.config().openai?.key;
 
 exports.generateSummary = functions.https.onCall(async (data) => {
   const { formText } = data;
@@ -17,5 +28,48 @@ exports.generateSummary = functions.https.onCall(async (data) => {
   } catch (err) {
     console.error('OpenAI error', err);
     throw new functions.https.HttpsError('internal', err.message);
+  }
+});
+
+// Simple test function for news updates
+exports.updateNews = functions.https.onRequest(async (req, res) => {
+  try {
+    // Add CORS headers
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    console.log('News update function called');
+
+    // For now, just add a test news item
+    const testNews = {
+      title: "Test Insurance News Article",
+      summary: "This is a test article to verify the news feed system is working correctly. The automated news processing system is now operational and ready to fetch real insurance industry updates.",
+      source: "Test Source",
+      url: "https://example.com/test-news",
+      imageUrl: "",
+      category: "insurance",
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    await db.collection('newsSummaries').add(testNews);
+
+    res.status(200).json({
+      success: true,
+      message: 'Test news article added successfully',
+      article: testNews.title
+    });
+
+  } catch (error) {
+    console.error('Error in news update:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 });
