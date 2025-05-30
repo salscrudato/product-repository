@@ -359,7 +359,6 @@ export default function Login() {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       setSuccess('Login successful! Redirecting...');
-      sessionStorage.setItem('ph-authed','1');
 
       // Small delay to show success message
       setTimeout(() => {
@@ -380,7 +379,6 @@ export default function Login() {
     try {
       await signInAnonymously(auth);
       setSuccess('Signed in as guest! Redirecting...');
-      sessionStorage.setItem('ph-guest','1');
 
       // Small delay to show success message
       setTimeout(() => {
