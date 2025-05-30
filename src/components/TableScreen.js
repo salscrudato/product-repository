@@ -20,6 +20,7 @@ import {
 } from '../components/ui/Table';
 
 import styled, { keyframes } from 'styled-components';
+import { FixedSizeGrid as Grid } from 'react-window';
 
 /* ---------- styled helpers ---------- */
 const Card = styled.div`
@@ -31,25 +32,6 @@ const Card = styled.div`
   overflow-x:auto;
 `;
 
-const TableContainer = styled.div`
-  overflow:auto;
-  max-width:100%;
-`;
-
-const StickyTh = styled(Th)`
-  position:sticky;
-  top:0;
-  background:#F9FAFB;
-  z-index:2;
-`;
-
-const RowHeaderTd = styled(Td)`
-  position:sticky;
-  left:0;
-  background:#ffffff;
-  font-weight:500;
-  z-index:1;
-`;
 
 const spin = keyframes`
   0%{transform:rotate(0deg);}
@@ -65,6 +47,10 @@ const Spinner = styled.div`
   margin:100px auto;
 `;
 
+// ---- virtualised grid sizing ----
+const CELL_WIDTH = 120;     // px
+const CELL_HEIGHT = 40;     // px
+
 
 // List of U.S. state abbreviations
 const usStates = [
@@ -77,13 +63,24 @@ const usStates = [
 const selectAllStates = () => [...usStates];
 const clearAllStates = () => [];
 
+// helper to normalise a dimension's values into an array
+const getDimValues = (dim) => {
+  if (!dim) return [''];
+  if (Array.isArray(dim.values)) return dim.values;
+  if (typeof dim.values === 'string') {
+    return dim.values.split(',').map(v => v.trim()).filter(Boolean);
+  }
+  return [''];
+};
+
 function TableScreen() {
   const { productId, stepId } = useParams();
   const navigate = useNavigate();
   const [step, setStep] = useState(null);
   const [dimensions, setDimensions] = useState([]);
   // (search state and key handler effect removed)
-  const [newDimension, setNewDimension] = useState({ name: '', values: '', technicalCode: '', type: 'Row', states: [] });
+  const [newDimension, setNewDimension] = useState({ name: '', values: [], technicalCode: '', type: 'Row', states: [] });
+  const [valueInput, setValueInput] = useState('');
   const [editingDimensionId, setEditingDimensionId] = useState(null);
   const [tableData, setTableData] = useState({});
   const [modalOpen, setModalOpen] = useState(false);
@@ -109,11 +106,21 @@ function TableScreen() {
         }
 
         const dimensionsSnapshot = await getDocs(collection(db, `products/${productId}/steps/${stepId}/dimensions`));
-        const dimensionList = dimensionsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          states: doc.data().states || [] // Ensure states is an array
-        }));
+        const dimensionList = dimensionsSnapshot.docs.map(d => {
+          const data = d.data();
+          const valuesArr = Array.isArray(data.values)
+            ? data.values
+            : String(data.values || '')
+                .split(',')
+                .map(v => v.trim())
+                .filter(Boolean);
+          return {
+            id: d.id,
+            ...data,
+            values: valuesArr.join(', '),       // keep string form for consistency
+            states: data.states || []
+          };
+        });
 
         // pull IT codes from dataDictionary collection
         const codesSnap = await getDocs(collection(db, 'dataDictionary'));
@@ -126,8 +133,8 @@ function TableScreen() {
         const initialData = {};
         const rowDim = dimensionList.find(dim => dim.type === 'Row');
         const colDim = dimensionList.find(dim => dim.type === 'Column');
-        const rowValues = rowDim ? rowDim.values.split(',').map(val => val.trim()) : [''];
-        const colValues = colDim ? colDim.values.split(',').map(val => val.trim()) : [''];
+        const rowValues = getDimValues(rowDim);
+        const colValues = getDimValues(colDim);
 
         rowValues.forEach(row => {
           colValues.forEach(col => {
@@ -164,7 +171,7 @@ function TableScreen() {
   };
 
   const openAddModal = () => {
-    setNewDimension({ name: '', values: '', technicalCode: '', type: 'Row', states: [] });
+    setNewDimension({ name: '', values: [], technicalCode: '', type: 'Row', states: [] });
     setEditingDimensionId(null);
     setModalOpen(true);
   };
@@ -173,7 +180,7 @@ function TableScreen() {
     setEditingDimensionId(dimension.id);
     setNewDimension({
       name: dimension.name,
-      values: dimension.values,
+      values: (dimension.values || '').split(',').map(v => v.trim()).filter(Boolean),
       technicalCode: dimension.technicalCode,
       type: dimension.type,
       states: dimension.states || []
@@ -182,8 +189,8 @@ function TableScreen() {
   };
 
   const handleAddDimension = async () => {
-    if (!newDimension.name || !newDimension.values || !newDimension.technicalCode) {
-      alert('Please fill in all required fields');
+    if (!newDimension.name || newDimension.values.length === 0) {
+      alert('Please fill in the Name and Values fields');
       return;
     }
     if (dimensions.length >= 2) {
@@ -193,20 +200,24 @@ function TableScreen() {
     try {
       const docRef = await addDoc(collection(db, `products/${productId}/steps/${stepId}/dimensions`), {
         name: newDimension.name,
-        values: newDimension.values,
+        values: newDimension.values.join(', '),
         technicalCode: newDimension.technicalCode,
         type: newDimension.type,
         states: newDimension.states
       });
-      const updatedDimensions = [...dimensions, { id: docRef.id, ...newDimension }];
+      const updatedDimensions = [...dimensions, {
+        id: docRef.id,
+        ...newDimension,
+        values: newDimension.values.join(', ')
+      }];
       setDimensions(updatedDimensions);
       setModalOpen(false);
 
       // Update table data
       const rowDim = updatedDimensions.find(dim => dim.type === 'Row');
       const colDim = updatedDimensions.find(dim => dim.type === 'Column');
-      const rowValues = rowDim ? rowDim.values.split(',').map(val => val.trim()) : [''];
-      const colValues = colDim ? colDim.values.split(',').map(val => val.trim()) : [''];
+      const rowValues = getDimValues(rowDim);
+      const colValues = getDimValues(colDim);
       const newTableData = {};
       rowValues.forEach(row => {
         colValues.forEach(col => {
@@ -221,19 +232,23 @@ function TableScreen() {
   };
 
   const handleUpdateDimension = async () => {
-    if (!newDimension.name || !newDimension.values || !newDimension.technicalCode) {
-      alert('Please fill in all required fields');
+    if (!newDimension.name || newDimension.values.length === 0) {
+      alert('Please fill in the Name and Values fields');
       return;
     }
     try {
       await updateDoc(doc(db, `products/${productId}/steps/${stepId}/dimensions`, editingDimensionId), {
         name: newDimension.name,
-        values: newDimension.values,
+        values: newDimension.values.join(', '),
         technicalCode: newDimension.technicalCode,
         type: newDimension.type,
         states: newDimension.states
       });
-      const updatedDimensions = dimensions.map(dim => (dim.id === editingDimensionId ? { id: dim.id, ...newDimension } : dim));
+      const updatedDimensions = dimensions.map(dim =>
+        dim.id === editingDimensionId
+          ? { id: dim.id, ...newDimension, values: newDimension.values.join(', ') }
+          : dim
+      );
       setDimensions(updatedDimensions);
       setEditingDimensionId(null);
       setModalOpen(false);
@@ -241,8 +256,8 @@ function TableScreen() {
       // Update table data
       const rowDim = updatedDimensions.find(dim => dim.type === 'Row');
       const colDim = updatedDimensions.find(dim => dim.type === 'Column');
-      const rowValues = rowDim ? rowDim.values.split(',').map(val => val.trim()) : [''];
-      const colValues = colDim ? colDim.values.split(',').map(val => val.trim()) : [''];
+      const rowValues = getDimValues(rowDim);
+      const colValues = getDimValues(colDim);
       const newTableData = {};
       rowValues.forEach(row => {
         colValues.forEach(col => {
@@ -266,8 +281,8 @@ function TableScreen() {
         // Update table data
         const rowDim = updatedDimensions.find(dim => dim.type === 'Row');
         const colDim = updatedDimensions.find(dim => dim.type === 'Column');
-        const rowValues = rowDim ? rowDim.values.split(',').map(val => val.trim()) : [''];
-        const colValues = colDim ? colDim.values.split(',').map(val => val.trim()) : [''];
+        const rowValues = getDimValues(rowDim);
+        const colValues = getDimValues(colDim);
         const newTableData = {};
         rowValues.forEach(row => {
           colValues.forEach(col => {
@@ -287,13 +302,56 @@ function TableScreen() {
   // Prepare dynamic table data
   const rowDimension = dimensions.find(dim => dim.type === 'Row');
   const colDimension = dimensions.find(dim => dim.type === 'Column');
-  const rowValues = rowDimension ? rowDimension.values.split(',').map(val => val.trim()) : [''];
-  const colValues = colDimension ? colDimension.values.split(',').map(val => val.trim()) : [''];
+  const rowValues = getDimValues(rowDimension);
+  const colValues = getDimValues(colDimension);
 
   // Loading spinner
   if(!dimensions.length && !step){
     return (<Page><Container><Spinner/></Container></Page>);
   }
+
+  // ---- virtualised grid cell renderer ----
+  const renderGridCell = ({ columnIndex, rowIndex, style }) => {
+    // top‑left empty corner
+    if (rowIndex === 0 && columnIndex === 0) {
+      return <div style={style} />;
+    }
+
+    // column headers (first row, >0 col)
+    if (rowIndex === 0) {
+      const col = colValues[columnIndex - 1];
+      return (
+        <div style={{ ...style, fontWeight: 600, background: '#F9FAFB', display:'flex',alignItems:'center',justifyContent:'center',borderBottom:'1px solid #E5E7EB',borderRight:'1px solid #E5E7EB' }}>
+          {col}
+        </div>
+      );
+    }
+
+    // row headers (first col, >0 row)
+    if (columnIndex === 0) {
+      const row = rowValues[rowIndex - 1];
+      return (
+        <div style={{ ...style, fontWeight: 600, background: '#FFFFFF', display:'flex',alignItems:'center',justifyContent:'center',borderBottom:'1px solid #E5E7EB',borderRight:'1px solid #E5E7EB' }}>
+          {row}
+        </div>
+      );
+    }
+
+    // data cell
+    const rowKey = rowValues[rowIndex - 1];
+    const colKey = colValues[columnIndex - 1];
+    const cellKey = `${rowKey}-${colKey}`;
+    return (
+      <div style={{ ...style, padding:4, borderBottom:'1px solid #E5E7EB',borderRight:'1px solid #E5E7EB' }}>
+        <TextInput
+          type="text"
+          value={tableData[cellKey] || ''}
+          onChange={e => handleTableDataChange(cellKey, e.target.value)}
+          style={{ width:'100%', height:'100%', border:'none', padding:4, boxSizing:'border-box' }}
+        />
+      </div>
+    );
+  };
 
   return (
     <Page>
@@ -314,55 +372,34 @@ function TableScreen() {
             Column Dimension: {colDimension?.name || 'None'}
           </p>
         </div>
-        <Card>
-          <TableContainer
-            onPaste={e => {
-              // Parse pasted CSV/TSV into tableData
-              const text = e.clipboardData.getData('text');
-              const rows = text.trim().split(/\r?\n/).map(r => r.split(/\t|,/));
-              // Build new data object
-              const newData = { ...tableData };
-              rows.forEach((rowArr, rIdx) => {
-                const rowKey = rowValues[rIdx];
-                rowArr.forEach((cellValue, cIdx) => {
-                  const colKey = colValues[cIdx];
-                  if (rowKey && colKey) {
-                    newData[`${rowKey}-${colKey}`] = cellValue;
-                  }
-                });
+        <Card
+          onPaste={e => {
+            const text = e.clipboardData.getData('text');
+            const rows = text.trim().split(/\r?\n/).map(r => r.split(/\t|,/));
+            const newData = { ...tableData };
+            rows.forEach((rowArr, rIdx) => {
+              const rowKey = rowValues[rIdx];
+              rowArr.forEach((cellValue, cIdx) => {
+                const colKey = colValues[cIdx];
+                if (rowKey && colKey) {
+                  newData[`${rowKey}-${colKey}`] = cellValue;
+                }
               });
-              setTableData(newData);
-              e.preventDefault();
-            }}
+            });
+            setTableData(newData);
+            e.preventDefault();
+          }}
+        >
+          <Grid
+            columnCount={colValues.length + 1}
+            rowCount={rowValues.length + 1}
+            columnWidth={CELL_WIDTH}
+            rowHeight={CELL_HEIGHT}
+            height={Math.min(400, (rowValues.length + 1) * CELL_HEIGHT)}
+            width={Math.min(800, (colValues.length + 1) * CELL_WIDTH)}
           >
-            <Table>
-              <THead>
-                <Tr>
-                  <StickyTh>{rowDimension?.name || 'Table Preview'}</StickyTh>
-                  {colValues.map((col,index)=>(
-                    <StickyTh key={index}>{col}</StickyTh>
-                  ))}
-                </Tr>
-              </THead>
-              <tbody>
-                {rowValues.map((row,rowIndex)=>(
-                  <Tr key={rowIndex}>
-                    <RowHeaderTd>{row}</RowHeaderTd>
-                    {colValues.map((col,colIndex)=>(
-                      <Td key={colIndex}>
-                        <TextInput
-                          type="text"
-                          value={tableData[`${row}-${col}`] || ''}
-                          onChange={(e) => handleTableDataChange(`${row}-${col}`, e.target.value)}
-                          placeholder="Enter value"
-                        />
-                      </Td>
-                    ))}
-                  </Tr>
-                ))}
-              </tbody>
-            </Table>
-          </TableContainer>
+            {renderGridCell}
+          </Grid>
         </Card>
 
         {/* Add Dimension Button */}
@@ -374,62 +411,60 @@ function TableScreen() {
 
         {/* Dimensions Table */}
         <Card>
-          <TableContainer>
-            <Table>
-              <THead>
-                <Tr>
-                  <StickyTh>Type</StickyTh>
-                  <StickyTh>Dimension Name</StickyTh>
-                  <StickyTh>Dimension Values</StickyTh>
-                  <StickyTh>IT&nbsp;Code</StickyTh>
-                  <StickyTh>States</StickyTh>
-                  <StickyTh>Actions</StickyTh>
+          <Table>
+            <THead>
+              <Tr>
+                <Th>Type</Th>
+                <Th>Dimension Name</Th>
+                <Th>Dimension Values</Th>
+                <Th>IT&nbsp;Code</Th>
+                <Th>States</Th>
+                <Th>Actions</Th>
+              </Tr>
+            </THead>
+            <tbody>
+              {dimensions.map(dimension => (
+                <Tr key={dimension.id}>
+                  <Td>{dimension.type}</Td>
+                  <Td>{dimension.name}</Td>
+                  <Td>{dimension.values}</Td>
+                  <Td>{dimension.technicalCode}</Td>
+                  <Td>
+                    {dimension.states && dimension.states.length ? (
+                      <Button
+                        variant="ghost"
+                        onClick={() => openStatesModal(dimension.states)}
+                        style={{ padding: 0, fontSize: 14, color: '#2563eb' }}
+                        title="View / edit states"
+                      >
+                        States&nbsp;({dimension.states.length})
+                      </Button>
+                    ) : '—'}
+                  </Td>
+                  <Td>
+                    <div style={{display:'flex',gap:10}}>
+                      <Button
+                        variant="ghost"
+                        onClick={() => openEditModal(dimension)}
+                        title="Edit dimension"
+                        style={{ padding: 4, minWidth: 0 }}
+                      >
+                        <PencilIcon width={16} height={16} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleDeleteDimension(dimension.id)}
+                        title="Delete dimension"
+                        style={{ color: '#DC2626', padding: 4, minWidth: 0 }}
+                      >
+                        <TrashIcon width={16} height={16} />
+                      </Button>
+                    </div>
+                  </Td>
                 </Tr>
-              </THead>
-              <tbody>
-                {dimensions.map(dimension => (
-                  <Tr key={dimension.id}>
-                    <Td>{dimension.type}</Td>
-                    <Td>{dimension.name}</Td>
-                    <Td>{dimension.values}</Td>
-                    <Td>{dimension.technicalCode}</Td>
-                    <Td>
-                      {dimension.states && dimension.states.length ? (
-                        <Button
-                          variant="ghost"
-                          onClick={() => openStatesModal(dimension.states)}
-                          style={{ padding: 0, fontSize: 14, color: '#2563eb' }}
-                          title="View / edit states"
-                        >
-                          States&nbsp;({dimension.states.length})
-                        </Button>
-                      ) : '—'}
-                    </Td>
-                    <Td>
-                      <div style={{display:'flex',gap:10}}>
-                        <Button
-                          variant="ghost"
-                          onClick={() => openEditModal(dimension)}
-                          title="Edit dimension"
-                          style={{ padding: 4, minWidth: 0 }}
-                        >
-                          <PencilIcon width={16} height={16} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={() => handleDeleteDimension(dimension.id)}
-                          title="Delete dimension"
-                          style={{ color: '#DC2626', padding: 4, minWidth: 0 }}
-                        >
-                          <TrashIcon width={16} height={16} />
-                        </Button>
-                      </div>
-                    </Td>
-                  </Tr>
-                ))}
-              </tbody>
-            </Table>
-          </TableContainer>
+              ))}
+            </tbody>
+          </Table>
         </Card>
 
         {/* Modal for Adding/Editing Dimension */}
@@ -458,25 +493,50 @@ function TableScreen() {
                   onChange={handleInputChange}
                   placeholder="Name (e.g., Roof Age)"
                 />
-                <TextInput
-                  type="text"
-                  name="values"
-                  value={newDimension.values}
-                  onChange={handleInputChange}
-                  placeholder="Dimension Values (e.g., 1-5, 6-10, 11-15)"
-                />
-                <TextInput
-                  as="select"
-                  name="technicalCode"
-                  value={newDimension.technicalCode}
-                  onChange={handleInputChange}
-                  style={{ minWidth: 180 }}
-                >
-                  <option value="">Select IT Code</option>
-                  {itCodes.map(code => (
-                    <option key={code} value={code}>{code}</option>
+                {/* Dimension values input UI */}
+                <div style={{display:'flex',alignItems:'center',gap:8,width:'100%'}}>
+                  <TextInput
+                    placeholder="Add a value and press +"
+                    value={valueInput}
+                    onChange={e => setValueInput(e.target.value)}
+                    style={{flex:1}}
+                  />
+                  <Button
+                    variant="ghost"
+                    onClick={()=>{
+                      const v = valueInput.trim();
+                      if(v && !newDimension.values.includes(v)){
+                        setNewDimension(prev=>({...prev, values:[...prev.values, v]}));
+                      }
+                      setValueInput('');
+                    }}
+                    title="Add value"
+                    style={{padding:'0 10px'}}
+                  >
+                    +
+                  </Button>
+                </div>
+                <div style={{marginTop:8,display:'flex',flexWrap:'wrap',gap:6}}>
+                  {newDimension.values.map((v,idx)=>(
+                    <span key={idx} style={{
+                      background:'#EEF2FF',
+                      borderRadius:12,
+                      padding:'4px 10px',
+                      fontSize:13,
+                      display:'inline-flex',
+                      alignItems:'center',
+                      gap:4
+                    }}>
+                      {v}
+                      <XMarkIcon
+                        width={12}
+                        height={12}
+                        style={{cursor:'pointer'}}
+                        onClick={()=> setNewDimension(prev=>({...prev, values:prev.values.filter(x=>x!==v)}))}
+                      />
+                    </span>
                   ))}
-                </TextInput>
+                </div>
                 {/* Select All / Clear All Buttons for States */}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                   <Button variant="ghost" onClick={() => setNewDimension(prev => ({ ...prev, states: selectAllStates() }))}>
@@ -486,16 +546,50 @@ function TableScreen() {
                     Clear All
                   </Button>
                 </div>
-                <TextInput
-                  as="select"
-                  multiple
-                  name="states"
-                  value={newDimension.states}
-                  onChange={handleStatesChange}
-                  style={{ minWidth: 120, height: 80 }}
+                {/* Checkbox list for states */}
+                <div
+                  style={{
+                    width:'100%',
+                    maxHeight:160,
+                    overflowY:'auto',
+                    border:'1px solid #E5E7EB',
+                    borderRadius:4,
+                    padding:8
+                  }}
                 >
                   {usStates.map(state => (
-                    <option key={state} value={state}>{state}</option>
+                    <label key={state} style={{ display: 'block', padding: 4 }}>
+                      <input
+                        type="checkbox"
+                        value={state}
+                        checked={newDimension.states.includes(state)}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setNewDimension(prev =>
+                            prev.states.includes(val)
+                              ? { ...prev, states: prev.states.filter(s => s !== val) }
+                              : { ...prev, states: [...prev.states, val] }
+                          );
+                        }}
+                      />{' '}
+                      {state}
+                    </label>
+                  ))}
+                </div>
+                {/* IT Code select moved below states */}
+                <label style={{ fontSize: 14, color: '#374151', marginBottom: 2, width: '100%' }}>IT&nbsp;Code (optional)</label>
+                <TextInput
+                  as="select"
+                  name="technicalCode"
+                  value={newDimension.technicalCode}
+                  onChange={handleInputChange}
+                  style={{ minWidth: 180, fontSize: 13 }}
+                >
+                  <option value="" disabled style={{ color: '#6B7280', fontSize: 13 }}>
+                    Select IT Code
+                  </option>
+                  {itCodes.map(code => (
+                    <option key={code} value={code}>{code}</option>
                   ))}
                 </TextInput>
                 <Button

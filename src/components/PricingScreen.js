@@ -1,13 +1,15 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { TrashIcon, PencilIcon, XMarkIcon, InformationCircleIcon, PlusCircleIcon, PlusIcon, MinusIcon, MapIcon, ChevronUpIcon, ChevronDownIcon, ClockIcon } from '@heroicons/react/24/solid';
+import { ArrowDownTrayIcon as DownloadIcon20, ArrowUpTrayIcon as UploadIcon20 } from '@heroicons/react/20/solid';
 import { FunnelIcon } from '@heroicons/react/24/solid';
 import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
 import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
+import MainNavigation from '../components/ui/Navigation';
 import {
   Table,
   THead as TableHead,
@@ -137,6 +139,18 @@ const StepLabel = styled.span`
 const usStates = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 const stateOptions = usStates.map(s => ({ value: s, label: s }));
 
+// ----- ExportBtn styled button (copied from CoverageScreen) -----
+const ExportBtn = styled(Button)`
+  margin: 0;
+  padding: 8px 18px;
+  font-size: 14px;
+  background: linear-gradient(135deg,#7C5CFF 0%,#AA5CFF 48%,#C15CFF 100%);
+  color:#fff;
+  box-shadow:0 3px 8px rgba(124,92,255,.3);
+  &:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(124,92,255,.45);}
+  &:active{transform:none;box-shadow:0 3px 8px rgba(124,92,255,.3);}
+`;
+
 const Skeleton = styled.div`
   width: 100%;
   height: 20px;
@@ -150,13 +164,92 @@ const Skeleton = styled.div`
   }
 `;
 
-/* ---------- enhanced layout ---------- */
-const Card = styled.div`
-  background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-  padding: 24px;
+/* ---------- Modern Styled Components ---------- */
+
+// Container - Modern gradient background
+const ModernContainer = styled.div`
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+    opacity: 0.1;
+    z-index: 0;
+  }
+`;
+
+// Main Content - Modern layout
+const MainContent = styled.div`
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  position: relative;
+  z-index: 1;
+`;
+
+// Header Section
+const HeaderSection = styled.div`
+  text-align: center;
+  margin-bottom: 48px;
+`;
+
+// Page Title - Modern typography
+const PageTitle = styled.h1`
+  font-size: 48px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 16px 0;
+  letter-spacing: -0.025em;
+`;
+
+// Breadcrumb
+const Breadcrumb = styled.nav`
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 32px;
+  font-size: 14px;
+  color: #64748b;
+
+  a {
+    color: #6366f1;
+    text-decoration: none;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: #4f46e5;
+    }
+  }
+
+  span {
+    color: #94a3b8;
+  }
+`;
+
+const Card = styled.div`
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  margin-bottom: 32px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  }
 `;
 
 const FiltersBar = styled.div`
@@ -449,6 +542,8 @@ function PricingScreen() {
   const [productName, setProductName] = useState('');
   const [coverages, setCoverages] = useState([]);
   const [steps, setSteps] = useState([]);
+  // validCoverageCodes: coverageCode array for mapping/validation
+  const validCoverageCodes = coverages.map(c => c.coverageCode);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingStep, setEditingStep] = useState(null);
   const [comment, setComment] = useState('');
@@ -459,6 +554,8 @@ function PricingScreen() {
   // Step Details Modal state
   const [stepDetailsOpen, setStepDetailsOpen] = useState(false);
   const [detailsStep, setDetailsStep] = useState(null);
+
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const fetchDictionary = async () => {
@@ -581,11 +678,12 @@ function PricingScreen() {
 
   if (loading) {
     return (
-      <Page>
-        <Container>
+      <ModernContainer>
+        <MainNavigation />
+        <MainContent>
           <Spinner />
-        </Container>
-      </Page>
+        </MainContent>
+      </ModernContainer>
     );
   }
 
@@ -718,6 +816,204 @@ function PricingScreen() {
   ].sort((a, b) => a.label.localeCompare(b.label));
 
 
+  // ---------- XLSX helpers (Pricing) ----------
+  const OPERANDS = ['+','-','*','/','='];
+  const ALL_STATES = [...usStates];   // reuse list already declared
+
+  // Enhanced pricing sheet with professional styling
+  const makePricingSheet = (steps) => {
+    // Add metadata header
+    const currentDate = new Date().toLocaleDateString();
+    const metadata = [
+      ['Pricing Model Export Report'],
+      [`Generated on: ${currentDate}`],
+      [`Product: ${productName}`],
+      [`Total Steps: ${steps.filter(s => s.stepType === 'factor').length}`],
+      [''], // Empty row for spacing
+      ['Coverage', 'Step Name', 'Table Name', 'Calculation', 'Rounding', 'Value', ...ALL_STATES]
+    ];
+
+    // flatten factor+operand so each factor row carries the FOLLOWING operand (Excel pattern)
+    const rows = [];
+    for (let i = 0; i < steps.length; i++) {
+      const s = steps[i];
+      if (s.stepType !== 'factor') continue;
+      const next = steps[i + 1];
+      const row = {
+        Coverage: (s.coverages || []).join('; '),
+        'Step Name': s.stepName || '',
+        'Table Name': s.table || '',
+        Calculation: (next && next.stepType === 'operand') ? next.operand : '',
+        Rounding: s.rounding || 'None',
+        Value: s.value ?? 0,
+      };
+      // mark states with Yes/No instead of X/blank
+      ALL_STATES.forEach(st => {
+        row[st] = (s.states || ALL_STATES).includes(st) ? 'Yes' : 'No';
+      });
+      rows.push(row);
+    }
+
+    const XLSX = require('xlsx');
+
+    // Create worksheet with metadata
+    const ws = XLSX.utils.aoa_to_sheet(metadata);
+
+    // Add data rows if we have any
+    if (rows.length > 0) {
+      XLSX.utils.sheet_add_json(ws, rows, {
+        origin: 'A7',
+        skipHeader: false
+      });
+    }
+
+    // Apply basic styling (note: full styling requires xlsx-style or similar)
+    const range = XLSX.utils.decode_range(ws['!ref']);
+
+    // Set column widths
+    const colWidths = [
+      { wch: 20 }, // Coverage
+      { wch: 25 }, // Step Name
+      { wch: 15 }, // Table Name
+      { wch: 12 }, // Calculation
+      { wch: 12 }, // Rounding
+      { wch: 10 }, // Value
+      ...ALL_STATES.map(() => ({ wch: 4 })) // State columns
+    ];
+    ws['!cols'] = colWidths;
+
+    return ws;
+  };
+
+  // Convert sheet rows -> step objects array
+  const sheetToStepObjects = (ws) =>{
+    const XLSX = require('xlsx');
+    const rows = XLSX.utils.sheet_to_json(ws,{defval:''});
+    const out = [];
+    rows.forEach((r,idx)=>{
+      // factor first
+      const factor = {
+        stepType:'factor',
+        coverages: String(r['Coverage']).split(';').map(v=>v.trim()).filter(Boolean),
+        stepName: r['Step Name'],
+        table: r['Table Name'] || '',
+        rounding: r['ROUNDING'] || 'none',
+        value: parseFloat(String(r['Value']).replace(/[^0-9\.\-]/g,''))||0,
+        states: ALL_STATES.filter(st=> String(r[st]).trim().toUpperCase()==='X')
+      };
+      out.push(factor);
+      // operand after
+      const op = String(r['CALCULATION']).trim();
+      if (OPERANDS.includes(op)){
+        out.push({ stepType:'operand', operand:op });
+      }
+    });
+    return out;
+  };
+
+
+  const handleExportXLSX = async () =>{
+    try{
+      const XLSXmod = await import('xlsx');
+      const XLSX = XLSXmod.default || XLSXmod;
+      const fsMod = await import('file-saver');
+      const saveAs = fsMod.saveAs || fsMod.default;
+      const ws = makePricingSheet(steps);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb,ws,'Pricing');
+      const buf = XLSX.write(wb,{bookType:'xlsx',type:'array'});
+      saveAs(new Blob([buf],{type:'application/octet-stream'}),`pricing_${productName}.xlsx`);
+    }catch(err){ alert('Export failed: '+err.message); }
+  };
+
+  const handleImportXLSX = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const XLSXmod = await import('xlsx');
+      const XLSX = XLSXmod.default || XLSXmod;
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      // Parse sheet into step objects
+      const parsed = sheetToStepObjects(ws);
+
+      // Map coverage names -> codes
+      parsed.forEach(s => {
+        if (s.stepType === 'factor') {
+          s.coverages = s.coverages.map(name => {
+            const cov = coverages.find(c => c.name === name);
+            return cov ? cov.coverageCode : name;
+          });
+        }
+      });
+
+      // Validate coverage codes
+      const invalidCov = parsed
+        .filter(s => s.stepType === 'factor')
+        .flatMap(s => s.coverages)
+        .filter(code => !validCoverageCodes.includes(code));
+      if (invalidCov.length) {
+        alert('Invalid coverage codes: ' + [...new Set(invalidCov)].join(', '));
+        e.target.value = '';
+        return;
+      }
+
+      // Validate states
+      const invalidStates = parsed
+        .filter(s => s.stepType === 'factor')
+        .flatMap(s => s.states || [])
+        .filter(st => !ALL_STATES.includes(st));
+      if (invalidStates.length) {
+        alert('Invalid states: ' + [...new Set(invalidStates)].join(', '));
+        e.target.value = '';
+        return;
+      }
+
+      // Differential import: only add factor+operand pairs not already present
+      let nextOrder = steps.length;
+      const created = [];
+      for (let i = 0; i < parsed.length; i++) {
+        const row = parsed[i];
+        if (row.stepType !== 'factor') continue;
+        const operandRow = parsed[i+1] && parsed[i+1].stepType === 'operand' ? parsed[i+1] : null;
+        // Check if a factor step with same coverage and stepName exists
+        const exists = steps.some(s =>
+          s.stepType === 'factor'
+          && s.coverages.join(';') === row.coverages.join(';')
+          && s.stepName === row.stepName
+        );
+        if (exists) continue;
+        // Add factor
+        const factorRef = await addDoc(
+          collection(db, `products/${productId}/steps`),
+          { ...row, order: nextOrder }
+        );
+        created.push({ id: factorRef.id, ...row, order: nextOrder });
+        nextOrder++;
+        // Add operand if present
+        if (operandRow) {
+          const opRef = await addDoc(
+            collection(db, `products/${productId}/steps`),
+            { stepType: 'operand', operand: operandRow.operand, order: nextOrder }
+          );
+          created.push({ id: opRef.id, stepType: 'operand', operand: operandRow.operand, order: nextOrder });
+          nextOrder++;
+        }
+      }
+
+      // Update local state
+      setSteps(prev => [...prev, ...created].sort((a, b) => a.order - b.order));
+      alert('Import complete!');
+    } catch (err) {
+      console.error(err);
+      alert('Import failed: ' + err.message);
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+
 // Table row styling
 const FactorRow = styled(TableRow)`
   background-color: #F0F5FF;
@@ -765,13 +1061,19 @@ function operandGlyph(op) {
   }
 }
 
-  const moveStep = (id, idx, dir) => {
-    const newSteps = [...steps];
+  const moveStep = async (id, idx, dir) => {
     const target = dir === 'up' ? idx - 1 : idx + 1;
-    if (target < 0 || target >= newSteps.length) return;
+    if (target < 0 || target >= steps.length) return;
+    // Swap in local array
+    const newSteps = [...steps];
     [newSteps[idx], newSteps[target]] = [newSteps[target], newSteps[idx]];
+    // Persist new orders
+    const stepA = newSteps[idx];
+    const stepB = newSteps[target];
+    await updateDoc(doc(db, `products/${productId}/steps`, stepA.id), { order: idx });
+    await updateDoc(doc(db, `products/${productId}/steps`, stepB.id), { order: target });
+    // Update UI
     setSteps(newSteps);
-    // Optionally update `order` in Firestore here
   };
 
   const openStepDetails = step => { setDetailsStep(step); setStepDetailsOpen(true); };
@@ -819,16 +1121,16 @@ function operandGlyph(op) {
             step.stepType === 'factor' ? (
               <FactorRow key={step.id}>
                 <TableCell>
-                  {step.coverages.length > 1
-                    ? (
-                      <CellButton variant="ghost" onClick={() => openCovModal(step.coverages)}>
-                        Coverages ({step.coverages.length})
-                      </CellButton>
-                    )
-                    : (
-                      <CellButton as="span">{step.coverages[0] || 'All'}</CellButton>
-                    )
-                  }
+          {step.coverages.length > 1
+            ? (
+              <CellButton variant="ghost" onClick={() => openCovModal(step.coverages)}>
+                Coverages ({step.coverages.length})
+              </CellButton>
+            )
+            : (
+              <CellButton variant="ghost" as="span">{step.coverages[0] || 'All'}</CellButton>
+            )
+          }
                 </TableCell>
                 <TableCell>
                   {step.table ? (
@@ -839,7 +1141,7 @@ function operandGlyph(op) {
                       {step.stepName}
                     </CellButton>
                   ) : (
-                    <CellButton as="span">{step.stepName}</CellButton>
+                    <span>{step.stepName}</span>
                   )}
                 </TableCell>
                 <TableCell>
@@ -923,12 +1225,21 @@ function operandGlyph(op) {
   };
 
   return (
-    <Page>
-      <Container>
-        <PageHeader>
-          <Title>Pricing for {productName}</Title>
+    <ModernContainer>
+      <MainNavigation />
+      <MainContent>
+        <Breadcrumb>
+          <a href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }}>Home</a>
+          <span>›</span>
+          <a href="/products" onClick={(e) => { e.preventDefault(); navigate('/products'); }}>Products</a>
+          <span>›</span>
+          <span>Pricing</span>
+        </Breadcrumb>
+
+        <HeaderSection>
+          <PageTitle>Pricing for {productName}</PageTitle>
           <Button variant="ghost" onClick={() => navigate('/')}>Return Home</Button>
-        </PageHeader>
+        </HeaderSection>
         <Card>
           <FiltersBar>
             <FormGroup>
@@ -966,6 +1277,23 @@ function operandGlyph(op) {
               </FilterWrapper>
             </FormGroup>
           </FiltersBar>
+
+          {/* XLSX Export/Import Controls */}
+          <div style={{display:'flex',gap:12,margin:'8px 0 20px',alignItems:'center'}}>
+            <ExportBtn onClick={handleExportXLSX}>
+              <DownloadIcon20 width={16} style={{marginRight:4}}/>Export&nbsp;XLSX
+            </ExportBtn>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xls,.xlsx"
+              style={{display:'none'}}
+              onChange={handleImportXLSX}
+            />
+            <Button variant="ghost" onClick={()=>fileInputRef.current?.click()}>
+              <UploadIcon20 width={16} style={{marginRight:4}}/>Import&nbsp;XLSX
+            </Button>
+          </div>
 
           {steps.length ? (
             <>
@@ -1054,8 +1382,8 @@ function operandGlyph(op) {
             </ModalBox>
           </OverlayFixed>
         )}
-      </Container>
-    </Page>
+      </MainContent>
+    </ModernContainer>
   );
 }
 

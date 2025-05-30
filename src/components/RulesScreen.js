@@ -1,118 +1,36 @@
+// src/components/RulesScreen.js
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import {
-  collection,
-  getDocs,
-  addDoc,
-  deleteDoc,
-  doc
-} from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { PlusIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
-/* ------------ Grok helper ------------ */
-const XAI_KEY =
-  'xai-uKF32qVwU1o0BMeaQwwwaz6vsf4kVu521x01eLUwwLvcxVRTi4CmnISLGVQIvtSITZFD82PMlmvTG93t';
+import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
+import { Button } from '../components/ui/Button';
+import { TextInput } from '../components/ui/Input';
+import {
+  Table,
+  THead,
+  Tr,
+  Th,
+  Td,
+  Overlay,
+  Modal,
+  ModalHeader,
+  ModalTitle,
+  CloseBtn
+} from '../components/ui/Table';
 
-async function refineRule(text) {
-  const res = await fetch('https://api.x.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${XAI_KEY}`
-    },
-    body: JSON.stringify({
-      model: 'grok-beta',
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are an expert insurance‑rules assistant. Convert the user rule into concise If/Then/When pseudo‑code.'
-        },
-        { role: 'user', content: text }
-      ]
-    })
-  });
-  if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
-  return data.choices[0].message.content.trim();
-}
-
-// Strip MD fences / back‑ticks the model may return
-const cleanRuleText = (str = '') =>
-  str
-    .replace(/```[\s\S]*?```/g, '')   // remove fenced blocks
-    .replace(/```|`/g, '')            // stray back‑ticks
-    .replace(/^\s*pseudo[:\s-]*/i, '') // leading "pseudo" label
-    .trim();
-
-export { cleanRuleText };
-
-/* ------------ styles ------------ */
-const Page = styled.div`padding:32px;`;
-const Header = styled.div`display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;`;
-const H1 = styled.h1`font-size:28px;font-weight:600;`;
-const Table = styled.table`
-  width:100%;
-  border-collapse: collapse;
-  thead th{
-    position: sticky;
-    top: 0;
-    background:#f9fafb;
-    z-index:2;
-    text-align:center;
-    padding:12px;
-    border-bottom:1px solid #e5e7eb;
-    font-weight:600;
-  }
-  tbody td{
-    padding:12px;
-    border-bottom:1px solid #f1f3f5;
-    text-align:center;
-    vertical-align:top;
-  }
-  tbody tr:hover{background:#f9faff;}
-`;
-const IconBtn = styled.button`
-  background:none;border:none;color:#1d4ed8;cursor:pointer;
-  &:hover{color:#4338ca;}
-`;
-const Modal = styled.div`
-  position:fixed;inset:0;display:flex;justify-content:center;align-items:center;
-  background:rgba(0,0,0,.6);z-index:1000;
-  >div{background:#fff;border-radius:12px;padding:24px;width:480px;position:relative;}
-`;
-const Field = styled.input`
-  width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:12px;
-`;
-const TextArea = styled.textarea`
-  width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:12px;resize:vertical;
-`;
-
-const Container = styled.div`
-  max-width: 1140px;
-  margin: 0 auto;
-`;
-
-const SearchInput = styled.input`
-  width: 280px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 9px 12px;
-  font-size: 15px;
-  &:focus { outline: 2px solid #6366f1; }
-`;
-
+/* ---------- local styles ---------- */
 const TableWrapper = styled.div`
   margin-top: 24px;
   max-height: 480px;
   overflow: auto;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.05);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 `;
 
-/* Floating Add button */
 const Fab = styled.button`
   position: fixed;
   bottom: 24px;
@@ -125,122 +43,148 @@ const Fab = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   border: none;
   cursor: pointer;
   z-index: 100;
-  &:hover { background:#5b21b6; }
+  &:hover { background: #5b21b6; }
 `;
 
-/* ------------ component ------------ */
 export default function RulesScreen() {
   const nav = useNavigate();
-  const [rules,setRules] = useState([]);
-  const [open,setOpen]   = useState(false);
 
-  /* search */
-  const [rawSearch,setRaw] = useState('');
-  const [search,setSearch] = useState('');
+  // rules list + UI state
+  const [rules, setRules] = useState([]);
+  const [open, setOpen] = useState(false);
+
+  // new-rule form
+  const [name, setName] = useState('');
+  const [ruleId, setRuleId] = useState('');
+  const [ruleText, setRuleText] = useState('');
+
+  // search
+  const [rawSearch, setRawSearch] = useState('');
+  const [search, setSearch] = useState('');
   const searchRef = useRef(null);
 
-  /* debounce search */
-  useEffect(()=>{
-    const t = setTimeout(()=>setSearch(rawSearch.trim().toLowerCase()),250);
-    return ()=>clearTimeout(t);
-  },[rawSearch]);
-
-  /* '/' shortcut */
-  useEffect(()=>{
-    const h = e=>{
-      if(e.key==='/' && !e.target.matches('input,textarea')){ e.preventDefault(); searchRef.current?.focus(); }
-    };
-    window.addEventListener('keydown',h);
-    return ()=>window.removeEventListener('keydown',h);
-  },[]);
-
-  /* modal state */
-  const [name,setName]   = useState('');
-  const [ruleId,setRuleId]=useState('');
-  const [text,setText]   = useState('');
-  const [readonly,setRO] = useState(false);
-  const [refined,setRef] = useState('');
-  const [busy,setBusy]   = useState(false);
-
-  useEffect(()=>{
-    (async()=>{
-      const snap = await getDocs(collection(db,'rules'));
-      setRules(snap.docs.map(d=>({id:d.id,...d.data()})));
+  // load rules from Firestore on mount
+  useEffect(() => {
+    (async () => {
+      const snap = await getDocs(collection(db, 'rules'));
+      setRules(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     })();
-  },[]);
+  }, []);
 
-  const filteredRules = useMemo(()=>{
-    if(!search) return rules;
-    return rules.filter(r=>
-      (r.name||'').toLowerCase().includes(search) ||
-      (r.ruleId||'').toLowerCase().includes(search) ||
-      (r.refinedRule||'').toLowerCase().includes(search)
+  // debounce search input
+  useEffect(() => {
+    const id = setTimeout(() => setSearch(rawSearch.trim().toLowerCase()), 250);
+    return () => clearTimeout(id);
+  }, [rawSearch]);
+
+  // “/” key focuses search
+  useEffect(() => {
+    const handler = e => {
+      if (e.key === '/' && !e.target.matches('input, textarea')) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // filtered list
+  const filteredRules = useMemo(() => {
+    if (!search) return rules;
+    return rules.filter(r =>
+      (r.name || '').toLowerCase().includes(search) ||
+      (r.ruleId || '').toLowerCase().includes(search) ||
+      (r.ruleText || '').toLowerCase().includes(search)
     );
-  },[rules,search]);
+  }, [rules, search]);
 
-  const reset = ()=>{setName('');setRuleId('');setText('');setRef('');setRO(false);};
-
-  const generate = async ()=>{
-    if(!text.trim()) return;
-    setBusy(true);
-    try{
-      const out = await refineRule(text);
-      setRef(cleanRuleText(out));setRO(true);
-    }catch(e){alert(e.message);}
-    setBusy(false);
+  const resetForm = () => {
+    setName('');
+    setRuleId('');
+    setRuleText('');
   };
 
-  const save = async ()=>{
-    const payload={ name,ruleId,originalText:text,refinedRule:refined||text };
-    const ref = await addDoc(collection(db,'rules'),payload);
-    setRules([...rules,{id:ref.id,...payload}]);
-    setOpen(false);reset();
+  const handleSave = async () => {
+    if (!ruleText.trim()) {
+      alert('Please enter some rule text.');
+      return;
+    }
+    const payload = {
+      name: name.trim(),
+      ruleId: ruleId.trim(),
+      ruleText: ruleText.trim(),
+    };
+    const docRef = await addDoc(collection(db, 'rules'), payload);
+    setRules(rs => [...rs, { id: docRef.id, ...payload }]);
+    setOpen(false);
+    resetForm();
   };
 
-  const remove = async id=>{
-    if(!window.confirm('Delete rule?')) return;
-    await deleteDoc(doc(db,'rules',id));
-    setRules(rules.filter(r=>r.id!==id));
+  const handleDelete = async id => {
+    if (!window.confirm('Delete this rule?')) return;
+    await deleteDoc(doc(db, 'rules', id));
+    setRules(rs => rs.filter(r => r.id !== id));
   };
 
-  return(
+  return (
     <Page>
       <Container>
-        <Header>
-          <H1>Rules Repository</H1>
-          <div style={{display:'flex',gap:16,alignItems:'center'}}>
-            <SearchInput
+        <PageHeader>
+          <Title>Rules Repository</Title>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <TextInput
               ref={searchRef}
-              placeholder="Search / ..."
+              placeholder="Search rules..."
               value={rawSearch}
-              onChange={e=>setRaw(e.target.value)}
+              onChange={e => setRawSearch(e.target.value)}
+              style={{ width: 240 }}
             />
-            <button onClick={()=>nav(-1)} className="text-indigo-600 hover:underline">Back</button>
+            <Button variant="ghost" onClick={() => nav(-1)}>Back</Button>
           </div>
-        </Header>
+        </PageHeader>
 
-        {filteredRules.length>0 && (
+        {filteredRules.length > 0 && (
           <TableWrapper>
             <Table>
-              <thead><tr><th>Name</th><th>Rule&nbsp;ID</th><th>Rule</th><th>Actions</th></tr></thead>
+              <THead>
+                <Tr>
+                  <Th>Name</Th>
+                  <Th>Rule ID</Th>
+                  <Th>Rule Text</Th>
+                  <Th>Actions</Th>
+                </Tr>
+              </THead>
               <tbody>
-                {filteredRules.map(r=>(
-                  <tr key={r.id}>
-                    <td>{r.name}</td>
-                    <td>{r.ruleId}</td>
-                    <td style={{ whiteSpace: 'pre-wrap' }}>
-                      {cleanRuleText(r.refinedRule)}
-                    </td>
-                    <td>
-                      <IconBtn onClick={()=>remove(r.id)}>
-                        <TrashIcon className="w-5 h-5"/>
-                      </IconBtn>
-                    </td>
-                  </tr>
+                {filteredRules.map(r => (
+                  <Tr key={r.id}>
+                    <Td>{r.name}</Td>
+                    <Td>{r.ruleId}</Td>
+                    <Td align="left">
+                      <pre style={{
+                        margin: 0,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        fontFamily: 'monospace',
+                        fontSize: 13
+                      }}>
+                        {r.ruleText}
+                      </pre>
+                    </Td>
+                    <Td>
+                      <Button
+                        variant="danger"
+                        onClick={() => handleDelete(r.id)}
+                        title="Delete"
+                      >
+                        <TrashIcon width={16} height={16}/>
+                      </Button>
+                    </Td>
+                  </Tr>
                 ))}
               </tbody>
             </Table>
@@ -248,55 +192,45 @@ export default function RulesScreen() {
         )}
 
         {open && (
-          <Modal onClick={()=>{setOpen(false);reset();}}>
-            <div onClick={e=>e.stopPropagation()}>
-              <button className="absolute top-3 right-3 text-slate-500" onClick={()=>{setOpen(false);reset();}}>
-                <XMarkIcon className="w-5 h-5"/>
-              </button>
-              <h2 className="text-lg font-semibold mb-4">New Rule</h2>
-
-              <Field placeholder="Rule Name" value={name} onChange={e=>setName(e.target.value)}/>
-              <Field placeholder="Rule ID" value={ruleId} onChange={e=>setRuleId(e.target.value)}/>
-
-              <TextArea
-                rows={4}
-                placeholder="Write your rule…"
-                value={text}
-                readOnly={readonly}
-                onChange={e=>setText(e.target.value)}
-              />
-              {readonly && (
-                <TextArea
-                  rows={3}
-                  placeholder="Revised Rule"
-                  value={refined}
-                  onChange={e=>setRef(e.target.value)}
+          <Overlay onClick={() => { setOpen(false); resetForm(); }}>
+            <Modal onClick={e => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>New Rule</ModalTitle>
+                <CloseBtn onClick={() => { setOpen(false); resetForm(); }}>
+                  <XMarkIcon width={20} height={20}/>
+                </CloseBtn>
+              </ModalHeader>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <TextInput
+                  placeholder="Rule Name (optional)"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
                 />
-              )}
-
-              <div className="flex justify-end gap-3 mt-2">
-                {!readonly?(
-                  <button
-                    disabled={busy}
-                    onClick={generate}
-                    className="px-5 py-2 rounded-md bg-indigo-600 text-white"
-                  >
-                    {busy?'Generating…':'Generate'}
-                  </button>
-                ):(
-                  <button
-                    onClick={save}
-                    className="px-5 py-2 rounded-md bg-purple-600 text-white"
-                  >
-                    Save
-                  </button>
-                )}
+                <TextInput
+                  placeholder="Rule ID (optional)"
+                  value={ruleId}
+                  onChange={e => setRuleId(e.target.value)}
+                />
+                <TextInput
+                  as="textarea"
+                  rows={6}
+                  placeholder="Enter rule text..."
+                  value={ruleText}
+                  onChange={e => setRuleText(e.target.value)}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                  <Button onClick={handleSave}>Save</Button>
+                  <Button variant="ghost" onClick={() => { setOpen(false); resetForm(); }}>
+                    Cancel
+                  </Button>
+                </div>
               </div>
-            </div>
-          </Modal>
+            </Modal>
+          </Overlay>
         )}
-        <Fab onClick={()=>setOpen(true)}>
-          <PlusIcon className="w-6 h-6"/>
+
+        <Fab aria-label="Add rule" onClick={() => setOpen(true)}>
+          <PlusIcon width={24} height={24}/>
         </Fab>
       </Container>
     </Page>

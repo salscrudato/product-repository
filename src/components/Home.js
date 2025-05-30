@@ -1,0 +1,715 @@
+import React, { useState } from 'react';
+import styled from 'styled-components';
+import { ArrowUpIcon, NewspaperIcon, CalendarIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/solid';
+import MainNavigation from './ui/Navigation';
+
+/* ---------- styled components ---------- */
+const Page = styled.div`
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 300px;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+    opacity: 0.08;
+    z-index: 0;
+  }
+`;
+
+const MainContent = styled.main`
+  flex: 1;
+  padding: 60px 32px 80px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+
+  @media (max-width: 768px) {
+    padding: 40px 20px 60px;
+  }
+`;
+
+const HeaderSection = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  gap: 24px;
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+  }
+`;
+
+const TitleSection = styled.div`
+  text-align: center;
+  flex: 1;
+`;
+
+const SearchSection = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 40px;
+  margin-bottom: 40px;
+  align-items: start;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+`;
+
+const SearchColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`;
+
+const QueueColumn = styled.div`
+  width: 100%;
+  max-width: 400px;
+  justify-self: end;
+
+  @media (max-width: 1200px) {
+    justify-self: center;
+    max-width: 600px;
+  }
+`;
+
+// Product Management Queue Components
+const QueueContainer = styled.div`
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+`;
+
+const QueueHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+`;
+
+const QueueTitle = styled.h2`
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  letter-spacing: -0.01em;
+`;
+
+const QueueIcon = styled.div`
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &::after {
+    content: '📋';
+    font-size: 12px;
+  }
+`;
+
+const QueueItem = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.4);
+
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const QueueItemInfo = styled.div`
+  flex: 1;
+`;
+
+const QueueItemTitle = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 4px;
+`;
+
+const QueueItemMeta = styled.div`
+  font-size: 12px;
+  color: #64748b;
+`;
+
+const StatusBadge = styled.span`
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  ${props => {
+    switch (props.status) {
+      case 'in-progress':
+        return `
+          background: rgba(59, 130, 246, 0.1);
+          color: #3b82f6;
+        `;
+      case 'review':
+        return `
+          background: rgba(245, 158, 11, 0.1);
+          color: #f59e0b;
+        `;
+      case 'approved':
+        return `
+          background: rgba(34, 197, 94, 0.1);
+          color: #22c55e;
+        `;
+      case 'blocked':
+        return `
+          background: rgba(239, 68, 68, 0.1);
+          color: #ef4444;
+        `;
+      default:
+        return `
+          background: rgba(107, 114, 128, 0.1);
+          color: #6b7280;
+        `;
+    }
+  }}
+`;
+
+const PriorityIndicator = styled.div`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+
+  ${props => {
+    switch (props.priority) {
+      case 'high':
+        return 'background: #ef4444;';
+      case 'medium':
+        return 'background: #f59e0b;';
+      case 'low':
+        return 'background: #22c55e;';
+      default:
+        return 'background: #6b7280;';
+    }
+  }}
+`;
+
+const WelcomeTitle = styled.h1`
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1e293b 0%, #475569 50%, #64748b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 32px 0;
+  text-align: center;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+
+  @media (max-width: 768px) {
+    font-size: 1.5rem;
+    margin-bottom: 24px;
+  }
+`;
+
+const SearchContainer = styled.div`
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  position: relative;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  gap: 16px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+
+  &:focus-within {
+    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.5);
+  }
+
+  @media (max-width: 768px) {
+    max-width: 100%;
+    padding: 8px 16px;
+  }
+`;
+
+const SearchInput = styled.input`
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 17px;
+  color: #1e293b;
+  padding: 10px 0;
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+
+  &::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+  }
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+    padding: 6px 0;
+  }
+`;
+
+const SearchButton = styled.button`
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+
+  &:hover {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  &:disabled {
+    background: #e5e7eb;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+`;
+
+const ResponseContainer = styled.div`
+  width: 100%;
+  max-width: 600px;
+  margin: 24px auto 0;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  white-space: pre-wrap;
+  line-height: 1.6;
+  color: #374151;
+  font-size: 15px;
+  text-align: left;
+`;
+
+const LoadingSpinner = styled.div`
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 1s ease-in-out infinite;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
+// Market News Components
+const NewsSection = styled.div`
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 32px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  margin-top: 40px;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+`;
+
+const NewsHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+`;
+
+const NewsTitle = styled.h2`
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  letter-spacing: -0.01em;
+`;
+
+const NewsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+`;
+
+const NewsIcon = styled(NewspaperIcon)`
+  width: 28px;
+  height: 28px;
+  color: #6366f1;
+`;
+
+const NewsItem = styled.div`
+  background: rgba(248, 250, 252, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.02);
+    border-color: rgba(99, 102, 241, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+`;
+
+const NewsItemHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+`;
+
+const NewsItemTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+`;
+
+const NewsItemDate = styled.span`
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const NewsItemContent = styled.p`
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+`;
+
+const NewsItemTrend = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: ${({ trend }) => trend === 'up' ? '#22c55e' : trend === 'down' ? '#ef4444' : '#6366f1'};
+`;
+
+const TrendIcon = styled(ArrowTrendingUpIcon)`
+  width: 14px;
+  height: 14px;
+  transform: ${({ trend }) => trend === 'down' ? 'rotate(180deg)' : 'none'};
+`;
+
+
+
+/* ---------- component ---------- */
+export default function Home() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [response, setResponse] = useState('');
+
+  // Product Management Queue Data
+  const productQueue = [
+    {
+      id: 1,
+      title: "Commercial Auto 2024 Refresh",
+      assignee: "Sarah Chen",
+      dueDate: "Dec 15, 2024",
+      status: "in-progress",
+      priority: "high"
+    },
+    {
+      id: 2,
+      title: "Cyber Liability Enhancement",
+      assignee: "Mike Rodriguez",
+      dueDate: "Jan 8, 2025",
+      status: "review",
+      priority: "high"
+    },
+    {
+      id: 3,
+      title: "Workers Comp Rate Update",
+      assignee: "Lisa Park",
+      dueDate: "Dec 22, 2024",
+      status: "approved",
+      priority: "medium"
+    },
+    {
+      id: 4,
+      title: "Professional Liability Forms",
+      assignee: "David Kim",
+      dueDate: "Jan 15, 2025",
+      status: "blocked",
+      priority: "medium"
+    },
+    {
+      id: 5,
+      title: "Property Coverage Expansion",
+      assignee: "Emma Wilson",
+      dueDate: "Feb 1, 2025",
+      status: "in-progress",
+      priority: "low"
+    }
+  ];
+
+  // Placeholder news data
+  const marketNews = [
+    {
+      id: 1,
+      title: "Insurance Industry Reports Strong Q4 Growth",
+      content: "Major insurance carriers report increased premiums and improved loss ratios across commercial lines.",
+      date: "2024-01-15",
+      trend: "up",
+      trendText: "+12% YoY"
+    },
+    {
+      id: 2,
+      title: "New Regulatory Changes Impact Property Coverage",
+      content: "State regulators announce updated requirements for property insurance forms and coverage limits.",
+      date: "2024-01-12",
+      trend: "neutral",
+      trendText: "Regulatory Update"
+    },
+    {
+      id: 3,
+      title: "Cyber Insurance Premiums Continue to Rise",
+      content: "Increased cyber threats drive higher premiums and stricter underwriting standards across the industry.",
+      date: "2024-01-10",
+      trend: "up",
+      trendText: "+8% Premium Increase"
+    },
+    {
+      id: 4,
+      title: "Climate Risk Assessment Tools Gain Adoption",
+      content: "Insurers increasingly rely on advanced climate modeling for property risk assessment and pricing.",
+      date: "2024-01-08",
+      trend: "up",
+      trendText: "Technology Adoption"
+    },
+    {
+      id: 5,
+      title: "Workers' Compensation Claims Show Decline",
+      content: "Improved workplace safety measures contribute to reduced workers' compensation claim frequency.",
+      date: "2024-01-05",
+      trend: "down",
+      trendText: "-5% Claims"
+    }
+  ];
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim() || isLoading) return;
+
+    const query = searchQuery.trim();
+    setSearchQuery(''); // Clear the input immediately
+    setIsLoading(true);
+    setResponse('');
+
+    try {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a helpful AI assistant for a product management system. Provide clear, concise, and helpful responses.'
+            },
+            { role: 'user', content: query }
+          ],
+          max_tokens: 1000,
+          temperature: 0.7
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(`OpenAI API error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      const aiResponse = data.choices?.[0]?.message?.content?.trim();
+
+      if (aiResponse) {
+        setResponse(aiResponse);
+      } else {
+        throw new Error('No response from AI');
+      }
+    } catch (error) {
+      console.error('AI request failed:', error);
+      setResponse('Sorry, I encountered an error while processing your request. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSearch(e);
+    }
+  };
+
+  return (
+    <Page>
+      <MainNavigation />
+
+      <MainContent>
+        <HeaderSection>
+          <TitleSection>
+            <WelcomeTitle>What can I help with?</WelcomeTitle>
+          </TitleSection>
+        </HeaderSection>
+
+        <SearchSection>
+          <SearchColumn>
+            <SearchContainer>
+              <SearchInput
+                placeholder="Ask anything"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={handleKeyPress}
+              />
+              <SearchButton
+                onClick={handleSearch}
+                disabled={!searchQuery.trim() || isLoading}
+                aria-label="Search"
+              >
+                {isLoading ? <LoadingSpinner /> : <ArrowUpIcon width={18} height={18} />}
+              </SearchButton>
+            </SearchContainer>
+
+            {response && (
+              <ResponseContainer>
+                {response}
+              </ResponseContainer>
+            )}
+          </SearchColumn>
+
+          <QueueColumn>
+            <QueueContainer>
+              <QueueHeader>
+                <QueueIcon />
+                <QueueTitle>Product Management Queue</QueueTitle>
+              </QueueHeader>
+
+              {productQueue.map((item) => (
+                <QueueItem key={item.id}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <PriorityIndicator priority={item.priority} />
+                    <QueueItemInfo>
+                      <QueueItemTitle>{item.title}</QueueItemTitle>
+                      <QueueItemMeta>{item.assignee} • Due {item.dueDate}</QueueItemMeta>
+                    </QueueItemInfo>
+                  </div>
+                  <StatusBadge status={item.status}>
+                    {item.status.replace('-', ' ')}
+                  </StatusBadge>
+                </QueueItem>
+              ))}
+            </QueueContainer>
+          </QueueColumn>
+        </SearchSection>
+
+        <NewsSection>
+          <NewsHeader>
+            <NewsIcon />
+            <NewsTitle>Market News</NewsTitle>
+          </NewsHeader>
+
+          <NewsGrid>
+            {marketNews.map((news) => (
+              <NewsItem key={news.id}>
+                <NewsItemHeader>
+                  <NewsItemDate>
+                    <CalendarIcon width={12} height={12} />
+                    {new Date(news.date).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </NewsItemDate>
+                </NewsItemHeader>
+
+                <NewsItemTitle>{news.title}</NewsItemTitle>
+                <NewsItemContent>{news.content}</NewsItemContent>
+
+                <NewsItemTrend trend={news.trend}>
+                  <TrendIcon trend={news.trend} />
+                  {news.trendText}
+                </NewsItemTrend>
+              </NewsItem>
+            ))}
+          </NewsGrid>
+        </NewsSection>
+      </MainContent>
+    </Page>
+  );
+}

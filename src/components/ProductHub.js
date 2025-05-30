@@ -1,21 +1,8 @@
-/**
- * ProductHub – main workspace for product managers.
- *
- * Responsibilities
- *  • Display a searchable list of insurance products
- *  • Offer AI‑powered utilities (summary, chat, rules extraction, form comparison)
- *  • CRUD operations backed by Firebase (Firestore + Storage)
- *  • Real‑time collaboration via `onSnapshot`
- *  • Multiple modal workflows & a version‑history sidebar
- *
- * NOTE: File is intentionally verbose.  In production you would break this
- *       monolith into smaller hooks/components and leverage code‑splitting.
- */
-import { useEffect, useState, useRef, useMemo } from 'react';
-import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import styled, { keyframes } from 'styled-components';
 import {
   collection,
-  getDocs,
   addDoc,
   deleteDoc,
   doc,
@@ -25,7 +12,6 @@ import {
 } from 'firebase/firestore';
 import { db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Link, useLocation } from 'react-router-dom';
 import {
   TrashIcon,
   PencilIcon,
@@ -35,23 +21,1044 @@ import {
   DocumentMagnifyingGlassIcon,
   ClockIcon,
   PlusIcon,
-  PaperAirplaneIcon
+  PaperAirplaneIcon,
+  MagnifyingGlassIcon,
+  Squares2X2Icon,
+  TableCellsIcon
 } from '@heroicons/react/24/solid';
-import {
-  Page,
-  Container,
-  PageHeader,
-} from '../components/ui/Layout';
-import { Button } from '../components/ui/Button';
-import { TextInput } from '../components/ui/Input';
-import GlobalSearch from '../components/GlobalSearch';
-import styled, { keyframes } from 'styled-components';
 import DataDictionaryModal from './DataDictionaryModal';
 import BulkFormUploadModal from './BulkFormUploadModal';
-// Context‑aware in‑app helper ("?" FAB + spotlight guidance)
 import HelpBeacon from './HelpBeacon';
+import useProducts from '../hooks/useProducts';
+import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
 
-/* --- lazy-load pdfjs only when needed -------------------------------- */
+/* ---------- Enhanced Desktop-First Styled Components ---------- */
+const Page = styled.div`
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 300px;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+    opacity: 0.08;
+    z-index: 0;
+  }
+`;
+
+const Navigation = styled.nav`
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+`;
+
+const NavList = styled.ul`
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 48px;
+
+  @media (max-width: 768px) {
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+`;
+
+const NavItem = styled.li``;
+
+const NavLink = styled(Link)`
+  text-decoration: none;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  position: relative;
+  letter-spacing: -0.01em;
+
+  &:hover {
+    color: #1e293b;
+    background: rgba(99, 102, 241, 0.08);
+    transform: translateY(-1px);
+  }
+
+  &.active {
+    color: #6366f1;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 4px;
+      background: #6366f1;
+      border-radius: 50%;
+    }
+  }
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+`;
+
+const MainContent = styled.main`
+  flex: 1;
+  padding: 60px 32px 80px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+
+  @media (max-width: 768px) {
+    padding: 40px 20px 60px;
+  }
+`;
+
+const PageTitle = styled.h1`
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1e293b 0%, #475569 50%, #64748b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 32px 0;
+  text-align: center;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+
+  @media (max-width: 768px) {
+    font-size: 1.5rem;
+    margin-bottom: 24px;
+  }
+`;
+
+const SearchContainer = styled.div`
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto 60px;
+  position: relative;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  gap: 16px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+
+  &:focus-within {
+    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.5);
+  }
+
+  @media (max-width: 768px) {
+    max-width: 100%;
+    margin-bottom: 40px;
+    padding: 8px 16px;
+  }
+`;
+
+const SearchInput = styled.input`
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 17px;
+  color: #1e293b;
+  padding: 10px 0;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+
+  &::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+  }
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+    padding: 6px 0;
+  }
+`;
+
+const SearchIcon = styled(MagnifyingGlassIcon)`
+  width: 24px;
+  height: 24px;
+  color: #6366f1;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+
+  ${SearchContainer}:focus-within & {
+    opacity: 1;
+  }
+`;
+
+// Action Bar
+const ActionBar = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  gap: 20px;
+  flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  padding: 20px 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+`;
+
+const ActionGroup = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+`;
+
+// View Toggle
+const ViewToggle = styled.div`
+  display: flex;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+`;
+
+const ViewToggleButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: ${({ active }) => active ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' : 'transparent'};
+  color: ${({ active }) => active ? '#ffffff' : '#64748b'};
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${({ active }) => active ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' : 'rgba(99, 102, 241, 0.1)'};
+    color: ${({ active }) => active ? '#ffffff' : '#6366f1'};
+  }
+`;
+
+const ProductsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 32px;
+  margin-bottom: 60px;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+`;
+
+// Table Container for table view
+const TableContainer = styled.div`
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  margin-bottom: 60px;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+`;
+
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+`;
+
+const TableHead = styled.thead`
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+`;
+
+const TableRow = styled.tr`
+  border-bottom: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.02);
+  }
+`;
+
+const TableHeader = styled.th`
+  padding: 16px 12px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+`;
+
+const TableCell = styled.td`
+  padding: 16px 12px;
+  font-size: 14px;
+  color: #64748b;
+  vertical-align: middle;
+`;
+
+const TableActions = styled.div`
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+`;
+
+const ProductCard = styled.div`
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 20px;
+  padding: 32px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  position: relative;
+  width: 100%;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  &:hover {
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+    transform: translateY(-4px);
+    border-color: rgba(99, 102, 241, 0.3);
+
+    &::before {
+      opacity: 1;
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 24px;
+    min-height: 280px;
+  }
+`;
+
+const ProductName = styled.h3`
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 24px 0;
+  padding-right: 120px;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+
+  @media (max-width: 768px) {
+    font-size: 20px;
+    margin-bottom: 20px;
+    padding-right: 100px;
+  }
+`;
+
+const ProductMeta = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+  margin-bottom: 28px;
+  font-size: 14px;
+
+  @media (max-width: 768px) {
+    gap: 12px 20px;
+    margin-bottom: 24px;
+  }
+`;
+
+const MetaItem = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const MetaLabel = styled.span`
+  font-weight: 700;
+  color: #64748b;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 2px;
+`;
+
+const MetaValue = styled.span`
+  color: #1e293b;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+`;
+
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+  margin-top: auto;
+
+  @media (max-width: 768px) {
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+`;
+
+const ActionButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: -0.01em;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.3);
+    color: #6366f1;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  @media (max-width: 768px) {
+    padding: 8px 12px;
+    font-size: 12px;
+    gap: 6px;
+  }
+`;
+
+const QuickLinks = styled.div`
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+  font-size: 13px;
+  align-items: center;
+
+  @media (max-width: 768px) {
+    gap: 12px;
+    font-size: 12px;
+  }
+`;
+
+const QuickLink = styled(Link)`
+  color: #6366f1;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  letter-spacing: -0.01em;
+
+  &:hover {
+    color: #4f46e5;
+    text-decoration: underline;
+  }
+`;
+
+const CardActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  position: absolute;
+  top: 20px;
+  right: 20px;
+
+  @media (max-width: 768px) {
+    top: 16px;
+    right: 16px;
+  }
+`;
+
+const IconButton = styled.button`
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.8);
+  backdrop-filter: blur(10px);
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.08);
+    color: #6366f1;
+    border-color: rgba(99, 102, 241, 0.3);
+    transform: translateY(-1px);
+  }
+
+  &.danger:hover {
+    background: rgba(239, 68, 68, 0.08);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  @media (max-width: 768px) {
+    width: 32px;
+    height: 32px;
+  }
+`;
+
+const AddButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 18px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
+  transition: all 0.3s ease;
+  margin: 0 auto;
+  letter-spacing: -0.01em;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #0891b2 100%);
+
+    &::before {
+      left: 100%;
+    }
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  @media (max-width: 768px) {
+    padding: 8px 16px;
+    font-size: 12px;
+    gap: 6px;
+
+    svg {
+      width: 12px;
+      height: 12px;
+    }
+  }
+`;
+
+const LoadingSpinner = styled.div`
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(226, 232, 240, 0.3);
+  border-radius: 50%;
+  border-top-color: #6366f1;
+  animation: spin 1s ease-in-out infinite;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 80px 20px;
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  max-width: 600px;
+  margin: 0 auto;
+
+  @media (max-width: 768px) {
+    padding: 60px 20px;
+  }
+`;
+
+const EmptyStateTitle = styled.h3`
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.01em;
+
+  @media (max-width: 768px) {
+    font-size: 20px;
+  }
+`;
+
+const EmptyStateText = styled.p`
+  font-size: 16px;
+  margin: 0;
+  color: #64748b;
+  font-weight: 500;
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+  }
+`;
+
+/* ---------- modal components ---------- */
+const Modal = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+`;
+
+const ModalContent = styled.div`
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 0;
+  width: 100%;
+  max-width: 650px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 24px 0;
+  margin-bottom: 24px;
+`;
+
+const ModalTitle = styled.h3`
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+`;
+
+const CloseButton = styled.button`
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #f3f4f6;
+    color: #374151;
+  }
+`;
+
+const FormField = styled.div`
+  margin-bottom: 20px;
+  padding: 0 24px;
+`;
+
+const FormLabel = styled.label`
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+`;
+
+const FormInput = styled.input`
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #111827;
+  background: #ffffff;
+  transition: border-color 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+`;
+
+const FileInput = styled.input`
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #111827;
+  background: #ffffff;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  }
+`;
+
+const FileName = styled.div`
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6b7280;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border-radius: 6px;
+`;
+
+const ModalActions = styled.div`
+  display: flex;
+  gap: 12px;
+  padding: 0 24px 24px;
+  justify-content: flex-end;
+`;
+
+const SaveButton = styled.button`
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a855f7 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+const CancelButton = styled.button`
+  padding: 12px 24px;
+  background: #ffffff;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #f9fafb;
+    color: #374151;
+  }
+`;
+
+/* ---------- summary modal components ---------- */
+const SummaryContent = styled.div`
+  padding: 0 24px 24px;
+`;
+
+const SummarySection = styled.div`
+  margin-bottom: 24px;
+`;
+
+const SummaryLabel = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+`;
+
+const SummaryValue = styled.div`
+  font-size: 14px;
+  color: #6b7280;
+`;
+
+const CoveragesList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const CoverageItem = styled.div`
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+`;
+
+const CoverageName = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 8px;
+`;
+
+const CoverageDesc = styled.div`
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 8px;
+  line-height: 1.5;
+`;
+
+const CoverageDetail = styled.div`
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 4px;
+`;
+
+/* ---------- details modal components ---------- */
+const DetailsList = styled.div`
+  padding: 0 24px 24px;
+`;
+
+const DetailItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f3f4f6;
+
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const DetailLabel = styled.div`
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+`;
+
+const DetailValue = styled.div`
+  font-size: 14px;
+  color: #6b7280;
+`;
+
+const DetailLink = styled.a`
+  color: #7c3aed;
+  text-decoration: none;
+  font-weight: 500;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+/* ---------- chat modal components ---------- */
+const ChatContainer = styled.div`
+  padding: 0 24px 24px;
+  height: 500px;
+  display: flex;
+  flex-direction: column;
+`;
+
+const ChatMessages = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+`;
+
+const ChatWelcome = styled.div`
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 20px;
+`;
+
+const ChatMessage = styled.div`
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: ${props => props.isUser ? 'flex-end' : 'flex-start'};
+`;
+
+const ChatMessageContent = styled.div`
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: ${props => props.isUser ? '#7c3aed' : '#ffffff'};
+  color: ${props => props.isUser ? '#ffffff' : '#374151'};
+  border: ${props => props.isUser ? 'none' : '1px solid #e5e7eb'};
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+`;
+
+const ChatInputContainer = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+`;
+
+const ChatInput = styled.textarea`
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #111827;
+  background: #ffffff;
+  resize: none;
+  min-height: 44px;
+  max-height: 120px;
+  font-family: inherit;
+
+  &:focus {
+    outline: none;
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+`;
+
+const ChatSendButton = styled.button`
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 8px;
+  background: #7c3aed;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: #6d28d9;
+  }
+
+  &:disabled {
+    background: #e5e7eb;
+    cursor: not-allowed;
+  }
+`;
+
+/* ---------- rules modal components ---------- */
+const RulesContainer = styled.div`
+  padding: 0 24px 24px;
+`;
+
+const RulesOutput = styled.div`
+  margin-top: 24px;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+`;
+
+const RulesTitle = styled.h4`
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+`;
+
+const RulesContent = styled.div`
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+  white-space: pre-wrap;
+`;
+
+/* ---------- lazy-load pdfjs ---------- */
 let pdfjsLib = null;
 const loadPdfJs = async () => {
   if (pdfjsLib) return pdfjsLib;
@@ -60,16 +1067,14 @@ const loadPdfJs = async () => {
   return pdfjsLib;
 };
 
-
-/* -------------------------------------------------- */
-/*  Claude system instructions (passed to the helper) */
+/* ---------- system prompts ---------- */
 const SYSTEM_INSTRUCTIONS = `
 Persona: You are an expert in P&C insurance products. Your task is to analyze the provided insurance document text and extract key information into a structured JSON format.
 
 **Understand the following definitions:**
 
 - **Product:** The name of the insurance product, representing a distinct insurance offering or line. It is typically defined by a base coverage form (e.g., Commercial Property product uses base form CP 00 10) that encompasses one or more core coverages. It may also include additional endorsement coverages offered under the same product but not included in the base form.
-- **Coverage:** A specific provision within an insurance policy that offers protection against designated perils or risks to particular subjects, such as property, persons, or liabilities. It outlines the extent of the insurer’s obligation to compensate for covered losses, including maximum limits per occurrence and in aggregate, conditions under which coverage applies, exclusions that limit its scope, and any deductibles the insured must meet before benefits are paid.
+- **Coverage:** A specific provision within an insurance policy that offers protection against designated perils or risks to particular subjects, such as property, persons, or liabilities. It outlines the extent of the insurer's obligation to compensate for covered losses, including maximum limits per occurrence and in aggregate, conditions under which coverage applies, exclusions that limit its scope, and any deductibles the insured must meet before benefits are paid.
 
 **Instructions:**
 
@@ -80,7 +1085,7 @@ Persona: You are an expert in P&C insurance products. Your task is to analyze th
    - **Notice:** A policyholder notice explaining certain revisions and other mandatory legal disclaimers.
    - **Dec/Quote:** The cover letter of the policy explaining all the policyholder information, coverages, limits, deductibles, list of forms attached, etc.
 
-2. **Identify All Coverages:** 
+2. **Identify All Coverages:**
    - For each coverage, extract the following details:
      - **coverageName:** The name of the coverage. If not explicitly stated, infer based on context.
      - **scopeOfCoverage:** A description of what is covered, including specific items or scenarios.
@@ -119,542 +1124,195 @@ Persona: You are an expert in P&C insurance products. Your task is to analyze th
 }
 `;
 
-/* ---------- system prompt for RULE extraction ---------- */
-const RULES_SYSTEM_PROMPT = `
-You are an insurance policy analysis assistant. Extract all **Product Rules** and **Rating Rules** from the provided document text and output them in JSON.
-
-**Definitions**
-• *Product Rules* – Eligibility / underwriting / issuance criteria or restrictions for an insurance product.  
-• *Rating Rules*  – Instructions that determine premium, such as base rates, surcharges, credits, modifiers, discounts.
-
-**Output format**
-{
-  "rules":[
-    {
-      "ruleType":"Product",
-      "description":"short sentence",
-      "conditions":["condition1","condition2"],
-      "appliesTo":"context"
-    }
-  ]
-}
-
-Return **only** the JSON object. No commentary. Be concise.
-`;
-
-
-/* ---------- system prompt for FORM COMPARISON ---------- */
-const COMPARE_SYSTEM_PROMPT = `
-You are an insurance coverage-analysis assistant.
-
-**Task**
-Given two insurance policy documents (the product’s original form and an uploaded form), list all coverages, then indicate:
-• coverages unique to the original form
-• coverages unique to the uploaded form
-• coverages common to both (treat different wording for the same concept as the same).
-
-**Return ONLY this JSON:**
-{
-  "originalUnique": ["Coverage X"],
-  "uploadedUnique": ["Coverage Y"],
-  "commonCoverages": ["Coverage Z"]
-}
-Return empty arrays when a section has none.
-`;
-
-/* ---------- prompt to extract only coverage names ---------- */
-const COVERAGE_LIST_PROMPT = `
-You are an insurance coverage‑extraction assistant.
-
-**Task**  
-Read the supplied insurance policy text (all lines already concatenated) and return a JSON object with one key **"coverages"** whose value is an array of distinct coverage names found.  
-• Omit duplicates and obvious aliases (e.g. “Debris Removal Coverage” → “Debris Removal”).  
-• Do not include exclusions or conditions.  
-• When you do not find any coverages return an empty array.  
-
-**Return *only* the JSON – no markdown fencing, comments or prose.**
-`;
-
-
-/* ------------------------------------------------------------------ */
-/* styled helpers local to this file -------------------------------- */
-const Table = styled.table`
-  width: 100%;
-  background: ${({ theme }) => theme.colours.bg};
-  border-radius: ${({ theme }) => theme.radius};
-  border-collapse: collapse;
-  box-shadow: ${({ theme }) => theme.shadow};
-`;
-
-const THead = styled.thead`
-  background: ${({ theme }) => theme.colours.tableHeader};
-`;
-
-const Tr = styled.tr`
-  border-bottom: 1px solid #e5e7eb;
-
-  /* subtle zebra‑striping & hover highlight */
-  &:nth-child(even) {
-    background: #f9fafb;
-  }
-  &:hover {
-    background: #eef2ff;
-  }
-`;
-
-const Th = styled.th`
-  padding: 12px;
-  text-align: ${({ align = 'center' }) => align};
-  font-size: 14px;
-  font-weight: 500;
-  color: #6b7280;
-`;
-
-const Td = styled.td`
-  padding: 12px;
-  text-align: ${({ align = 'center' }) => align};
-  font-size: 14px;
-`;
-
-export const TdAI = styled(Td)`
-  width: 160px;
-  text-align: center;
-`;
-
-const Actions = styled.div`
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-`;
-
-
-/**
- * Modal backdrop for ProductHub modals: white with opacity and blur to
- * keep the context visible while focusing on the modal content.
- */
-const Overlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const Modal = styled.div`
-  background: #ffffff;
-  border-radius: ${({ theme }) => theme.radius};
-  padding: 24px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
-`;
-
-const ModalHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-`;
-
-const ModalTitle = styled.h3`
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-`;
-
-const CloseBtn = styled(Button).attrs({ variant: 'ghost' })`
-  padding: 4px 8px;
-`;
-
-/* ------------------------------------------------------------------ */
-
-
-/* ---------- navigation tabs ---------- */
-const Tabs = styled.div`
-  display: flex;
-  gap: 24px;
-  align-items: center;
-`;
-
-const BaseTab = `
-  padding: 8px 14px;
-  font-weight: 600;
-  border-bottom: 2px solid transparent;
-  border-radius: 6px 6px 0 0;
-  color: ${({ theme }) => theme.colours.text};
-  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
-
-  &:hover {
-    color: ${({ theme }) => theme.colours.primaryLight};
-    background: rgba(139, 92, 246, 0.07);          /* subtle purple tint on hover */
-    border-color: ${({ theme }) => theme.colours.primaryLight};
-  }
-`;
-
-const TabLink = styled(Link)`
-  ${BaseTab}
-  text-decoration: none;
-
-  &.active {
-    color: ${({ theme }) => theme.colours.primaryDark};
-    background: rgba(139, 92, 246, 0.12);          /* persists subtle tint */
-    border-color: ${({ theme }) => theme.colours.primary};
-  }
-`;
-
-const TabButton = styled(Button).attrs({ variant: 'ghost' })`
-  ${BaseTab}
-`;
-
-const FieldInput = styled(TextInput)`
-  margin-bottom: 16px;
-`;
-
-
-
-const HistoryButton = styled.button`
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
-  width: 45px;
-  height: 45px;
-  border: none;
-  border-radius: 50%;
-  background: #374151;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  cursor: pointer;
-  z-index: 1100;
-  transition: right 0.3s ease, background 0.25s ease;
-  &:hover { background: #1f2937; }
-`;
-
-/** Floating Action‑Button (consistent with CoverageScreen) */
-const AddFab = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: linear-gradient(135deg,#7e5bef 0%,#8b5cf6 50%,#a855f7 100%);
-  color: #fff;
-  border: none;
-  border-radius: 28px;
-  padding: 10px 18px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 14px rgba(0,0,0,0.16);
-  }
-  &:active { transform: translateY(0); }
-`;
-
-
-const ModalLink = styled.a`
-  color: ${({ theme }) => theme.colours.primary};
-  text-decoration: underline;
-  cursor: pointer;
-`;
-
-const SummaryButton = styled(Button).attrs({ variant: 'ghost' })`
-  height: 36px;
-  padding: 0 12px;
-`;
-
-const ActionGroup = styled.div`
-  display: flex;
-  gap: 6px;
-  align-items: center;
-`;
-
-const NavLinkStyled = styled(Link)`
-  font-weight: 600;
-  padding: 2px 0;
-  transition: color 0.25s ease, opacity 0.25s ease;
-  opacity: 0.9;
-  &:hover { opacity: 1; color: ${({ theme }) => theme.colours.primaryDark}; }
-  &.active { color: ${({ theme }) => theme.colours.primaryDark}; }
-`;
-
-const HiddenFileInput = styled.input.attrs({ type: 'file' })`
-  display: none;
-`;
-
-const FileUploader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-`;
-
-// Spinner for loading state
-const spin = keyframes`
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-`;
-const Spinner = styled.div`
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #6366f1;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: ${spin} 1s linear infinite;
-  margin: 100px auto;
-`;
-
-/* Animated AI "working" dots --------------------------------------- */
-const dotWave = keyframes`
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
-`;
-const AILoader = styled.div`
-  display: inline-block;
-  position: relative;
-  width: 32px;
-  height: 8px;
-  & div {
-    position: absolute;
-    top: 0;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: ${({ theme }) => theme.colours.primary};
-    animation: ${dotWave} 1s infinite ease-in-out both;
-  }
-  & div:nth-child(1) { left: 0; animation-delay: 0s; }
-  & div:nth-child(2) { left: 10px; animation-delay: 0.15s; }
-  & div:nth-child(3) { left: 20px; animation-delay: 0.3s; }
-`;
-
-/* ---- Chat UI (iMessage‑style) ----------------------------------- */
-const ChatContainer = styled.div`
-  height: 55vh;
-  overflow-y: auto;
-  padding: 0 4px 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const ChatBubble = styled.div`
-  max-width: 78%;
-  padding: 10px 14px;
-  border-radius: 18px;
-  font-size: 14px;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  color: ${({ isUser }) => (isUser ? '#fff' : '#111827')};
-  background: ${({ isUser }) =>
-    isUser
-      ? 'linear-gradient(135deg,#7e5bef 0%,#8b5cf6 50%,#a855f7 100%)'
-      : '#f3f4f6'};
-  align-self: ${({ isUser }) => (isUser ? 'flex-end' : 'flex-start')};
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-`;
-
-const ChatBar = styled.div`
-  display: flex;
-  gap: 8px;
-`;
-
-const SendBtn = styled(Button)`
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-/* ------------------------------------------------------------------ */
-
 export default function ProductHub() {
-  // Help beacon definitions  ------------------------------------------------
-  const helpSections = [
-    {
-      id: 'add',
-      title: 'Add Product',
-      body: 'Create a new product shell. Opens a modal where you can enter core metadata and attach the base form.',
-      selector: '#add-product-btn'
-    },
-    {
-      id: 'bulk',
-      title: 'Bulk Upload Forms',
-      body: 'Upload multiple PDFs at once – the system extracts form metadata automatically.',
-      selector: '#bulk-upload-btn'
-    },
-    {
-      id: 'history',
-      title: 'Version Control',
-      body: 'Track every change. Click again to collapse.',
-      selector: '#history-toggle'
-    },
-    {
-      id:'summary',
-      title:'Summary',
-      body:'AI‑generated overview of the base coverage form.',
-      selector:'#help-summary-btn'
-    },
-    {
-      id:'chat',
-      title:'Chat',
-      body:'Ask questions about the product – the AI has full context.',
-      selector:'#help-chat-btn'
-    },
-    {
-      id:'rules',
-      title:'Rules',
-      body:'Upload a rules manual and extract underwriting & rating rules.',
-      selector:'#help-rules-btn'
-    }
-  ];
-  /* ---------- React state -------------------------------------------------- */
-  // Anything related to server‑data is grouped first, followed by UI & modal state.
-  // This ordering makes the render‑tree easier to scan.
-  const [products, setProducts] = useState([]);
-  // add history sidebar state
-  const [historyOpen, setHistoryOpen] = useState(false);
-  // When the version‑control sidebar slides, push its width to a CSS
-  // custom property so global fixed elements (e.g. the profile icon in App.js)
-  // can read it without prop‑drilling.
-  useEffect(() => {
-    document.body.style.setProperty('--vc-offset', historyOpen ? `${SIDEBAR_WIDTH}px` : '0');
-    return () => document.body.style.removeProperty('--vc-offset');
-  }, [historyOpen]);
+  const { products, loading, error } = useProducts();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
   const [rawSearch, setRawSearch] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
 
-  const [loadingSummary, setLoadingSummary] = useState({});
-  const [summaryError, setSummaryError] = useState('');
-  const [summaryModalOpen, setSummaryModalOpen] = useState(false);
-  const [modalData, setModalData] = useState(null);
-
-  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-
-  /* modal state ---------------------------------------------------- */
+  // Modal states
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [dictModalOpen, setDictModalOpen] = useState(false);
+  const [summaryModalOpen, setSummaryModalOpen] = useState(false);
+  const [chatModalOpen, setChatModalOpen] = useState(false);
+  const [rulesModalOpen, setRulesModalOpen] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
 
-  /* form state */
+  // Form states
   const [name, setName] = useState('');
   const [formNumber, setFormNumber] = useState('');
   const [productCode, setProductCode] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
   const [file, setFile] = useState(null);
 
-  const [loading, setLoading] = useState(true);
+  // AI states
+  const [loadingSummary, setLoadingSummary] = useState({});
+  const [modalData, setModalData] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
-  const location = useLocation();
-
-  const fileInputRef = useRef();
-
-  const formatMMYY = value => {
-    const digits = value.replace(/\D/g, '').slice(0, 4);
-    if (digits.length < 3) return digits;
-    return digits.slice(0, 2) + '/' + digits.slice(2);
-  };
-
-  /* chat modal */
-  const [chatModalOpen, setChatModalOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState([]);   // {role:'user'|'assistant', content:''}
+  // Chat states
+  const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
-  const [chatPdfText, setChatPdfText] = useState('');   // cached pdf text for the selected product
-  const chatEndRef = useRef(null);
-  useEffect(() => {
-    if (chatModalOpen) {
-      // scroll on open or new message
-      chatEndRef.current?.scrollIntoView({ behaviour: 'smooth' });
-    }
-  }, [chatModalOpen, chatMessages]);
+  const [chatPdfText, setChatPdfText] = useState('');
 
-  /* compare modal */
-  const [compareModalOpen, setCompareModalOpen] = useState(false);
-  const [compareProduct, setCompareProduct] = useState(null);
-  const [compareResult, setCompareResult] = useState(null);
-  const [compareError, setCompareError] = useState('');
-  const [compareWorking, setCompareWorking] = useState(false);
-  const compareInputRef = useRef();
-
-  /* ---------- Data‑Dictionary (Firestore‑backed) ---------- */
-  const [dictModalOpen, setDictModalOpen] = useState(false);
-
-  /* ---- CHAT HISTORY persistence helpers ---- */
-  const loadChatHistory = async (productId) => {
-    try {
-      const snap = await getDoc(doc(db, 'productChats', productId));
-      if (snap.exists()) {
-        const data = snap.data();
-        if (Array.isArray(data.messages)) {
-          setChatMessages(data.messages);
-        }
-      }
-    } catch (err) {
-      console.error('Load chat history failed', err);
-    }
-  };
-
-  const saveChatHistory = async (productId, msgs) => {
-    try {
-      await setDoc(doc(db, 'productChats', productId), { messages: msgs });
-    } catch (err) {
-      console.error('Save chat history failed', err);
-    }
-  };
-
-  // ----- rules extraction modal -----
-  const [rulesModalOpen, setRulesModalOpen] = useState(false);
-  const [rulesProduct, setRulesProduct] = useState(null);
+  // Rules states
   const [rulesFile, setRulesFile] = useState(null);
+  const [rulesData, setRulesData] = useState(null);
   const [rulesLoading, setRulesLoading] = useState(false);
-  const [rulesData, setRulesData] = useState(null);   // array of extracted rules
 
-  // 2. Initial products fetch (no live listener to avoid N× reads – poll/refresh on demand)
-  /* fetch once ----------------------------------------------------- */
-  useEffect(() => {
-    setLoading(true);
-    getDocs(collection(db, 'products'))
-      .then(snap => {
-        setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-        setLoading(false);
-      })
-      .catch(err => {
-        alert('Failed to load products');
-        setLoading(false);
-      });
-  }, []);
+  // View mode state - Default to card view
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
 
-  /* suggestions ---------------------------------------------------- */
-  useEffect(() => {
-    if (!searchTerm.trim()) return setSuggestions([]);
-    const lower = searchTerm.toLowerCase();
-    setSuggestions(
-      [...new Set(products.map(p => p.name).filter(n => n.toLowerCase().includes(lower)))]
-        .slice(0, 10)
-    );
-  }, [searchTerm, products]);
+  // Version control
+  const [historyOpen, setHistoryOpen] = useState(false);
 
-  /* --- debounce rawSearch -> searchTerm (250 ms) --- */
+  // Debounce search
   useEffect(() => {
     const id = setTimeout(() => setSearchTerm(rawSearch.trim()), 250);
     return () => clearTimeout(id);
   }, [rawSearch]);
 
-  /* helpers -------------------------------------------------------- */
+  // Filter products
+  const filtered = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return products.filter(p => p.name.toLowerCase().includes(q));
+  }, [products, searchTerm]);
+
+  // Helper functions
+  const handleOpenDetails = (product) => {
+    setSelectedProduct(product);
+    setDetailsModalOpen(true);
+  };
+
+  const handleEdit = (product) => {
+    setEditingId(product.id);
+    setName(product.name);
+    setFormNumber(product.formNumber || '');
+    setProductCode(product.productCode || '');
+    setEffectiveDate(product.effectiveDate || '');
+    setModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete product?')) return;
+    try {
+      await deleteDoc(doc(db, 'products', id));
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert('Failed to delete product');
+    }
+  };
+
+  const handleSummary = async (id, url) => {
+    if (!url) {
+      alert('No form uploaded for this product.');
+      return;
+    }
+    setLoadingSummary(prev => ({ ...prev, [id]: true }));
+
+    try {
+      // Extract text from PDF
+      await loadPdfJs();
+      const loadingTask = pdfjsLib.getDocument(url);
+      const pdf = await loadingTask.promise;
+      let text = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const strings = content.items.map(item => item.str);
+        text += strings.join(' ') + '\n';
+      }
+
+      // Keep first ~100k tokens to stay safely under GPT limit
+      const snippet = text.split(/\s+/).slice(0, 100000).join(' ');
+
+      // Call OpenAI
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: SYSTEM_INSTRUCTIONS.trim() },
+            { role: 'user', content: snippet }
+          ]
+        })
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+      const { choices } = await res.json();
+
+      // Clean response
+      const cleaned = choices[0].message.content
+        .replace(/```json\n?/, '')
+        .replace(/\n?```/, '')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .trim();
+
+      let summaryJson;
+      try {
+        summaryJson = JSON.parse(cleaned);
+      } catch {
+        throw new Error('Failed to parse AI response');
+      }
+
+      if (!summaryJson.category || !Array.isArray(summaryJson.coverages)) {
+        throw new Error('Invalid AI response format');
+      }
+
+      setModalData(summaryJson);
+      setSummaryModalOpen(true);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Summary failed.');
+    } finally {
+      setLoadingSummary(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  const openChat = async (product) => {
+    setSelectedProduct(product);
+    setChatModalOpen(true);
+    setChatMessages([]);
+    setChatInput('');
+    setChatLoading(false);
+
+    // Load PDF text for context if available
+    if (product.formDownloadUrl) {
+      try {
+        await loadPdfJs();
+        const loadingTask = pdfjsLib.getDocument(product.formDownloadUrl);
+        const pdf = await loadingTask.promise;
+        let text = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          text += content.items.map(it => it.str).join(' ') + '\n';
+        }
+        setChatPdfText(text.split(/\s+/).slice(0, 100000).join(' '));
+      } catch (err) {
+        console.error('Failed to load PDF for chat:', err);
+        setChatPdfText('');
+      }
+    } else {
+      setChatPdfText('');
+    }
+  };
+
+  const openRulesModal = (product) => {
+    setSelectedProduct(product);
+    setRulesModalOpen(true);
+    setRulesFile(null);
+    setRulesData(null);
+  };
+
   const resetForm = () => {
     setEditingId(null);
     setName('');
@@ -664,16 +1322,12 @@ export default function ProductHub() {
     setFile(null);
   };
 
-  const refresh = async () => {
-    const snap = await getDocs(collection(db, 'products'));
-    setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  const formatMMYY = value => {
+    const digits = value.replace(/\D/g, '').slice(0, 4);
+    if (digits.length < 3) return digits;
+    return digits.slice(0, 2) + '/' + digits.slice(2);
   };
 
-  /* ---------- CRUD handlers ------------------------------------------------- */
-  /**
-   * Save (create or update) a product and optionally upload a PDF form.
-   * Handles both create and update flows, then refreshes the product list.
-   */
   const handleSave = async () => {
     if (!name || !formNumber || !effectiveDate) {
       alert('Name, Form # and Effective Date are required');
@@ -703,176 +1357,88 @@ export default function ProductHub() {
           formDownloadUrl: downloadUrl
         });
       }
-      await refresh();
       setModalOpen(false);
       resetForm();
-    } catch {
+    } catch (error) {
+      console.error('Save failed:', error);
       alert('Save failed');
     }
   };
 
-  /**
-   * Delete a product by ID after user confirmation.
-   * Removes the product from Firestore and updates local state.
-   */
-  const handleDelete = async id => {
-    if (!window.confirm('Delete product?')) return;
-    await deleteDoc(doc(db, 'products', id));
-    setProducts(ps => ps.filter(p => p.id !== id));
+  const handleChatSend = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMessage = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setChatLoading(true);
+
+    try {
+      const systemPrompt = `You are an expert insurance assistant helping with questions about the product "${selectedProduct?.name}". ${
+        chatPdfText ? 'Use the following form text as context for your answers:\n\n' + chatPdfText.slice(0, 50000) : 'No form text is available for this product.'
+      }`;
+
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...chatMessages.slice(-10), // Keep last 10 messages for context
+            { role: 'user', content: userMessage }
+          ],
+          max_tokens: 1000,
+          temperature: 0.7
+        })
+      });
+
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      const data = await res.json();
+      const aiResponse = data.choices?.[0]?.message?.content?.trim();
+
+      if (aiResponse) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+      } else {
+        throw new Error('No response from AI');
+      }
+    } catch (error) {
+      console.error('Chat failed:', error);
+      setChatMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Sorry, I encountered an error. Please try again.'
+      }]);
+    } finally {
+      setChatLoading(false);
+    }
   };
 
-  const handleOpenDetails = product => {
-    setSelectedProduct(product);
-    setDetailsModalOpen(true);
-  };
-
-  /**
-   * Generate and display an AI summary of the selected product's PDF form.
-   * Extracts text from the PDF, sends it to OpenAI, and shows the structured result.
-   */
-  const handleSummary = async (id, url) => {
-    if (!url) {
-      alert('No form uploaded for this product.');
+  const handleRulesExtraction = async () => {
+    if (!rulesFile) {
+      alert('Please select a PDF file first.');
       return;
     }
-    setLoadingSummary(prev => ({ ...prev, [id]: true }));
-    setSummaryError('');
-    setModalData(null);
 
-    try {
-      // -------- extract text from the PDF --------
-      await loadPdfJs();
-      const loadingTask = pdfjsLib.getDocument(url);
-      const pdf = await loadingTask.promise;
-      let text = '';
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        const strings = content.items.map(item => item.str);
-        text += strings.join(' ') + '\n';
-      }
-
-      // Keep first ~100k tokens to stay safely under GPT‑4o limit
-      const snippet = text.split(/\s+/).slice(0, 100000).join(' ');
-
-      // -------- call OpenAI GPT‑4o --------
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            { role: 'system', content: SYSTEM_INSTRUCTIONS.trim() },
-            { role: 'user', content: snippet }
-          ]
-        })
-      });
-
-      if (!res.ok) throw new Error(await res.text());
-      const { choices } = await res.json();
-
-      // Clean ```json fences if present
-      const cleaned = choices[0].message.content
-        .replace(/```json\n?/, '')
-        .replace(/\n?```/, '')
-        .replace(/[\u200B-\u200D\uFEFF]/g, '')
-        .trim();
-
-      let summaryJson;
-      try {
-        summaryJson = JSON.parse(cleaned);
-      } catch {
-        throw new Error('Failed to parse AI response');
-      }
-
-      if (!summaryJson.category || !Array.isArray(summaryJson.coverages)) {
-        throw new Error('Invalid AI response format');
-      }
-
-      setModalData(summaryJson);
-      setSummaryModalOpen(true);
-    } catch (err) {
-      console.error(err);
-      setSummaryError(err.message || 'Summary failed.');
-    } finally {
-      setLoadingSummary(prev => ({ ...prev, [id]: false }));
-    }
-  };
-
-  // --- open chat ---------------------------------------------------
-  const openChat = async (product) => {
-    try {
-      setChatModalOpen(true);
-      setChatMessages([]);               // reset
-      setChatInput('');
-      setChatLoading(false);
-
-      await loadChatHistory(product.id);
-
-      // if we already pulled text for this product in this session keep it
-      if (chatPdfText && selectedProduct?.id === product.id) return;
-
-      setSelectedProduct(product);
-
-      if (!product.formDownloadUrl) {
-        setChatPdfText('');
-        return;
-      }
-      // pull pdf text (same logic as summary)
-      await loadPdfJs();
-      const loadingTask = pdfjsLib.getDocument(product.formDownloadUrl);
-      const pdf = await loadingTask.promise;
-      let text = '';
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        text += content.items.map(it => it.str).join(' ') + '\n';
-      }
-      // keep a large slice but stay safe
-      setChatPdfText(text.split(/\s+/).slice(0, 100000).join(' '));
-    } catch (err) {
-      console.error(err);
-      alert('Failed to load document for chat.');
-    }
-  };
-
-  /* ===== Rules extraction helpers (top‑level) ===== */
-  const openRulesModal = (product) => {
-    setRulesProduct(product);
-    setRulesFile(null);
-    setRulesData(null);
-    setRulesModalOpen(true);
-  };
-
-  const handleRulesFile = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type === 'application/pdf') {
-      setRulesFile(file);
-    } else {
-      alert('Please choose a PDF.');
-    }
-  };
-
-  const extractRules = async () => {
-    if (!rulesFile) return;
     setRulesLoading(true);
     try {
-      /* --- read PDF file into text (client side) --- */
+      // Extract text from uploaded PDF
       await loadPdfJs();
       const arrayBuffer = await rulesFile.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      let rawText = '';
+      const loadingTask = pdfjsLib.getDocument(arrayBuffer);
+      const pdf = await loadingTask.promise;
+      let text = '';
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
-        const { items } = await page.getTextContent();
-        rawText += items.map(it => it.str).join(' ') + '\n';
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(' ') + '\n';
       }
-      const snippet = rawText.split(/\s+/).slice(0, 100000).join(' ');
 
-      /* --- call OpenAI (same pattern as summary/chat) --- */
+      const snippet = text.split(/\s+/).slice(0, 100000).join(' ');
+
+      // Call OpenAI for rules extraction
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -880,637 +1446,561 @@ export default function ProductHub() {
           'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
         },
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: 'gpt-4o-mini',
           messages: [
-            { role: 'system', content: RULES_SYSTEM_PROMPT.trim() },
+            {
+              role: 'system',
+              content: 'Extract all business rules, conditions, and logic from this insurance document. Format as a clear, structured list.'
+            },
             { role: 'user', content: snippet }
-          ]
+          ],
+          max_tokens: 2000,
+          temperature: 0.3
         })
       });
 
-      if (!res.ok) throw new Error(await res.text());
-      const { choices } = await res.json();
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      const data = await res.json();
+      const rules = data.choices?.[0]?.message?.content?.trim();
 
-      /* --- clean and parse JSON --- */
-      const cleaned = choices[0].message.content
-        .replace(/```json\n?/, '')
-        .replace(/\n?```/, '')
-        .replace(/[\u200B-\u200D\uFEFF]/g, '')
-        .trim();
-
-      const parsed = JSON.parse(cleaned);
-      setRulesData(Array.isArray(parsed.rules) ? parsed.rules : []);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to extract rules.');
+      if (rules) {
+        setRulesData(rules);
+      } else {
+        throw new Error('No rules extracted');
+      }
+    } catch (error) {
+      console.error('Rules extraction failed:', error);
+      alert('Failed to extract rules. Please try again.');
     } finally {
       setRulesLoading(false);
     }
   };
 
-
-  const openCompareModal = (product) => {
-    setCompareProduct(product);
-    setCompareResult(null);
-    setCompareError('');
-    setCompareModalOpen(true);
-  };
-
-  // ---- helper: extract coverage list with a small OpenAI call ----
-  const extractCoverageNames = async (plainText) => {
-    try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',          // cheaper + lower context
-          messages: [
-            { role: 'system', content: COVERAGE_LIST_PROMPT.trim() },
-            { role: 'user',   content: plainText.slice(0, 15000) } // ~3‑4k tokens
-          ]
-        })
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const { choices } = await res.json();
-      const cleaned = choices[0].message.content
-        .replace(/```json\n?|\n?```/g, '')
-        .trim();
-      const parsed = JSON.parse(cleaned);
-      return Array.isArray(parsed.coverages) ? parsed.coverages : [];
-    } catch (err) {
-      console.error('Coverage extraction failed', err);
-      return [];
-    }
-  };
-
-  const compareForms = async (file) => {
-    if (!file || !compareProduct?.formDownloadUrl) return;
-    setCompareWorking(true);
-    try {
-      await loadPdfJs();
-      /* --- pull original form text --- */
-      const origPdf = await pdfjsLib.getDocument(compareProduct.formDownloadUrl).promise;
-      let origText = '';
-      for (let i = 1; i <= origPdf.numPages; i++) {
-        const pg = await origPdf.getPage(i);
-        const tc = await pg.getTextContent();
-        origText += tc.items.map(t => t.str).join(' ') + '\n';
-      }
-
-      /* --- pull uploaded form text --- */
-      const buf = await file.arrayBuffer();
-      const upPdf = await pdfjsLib.getDocument({ data: buf }).promise;
-      let upText = '';
-      for (let i = 1; i <= upPdf.numPages; i++) {
-        const pg = await upPdf.getPage(i);
-        const tc = await pg.getTextContent();
-        upText += tc.items.map(t => t.str).join(' ') + '\n';
-      }
-
-      /* --- extract coverage names with two small calls --- */
-      const [origCov, upCov] = await Promise.all([
-        extractCoverageNames(origText),
-        extractCoverageNames(upText)
-      ]);
-
-      /* --- compare locally --- */
-      const origSet = new Set(origCov);
-      const upSet   = new Set(upCov);
-
-      const originalUnique = [...origSet].filter(c => !upSet.has(c));
-      const uploadedUnique = [...upSet].filter(c => !origSet.has(c));
-      const commonCoverages = [...origSet].filter(c => upSet.has(c));
-
-      setCompareResult({ originalUnique, uploadedUnique, commonCoverages });
-    } catch (err) {
-      console.error(err);
-      setCompareError(err.message || 'Compare failed');
-    } finally {
-      setCompareWorking(false);
-    }
-  };
-
-  const sendChat = async () => {
-    if (!chatInput.trim()) return;
-    const userMsg = chatInput.trim();
-    setChatMessages(msgs => {
-      const updated = [...msgs, { role: 'user', content: userMsg }];
-      saveChatHistory(selectedProduct.id, updated);
-      return updated;
-    });
-    setChatInput('');
-    setChatLoading(true);
-
-    try {
-      const systemPrompt = `${SYSTEM_INSTRUCTIONS.trim()}
-
-      When responding to the user, adopt a concise, conversational tone and answer the question **directly**. 
-      Reference the document only as needed, avoid long JSON unless explicitly requested, and prefer short sentences or bullet‑points suitable for a chat bubble.`;
-
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            { role: 'system', content: `${systemPrompt}\n\nDocument text:\n${chatPdfText}` },
-            { role: 'user', content: userMsg }
-          ]
-        })
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const { choices } = await res.json();
-      setChatMessages(msgs => {
-        const updated = [
-          ...msgs,
-          { role: 'assistant', content: choices[0].message.content.trim() }
-        ];
-        saveChatHistory(selectedProduct.id, updated);
-        return updated;
-      });
-    } catch (err) {
-      console.error(err);
-      alert('Chat failed');
-    } finally {
-      setChatLoading(false);
-    }
-  };
-
-  /* ---------- Render -------------------------------------------------------- */
-  const filtered = useMemo(() => {
-    const q = searchTerm.toLowerCase();
-    return products.filter(p => p.name.toLowerCase().includes(q));
-  }, [products, searchTerm]);
-
   if (loading) {
     return (
       <Page>
-        <Container>
-          <Spinner />
-        </Container>
+        <Navigation>
+          <NavList>
+            <NavItem>
+              <NavLink to="/" className={location.pathname === '/' ? 'active' : ''}>
+                Home
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/products" className={location.pathname === '/products' ? 'active' : ''}>
+                Products
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/product-builder" className={location.pathname.startsWith('/product-builder') ? 'active' : ''}>
+                Product Builder
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/product-explorer" className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}>
+                Explorer
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/data-dictionary" className={location.pathname === '/data-dictionary' ? 'active' : ''}>
+                Data Dictionary
+              </NavLink>
+            </NavItem>
+          </NavList>
+        </Navigation>
+        <MainContent>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+            <LoadingSpinner style={{ width: '40px', height: '40px' }} />
+          </div>
+        </MainContent>
+      </Page>
+    );
+  }
+
+  if (error) {
+    return (
+      <Page>
+        <Navigation>
+          <NavList>
+            <NavItem>
+              <NavLink to="/" className={location.pathname === '/' ? 'active' : ''}>
+                Home
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/products" className={location.pathname === '/products' ? 'active' : ''}>
+                Products
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/product-builder" className={location.pathname.startsWith('/product-builder') ? 'active' : ''}>
+                Product Builder
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/product-explorer" className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}>
+                Explorer
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/data-dictionary" className={location.pathname === '/data-dictionary' ? 'active' : ''}>
+                Data Dictionary
+              </NavLink>
+            </NavItem>
+          </NavList>
+        </Navigation>
+        <MainContent>
+          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#dc2626' }}>
+            <h3>Error loading products</h3>
+            <p>Please try refreshing the page.</p>
+          </div>
+        </MainContent>
       </Page>
     );
   }
 
   return (
     <Page>
-      <div style={{ flex: 1 }}>
-        <Container>
-        <PageHeader>
-          {/* Primary navigation */}
-          <Tabs>
-            <TabLink
-              to="/"
-              className={location.pathname === '/' ? 'active' : ''}
-            >
+      <Navigation>
+        <NavList>
+          <NavItem>
+            <NavLink to="/" className={location.pathname === '/' ? 'active' : ''}>
+              Home
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink to="/products" className={location.pathname === '/products' ? 'active' : ''}>
               Products
-            </TabLink>
-
-            <TabLink
-              to="/product-builder"
-              className={location.pathname.startsWith('/product-builder') ? 'active' : ''}
-            >
-              Builder
-            </TabLink>
-
-            <TabLink
-              to="/product-explorer"
-              className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}
-            >
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink to="/product-builder" className={location.pathname.startsWith('/product-builder') ? 'active' : ''}>
+              Product Builder
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink to="/product-explorer" className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}>
               Explorer
-            </TabLink>
-            <TabLink onClick={() => setDictModalOpen(true)}>
-              Dictionary
-            </TabLink>
-            {/* HistoryTab removed */}
-          </Tabs>
-        </PageHeader>
-        <GlobalSearch value={rawSearch} onChange={setRawSearch} />
-        {filtered.length ? (
-          <Table>
-            <THead>
-              <Tr>
-                <Th>Name</Th>
-                <Th style={{ width: 400 }} align="center">AI</Th>
-                <Th style={{ width: 20 }}>Details</Th>
-                <Th style={{ width: 400 }}>Navigation</Th>
-                <Th align="center">Actions</Th>
-              </Tr>
-            </THead>
-            <tbody>
-              {filtered.map(p => (
-                <Tr key={p.id}>
-                  <Td align="left">{p.name}</Td>
-                  <TdAI>
-                    <ActionGroup>
-                      <SummaryButton
-                        id="help-summary-btn"
-                        onClick={() => handleSummary(p.id, p.formDownloadUrl)}
-                        disabled={loadingSummary[p.id]}
-                      >
-                        {loadingSummary[p.id] ? (
-                          <AILoader><div /><div /><div /></AILoader>
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink to="/data-dictionary" className={location.pathname === '/data-dictionary' ? 'active' : ''}>
+              Data Dictionary
+            </NavLink>
+          </NavItem>
+        </NavList>
+      </Navigation>
+
+      <MainContent>
+        <PageTitle>Product Hub</PageTitle>
+
+        <SearchContainer>
+          <SearchIcon />
+          <SearchInput
+            placeholder="Search any product, coverage, or form..."
+            value={rawSearch}
+            onChange={(e) => setRawSearch(e.target.value)}
+          />
+        </SearchContainer>
+
+        {/* Action Bar with View Toggle */}
+        <ActionBar>
+          <ActionGroup>
+            <ViewToggle>
+              <ViewToggleButton
+                active={viewMode === 'cards'}
+                onClick={() => setViewMode('cards')}
+              >
+                <Squares2X2Icon width={16} height={16} />
+                Cards
+              </ViewToggleButton>
+              <ViewToggleButton
+                active={viewMode === 'table'}
+                onClick={() => setViewMode('table')}
+              >
+                <TableCellsIcon width={16} height={16} />
+                Table
+              </ViewToggleButton>
+            </ViewToggle>
+          </ActionGroup>
+        </ActionBar>
+
+        {filtered.length > 0 ? (
+          viewMode === 'cards' ? (
+            <ProductsGrid>
+            {filtered.map(product => (
+              <ProductCard key={product.id}>
+                <CardActions>
+                  <IconButton onClick={() => handleOpenDetails(product)}>
+                    <InformationCircleIcon width={16} height={16} />
+                  </IconButton>
+                  <IconButton onClick={() => handleEdit(product)}>
+                    <PencilIcon width={16} height={16} />
+                  </IconButton>
+                  <IconButton className="danger" onClick={() => handleDelete(product.id)}>
+                    <TrashIcon width={16} height={16} />
+                  </IconButton>
+                </CardActions>
+
+                <ProductName>{product.name}</ProductName>
+
+                <ProductMeta>
+                  <MetaItem>
+                    <MetaLabel>Form Number</MetaLabel>
+                    <MetaValue>{product.formNumber || '-'}</MetaValue>
+                  </MetaItem>
+                  <MetaItem>
+                    <MetaLabel>Product Code</MetaLabel>
+                    <MetaValue>{product.productCode || '-'}</MetaValue>
+                  </MetaItem>
+                  <MetaItem>
+                    <MetaLabel>Effective Date</MetaLabel>
+                    <MetaValue>{product.effectiveDate || '-'}</MetaValue>
+                  </MetaItem>
+                </ProductMeta>
+
+                <ActionButtons>
+                  <ActionButton
+                    onClick={() => handleSummary(product.id, product.formDownloadUrl)}
+                    disabled={loadingSummary[product.id]}
+                  >
+                    {loadingSummary[product.id] ? (
+                      <LoadingSpinner />
+                    ) : (
+                      <DocumentTextIcon width={14} height={14} />
+                    )}
+                    Summary
+                  </ActionButton>
+                  <ActionButton onClick={() => openChat(product)}>
+                    <ChatBubbleLeftEllipsisIcon width={14} height={14} />
+                    Chat
+                  </ActionButton>
+                  <ActionButton onClick={() => openRulesModal(product)}>
+                    <DocumentMagnifyingGlassIcon width={14} height={14} />
+                    Rules
+                  </ActionButton>
+                </ActionButtons>
+
+                <QuickLinks>
+                  <QuickLink to={`/coverage/${product.id}`}>Coverages</QuickLink>
+                  <span>•</span>
+                  <QuickLink to={`/pricing/${product.id}`}>Pricing</QuickLink>
+                  <span>•</span>
+                  <QuickLink to={`/forms/${product.id}`}>Forms</QuickLink>
+                  <span>•</span>
+                  <QuickLink to={`/states/${product.id}`}>States</QuickLink>
+                  <span>•</span>
+                  <QuickLink to={`/rules/${product.id}`}>Rules</QuickLink>
+                </QuickLinks>
+              </ProductCard>
+            ))}
+            </ProductsGrid>
+          ) : (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableHeader>Product Name</TableHeader>
+                    <TableHeader>Form Number</TableHeader>
+                    <TableHeader>Product Code</TableHeader>
+                    <TableHeader>Effective Date</TableHeader>
+                    <TableHeader align="center">Actions</TableHeader>
+                  </TableRow>
+                </TableHead>
+                <tbody>
+                  {filtered.map(product => (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        <strong>{product.name}</strong>
+                      </TableCell>
+                      <TableCell>
+                        {product.formDownloadUrl ? (
+                          <a
+                            href={product.formDownloadUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: '#6366f1', textDecoration: 'none' }}
+                          >
+                            {product.formNumber || 'Download'}
+                          </a>
                         ) : (
-                          <>
-                            <DocumentTextIcon width={20} height={20} style={{ marginRight: 4 }} />
-                            Summary
-                          </>
+                          product.formNumber || '-'
                         )}
-                      </SummaryButton>
-
-                      <Button
-                        id="help-chat-btn"
-                        variant="ghost"
-                        onClick={() => openChat(p)}
-                        title="Chat about this form">
-                        <ChatBubbleLeftEllipsisIcon width={20} height={20} />
-                        <span style={{ marginLeft: 4 }}>Chat</span>
-                      </Button>
-                      <Button
-                        id="help-rules-btn"
-                        variant="ghost"
-                        onClick={() => openRulesModal(p)}
-                        title="Extract rules from PDF">
-                        <DocumentMagnifyingGlassIcon width={20} height={20} />
-                        <span style={{ marginLeft: 4 }}>Rules</span>
-                      </Button>
-                    </ActionGroup>
-                    {summaryError && <p style={{ color: 'red' }}>{summaryError}</p>}
-                  </TdAI>
-                  <Td>
-                    <Button variant="ghost" title="Details" onClick={() => handleOpenDetails(p)}>
-                      <InformationCircleIcon width={22} height={22} />
-                    </Button>
-                  </Td>
-                  <Td>
-                    <NavLinkStyled to={`/coverage/${p.id}`}>Coverages</NavLinkStyled> |{' '}
-                    <NavLinkStyled to={`/pricing/${p.id}`}>Pricing</NavLinkStyled> |{' '}
-                    <NavLinkStyled to={`/forms/${p.id}`}>Forms</NavLinkStyled> |{' '}
-                    <NavLinkStyled to={`/states/${p.id}`}>States</NavLinkStyled> |{' '}
-                    <NavLinkStyled to={`/rules/${p.id}`}>Rules</NavLinkStyled>
-                  </Td>
-                  <Td align="center">
-                    <Actions>
-                      <Link to={`/coverage/${p.id}`}>
-                        <Button variant="ghost">
-                          <PencilIcon width={20} height={20} />
-                        </Button>
-                      </Link>
-                      <Button variant="danger" onClick={() => handleDelete(p.id)}>
-                        <TrashIcon width={20} height={20} />
-                      </Button>
-                    </Actions>
-                  </Td>
-                </Tr>
-              ))}
-            </tbody>
-          </Table>
+                      </TableCell>
+                      <TableCell>{product.productCode || '-'}</TableCell>
+                      <TableCell>{product.effectiveDate || '-'}</TableCell>
+                      <TableCell>
+                        <TableActions>
+                          <IconButton onClick={() => handleOpenDetails(product)}>
+                            <InformationCircleIcon width={14} height={14} />
+                          </IconButton>
+                          <IconButton onClick={() => handleEdit(product)}>
+                            <PencilIcon width={14} height={14} />
+                          </IconButton>
+                          <IconButton className="danger" onClick={() => handleDelete(product.id)}>
+                            <TrashIcon width={14} height={14} />
+                          </IconButton>
+                        </TableActions>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </tbody>
+              </Table>
+            </TableContainer>
+          )
         ) : (
-          <p>No products found.</p>
+          <EmptyState>
+            <EmptyStateTitle>No products found</EmptyStateTitle>
+            <EmptyStateText>
+              {searchTerm ? 'Try adjusting your search terms' : 'Get started by adding your first product'}
+            </EmptyStateText>
+          </EmptyState>
         )}
-        {/* Action FABs (below table, left‑aligned) */}
-        <div style={{ display:'flex', gap:16, marginTop:32 }}>
-          <AddFab id="add-product-btn" onClick={() => setModalOpen(true)}>
-            <PlusIcon width={16} height={16} />
-            Add&nbsp;Product
-          </AddFab>
-          <AddFab id="bulk-upload-btn" onClick={() => setBulkOpen(true)}>
-            <PlusIcon width={16} height={16} />
-            Bulk&nbsp;Upload&nbsp;Forms
-          </AddFab>
-        </div>
-        </Container>
-      </div>
-      {/* Floating history button */}
-      <HistoryButton
-        id="history-toggle"
-        style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
-        onClick={() => setHistoryOpen(o => !o)}
-        aria-label="Version history"
-      >
-        <ClockIcon width={24} height={24} />
-      </HistoryButton>
-      {/* click‑away overlay for Version Control */}
-      {historyOpen && (
-        <div
-          onClick={() => setHistoryOpen(false)}
-          style={{ position: 'fixed', inset: 0, zIndex: 1098 }}
-        />
-      )}
-      <VersionControlSidebar
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        // optional: pass filters or userEmail if needed
-      />
 
-      {/* Add / Edit Modal */}
+        <AddButton onClick={() => setModalOpen(true)}>
+          <PlusIcon width={16} height={16} />
+          Add Product
+        </AddButton>
+      </MainContent>
+
+      {/* Add/Edit Modal */}
       {modalOpen && (
-        <Overlay onClick={() => { setModalOpen(false); resetForm(); }}>
-          <Modal onClick={e => e.stopPropagation()}>
+        <Modal onClick={() => { setModalOpen(false); resetForm(); }}>
+          <ModalContent onClick={e => e.stopPropagation()}>
             <ModalHeader>
               <ModalTitle>{editingId ? 'Edit' : 'Add'} Product</ModalTitle>
-              <CloseBtn variant="ghost" onClick={() => { setModalOpen(false); resetForm(); }}>
+              <CloseButton onClick={() => { setModalOpen(false); resetForm(); }}>
                 ✕
-              </CloseBtn>
+              </CloseButton>
             </ModalHeader>
-
-            <FieldInput placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
-            <FieldInput placeholder="Form Number" value={formNumber} onChange={e => setFormNumber(e.target.value)} />
-            <FieldInput placeholder="Product Code" value={productCode} onChange={e => setProductCode(e.target.value)} />
-            <FieldInput
-              placeholder="Effective Date (MM/YY)"
-              value={effectiveDate}
-              onChange={e => setEffectiveDate(formatMMYY(e.target.value))}
-            />
-            <FileUploader>
-              <HiddenFileInput ref={fileInputRef} onChange={e => setFile(e.target.files[0])} />
-              <Button onClick={() => fileInputRef.current.click()}>
-                Upload File
-              </Button>
-              {file && <span>{file.name}</span>}
-            </FileUploader>
-
-            <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-              <Button onClick={handleSave}>{editingId ? 'Update' : 'Create'}</Button>
-              <Button variant="ghost" onClick={() => { setModalOpen(false); resetForm(); }}>
-                Cancel
-              </Button>
-            </div>
-          </Modal>
-        </Overlay>
-      )}
-
-      {/* ---- Rules Extraction Modal ---- */}
-      {rulesModalOpen && (
-        <Overlay onClick={() => setRulesModalOpen(false)}>
-          <Modal onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
-            <ModalHeader>
-              <ModalTitle>Extract Rules</ModalTitle>
-              <CloseBtn onClick={() => setRulesModalOpen(false)}>✕</CloseBtn>
-            </ModalHeader>
-
-            <p>Please upload the PDF rules manual for <strong>{rulesProduct?.name}</strong>.</p>
-            <input
-              type="file"
-              accept=".pdf"
-              onChange={handleRulesFile}
-              style={{ marginBottom: 12 }}
-            />
-            {rulesFile && <p>Selected: {rulesFile.name}</p>}
-
-            <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-              <Button
-                onClick={extractRules}
-                disabled={!rulesFile || rulesLoading}
-              >
-                {rulesLoading ? 'Extracting…' : 'Send'}
-              </Button>
-              <Button variant="ghost" onClick={() => setRulesModalOpen(false)}>Cancel</Button>
-            </div>
-
-            {rulesData && rulesData.length > 0 && (
-              <div style={{ marginTop: 24, maxHeight: '45vh', overflowY: 'auto' }}>
-                <strong>Extracted Rules</strong>
-                <ul style={{ paddingLeft: 20, lineHeight: 1.5 }}>
-                  {rulesData.map((r, i) => (
-                    <li key={i} style={{ marginBottom: 8 }}>
-                      <strong>{r.ruleType}:</strong> {r.description}
-                      {r.conditions?.length > 0 && (
-                        <ul style={{ paddingLeft: 18, margin: '4px 0' }}>
-                          {r.conditions.map((c, j) => <li key={j}>{c}</li>)}
-                        </ul>
-                      )}
-                      {r.appliesTo && <em>Applies to: {r.appliesTo}</em>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </Modal>
-        </Overlay>
-      )}
-
-      {/* ---- Compare Modal ---- */}
-      {compareModalOpen && (
-        <Overlay onClick={() => setCompareModalOpen(false)}>
-          <Modal onClick={e => e.stopPropagation()} style={{ maxWidth: 650 }}>
-            <ModalHeader>
-              <ModalTitle>Compare Forms</ModalTitle>
-              <CloseBtn onClick={() => setCompareModalOpen(false)}>✕</CloseBtn>
-            </ModalHeader>
-
-            {!compareResult ? (
-              <>
-                <p>
-                  Upload a PDF to compare with{' '}
-                  <strong>{compareProduct?.name}</strong>.
-                </p>
-                {compareError && (
-                  <p style={{ color: 'red' }}>{compareError}</p>
-                )}
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  ref={compareInputRef}
-                  disabled={compareWorking}
-                  onChange={e =>
-                    e.target.files[0] && compareForms(e.target.files[0])
-                  }
-                />
-                {compareWorking && (
-                  <p style={{ marginTop: 12 }}>Comparing…</p>
-                )}
-              </>
-            ) : (
-              <div style={{ lineHeight: 1.5 }}>
-                <strong>This product has these unique coverages:</strong>
-                <ul>
-                  {compareResult.originalUnique.map((c, i) => (
-                    <li key={i}>{c}</li>
-                  ))}
-                </ul>
-
-                <strong>The uploaded form has these unique coverages:</strong>
-                <ul>
-                  {compareResult.uploadedUnique.map((c, i) => (
-                    <li key={i}>{c}</li>
-                  ))}
-                </ul>
-
-                <strong>Common coverages:</strong>
-                <ul>
-                  {compareResult.commonCoverages.map((c, i) => (
-                    <li key={i}>{c}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </Modal>
-        </Overlay>
-      )}
-
-      {/* ---- Summary Modal ---- */}
-      {summaryModalOpen && (
-        <Overlay onClick={() => setSummaryModalOpen(false)}>
-          <Modal onClick={e => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalTitle>AI Summary</ModalTitle>
-              <CloseBtn onClick={() => setSummaryModalOpen(false)}>✕</CloseBtn>
-            </ModalHeader>
-            {modalData ? (
-              <div style={{ lineHeight: 1.5 }}>
-                <p>
-                  <strong>Form&nbsp;Category:</strong> {modalData.category || '-'}
-                </p>
-
-                {Array.isArray(modalData.coverages) && modalData.coverages.length > 0 && (
-                  <>
-                    <strong>Coverages</strong>
-                    <ul style={{ paddingLeft: 20 }}>
-                      {modalData.coverages.map((c, idx) => (
-                        <li key={idx} style={{ marginBottom: 12 }}>
-                          <p style={{ margin: 0 }}>
-                            <strong>{c.coverageName || 'Unnamed Coverage'}</strong>
-                          </p>
-                          {c.scopeOfCoverage && (
-                            <p style={{ margin: '4px 0 0' }}>{c.scopeOfCoverage}</p>
-                          )}
-                          {c.limits && (
-                            <p style={{ margin: '4px 0 0' }}>
-                              <em>Limits:</em> {c.limits}
-                            </p>
-                          )}
-                          {Array.isArray(c.perilsCovered) && c.perilsCovered.length > 0 && (
-                            <p style={{ margin: '4px 0 0' }}>
-                              <em>Perils Covered:</em> {c.perilsCovered.join(', ')}
-                            </p>
-                          )}
-                          {Array.isArray(c.enhances) && c.enhances.length > 0 && (
-                            <p style={{ margin: '4px 0 0' }}>
-                              <em>Enhances:</em> {c.enhances.join(', ')}
-                            </p>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-
-                {Array.isArray(modalData.generalConditions) && modalData.generalConditions.length > 0 && (
-                  <>
-                    <strong>General Conditions</strong>
-                    <ul style={{ paddingLeft: 20 }}>
-                      {modalData.generalConditions.map((cond, idx) => (
-                        <li key={idx}>{cond}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-
-                {Array.isArray(modalData.generalExclusions) && modalData.generalExclusions.length > 0 && (
-                  <>
-                    <strong>General Exclusions</strong>
-                    <ul style={{ paddingLeft: 20 }}>
-                      {modalData.generalExclusions.map((exc, idx) => (
-                        <li key={idx}>{exc}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </div>
-            ) : (
-              <p>Loading…</p>
-            )}
-          </Modal>
-        </Overlay>
-      )}
-
-      {/* ---- Chat Modal ---- */}
-      {chatModalOpen && (
-        <Overlay onClick={() => setChatModalOpen(false)}>
-          <Modal onClick={e => e.stopPropagation()} style={{ maxWidth: 700 }}>
-            <ModalHeader>
-              <ModalTitle>AI Chat</ModalTitle>
-              <CloseBtn onClick={() => setChatModalOpen(false)}>✕</CloseBtn>
-            </ModalHeader>
-            <ChatContainer>
-              {chatMessages.map((m, idx) => (
-                <ChatBubble key={idx} isUser={m.role === 'user'}>
-                  {m.content}
-                </ChatBubble>
-              ))}
-              {chatLoading && (
-                <ChatBubble isUser={false}>AI is typing…</ChatBubble>
-              )}
-              <div ref={chatEndRef} />
-            </ChatContainer>
-            <ChatBar>
-              <TextInput
-                placeholder="Message…"
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') sendChat(); }}
-                style={{ flex: 1 }}
+            <FormField>
+              <FormLabel>Product Name</FormLabel>
+              <FormInput
+                placeholder="Enter product name"
+                value={name}
+                onChange={e => setName(e.target.value)}
               />
-              <SendBtn
-                onClick={sendChat}
-                disabled={chatLoading || !chatInput.trim()}
-                title="Send"
-              >
-                <PaperAirplaneIcon width={20} height={20} style={{ transform:'rotate(45deg)' }} />
-              </SendBtn>
-            </ChatBar>
-          </Modal>
-        </Overlay>
+            </FormField>
+
+            <FormField>
+              <FormLabel>Form Number</FormLabel>
+              <FormInput
+                placeholder="Enter form number"
+                value={formNumber}
+                onChange={e => setFormNumber(e.target.value)}
+              />
+            </FormField>
+
+            <FormField>
+              <FormLabel>Product Code</FormLabel>
+              <FormInput
+                placeholder="Enter product code"
+                value={productCode}
+                onChange={e => setProductCode(e.target.value)}
+              />
+            </FormField>
+
+            <FormField>
+              <FormLabel>Effective Date (MM/YY)</FormLabel>
+              <FormInput
+                placeholder="MM/YY"
+                value={effectiveDate}
+                onChange={e => setEffectiveDate(formatMMYY(e.target.value))}
+              />
+            </FormField>
+
+            <FormField>
+              <FormLabel>Upload Form (PDF)</FormLabel>
+              <FileInput
+                type="file"
+                accept=".pdf"
+                onChange={e => setFile(e.target.files[0])}
+              />
+              {file && <FileName>{file.name}</FileName>}
+            </FormField>
+
+            <ModalActions>
+              <SaveButton onClick={handleSave}>
+                {editingId ? 'Update' : 'Create'}
+              </SaveButton>
+              <CancelButton onClick={() => { setModalOpen(false); resetForm(); }}>
+                Cancel
+              </CancelButton>
+            </ModalActions>
+          </ModalContent>
+        </Modal>
       )}
 
-      {/* ---- Data‑Dictionary Modal ---- */}
+      {/* Summary Modal */}
+      {summaryModalOpen && modalData && (
+        <Modal onClick={() => setSummaryModalOpen(false)}>
+          <ModalContent onClick={e => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>AI Summary</ModalTitle>
+              <CloseButton onClick={() => setSummaryModalOpen(false)}>✕</CloseButton>
+            </ModalHeader>
+            <SummaryContent>
+              <SummarySection>
+                <SummaryLabel>Form Category:</SummaryLabel>
+                <SummaryValue>{modalData.category || '-'}</SummaryValue>
+              </SummarySection>
+
+              {Array.isArray(modalData.coverages) && modalData.coverages.length > 0 && (
+                <SummarySection>
+                  <SummaryLabel>Coverages:</SummaryLabel>
+                  <CoveragesList>
+                    {modalData.coverages.map((c, idx) => (
+                      <CoverageItem key={idx}>
+                        <CoverageName>{c.coverageName || 'Unnamed Coverage'}</CoverageName>
+                        {c.scopeOfCoverage && <CoverageDesc>{c.scopeOfCoverage}</CoverageDesc>}
+                        {c.limits && <CoverageDetail><strong>Limits:</strong> {c.limits}</CoverageDetail>}
+                        {Array.isArray(c.perilsCovered) && c.perilsCovered.length > 0 && (
+                          <CoverageDetail><strong>Perils:</strong> {c.perilsCovered.join(', ')}</CoverageDetail>
+                        )}
+                      </CoverageItem>
+                    ))}
+                  </CoveragesList>
+                </SummarySection>
+              )}
+            </SummaryContent>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {/* Details Modal */}
+      {detailsModalOpen && selectedProduct && (
+        <Modal onClick={() => setDetailsModalOpen(false)}>
+          <ModalContent onClick={e => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>Product Details</ModalTitle>
+              <CloseButton onClick={() => setDetailsModalOpen(false)}>✕</CloseButton>
+            </ModalHeader>
+            <DetailsList>
+              <DetailItem>
+                <DetailLabel>Form Number:</DetailLabel>
+                <DetailValue>
+                  {selectedProduct.formDownloadUrl ? (
+                    <DetailLink href={selectedProduct.formDownloadUrl} target="_blank" rel="noopener noreferrer">
+                      {selectedProduct.formNumber || 'Download'}
+                    </DetailLink>
+                  ) : (
+                    selectedProduct.formNumber || '-'
+                  )}
+                </DetailValue>
+              </DetailItem>
+              <DetailItem>
+                <DetailLabel>Product Code:</DetailLabel>
+                <DetailValue>{selectedProduct.productCode || '-'}</DetailValue>
+              </DetailItem>
+              <DetailItem>
+                <DetailLabel>Effective Date:</DetailLabel>
+                <DetailValue>{selectedProduct.effectiveDate || '-'}</DetailValue>
+              </DetailItem>
+            </DetailsList>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {/* Data Dictionary Modal */}
       <DataDictionaryModal
         open={dictModalOpen}
         onClose={() => setDictModalOpen(false)}
       />
 
+      {/* Chat Modal */}
+      {chatModalOpen && selectedProduct && (
+        <Modal onClick={() => setChatModalOpen(false)}>
+          <ModalContent onClick={e => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>Chat with {selectedProduct.name}</ModalTitle>
+              <CloseButton onClick={() => setChatModalOpen(false)}>✕</CloseButton>
+            </ModalHeader>
+            <ChatContainer>
+              <ChatMessages>
+                {chatMessages.length === 0 && (
+                  <ChatWelcome>
+                    Ask me anything about this insurance product. I have access to the form content to help answer your questions.
+                  </ChatWelcome>
+                )}
+                {chatMessages.map((msg, idx) => (
+                  <ChatMessage key={idx} isUser={msg.role === 'user'}>
+                    <ChatMessageContent isUser={msg.role === 'user'}>
+                      {msg.content}
+                    </ChatMessageContent>
+                  </ChatMessage>
+                ))}
+                {chatLoading && (
+                  <ChatMessage isUser={false}>
+                    <ChatMessageContent isUser={false}>
+                      <LoadingSpinner />
+                    </ChatMessageContent>
+                  </ChatMessage>
+                )}
+              </ChatMessages>
+              <ChatInputContainer>
+                <ChatInput
+                  placeholder="Ask a question about this product..."
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleChatSend())}
+                />
+                <ChatSendButton onClick={handleChatSend} disabled={!chatInput.trim() || chatLoading}>
+                  <PaperAirplaneIcon width={16} height={16} />
+                </ChatSendButton>
+              </ChatInputContainer>
+            </ChatContainer>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {/* Rules Modal */}
+      {rulesModalOpen && selectedProduct && (
+        <Modal onClick={() => setRulesModalOpen(false)}>
+          <ModalContent onClick={e => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>Extract Rules - {selectedProduct.name}</ModalTitle>
+              <CloseButton onClick={() => setRulesModalOpen(false)}>✕</CloseButton>
+            </ModalHeader>
+            <RulesContainer>
+              <FormField>
+                <FormLabel>Upload PDF for Rules Extraction</FormLabel>
+                <FileInput
+                  type="file"
+                  accept=".pdf"
+                  onChange={e => setRulesFile(e.target.files[0])}
+                />
+                {rulesFile && <FileName>{rulesFile.name}</FileName>}
+              </FormField>
+
+              <ModalActions>
+                <SaveButton onClick={handleRulesExtraction} disabled={!rulesFile || rulesLoading}>
+                  {rulesLoading ? <LoadingSpinner /> : 'Extract Rules'}
+                </SaveButton>
+              </ModalActions>
+
+              {rulesData && (
+                <RulesOutput>
+                  <RulesTitle>Extracted Business Rules:</RulesTitle>
+                  <RulesContent>{rulesData}</RulesContent>
+                </RulesOutput>
+              )}
+            </RulesContainer>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {/* Data Dictionary Modal */}
+      <DataDictionaryModal
+        open={dictModalOpen}
+        onClose={() => setDictModalOpen(false)}
+      />
+
+      {/* Bulk Upload Modal */}
       <BulkFormUploadModal
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
         products={products}
       />
-
-      {/* ---- Details Modal ---- */}
-      {detailsModalOpen && (
-        <Overlay onClick={() => setDetailsModalOpen(false)}>
-          <Modal onClick={e => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalTitle>Product Details</ModalTitle>
-              <CloseBtn onClick={() => setDetailsModalOpen(false)}>✕</CloseBtn>
-            </ModalHeader>
-            {selectedProduct && (
-              <div>
-                <p>
-                  <strong>Form #:</strong>{' '}
-                  {selectedProduct.formDownloadUrl ? (
-                    <ModalLink href={selectedProduct.formDownloadUrl} target="_blank" rel="noopener noreferrer">
-                      {selectedProduct.formNumber || 'Download'}
-                    </ModalLink>
-                  ) : (
-                    selectedProduct.formNumber || '-'
-                  )}
-                </p>
-                <p><strong>Product Code:</strong> {selectedProduct.productCode || '-'}</p>
-                <p><strong>Effective Date:</strong> {selectedProduct.effectiveDate || '-'}</p>
-              </div>
-            )}
-          </Modal>
-        </Overlay>
-      )}
-      <HelpBeacon sections={helpSections} />
     </Page>
   );
 }
-// ensure tree‑shaking removes if unused

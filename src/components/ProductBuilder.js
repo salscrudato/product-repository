@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { collection, collectionGroup, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, collectionGroup, getDocs, getDoc, addDoc, updateDoc, doc, query, where } from 'firebase/firestore';
 import { db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import styled, { keyframes } from 'styled-components';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
+import MainNavigation from '../components/ui/Navigation';
 import {
   Table,
   THead,
@@ -66,6 +66,132 @@ const TabButton = styled(Button).attrs({ variant: 'ghost' })`
   }
 `;
 
+/* ---------- Modern Styled Components ---------- */
+
+// Page - Clean gradient background with overlay
+const Page = styled.div`
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 300px;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+    opacity: 0.08;
+    z-index: 0;
+  }
+`;
+
+const Navigation = styled.nav`
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+`;
+
+const NavList = styled.ul`
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 48px;
+
+  @media (max-width: 768px) {
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+`;
+
+const NavItem = styled.li``;
+
+const NavLink = styled(Link)`
+  text-decoration: none;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  position: relative;
+  letter-spacing: -0.01em;
+
+  &:hover {
+    color: #1e293b;
+    background: rgba(99, 102, 241, 0.08);
+    transform: translateY(-1px);
+  }
+
+  &.active {
+    color: #6366f1;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 4px;
+      background: #6366f1;
+      border-radius: 50%;
+    }
+  }
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+`;
+
+// Main Content - Modern layout
+const MainContent = styled.main`
+  flex: 1;
+  padding: 60px 32px 80px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+
+  @media (max-width: 768px) {
+    padding: 40px 20px 60px;
+  }
+`;
+
+// Page Title - Modern typography matching Home and ProductHub
+const PageTitle = styled.h1`
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1e293b 0%, #475569 50%, #64748b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 32px 0;
+  text-align: center;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+
+  @media (max-width: 768px) {
+    font-size: 1.5rem;
+    margin-bottom: 24px;
+  }
+`;
+
 const ProductBuilder = () => {
   const [coverages, setCoverages] = useState([]);
   const [forms, setForms] = useState([]);
@@ -80,6 +206,9 @@ const ProductBuilder = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalItem, setModalItem] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [cloneLoading, setCloneLoading] = useState(false);
+  const [cloneModalOpen, setCloneModalOpen] = useState(false);
+  const [cloneTargetId, setCloneTargetId] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -272,44 +401,215 @@ const ProductBuilder = () => {
     return coverageIds.map(id => coverages.find(c => c.id === id)?.name || 'Unknown Coverage').join(', ');
   };
 
-  if (loading) {
+  if (cloneLoading) {
     return (
       <Page>
-        <Container>
+        <Navigation>
+          <NavList>
+            <NavItem>
+              <NavLink to="/" className={location.pathname === '/' ? 'active' : ''}>
+                Home
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/products" className={location.pathname === '/products' ? 'active' : ''}>
+                Products
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/product-builder" className={location.pathname.startsWith('/product-builder') ? 'active' : ''}>
+                Builder
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/product-explorer" className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}>
+                Explorer
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/data-dictionary" className={location.pathname === '/data-dictionary' ? 'active' : ''}>
+                Data Dictionary
+              </NavLink>
+            </NavItem>
+          </NavList>
+        </Navigation>
+        <MainContent>
           <Spinner />
-        </Container>
+          <p style={{textAlign:'center',marginTop:12}}>Cloning product…</p>
+        </MainContent>
       </Page>
     );
   }
 
+  if (loading) {
+    return (
+      <Page>
+        <Navigation>
+          <NavList>
+            <NavItem>
+              <NavLink to="/" className={location.pathname === '/' ? 'active' : ''}>
+                Home
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/products" className={location.pathname === '/products' ? 'active' : ''}>
+                Products
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/product-builder" className={location.pathname.startsWith('/product-builder') ? 'active' : ''}>
+                Builder
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/product-explorer" className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}>
+                Explorer
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink to="/data-dictionary" className={location.pathname === '/data-dictionary' ? 'active' : ''}>
+                Data Dictionary
+              </NavLink>
+            </NavItem>
+          </NavList>
+        </Navigation>
+        <MainContent>
+          <Spinner />
+        </MainContent>
+      </Page>
+    );
+  }
+
+  // --- CLONE PRODUCT HELPER ---
+  const cloneProduct = async (sourceId) => {
+    if (!window.confirm('Clone this product and all of its related data?')) return;
+    try {
+      setCloneLoading(true);
+
+      // 1️⃣ fetch source product
+      const srcProdSnap = await getDoc(doc(db, 'products', sourceId));
+      if (!srcProdSnap.exists()) throw new Error('Source product not found');
+      const srcData = srcProdSnap.data();
+
+      // 2️⃣ create new product (append " – Copy" to name)
+      const newProdRef = await addDoc(collection(db, 'products'), {
+        ...srcData,
+        name: `${srcData.name} – Copy`,
+      });
+      const newProdId = newProdRef.id;
+
+      // --- helper maps for ID translation ---
+      const coverageIdMap = {};
+      const formIdMap = {};
+
+      // 3️⃣ clone coverages
+      const covSnap = await getDocs(collection(db, `products/${sourceId}/coverages`));
+      for (const c of covSnap.docs) {
+        const newCovRef = await addDoc(collection(db, `products/${newProdId}/coverages`), {
+          ...c.data(),
+          formIds: [],                // temp ‑ will patch later
+          parentCoverageId: null,     // parent links rebuilt later
+        });
+        coverageIdMap[c.id] = newCovRef.id;
+      }
+      // rebuild parentCoverage relationships
+      for (const c of covSnap.docs) {
+        const parentId = c.data().parentCoverageId;
+        if (parentId && coverageIdMap[parentId]) {
+          await updateDoc(
+            doc(db, `products/${newProdId}/coverages`, coverageIdMap[c.id]),
+            { parentCoverageId: coverageIdMap[parentId] }
+          );
+        }
+      }
+
+      // 4️⃣ clone forms
+      const formSnap = await getDocs(query(collection(db, 'forms'), where('productId','==',sourceId)));
+      for (const f of formSnap.docs) {
+        const newCovIds = (f.data().coverageIds || []).map(cid => coverageIdMap[cid]).filter(Boolean);
+        const newFormRef = await addDoc(collection(db, 'forms'), {
+          ...f.data(),
+          productId: newProdId,
+          coverageIds: newCovIds,
+        });
+        formIdMap[f.id] = newFormRef.id;
+
+        // recreate formCoverages docs
+        for (const newCovId of newCovIds) {
+          await addDoc(collection(db, 'formCoverages'), {
+            formId: newFormRef.id,
+            coverageId: newCovId,
+            productId: newProdId,
+          });
+        }
+      }
+
+      // 5️⃣ patch each cloned coverage.formIds
+      for (const [oldCovId,newCovId] of Object.entries(coverageIdMap)) {
+        const srcCov = covSnap.docs.find(d=>d.id===oldCovId).data();
+        const newFormIds = (srcCov.formIds||[]).map(fid=>formIdMap[fid]).filter(Boolean);
+        await updateDoc(doc(db, `products/${newProdId}/coverages`, newCovId), { formIds: newFormIds });
+      }
+
+      alert('Product cloned! Redirecting to ProductHub.');
+      navigate('/');
+    } catch (err) {
+      console.error(err);
+      alert('Clone failed: '+err.message);
+    } finally {
+      setCloneLoading(false);
+    }
+  };
+
   return (
     <Page>
-      <Container>
-        <PageHeader>
-          <Tabs>
-            <TabLink
+      <Navigation>
+        <NavList>
+          <NavItem>
+            <NavLink
               to="/"
               className={location.pathname === '/' ? 'active' : ''}
             >
+              Home
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
+              to="/products"
+              className={location.pathname === '/products' ? 'active' : ''}
+            >
               Products
-            </TabLink>
-
-            <TabLink
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
               to="/product-builder"
               className={location.pathname.startsWith('/product-builder') ? 'active' : ''}
             >
               Builder
-            </TabLink>
-
-            <TabLink
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
               to="/product-explorer"
               className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}
             >
               Explorer
-            </TabLink>
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
+              to="/data-dictionary"
+              className={location.pathname === '/data-dictionary' ? 'active' : ''}
+            >
+              Data Dictionary
+            </NavLink>
+          </NavItem>
+        </NavList>
+      </Navigation>
 
-          </Tabs>
-        </PageHeader>
+      <MainContent>
+        <PageTitle>Product Builder</PageTitle>
 
         <div style={{ display:'flex', gap:32, marginBottom:32, flexWrap:'wrap' }}>
           {/* Coverage Section (flex:1) */}
@@ -499,7 +799,53 @@ const ProductBuilder = () => {
             </Modal>
           </Overlay>
         )}
-      </Container>
+        {/* Clone Product Modal */}
+        {cloneModalOpen && (
+          <Overlay onClick={() => setCloneModalOpen(false)}>
+            <Modal onClick={e => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>Select Product to Clone</ModalTitle>
+                <CloseBtn onClick={() => setCloneModalOpen(false)}>
+                  <XMarkIcon width={20} height={20} />
+                </CloseBtn>
+              </ModalHeader>
+
+              <div style={{ maxHeight: 320, overflowY: 'auto', marginTop: 12 }}>
+                {Object.entries(products)
+                  .sort((a, b) => a[1].localeCompare(b[1]))
+                  .map(([pid, name]) => (
+                    <label key={pid} style={{ display: 'block', padding: 6 }}>
+                      <input
+                        type="radio"
+                        name="cloneTarget"
+                        value={pid}
+                        checked={cloneTargetId === pid}
+                        onChange={() => setCloneTargetId(pid)}
+                        style={{ marginRight: 8 }}
+                      />
+                      {name}
+                    </label>
+                  ))}
+              </div>
+
+              <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
+                <Button
+                  disabled={!cloneTargetId}
+                  onClick={async () => {
+                    await cloneProduct(cloneTargetId);
+                    setCloneModalOpen(false);
+                  }}
+                >
+                  Clone
+                </Button>
+                <Button variant="ghost" onClick={() => setCloneModalOpen(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </Modal>
+          </Overlay>
+        )}
+      </MainContent>
     </Page>
   );
 };

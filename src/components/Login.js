@@ -1,93 +1,320 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styled, { keyframes } from 'styled-components';
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid';
+import styled, { keyframes, css } from 'styled-components';
+import {
+  EyeIcon,
+  EyeSlashIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon
+} from '@heroicons/react/24/solid';
 import { auth } from '../firebase';
 import {
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword
+  signInAnonymously
 } from 'firebase/auth';
 
-/**
- * Login.js
- * 
- * This component handles user authentication including login and registration.
- * Built with React, styled-components, Firebase Authentication, and React Router.
- * It provides form inputs with validation, password visibility toggles, and guest access.
- * Includes loading states and error handling with user-friendly messages.
- */
-
-/* ---------- animation for glow effect ---------- */
-const glow = keyframes`
-  0%,100%{opacity:.5} 50%{opacity:1}
-`;
-/* ---------- animation for spinner rotation ---------- */
-const spin = keyframes`
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-`;
-/* ---------- spinner component for loading indicator ---------- */
-const Spinner = styled.div`
-  width: 18px;
-  height: 18px;
-  border: 2px solid #ffffff55;
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: ${spin} 1s linear infinite;
-  margin: 0 auto;
-`;
-/* ---------- main page container with background glow ---------- */
-const Page = styled.div`
-  min-height:100vh; display:flex; align-items:center; justify-content:center;
-  background:#fdfdff;
-  &:before{
-    content:""; position:fixed; inset:-50%;
-    background:radial-gradient(circle at 50% 30%,rgba(130,80,255,.25),transparent 70%);
-    filter:blur(80px); animation:${glow} 10s linear infinite;
-    z-index:-1;
+/* ---------- animations ---------- */
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 `;
-/* ---------- card container for the login/register form ---------- */
+
+const pulse = keyframes`
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+`;
+
+const slideIn = keyframes`
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+`;
+
+/* ---------- main page container ---------- */
+const Page = styled.div`
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  padding: 20px;
+  position: relative;
+`;
+
+/* ---------- card container ---------- */
 const Card = styled.form`
-  width:100%; max-width:340px; padding:40px 32px;
-  background:#ffffffcc; backdrop-filter:blur(10px);
-  border-radius:18px; text-align:center; box-shadow:0 24px 40px rgba(0,0,0,.06);
+  width: 100%;
+  max-width: 400px;
+  padding: 32px;
+  background: white;
+  border-radius: 12px;
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  animation: ${fadeInUp} 0.6s ease-out;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+
+  @media (max-width: 480px) {
+    padding: 24px;
+    margin: 20px;
+  }
 `;
-/* ---------- logo image at the top of the form ---------- */
-const Logo = styled.img`width:180px; margin:0 auto 28px;`;
-/* ---------- form title ---------- */
-const Title = styled.h1`font-size:1.25rem;font-weight:600;margin-bottom:24px;color:#111827`;
-/* ---------- label for form inputs ---------- */
+
+/* ---------- logo ---------- */
+const Logo = styled.img`
+  width: 160px;
+  margin: 0 auto 24px;
+  display: block;
+`;
+
+/* ---------- title ---------- */
+const Title = styled.h1`
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #111827;
+`;
+
+const Subtitle = styled.p`
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 24px;
+  font-weight: 400;
+`;
+
+/* ---------- input wrapper ---------- */
+const InputWrapper = styled.div`
+  position: relative;
+  margin-bottom: 24px;
+  text-align: left;
+`;
+
+/* ---------- floating label ---------- */
 const Label = styled.label`
-  display:block;text-align:left;font-size:.8rem;font-weight:500;color:#6b7280;margin:6px 0;
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0 8px;
+  color: #6b7280;
+  font-size: 1rem;
+  font-weight: 500;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
 `;
-/* ---------- styled input fields ---------- */
+
+/* ---------- modern input field ---------- */
 const Input = styled.input`
-  width:100%;padding:12px 14px;border:1px solid #d1d5db;border-radius:10px;
-  font-size:.95rem;margin-bottom:16px;
-  &:focus{outline:none;border-color:#7c3aed;box-shadow:0 0 0 2px #a78bfa55;}
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: white;
+  color: #111827;
+  transition: all 0.2s ease;
+  position: relative;
+
+  &:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  }
+
+  &:focus + ${Label},
+  &:not(:placeholder-shown) + ${Label} {
+    top: 0;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    color: #4f46e5;
+    font-weight: 500;
+  }
+
+  &:-webkit-autofill {
+    box-shadow: 0 0 0 1000px white inset !important;
+    -webkit-text-fill-color: #111827 !important;
+  }
+
+  &::placeholder {
+    color: transparent;
+  }
 `;
-/* ---------- primary button for login/register ---------- */
+
+/* ---------- password container ---------- */
+const PasswordContainer = styled.div`
+  position: relative;
+`;
+
+/* ---------- eye toggle button ---------- */
+const EyeButton = styled.button`
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #9ca3af;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  z-index: 2;
+
+  &:hover {
+    color: #4f46e5;
+    background: rgba(79, 70, 229, 0.05);
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+  }
+`;
+
+/* ---------- loading spinner ---------- */
+const LoadingSpinner = styled.div`
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: ${pulse} 1s linear infinite;
+  margin-right: 8px;
+`;
+
+/* ---------- primary button ---------- */
 const Button = styled.button`
-  width:100%;padding:12px 0;border:none;border-radius:10px;
-  background:linear-gradient(90deg,#A100FF,#4400FF);color:#fff;font-weight:600;
-  cursor:pointer;transition:.1s transform,.2s opacity;
-  &:hover{opacity:.9;transform:translateY(-2px);}
+  width: 100%;
+  height: 44px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  color: white;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
 `;
-/* ---------- secondary button for toggling forms ---------- */
-const Secondary = styled(Button)`
-  background:transparent;
-  border:1px solid #7c3aed;
-  color:#7c3aed;
-  margin-top:8px;
+
+/* ---------- outline button ---------- */
+const OutlineButton = styled(Button)`
+  background: transparent;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+  &:hover:not(:disabled) {
+    background: #f9fafb;
+    border-color: #9ca3af;
+    color: #111827;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.1);
+    border-color: #6b7280;
+  }
 `;
-/* ---------- ghost style button for guest access ---------- */
-const Ghost = styled(Secondary)`
-  border-color:#9ca3af;
-  color:#6b7280;
+
+/* ---------- error/success message ---------- */
+const Message = styled.div`
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-top: 16px;
+  min-height: 44px;
+  animation: ${slideIn} 0.3s ease-out;
+
+  ${props => props.type === 'error' && css`
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  `}
+
+  ${props => props.type === 'success' && css`
+    background: rgba(34, 197, 94, 0.1);
+    color: #059669;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+  `}
+
+  svg {
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
 `;
-/* ---------- error message display ---------- */
-const Error = styled.p`color:#dc2626;font-size:.8rem;margin-top:10px;min-height:1.2em;`;
+
+/* ---------- divider ---------- */
+const Divider = styled.div`
+  display: flex;
+  align-items: center;
+  margin: 24px 0;
+  color: #6b7280;
+  font-size: 0.875rem;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e5e7eb;
+  }
+
+  &::before {
+    margin-right: 16px;
+  }
+
+  &::after {
+    margin-left: 16px;
+  }
+`;
 
 /* ---------- helper function to map Firebase error codes to messages ---------- */
 const prettyError = code => {
@@ -105,153 +332,162 @@ export default function Login() {
   const nav = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isRegister, setIsRegister] = useState(false);
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [secretKey, setSecretKey] = useState('');
   const [err, setErr] = useState('');
+  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showPwd, setShowPwd]   = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
 
-  const handleLogin = useCallback(async e => {
+  const isLoginValid = email.trim() !== '' && password !== '';
+
+  // Clear messages when user starts typing
+  useEffect(() => {
+    if (email || password) {
+      setErr('');
+      setSuccess('');
+    }
+  }, [email, password]);
+
+  const handleSubmit = useCallback(async e => {
     e.preventDefault();
     setErr('');
+    setSuccess('');
     setIsLoading(true);
+
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
+      setSuccess('Login successful! Redirecting...');
       sessionStorage.setItem('ph-authed','1');
-      nav('/');
+
+      // Small delay to show success message
+      setTimeout(() => {
+        nav('/');
+      }, 1000);
     } catch (error) {
-      setErr('Login failed: ' + prettyError(error.code));
+      setErr(prettyError(error.code));
     } finally {
       setIsLoading(false);
     }
   }, [email, password, nav]);
 
-  const handleRegister = useCallback(async e => {
-    e.preventDefault();
+  const handleGuest = useCallback(async () => {
+    setGuestLoading(true);
     setErr('');
-    if (secretKey !== 'acnproduct') {
-      setErr('Invalid secret key');
-      return;
-    }
-    setIsLoading(true);
-    try {
-      await createUserWithEmailAndPassword(auth, regEmail.trim(), regPassword);
-      sessionStorage.setItem('ph-authed','1');
-      nav('/');
-    } catch (error) {
-      setErr('Registration failed: ' + prettyError(error.code));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [regEmail, regPassword, secretKey, nav]);
+    setSuccess('');
 
-  const continueAsGuest = useCallback(() => {
-    setErr('');
-    sessionStorage.setItem('ph-authed', 'guest');
-    nav('/');
+    try {
+      await signInAnonymously(auth);
+      setSuccess('Signed in as guest! Redirecting...');
+      sessionStorage.setItem('ph-guest','1');
+
+      // Small delay to show success message
+      setTimeout(() => {
+        nav('/');
+      }, 1000);
+    } catch (e) {
+      console.error('Guest sign‑in failed', e);
+      setErr('Failed to sign in as guest. Please try again.');
+    } finally {
+      setGuestLoading(false);
+    }
   }, [nav]);
 
   return (
     <Page>
-      <Card onSubmit={isRegister ? handleRegister : handleLogin}>
-        <Logo src="/logo.svg" alt="Cover Cloud" />
-        <Title>{isRegister ? 'Register for Cover Cloud' : 'Sign in to Cover Cloud'}</Title>
+      <Card onSubmit={handleSubmit} noValidate>
+        <Logo src="/logo.svg" alt="Product Hub Logo" />
+        <Title>Welcome Back</Title>
+        <Subtitle>Sign in to your account to continue</Subtitle>
 
-        {isRegister ? (
-          <>
-            <Label htmlFor="regEmail">Email</Label>
-            <Input
-              id="regEmail"
-              type="email"
-              value={regEmail}
-              onChange={e => setRegEmail(e.target.value)}
-              autoFocus
-              autoComplete="username"
-            />
-            <Label htmlFor="regPassword">Password</Label>
-            <div style={{ position: 'relative' }}>
-              <Input
-                id="regPassword"
-                type={showPwd ? 'text' : 'password'}
-                value={regPassword}
-                onChange={e => setRegPassword(e.target.value)}
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPwd(p => !p)}
-                aria-label={showPwd ? 'Hide password' : 'Show password'}
-                style={{ position:'absolute', right:12, top: '50%', transform:'translateY(-50%)',
-                         background:'none', border:'none', padding:0, cursor:'pointer' }}
-              >
-                {showPwd ? <EyeSlashIcon width={18} /> : <EyeIcon width={18} />}
-              </button>
-            </div>
-            <Label htmlFor="secret">Secret Key</Label>
-            <Input
-              id="secret"
-              type="password"
-              value={secretKey}
-              onChange={e => setSecretKey(e.target.value)}
-            />
-            <Button type="submit" disabled={isLoading || !regEmail || !regPassword || !secretKey}>{isLoading ? <Spinner /> : 'Register'}</Button>
-          </>
-        ) : (
-          <>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              autoFocus
-              autoComplete="username"
-            />
-            <Label htmlFor="password">Password</Label>
-            <div style={{ position: 'relative' }}>
-              <Input
-                id="password"
-                type={showPwd ? 'text' : 'password'}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPwd(p => !p)}
-                aria-label={showPwd ? 'Hide password' : 'Show password'}
-                style={{ position:'absolute', right:12, top: '50%', transform:'translateY(-50%)',
-                         background:'none', border:'none', padding:0, cursor:'pointer' }}
-              >
-                {showPwd ? <EyeSlashIcon width={18} /> : <EyeIcon width={18} />}
-              </button>
-            </div>
-            <Button type="submit" disabled={isLoading || !email || !password}>{isLoading ? <Spinner /> : 'Log In'}</Button>
-            <Ghost
-              type="button"
-              style={{ marginTop: 12 }}
-              onClick={continueAsGuest}
-            >
-              Continue as Guest
-            </Ghost>
-          </>
+        <InputWrapper>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            onFocus={() => setEmailFocused(true)}
+            onBlur={() => setEmailFocused(false)}
+            placeholder="Email"
+            autoFocus
+            autoComplete="email"
+            required
+            aria-describedby={err ? "error-message" : undefined}
+          />
+          <Label htmlFor="email">Email Address</Label>
+        </InputWrapper>
+
+        <InputWrapper as={PasswordContainer}>
+          <Input
+            id="password"
+            type={showPwd ? 'text' : 'password'}
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            onFocus={() => setPasswordFocused(true)}
+            onBlur={() => setPasswordFocused(false)}
+            placeholder="Password"
+            autoComplete="current-password"
+            required
+            aria-describedby={err ? "error-message" : undefined}
+          />
+          <Label htmlFor="password">Password</Label>
+          <EyeButton
+            type="button"
+            onClick={() => setShowPwd(p => !p)}
+            aria-label={showPwd ? 'Hide password' : 'Show password'}
+            tabIndex={-1}
+          >
+            {showPwd ? <EyeSlashIcon width={20} /> : <EyeIcon width={20} />}
+          </EyeButton>
+        </InputWrapper>
+
+        <Button
+          type="submit"
+          disabled={isLoading || !isLoginValid}
+          style={{ marginTop: '8px' }}
+        >
+          {isLoading ? (
+            <>
+              <LoadingSpinner />
+              Signing In...
+            </>
+          ) : (
+            'Sign In'
+          )}
+        </Button>
+
+        <Divider>or</Divider>
+
+        <OutlineButton
+          type="button"
+          onClick={handleGuest}
+          disabled={guestLoading || isLoading}
+        >
+          {guestLoading ? (
+            <>
+              <LoadingSpinner />
+              Signing in as Guest...
+            </>
+          ) : (
+            'Continue as Guest'
+          )}
+        </OutlineButton>
+
+        {err && (
+          <Message type="error" id="error-message" role="alert">
+            <ExclamationCircleIcon width={20} />
+            {err}
+          </Message>
         )}
 
-        <Error>{err}</Error>
-
-        <Secondary
-          type="button"
-          onClick={() => {
-            setErr('');
-            setIsRegister(prev => !prev);
-          }}
-        >
-          {isRegister ? 'Back to Login' : 'Create New Account'}
-        </Secondary>
+        {success && (
+          <Message type="success" role="status">
+            <CheckCircleIcon width={20} />
+            {success}
+          </Message>
+        )}
       </Card>
     </Page>
   );
 }
-// Component optimized for re-render performance and accessibility.

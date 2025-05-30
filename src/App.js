@@ -15,7 +15,9 @@ import { FaUserCircle } from 'react-icons/fa';
 import Login from './components/Login';
 
 /* protected */
+import Home from './components/Home';
 import ProductHub from './components/ProductHub';
+import DataDictionary from './components/DataDictionary';
 import CoverageScreen from './components/CoverageScreen';
 import PricingScreen from './components/PricingScreen';
 import FormsScreen from './components/FormsScreen';
@@ -148,6 +150,14 @@ const HistoryWrapper = () => {
           path="/"
           element={
             <RequireAuth>
+              <Home />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/products"
+          element={
+            <RequireAuth>
               <ProductHub />
             </RequireAuth>
           }
@@ -221,6 +231,14 @@ const HistoryWrapper = () => {
           element={
             <RequireAuth>
               <ProductBuilder />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/data-dictionary"
+          element={
+            <RequireAuth>
+              <DataDictionary />
             </RequireAuth>
           }
         />
