@@ -1,3 +1,8 @@
 node_modules/
 build/
 .env
+
+# Firebase
+firebase-debug.log
+firebase-debug.*.log
+.firebase/
