@@ -1,24 +1,24 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useParams, useLocation, useNavigate, Link as RouterLink, Link } from 'react-router-dom';
+import { useParams, useLocation, Link } from 'react-router-dom';
 import { db, storage } from '../firebase';
 import {
   collection, getDocs, addDoc, deleteDoc, doc, updateDoc,
-  query, where, getDoc, serverTimestamp, writeBatch, arrayUnion, arrayRemove
+  query, where, getDoc, writeBatch, arrayUnion, arrayRemove
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   TrashIcon, DocumentTextIcon, PlusIcon, XMarkIcon,
-  LinkIcon, ClockIcon, PencilIcon, MagnifyingGlassIcon,
+  LinkIcon, PencilIcon, MagnifyingGlassIcon,
   Squares2X2Icon, TableCellsIcon
 } from '@heroicons/react/24/solid';
-import { ArrowDownTrayIcon as DownloadIcon20, ArrowUpTrayIcon as UploadIcon20 } from '@heroicons/react/20/solid';
-import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
+import { ArrowDownTrayIcon as DownloadIcon20 } from '@heroicons/react/20/solid';
+
 import { makeFormSheet } from '../utils/xlsx';
-import { auth } from '../firebase';
+
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
 import MainNavigation from '../components/ui/Navigation';
-import { Page, Container } from '../components/ui/Layout';
+
 import {
   Table, THead, Tr, Th, Td,
   Overlay, Modal, ModalHeader, ModalTitle, CloseBtn
@@ -42,51 +42,9 @@ const Spinner = styled.div`
 `;
 
 /* Gradient pill‑button reused for “Add Form” */
-const AddFab = styled.button`
-  margin: 32px 0 8px;            /* breathing room below table */
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 22px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #ffffff;
-  background: linear-gradient(135deg, #7C5CFF 0%, #AA5CFF 48%, #C15CFF 100%);
-  border: none;
-  border-radius: 9999px;         /* pill */
-  box-shadow: 0 4px 12px rgba(124, 92, 255, 0.35);
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
 
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 14px rgba(124, 92, 255, 0.45);
-  }
 
-  &:active {
-    transform: translateY(0);
-    box-shadow: 0 3px 8px rgba(124, 92, 255, 0.35);
-  }
-`;
 
-const HistoryButton = styled.button`
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
-  width: 56px;
-  height: 56px;
-  border: none;
-  border-radius: 50%;
-  background: #374151;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  cursor: pointer;
-  z-index: 1100;
-  &:hover { background: #1f2937; }
-`;
 
 /* high‑z blurred backdrop */
 const OverlayFixed = styled(Overlay)`
@@ -522,42 +480,14 @@ const EmptyStateText = styled.p`
   margin: 0 0 24px 0;
 `;
 
-// --- generic diff + version‑history helpers (mirrors CoverageScreen) ---
-const computeDiff = (before = {}, after = {}) => {
-  const diff = {};
-  Object.keys({ ...before, ...after }).forEach(k => {
-    if (JSON.stringify(before[k]) !== JSON.stringify(after[k])) {
-      diff[k] = { before: before[k], after: after[k] };
-    }
-  });
-  return diff;
-};
 
-const logVersionChange = async (
-  productId,
-  { entityId, entityName, action, diff = {}, comment = '' }
-) => {
-  await addDoc(
-    collection(db, 'products', productId, 'versionHistory'),
-    {
-      userEmail: auth.currentUser?.email || 'unknown',
-      ts: serverTimestamp(),
-      entityType: 'Form',
-      entityId,
-      entityName,
-      action,
-      diff,
-      ...(comment && { comment })
-    }
-  );
-};
 
 /* ---------- component ---------- */
 export default function FormsScreen() {
   const { productId } = useParams();
   const location = useLocation();
   const { coverageId } = location.state || {};
-  const navigate = useNavigate();
+
 
   /* data state */
   const [forms, setForms] = useState([]);
@@ -600,16 +530,12 @@ export default function FormsScreen() {
   /* version sidebar */
   const [editingId, setEditingId] = useState(null);
   const [changeSummary, setChangeSummary] = useState('');
-  const [historyOpen, setHistoryOpen] = useState(false);
+
 
   /* view toggle */
   const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
 
-  /* push VC sidebar width to a CSS var for global fixed elements */
-  useEffect(() => {
-    document.body.style.setProperty('--vc-offset', historyOpen ? `${SIDEBAR_WIDTH}px` : '0');
-    return () => document.body.style.removeProperty('--vc-offset');
-  }, [historyOpen]);
+
 
   /* ---------- side‑effects ---------- */
   /* debounce rawSearch */
@@ -782,17 +708,10 @@ export default function FormsScreen() {
       };
       let formId;
       if (editingId) {
-        const beforeSnap = await getDoc(doc(db, 'forms', editingId));
+
         await updateDoc(doc(db, 'forms', editingId), payload);
         formId = editingId;
-        const diff = computeDiff(beforeSnap.data() || {}, payload);
-        await logVersionChange(selectedProduct, {
-          entityId: formId,
-          entityName: formName || formNumber,
-          action: 'update',
-          diff,
-          comment: changeSummary.trim()
-        });
+
       } else {
         const docRef = await addDoc(collection(db, 'forms'), {
           ...payload,
@@ -800,11 +719,7 @@ export default function FormsScreen() {
           downloadUrl
         });
         formId = docRef.id;
-        await logVersionChange(selectedProduct, {
-          entityId: formId,
-          entityName: formName || formNumber,
-          action: 'create'
-        });
+
       }
       // link to coverages
       for (const coverageId of selectedCoverages) {
@@ -883,18 +798,7 @@ export default function FormsScreen() {
           await deleteDoc(doc(db, 'formCoverages', linkDoc.id));
         }
 
-        /* version */
-        await addDoc(
-          collection(db, 'products', formDoc.productId, 'versionHistory'),
-          {
-            userEmail: auth.currentUser?.email || 'unknown',
-            ts: serverTimestamp(),
-            entityType: 'Form',
-            entityId: id,
-            entityName: formDoc.formName || formDoc.formNumber,
-            action: 'delete'
-          }
-        );
+
       }
       await deleteDoc(doc(db, 'forms', id));
       setForms(forms.filter(f => f.id !== id));
@@ -1513,22 +1417,9 @@ export default function FormsScreen() {
           </OverlayFixed>
         )}
 
-        {/* ---------- version history ---------- */}
-        {historyOpen && (
-          <VersionControlSidebar
-            open={historyOpen}
-            onClose={() => setHistoryOpen(false)}
-            width={SIDEBAR_WIDTH}
-          />
-        )}
 
-        <HistoryButton
-          style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
-          onClick={() => setHistoryOpen(!historyOpen)}
-          aria-label="View version history"
-        >
-          <ClockIcon width={25} height={25} />
-        </HistoryButton>
+
+
       </MainContent>
     </ModernContainer>
   );

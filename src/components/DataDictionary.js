@@ -11,11 +11,12 @@ import { db } from '../firebase';
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
 import MainNavigation from './ui/Navigation';
+import EnhancedHeader from './ui/EnhancedHeader';
 import {
-  MagnifyingGlassIcon,
   Squares2X2Icon,
   TableCellsIcon,
-  PlusIcon
+  PlusIcon,
+  BookOpenIcon
 } from '@heroicons/react/24/solid';
 import styled from 'styled-components';
 
@@ -38,81 +39,7 @@ const MainContent = styled.div`
 
 
 
-const PageTitle = styled.h1`
-  font-size: 2rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #1e293b 0%, #475569 50%, #64748b 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0;
-  text-align: center;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-
-  @media (max-width: 768px) {
-    font-size: 1.5rem;
-  }
-`;
-
-// Search Container
-const SearchContainer = styled.div`
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto 40px;
-  position: relative;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  display: flex;
-  align-items: center;
-  padding: 10px 20px;
-  gap: 16px;
-  transition: all 0.3s ease;
-
-  &:hover {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
-    border-color: rgba(99, 102, 241, 0.3);
-  }
-
-  &:focus-within {
-    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.5);
-  }
-
-  @media (max-width: 768px) {
-    max-width: 100%;
-    margin-bottom: 24px;
-    padding: 8px 16px;
-  }
-`;
-
-const SearchIcon = styled(MagnifyingGlassIcon)`
-  width: 20px;
-  height: 20px;
-  color: #9ca3af;
-  flex-shrink: 0;
-`;
-
-const SearchInput = styled.input`
-  flex: 1;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 16px;
-  color: #1f2937;
-  font-weight: 400;
-
-  &::placeholder {
-    color: #9ca3af;
-  }
-
-  @media (max-width: 768px) {
-    font-size: 14px;
-  }
-`;
+// Unused styled components removed to fix ESLint warnings
 
 // Action Bar
 const ActionBar = styled.div`
@@ -410,16 +337,16 @@ export default function DataDictionary() {
     <Container>
       <MainNavigation />
       <MainContent>
-        <PageTitle>Data Dictionary</PageTitle>
-
-        <SearchContainer>
-          <SearchIcon />
-          <SearchInput
-            placeholder="Search by display name, code, or category..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </SearchContainer>
+        <EnhancedHeader
+          title="Data Dictionary"
+          subtitle={`Manage and organize ${rows.length} data definitions and mappings`}
+          icon={BookOpenIcon}
+          searchProps={{
+            placeholder: "Search by display name, code, or category...",
+            value: searchQuery,
+            onChange: (e) => setSearchQuery(e.target.value)
+          }}
+        />
 
         {/* Action Bar with View Toggle */}
         <ActionBar>

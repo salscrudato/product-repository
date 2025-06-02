@@ -1,5 +1,5 @@
 // Enhanced PricingScreen with modern UI/UX, performance optimizations, and best practices
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
@@ -247,40 +247,7 @@ const Table = styled.table`
   th:nth-child(5), td:nth-child(5) { width: 20%; } /* Actions */
 `;
 
-// Enhanced Price Display - Smaller version
-const PriceDisplay = styled.div`
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 6px;
-  text-align: center;
-  width: fit-content;
-  min-width: 60px;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
-  transition: all 0.2s ease;
-  margin: 8px auto 0;
 
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 3px 12px rgba(99, 102, 241, 0.3);
-  }
-
-  .label {
-    font-size: 8px;
-    opacity: 0.9;
-    margin-bottom: 1px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 500;
-  }
-
-  .value {
-    font-size: 0.9rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    line-height: 1;
-  }
-`;
 
 // Table Footer with Add Step and Price
 const TableFooter = styled.div`
@@ -565,7 +532,6 @@ export default function PricingScreenEnhanced() {
     searchQuery,
     filteredData: searchFilteredSteps,
     updateSearchQuery,
-    updateFilter,
     hasActiveFilters: hasSearchFilters
   } = useSearchFilter(steps, ['stepName', 'coverages', 'tableName']);
 
@@ -700,7 +666,7 @@ export default function PricingScreenEnhanced() {
     }
   }, [editingStep, addStep, updateStep, validateStep]);
 
-  const handleMoveStep = useCallback(async (stepId, currentIndex, direction) => {
+  const handleMoveStep = useCallback(async (currentIndex, direction) => {
     const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
     if (newIndex < 0 || newIndex >= steps.length) return;
 

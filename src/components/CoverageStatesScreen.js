@@ -3,13 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
-import { TrashIcon } from '@heroicons/react/24/solid';
-
 import styled, { keyframes } from 'styled-components';
 import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
-import { Table, THead, Tr, Th, Td } from '../components/ui/Table';
 
 const spin = keyframes`
   0% { transform: rotate(0deg); }
@@ -100,14 +97,11 @@ const FloatingBar = styled.div`
   z-index:1200;
 `;
 
-const allStates = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
-
 export default function CoverageStatesScreen() {
   const { productId, coverageId } = useParams();
   const navigate = useNavigate();
   const [coverage, setCoverage] = useState(null);
   const [product, setProduct] = useState(null);
-  const [parentCoverage, setParentCoverage] = useState(null);
   const [availableStates, setAvailableStates] = useState([]);
   const [selectedStates, setSelectedStates] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -210,7 +204,6 @@ export default function CoverageStatesScreen() {
         if (coverageData.parentCoverageId) {
           const parentDoc = await getDoc(doc(db, `products/${productId}/coverages`, coverageData.parentCoverageId));
           if (parentDoc.exists()) {
-            setParentCoverage(parentDoc.data());
             setAvailableStates(parentDoc.data().states || []);
           }
         } else {

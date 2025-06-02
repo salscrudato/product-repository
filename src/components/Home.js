@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { ArrowUpIcon } from '@heroicons/react/24/solid';
+import { HomeIcon } from '@heroicons/react/24/solid';
 import MainNavigation from './ui/Navigation';
+import EnhancedHeader from './ui/EnhancedHeader';
 import useProducts from '../hooks/useProducts';
 import { collection, getDocs, collectionGroup } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -31,7 +32,7 @@ const Page = styled.div`
 
 const MainContent = styled.main`
   flex: 1;
-  padding: 60px 32px 80px;
+  padding: 32px 32px 80px;
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
@@ -39,68 +40,11 @@ const MainContent = styled.main`
   z-index: 1;
 
   @media (max-width: 768px) {
-    padding: 40px 20px 60px;
+    padding: 24px 20px 60px;
   }
 `;
 
-const HeaderSection = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 40px;
-  gap: 24px;
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    align-items: center;
-    gap: 32px;
-  }
-`;
-
-const TitleSection = styled.div`
-  text-align: center;
-  flex: 1;
-`;
-
-const SearchSection = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 60px;
-  width: 100%;
-`;
-
-const SearchContainer = styled.div`
-  width: 100%;
-  max-width: 700px;
-  margin: 0 auto 40px auto;
-  position: relative;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  display: flex;
-  align-items: center;
-  padding: 10px 20px;
-  gap: 16px;
-  transition: all 0.3s ease;
-
-  &:hover {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
-    border-color: rgba(99, 102, 241, 0.3);
-  }
-
-  &:focus-within {
-    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.5);
-  }
-
-  @media (max-width: 768px) {
-    max-width: 100%;
-    padding: 8px 16px;
-  }
-`;
+// Unused styled components removed to fix ESLint warnings
 
 const ContentGrid = styled.div`
   display: grid;
@@ -250,81 +194,7 @@ const PriorityIndicator = styled.div`
   }}
 `;
 
-const WelcomeTitle = styled.h1`
-  font-size: 2rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #1e293b 0%, #475569 50%, #64748b 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0 0 32px 0;
-  text-align: center;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-
-  @media (max-width: 768px) {
-    font-size: 1.5rem;
-    margin-bottom: 24px;
-  }
-`;
-
-
-
-const SearchInput = styled.input`
-  flex: 1;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 17px;
-  color: #1e293b;
-  padding: 10px 0;
-  font-family: inherit;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-
-  &::placeholder {
-    color: #94a3b8;
-    font-weight: 400;
-  }
-
-  @media (max-width: 768px) {
-    font-size: 16px;
-    padding: 6px 0;
-  }
-`;
-
-const SearchButton = styled.button`
-  width: 40px;
-  height: 40px;
-  border: none;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-
-  &:hover {
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-
-  &:disabled {
-    background: #e5e7eb;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-`;
+// More unused styled components removed to fix ESLint warnings
 
 const ResponseContainer = styled.div`
   width: 100%;
@@ -349,19 +219,7 @@ const ResponseContainer = styled.div`
   }
 `;
 
-const LoadingSpinner = styled.div`
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid #ffffff;
-  border-radius: 50%;
-  border-top-color: transparent;
-  animation: spin 1s ease-in-out infinite;
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-`;
+// LoadingSpinner removed - unused styled component
 
 // Removed unused news components - now using InsuranceNewsFeed component
 
@@ -665,46 +523,37 @@ ${JSON.stringify(context, null, 2)}
       <MainNavigation />
 
       <MainContent>
-        <HeaderSection>
-          <TitleSection>
-            <WelcomeTitle>What can I help with?</WelcomeTitle>
-            {(dataLoading || productsLoading) && (
-              <div style={{
-                fontSize: '14px',
-                color: '#64748b',
-                marginTop: '8px',
-                textAlign: 'center'
-              }}>
-                Loading system data for enhanced assistance...
-              </div>
-            )}
-          </TitleSection>
-        </HeaderSection>
-
-        <SearchSection>
-          <SearchContainer>
-            <SearchInput
-              placeholder="Ask about products, coverages, tasks, deadlines, or market trends..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={handleKeyPress}
-              disabled={dataLoading || productsLoading}
-            />
-            <SearchButton
-              onClick={handleSearch}
-              disabled={!searchQuery.trim() || isLoading}
-              aria-label="Search"
-            >
-              {isLoading ? <LoadingSpinner /> : <ArrowUpIcon width={18} height={18} />}
-            </SearchButton>
-          </SearchContainer>
-
-          {response && (
-            <ResponseContainer>
-              <MarkdownRenderer>{response}</MarkdownRenderer>
-            </ResponseContainer>
+        <EnhancedHeader
+          title="What can I help with?"
+          subtitle={"I'm here to assist with any questions or tasks."}
+          icon={HomeIcon}
+          searchProps={{
+            placeholder: "Ask about products, coverages, tasks, or news",
+            value: searchQuery,
+            onChange: (e) => setSearchQuery(e.target.value),
+            onKeyPress: handleKeyPress,
+            onSearch: handleSearch,
+            disabled: dataLoading || productsLoading,
+            isLoading: isLoading
+          }}
+        >
+          {(dataLoading || productsLoading) && (
+            <div style={{
+              fontSize: '14px',
+              color: '#64748b',
+              marginTop: '16px',
+              textAlign: 'center'
+            }}>
+              Loading system data for enhanced assistance...
+            </div>
           )}
-        </SearchSection>
+        </EnhancedHeader>
+
+        {response && (
+          <ResponseContainer>
+            <MarkdownRenderer>{response}</MarkdownRenderer>
+          </ResponseContainer>
+        )}
 
         <ContentGrid>
           <QueueColumn>

@@ -3,11 +3,29 @@ import { collection, collectionGroup, getDocs, getDoc, addDoc, updateDoc, doc, q
 import { db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import styled from 'styled-components';
-import { XMarkIcon, MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/24/solid';
+import {
+  XMarkIcon,
+  PlusIcon,
+  WrenchScrewdriverIcon,
+  PaperAirplaneIcon,
+  SparklesIcon,
+  LightBulbIcon,
+  CpuChipIcon
+} from '@heroicons/react/24/solid';
 import { useNavigate } from 'react-router-dom';
 import MainNavigation from '../components/ui/Navigation';
+import EnhancedHeader from '../components/ui/EnhancedHeader';
+import MarkdownRenderer from '../utils/markdownParser';
 
 /* ---------- Modern Styled Components ---------- */
+
+// Global animations
+const GlobalStyle = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
 
 // Page - Clean gradient background with overlay
 const Page = styled.div`
@@ -33,7 +51,7 @@ const Page = styled.div`
 // Main Content - Modern layout
 const MainContent = styled.main`
   flex: 1;
-  padding: 60px 32px 80px;
+  padding: 32px 32px 80px;
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
@@ -41,94 +59,248 @@ const MainContent = styled.main`
   z-index: 1;
 
   @media (max-width: 768px) {
-    padding: 40px 20px 60px;
+    padding: 24px 20px 60px;
   }
 `;
 
-// Page Title - Consistent with ProductHub
-const PageTitle = styled.h1`
-  font-size: 2rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #1e293b 0%, #475569 50%, #64748b 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0 0 32px 0;
-  text-align: center;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-
-  @media (max-width: 768px) {
-    font-size: 1.5rem;
-    margin-bottom: 24px;
-  }
-`;
-
-// Search Container - Matching ProductHub style
-const SearchContainer = styled.div`
+// AI Chat Container - Revolutionary product builder interface
+const AIBuilderContainer = styled.div`
   width: 100%;
-  max-width: 800px;
-  margin: 0 auto 60px;
-  position: relative;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  display: flex;
-  align-items: center;
-  padding: 10px 20px;
-  gap: 16px;
+  max-width: 1000px;
+  margin: 0 auto 40px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(226, 232, 240, 0.4);
+  border-radius: 20px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
   transition: all 0.3s ease;
 
   &:hover {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 16px 64px rgba(99, 102, 241, 0.12);
     border-color: rgba(99, 102, 241, 0.3);
-  }
-
-  &:focus-within {
-    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.5);
   }
 
   @media (max-width: 768px) {
     max-width: 100%;
-    margin-bottom: 40px;
-    padding: 8px 16px;
+    margin-bottom: 32px;
   }
 `;
 
-const SearchInput = styled.input`
-  flex: 1;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 17px;
-  color: #1e293b;
-  padding: 10px 0;
-  font-weight: 500;
+const ChatHeader = styled.div`
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    animation: shimmer 3s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+`;
+
+const ChatTitle = styled.h3`
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
   letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const ChatMessages = styled.div`
+  height: 400px;
+  overflow-y: auto;
+  padding: 24px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+
+  /* Custom scrollbar */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(226, 232, 240, 0.3);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.3);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.5);
+  }
+`;
+
+const ChatMessage = styled.div`
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: ${props => props.isUser ? 'flex-end' : 'flex-start'};
+  animation: fadeInUp 0.3s ease;
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+
+const MessageBubble = styled.div`
+  max-width: 80%;
+  padding: 16px 20px;
+  border-radius: ${props => props.isUser ? '20px 20px 4px 20px' : '20px 20px 20px 4px'};
+  background: ${props => props.isUser
+    ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
+    : '#ffffff'};
+  color: ${props => props.isUser ? '#ffffff' : '#374151'};
+  border: ${props => props.isUser ? 'none' : '1px solid rgba(226, 232, 240, 0.6)'};
+  font-size: 14px;
+  line-height: 1.6;
+  box-shadow: ${props => props.isUser
+    ? '0 4px 16px rgba(99, 102, 241, 0.25)'
+    : '0 2px 8px rgba(0, 0, 0, 0.08)'};
+  position: relative;
+
+  ${props => !props.isUser && `
+    &::before {
+      content: '';
+      position: absolute;
+      top: 8px;
+      left: -6px;
+      width: 12px;
+      height: 12px;
+      background: #ffffff;
+      border: 1px solid rgba(226, 232, 240, 0.6);
+      border-right: none;
+      border-bottom: none;
+      transform: rotate(-45deg);
+    }
+  `}
+`;
+
+const ChatInputContainer = styled.div`
+  padding: 20px 24px;
+  background: #ffffff;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+`;
+
+const ChatInput = styled.textarea`
+  flex: 1;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  min-height: 44px;
+  max-height: 120px;
+  background: rgba(248, 250, 252, 0.8);
+  transition: all 0.3s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
 
   &::placeholder {
     color: #94a3b8;
-    font-weight: 400;
-  }
-
-  @media (max-width: 768px) {
-    font-size: 16px;
-    padding: 6px 0;
   }
 `;
 
-const SearchIcon = styled(MagnifyingGlassIcon)`
-  width: 24px;
-  height: 24px;
-  color: #6366f1;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
+const SendButton = styled.button`
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  min-height: 44px;
 
-  ${SearchContainer}:focus-within & {
-    opacity: 1;
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #5b5bf6 0%, #7c3aed 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const WelcomeMessage = styled.div`
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  margin-bottom: 16px;
+`;
+
+const SuggestionChips = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  justify-content: center;
+`;
+
+const SuggestionChip = styled.button`
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.3);
+    transform: translateY(-1px);
   }
 `;
 
@@ -426,11 +598,38 @@ const CloseButton = styled.button`
   }
 `;
 
+// AI System Prompt for Product Builder
+const AI_SYSTEM_PROMPT = `You are an expert AI Product Builder for insurance products. You help insurance product managers create new products by analyzing existing products, coverages, and forms in their database.
+
+Your capabilities:
+1. **Product Analysis**: Understand existing products, their coverages, forms, and relationships
+2. **Intelligent Recommendations**: Suggest optimal coverage combinations based on product type and market needs
+3. **Form Association**: Recommend relevant forms for selected coverages
+4. **Product Structure**: Help build complete product structures with proper metadata
+5. **Market Intelligence**: Provide insights on product positioning and competitive advantages
+
+When users describe what they want to build, you should:
+- Ask clarifying questions to understand their needs
+- Analyze existing products for patterns and best practices
+- Suggest coverage combinations that make business sense
+- Recommend appropriate forms and documentation
+- Help with product naming, coding, and categorization
+- Provide step-by-step guidance through the product creation process
+
+Always be conversational, helpful, and focus on creating products that will be successful in the insurance market.
+
+Available data context will include:
+- Existing products with their metadata
+- All available coverages across products
+- Forms and their associations
+- Product relationships and hierarchies
+
+Respond in a helpful, professional tone and use markdown formatting for better readability.`;
+
 const ProductBuilder = () => {
   const [coverages, setCoverages] = useState([]);
   const [forms, setForms] = useState([]);
   const [products, setProducts] = useState({});
-  const [coverageSearchQuery, setCoverageSearchQuery] = useState('');
   const [selectedCoverages, setSelectedCoverages] = useState({});
   const [newProductName, setNewProductName] = useState('');
   const [formNumber, setFormNumber] = useState('');
@@ -443,6 +642,13 @@ const ProductBuilder = () => {
   const [cloneLoading, setCloneLoading] = useState(false);
   const [cloneModalOpen, setCloneModalOpen] = useState(false);
   const [cloneTargetId, setCloneTargetId] = useState('');
+
+  // AI Chat State
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState([]);
+
   const navigate = useNavigate();
 
   // Fetch all coverages, forms, and products on mount
@@ -480,6 +686,144 @@ const ProductBuilder = () => {
     };
     fetchData();
   }, []);
+
+  // Initialize AI suggestions based on existing data
+  useEffect(() => {
+    if (!loading && Object.keys(products).length > 0) {
+      const suggestions = [
+        "Create a homeowners product similar to HO3 but for condos",
+        "Build a commercial property product for small businesses",
+        "Design an umbrella policy with high liability limits",
+        "Create a renters insurance product for millennials",
+        "Build a cyber liability product for tech companies"
+      ];
+      setAiSuggestions(suggestions);
+    }
+  }, [loading, products]);
+
+  // Prepare context data for AI
+  const prepareAIContext = () => {
+    const productSummary = Object.entries(products).map(([id, name]) => ({
+      id,
+      name,
+      coverageCount: coverages.filter(c => c.productId === id).length
+    }));
+
+    const coverageSummary = coverages.map(c => ({
+      name: c.coverageName,
+      type: c.coverageType,
+      scope: c.scopeOfCoverage,
+      limits: c.limits,
+      productId: c.productId
+    }));
+
+    const formSummary = forms.map(f => ({
+      name: f.formName,
+      number: f.formNumber,
+      type: f.formType
+    }));
+
+    return {
+      products: productSummary,
+      coverages: coverageSummary,
+      forms: formSummary,
+      totalProducts: Object.keys(products).length,
+      totalCoverages: coverages.length,
+      totalForms: forms.length
+    };
+  };
+
+  // Handle AI chat message
+  const handleChatMessage = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMessage = chatInput.trim();
+    setChatInput('');
+    setChatLoading(true);
+
+    // Add user message to chat
+    const newUserMessage = { role: 'user', content: userMessage };
+    setChatMessages(prev => [...prev, newUserMessage]);
+
+    try {
+      const context = prepareAIContext();
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: AI_SYSTEM_PROMPT },
+            { role: 'system', content: `Current database context: ${JSON.stringify(context, null, 2)}` },
+            ...chatMessages,
+            newUserMessage
+          ],
+          max_tokens: 2000,
+          temperature: 0.7
+        })
+      });
+
+      if (!response.ok) throw new Error(`OpenAI API error: ${response.status}`);
+
+      const data = await response.json();
+      const aiResponse = data.choices?.[0]?.message?.content?.trim();
+
+      if (aiResponse) {
+        const aiMessage = { role: 'assistant', content: aiResponse };
+        setChatMessages(prev => [...prev, aiMessage]);
+
+        // Parse AI response for product suggestions
+        parseAIResponseForActions(aiResponse);
+      } else {
+        throw new Error('No response from AI');
+      }
+
+    } catch (error) {
+      console.error('Error in AI chat:', error);
+      const errorMessage = {
+        role: 'assistant',
+        content: 'I apologize, but I encountered an error. Please try again or contact support if the issue persists.'
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // Parse AI response for actionable suggestions
+  const parseAIResponseForActions = (aiResponse) => {
+    // Look for product suggestions in AI response
+    const productNameMatch = aiResponse.match(/product name[:\s]*["']([^"']+)["']/i);
+    const productCodeMatch = aiResponse.match(/product code[:\s]*["']([^"']+)["']/i);
+    const formNumberMatch = aiResponse.match(/form number[:\s]*["']([^"']+)["']/i);
+
+    if (productNameMatch) {
+      setNewProductName(productNameMatch[1]);
+    }
+    if (productCodeMatch) {
+      setProductCode(productCodeMatch[1]);
+    }
+    if (formNumberMatch) {
+      setFormNumber(formNumberMatch[1]);
+    }
+  };
+
+  // Handle suggestion chip click
+  const handleSuggestionClick = (suggestion) => {
+    setChatInput(suggestion);
+  };
+
+  // Handle Enter key in chat input
+  const handleChatKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleChatMessage();
+    }
+  };
 
   // Handle coverage selection
   const handleCoverageSelect = (coverage) => {
@@ -618,11 +962,8 @@ const ProductBuilder = () => {
     }
   };
 
-  // Filter coverages based on coverageSearchQuery
-  const filteredCoverages = coverages.filter(c =>
-    c.name.toLowerCase().includes(coverageSearchQuery.toLowerCase()) ||
-    products[c.productId]?.toLowerCase().includes(coverageSearchQuery.toLowerCase())
-  );
+  // Show all coverages (AI will help users navigate)
+  const filteredCoverages = coverages;
 
 
   // Helper to get form names for a coverage
@@ -738,19 +1079,102 @@ const ProductBuilder = () => {
 
   return (
     <Page>
+      <style>{GlobalStyle}</style>
       <MainNavigation />
 
       <MainContent>
-        <PageTitle>Builder</PageTitle>
+        <EnhancedHeader
+          title="AI Product Builder"
+          subtitle="Describe your product vision and I'll help you build it intelligently"
+          icon={WrenchScrewdriverIcon}
+        />
 
-        <SearchContainer>
-          <SearchIcon />
-          <SearchInput
-            placeholder="Search coverages by name or product..."
-            value={coverageSearchQuery}
-            onChange={e => setCoverageSearchQuery(e.target.value)}
-          />
-        </SearchContainer>
+        {/* AI Chat Interface */}
+        <AIBuilderContainer>
+          <ChatHeader>
+            <ChatTitle>
+              <CpuChipIcon width={20} height={20} />
+              AI Product Assistant
+              <SparklesIcon width={16} height={16} style={{ marginLeft: 'auto', opacity: 0.8 }} />
+            </ChatTitle>
+          </ChatHeader>
+
+          <ChatMessages>
+            {chatMessages.length === 0 ? (
+              <WelcomeMessage>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <LightBulbIcon width={24} height={24} style={{ color: '#6366f1' }} />
+                  <h4 style={{ margin: 0, color: '#374151' }}>Welcome to AI Product Builder</h4>
+                </div>
+                <p style={{ margin: '0 0 16px 0', color: '#6b7280', lineHeight: '1.6' }}>
+                  I'm your intelligent assistant for building insurance products. I can analyze your existing
+                  {Object.keys(products).length} products, {coverages.length} coverages, and {forms.length} forms
+                  to help you create the perfect new product.
+                </p>
+                <p style={{ margin: 0, color: '#6b7280', fontSize: '14px' }}>
+                  Try asking me something like "Create a condo insurance product" or click a suggestion below:
+                </p>
+                <SuggestionChips>
+                  {aiSuggestions.map((suggestion, index) => (
+                    <SuggestionChip
+                      key={index}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                    >
+                      {suggestion}
+                    </SuggestionChip>
+                  ))}
+                </SuggestionChips>
+              </WelcomeMessage>
+            ) : (
+              chatMessages.map((message, index) => (
+                <ChatMessage key={index} isUser={message.role === 'user'}>
+                  <MessageBubble isUser={message.role === 'user'}>
+                    {message.role === 'user' ? (
+                      message.content
+                    ) : (
+                      <MarkdownRenderer>{message.content}</MarkdownRenderer>
+                    )}
+                  </MessageBubble>
+                </ChatMessage>
+              ))
+            )}
+
+            {chatLoading && (
+              <ChatMessage isUser={false}>
+                <MessageBubble isUser={false}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid #e5e7eb',
+                      borderTop: '2px solid #6366f1',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                    Analyzing your request...
+                  </div>
+                </MessageBubble>
+              </ChatMessage>
+            )}
+          </ChatMessages>
+
+          <ChatInputContainer>
+            <ChatInput
+              placeholder="Describe the product you want to build..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={handleChatKeyDown}
+              rows={1}
+            />
+            <SendButton
+              onClick={handleChatMessage}
+              disabled={!chatInput.trim() || chatLoading}
+            >
+              <PaperAirplaneIcon />
+              Send
+            </SendButton>
+          </ChatInputContainer>
+        </AIBuilderContainer>
 
         <ContentGrid>
           {/* Coverage Section */}

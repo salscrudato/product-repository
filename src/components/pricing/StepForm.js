@@ -4,7 +4,6 @@ import styled from 'styled-components';
 import {
   XMarkIcon,
   ExclamationTriangleIcon,
-  CheckCircleIcon,
   InformationCircleIcon,
   PlusIcon,
   TrashIcon
@@ -332,6 +331,7 @@ const RemoveDimensionButton = styled.button`
 `;
 
 // Dimension Builder Component
+// eslint-disable-next-line no-unused-vars
 const DimensionBuilder = ({ dimensions = [], onChange }) => {
   const addDimension = () => {
     const newDimension = {

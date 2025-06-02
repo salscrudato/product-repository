@@ -337,8 +337,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
-  const [emailFocused, setEmailFocused] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
+
 
   const isLoginValid = email.trim() !== '' && password !== '';
 
@@ -405,8 +404,6 @@ export default function Login() {
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
-            onFocus={() => setEmailFocused(true)}
-            onBlur={() => setEmailFocused(false)}
             placeholder="Email"
             autoFocus
             autoComplete="email"
@@ -422,8 +419,6 @@ export default function Login() {
             type={showPwd ? 'text' : 'password'}
             value={password}
             onChange={e => setPassword(e.target.value)}
-            onFocus={() => setPasswordFocused(true)}
-            onBlur={() => setPasswordFocused(false)}
             placeholder="Password"
             autoComplete="current-password"
             required

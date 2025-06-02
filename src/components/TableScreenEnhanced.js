@@ -1,11 +1,10 @@
 // Enhanced TableScreen with modern UI/UX, virtualization, and performance optimizations
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, getDocs, doc, getDoc, updateDoc, writeBatch, addDoc, deleteDoc } from 'firebase/firestore';
 import {
   MagnifyingGlassIcon,
-  FunnelIcon,
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
   Squares2X2Icon,
@@ -300,17 +299,17 @@ const LoadingContainer = styled.div`
   min-height: 400px;
 `;
 
+const spin = keyframes`
+  to { transform: rotate(360deg); }
+`;
+
 const LoadingSpinner = styled.div`
   width: 40px;
   height: 40px;
   border: 3px solid #e5e7eb;
   border-top: 3px solid #6366f1;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
+  animation: ${spin} 1s linear infinite;
 `;
 
 const EmptyState = styled.div`
@@ -598,7 +597,6 @@ TableCell.displayName = 'TableCell';
 
 export default function TableScreenEnhanced() {
   const { productId } = useParams();
-  const navigate = useNavigate();
 
   // State management
   const [productName, setProductName] = useState('');

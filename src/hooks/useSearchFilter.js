@@ -5,6 +5,11 @@ export function useSearchFilter(data, searchFields = []) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({});
 
+  // Helper function to get nested object values
+  const getNestedValue = useCallback((obj, path) => {
+    return path.split('.').reduce((current, key) => current?.[key], obj);
+  }, []);
+
   // Filter data based on search query and filters
   const filteredData = useMemo(() => {
     let result = data;
@@ -16,7 +21,7 @@ export function useSearchFilter(data, searchFields = []) {
         return searchFields.some(field => {
           const value = getNestedValue(item, field);
           if (Array.isArray(value)) {
-            return value.some(v => 
+            return value.some(v =>
               String(v).toLowerCase().includes(query)
             );
           }
@@ -39,12 +44,7 @@ export function useSearchFilter(data, searchFields = []) {
     });
 
     return result;
-  }, [data, searchQuery, filters, searchFields]);
-
-  // Helper function to get nested object values
-  const getNestedValue = useCallback((obj, path) => {
-    return path.split('.').reduce((current, key) => current?.[key], obj);
-  }, []);
+  }, [data, searchQuery, filters, searchFields, getNestedValue]);
 
   // Update search query
   const updateSearchQuery = useCallback((query) => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { db, auth } from '../firebase';
-import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { db } from '../firebase';
+import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import {
   TrashIcon,
   PencilIcon,
@@ -13,7 +13,7 @@ import {
   MapIcon,
   ChevronUpIcon,
   ChevronDownIcon,
-  ClockIcon,
+
   DocumentDuplicateIcon,
   EyeIcon,
   EyeSlashIcon,
@@ -25,7 +25,7 @@ import {
   Bars3Icon
 } from '@heroicons/react/24/solid';
 import { ArrowDownTrayIcon as DownloadIcon20, ArrowUpTrayIcon as UploadIcon20 } from '@heroicons/react/20/solid';
-import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
+
 import { Button } from '../components/ui/Button';
 import MainNavigation from '../components/ui/Navigation';
 import {
@@ -81,11 +81,8 @@ const ContentWrapper = styled.div`
   max-width: 1400px;
   margin: 0 auto;
   padding: 24px;
-  transition: margin-right 0.3s ease;
-  margin-right: ${props => props.sidebarOpen ? `${SIDEBAR_WIDTH}px` : '0'};
 
   @media (max-width: 768px) {
-    margin-right: 0;
     padding: 16px;
   }
 `;
@@ -530,24 +527,7 @@ const Spinner = styled.div`
   margin: 100px auto;
 `;
 
-const HistoryButton = styled.button`
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
-  width: 56px;
-  height: 56px;
-  border: none;
-  border-radius: 50%;
-  background: #374151;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  cursor: pointer;
-  z-index: 1100;
-  &:hover { background: #1f2937; }
-`;
+
 
 // StepModal Component
 function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes }) {
@@ -774,7 +754,6 @@ function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes
 // Main PricingScreen Component
 function PricingScreen() {
   const [loading, setLoading] = useState(true);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const { productId } = useParams();
   const navigate = useNavigate();
   const [productName, setProductName] = useState('');
@@ -854,18 +833,7 @@ function PricingScreen() {
         operand: operandChar,
         order: steps.length
       });
-      // Log creation
-      await addDoc(
-        collection(db, 'products', productId, 'versionHistory'),
-        {
-          userEmail: auth.currentUser?.email || 'unknown',
-          ts: serverTimestamp(),
-          entityType: 'Step',
-          entityId: docRef.id,
-          entityName: `(operand ${operandChar})`,
-          action: 'create'
-        }
-      );
+
       setSteps(prev => [...prev, { id: docRef.id, stepType:'operand', operand:operandChar, order:steps.length }]
         .sort((a,b)=>a.order-b.order));
     } catch (err) {
@@ -940,19 +908,7 @@ function PricingScreen() {
             diff[key] = { before, after };
           }
         });
-        await addDoc(
-          collection(db, 'products', productId, 'versionHistory'),
-          {
-            userEmail: auth.currentUser?.email || 'unknown',
-            ts: serverTimestamp(),
-            entityType: 'Step',
-            entityId: editingStep.id,
-            entityName: stepData.stepName || '(operand)',
-            action: 'update',
-            changes: diff,
-            comment: comment.trim()
-          }
-        );
+
         const updatedSteps = steps.map(s => s.id === editingStep.id ? { ...s, ...stepData } : s);
         updatedSteps.sort((a, b) => a.order - b.order);
         setSteps(updatedSteps);
@@ -963,18 +919,7 @@ function PricingScreen() {
     } else {
       try {
         const docRef = await addDoc(collection(db, `products/${productId}/steps`), { ...stepData, order: steps.length });
-        // Log creation
-        await addDoc(
-          collection(db, 'products', productId, 'versionHistory'),
-          {
-            userEmail: auth.currentUser?.email || 'unknown',
-            ts: serverTimestamp(),
-            entityType: 'Step',
-            entityId: docRef.id,
-            entityName: stepData.stepName || '(operand)',
-            action: 'create'
-          }
-        );
+
         const updatedSteps = [...steps, { ...stepData, id: docRef.id, order: steps.length }];
         updatedSteps.sort((a, b) => a.order - b.order);
         setSteps(updatedSteps);
@@ -990,18 +935,7 @@ function PricingScreen() {
     if (window.confirm("Are you sure you want to delete this step?")) {
       try {
         await deleteDoc(doc(db, `products/${productId}/steps`, stepId));
-        // Log deletion
-        await addDoc(
-          collection(db, 'products', productId, 'versionHistory'),
-          {
-            userEmail: auth.currentUser?.email || 'unknown',
-            ts: serverTimestamp(),
-            entityType: 'Step',
-            entityId: stepId,
-            entityName: '(operand)',
-            action: 'delete'
-          }
-        );
+
         const updatedSteps = steps.filter(step => step.id !== stepId);
         updatedSteps.sort((a, b) => a.order - b.order);
         setSteps(updatedSteps);
@@ -1580,27 +1514,7 @@ function operandGlyph(op) {
             </ModalBox>
           </OverlayFixed>
         )}
-        <HistoryButton
-          style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
-          onClick={() => {
-            setHistoryOpen(prev => {
-              const next = !prev;
-              document.documentElement.style.setProperty(
-                '--vc-offset',
-                next ? `${SIDEBAR_WIDTH}px` : '0px'
-              );
-              return next;
-            });
-          }}
-          aria-label="View version history"
-        >
-          <ClockIcon width={24} height={24}/>
-        </HistoryButton>
-        <VersionControlSidebar
-          open={historyOpen}
-          onClose={() => setHistoryOpen(false)}
-          productId={productId}
-        />
+
         {/* Step Details Modal */}
         {stepDetailsOpen && (
           <OverlayFixed onClick={() => setStepDetailsOpen(false)}>

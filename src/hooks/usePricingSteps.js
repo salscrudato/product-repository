@@ -1,12 +1,11 @@
 // Custom hook for managing pricing steps with optimized performance
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  deleteDoc, 
-  doc, 
-  updateDoc, 
+import {
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  updateDoc,
   serverTimestamp,
   writeBatch,
   onSnapshot,

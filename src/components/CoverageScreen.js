@@ -15,13 +15,13 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
-import { db, storage, auth } from '../firebase';
+import { db, storage } from '../firebase';
 import useCoverages from '../hooks/useCoverages';
 
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
 import MainNavigation from '../components/ui/Navigation';
-import VersionControlSidebar from './VersionControlSidebar';
+
 import styled, { keyframes } from 'styled-components';
 import {
   Overlay,
@@ -35,7 +35,7 @@ import {
   PlusIcon,
   TrashIcon,
   XMarkIcon,
-  ClockIcon,
+
   ChevronRightIcon,
   ChevronDownIcon,
   MagnifyingGlassIcon,
@@ -608,46 +608,7 @@ const SubCoverageCount = styled.div`
   }
 `;
 
-// History button - Modern floating design
-const HistoryButton = styled.button`
-  position: fixed;
-  bottom: 32px;
-  right: 32px;
-  width: 64px;
-  height: 64px;
-  border: none;
-  border-radius: 20px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.3);
-  cursor: pointer;
-  z-index: 1100;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
 
-  &:hover {
-    transform: translateY(-4px) scale(1.05);
-    box-shadow: 0 20px 40px rgba(99, 102, 241, 0.4);
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  }
-
-  svg {
-    width: 24px;
-    height: 24px;
-  }
-`;
-
-const VcBackdrop = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(4px);
-  z-index: 1090;
-`;
 
 const WideModal = styled(Modal)`
   max-width: 1000px;
@@ -739,14 +700,6 @@ const Actions = styled.div`
 `;
 
 /* ---------- helpers ---------- */
-const logVersionChange = async (productId, payload) => {
-  await addDoc(collection(db, 'products', productId, 'versionHistory'), {
-    userEmail: auth.currentUser?.email || 'unknown',
-    ts: serverTimestamp(),
-    entityType: 'Coverage',
-    ...payload
-  });
-};
 
 const fmtMoney = n => {
   if (n === '' || n === null || n === undefined) return '';
@@ -890,7 +843,6 @@ export default function CoverageScreen() {
     states: [], category: ''
   });
   const [editingId, setEditingId] = useState(null);
-  const [historyOpen, setHistoryOpen] = useState(false);
 
   const [limitModalOpen, setLimitModalOpen] = useState(false);
   const [deductibleModalOpen, setDeductibleModalOpen] = useState(false);
@@ -1088,11 +1040,7 @@ export default function CoverageScreen() {
     try {
       await deleteDoc(doc(db, `products/${productId}/coverages`, id));
       await reloadCoverages();
-      await logVersionChange(productId, {
-        entityId: id,
-        entityName: 'Coverage',
-        action: 'delete'
-      });
+
     } catch (err) {
       alert('Delete failed: ' + err.message);
     }
@@ -1744,11 +1692,7 @@ export default function CoverageScreen() {
           </Overlay>
         )}
 
-        <HistoryButton onClick={() => setHistoryOpen(o => !o)} aria-label="history">
-          <ClockIcon width={25} />
-        </HistoryButton>
-        <VersionControlSidebar open={historyOpen} onClose={() => setHistoryOpen(false)} productId={productId} />
-        {historyOpen && <VcBackdrop onClick={() => setHistoryOpen(false)} />}
+
       </MainContent>
     </Container>
   );

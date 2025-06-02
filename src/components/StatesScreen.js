@@ -4,16 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
-import { TrashIcon } from '@heroicons/react/24/solid';
 import styled, { keyframes } from 'styled-components';
 import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
-import { Table, THead, Tr, Th, Td } from '../components/ui/Table';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { auth } from '../firebase';
-import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
-import { ClockIcon } from '@heroicons/react/24/solid';
+
 
 // Spinner for loading state
 const spin = keyframes`
@@ -29,24 +24,7 @@ const Spinner = styled.div`
   animation: ${spin} 1s linear infinite;
   margin: 100px auto;
 `;
-const HistoryButton = styled.button`
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
-  width: 56px;
-  height: 56px;
-  border: none;
-  border-radius: 50%;
-  background: #374151;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  cursor: pointer;
-  z-index: 1100;
-  &:hover { background: #1f2937; }
-`;
+
 
 // --- NEW UI BITS --------------------------------------------------
 const Panel = styled.div`
@@ -114,7 +92,6 @@ function StatesScreen() {
   const [selectedStates, setSelectedStates] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [newState, setNewState] = useState('');
-  const [historyOpen, setHistoryOpen] = useState(false);
 
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const searchRef = useRef(null);
@@ -257,18 +234,7 @@ function StatesScreen() {
       if (added.length) diff.added = added;
       if (removed.length) diff.removed = removed;
 
-      await addDoc(
-        collection(db, 'products', productId, 'versionHistory'),
-        {
-          userEmail: auth.currentUser?.email || 'unknown',
-          ts: serverTimestamp(),
-          entityType: 'States',
-          entityId: productId,
-          entityName: 'State Availability',
-          action: 'update',
-          changes: diff
-        }
-      );
+
       alert("State availability saved successfully!");
     } catch (error) {
       console.error("Error saving states:", error);
@@ -383,18 +349,7 @@ function StatesScreen() {
           <Button ghost onClick={handleClearAll}>Clear&nbsp;All</Button>
           <Button success onClick={handleSave}>Save</Button>
         </FloatingBar>
-        <HistoryButton
-          style={{ right: historyOpen ? SIDEBAR_WIDTH + 24 : 16 }}
-          onClick={() => setHistoryOpen(true)}
-          aria-label="Version history"
-        >
-          <ClockIcon width={24} height={24}/>
-        </HistoryButton>
-        <VersionControlSidebar
-          open={historyOpen}
-          onClose={() => setHistoryOpen(false)}
-          productId={productId}
-        />
+
       </Container>
     </Page>
   );

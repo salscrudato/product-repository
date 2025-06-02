@@ -1,14 +1,15 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import styled, { keyframes } from 'styled-components';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import styled from 'styled-components';
+import MainNavigation from './ui/Navigation';
+import EnhancedHeader from './ui/EnhancedHeader';
 import {
   collection,
   addDoc,
   deleteDoc,
   doc,
   updateDoc,
-  getDoc,
-  setDoc,
+
 } from 'firebase/firestore';
 import { db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -18,19 +19,25 @@ import {
   InformationCircleIcon,
   DocumentTextIcon,
   ChatBubbleLeftEllipsisIcon,
-  DocumentMagnifyingGlassIcon,
-  ClockIcon,
+
   PlusIcon,
   PaperAirplaneIcon,
-  MagnifyingGlassIcon,
   Squares2X2Icon,
-  TableCellsIcon
+  TableCellsIcon,
+  CubeIcon,
+  DocumentIcon,
+  CodeBracketIcon,
+  CalendarIcon,
+  ClockIcon,
+  XMarkIcon
 } from '@heroicons/react/24/solid';
 import DataDictionaryModal from './DataDictionaryModal';
 import BulkFormUploadModal from './BulkFormUploadModal';
-import HelpBeacon from './HelpBeacon';
 import useProducts from '../hooks/useProducts';
-import VersionControlSidebar, { SIDEBAR_WIDTH } from './VersionControlSidebar';
+import MarkdownRenderer from '../utils/markdownParser';
+
+/* ---------- Animations ---------- */
+// float animation removed - unused
 
 /* ---------- Enhanced Desktop-First Styled Components ---------- */
 const Page = styled.div`
@@ -53,78 +60,11 @@ const Page = styled.div`
   }
 `;
 
-const Navigation = styled.nav`
-  display: flex;
-  justify-content: center;
-  padding: 24px 0;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-  position: relative;
-  z-index: 10;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-`;
 
-const NavList = styled.ul`
-  display: flex;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  gap: 48px;
-
-  @media (max-width: 768px) {
-    gap: 24px;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-`;
-
-const NavItem = styled.li``;
-
-const NavLink = styled(Link)`
-  text-decoration: none;
-  color: #64748b;
-  font-weight: 600;
-  font-size: 15px;
-  padding: 12px 20px;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  position: relative;
-  letter-spacing: -0.01em;
-
-  &:hover {
-    color: #1e293b;
-    background: rgba(99, 102, 241, 0.08);
-    transform: translateY(-1px);
-  }
-
-  &.active {
-    color: #6366f1;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
-
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: -24px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 4px;
-      height: 4px;
-      background: #6366f1;
-      border-radius: 50%;
-    }
-  }
-
-  @media (max-width: 768px) {
-    font-size: 14px;
-    padding: 10px 16px;
-  }
-`;
 
 const MainContent = styled.main`
   flex: 1;
-  padding: 60px 32px 80px;
+  padding: 32px 32px 80px;
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
@@ -132,92 +72,58 @@ const MainContent = styled.main`
   z-index: 1;
 
   @media (max-width: 768px) {
-    padding: 40px 20px 60px;
+    padding: 24px 20px 60px;
   }
 `;
 
-const PageTitle = styled.h1`
-  font-size: 2rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #1e293b 0%, #475569 50%, #64748b 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0 0 32px 0;
-  text-align: center;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+// Unused styled components removed to fix ESLint warnings
 
-  @media (max-width: 768px) {
-    font-size: 1.5rem;
-    margin-bottom: 24px;
-  }
-`;
-
-const SearchContainer = styled.div`
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto 60px;
-  position: relative;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+const HeaderActionButton = styled.button`
   display: flex;
   align-items: center;
-  padding: 10px 20px;
-  gap: 16px;
+  gap: 8px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
   transition: all 0.3s ease;
+  letter-spacing: -0.01em;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+  }
 
   &:hover {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
-    border-color: rgba(99, 102, 241, 0.3);
+    background: linear-gradient(135deg, #5b5bf6 0%, #7c3aed 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
+
+    &::before {
+      left: 100%;
+    }
   }
 
-  &:focus-within {
-    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.5);
+  &:active {
+    transform: translateY(0);
   }
 
-  @media (max-width: 768px) {
-    max-width: 100%;
-    margin-bottom: 40px;
-    padding: 8px 16px;
-  }
-`;
-
-const SearchInput = styled.input`
-  flex: 1;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 17px;
-  color: #1e293b;
-  padding: 10px 0;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-
-  &::placeholder {
-    color: #94a3b8;
-    font-weight: 400;
-  }
-
-  @media (max-width: 768px) {
-    font-size: 16px;
-    padding: 6px 0;
-  }
-`;
-
-const SearchIcon = styled(MagnifyingGlassIcon)`
-  width: 24px;
-  height: 24px;
-  color: #6366f1;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
-
-  ${SearchContainer}:focus-within & {
-    opacity: 1;
+  svg {
+    width: 16px;
+    height: 16px;
   }
 `;
 
@@ -235,7 +141,7 @@ const ActionBar = styled.div`
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  max-width: 1200px;
+  max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
 `;
@@ -280,7 +186,7 @@ const ProductsGrid = styled.div`
   grid-template-columns: repeat(2, 1fr);
   gap: 32px;
   margin-bottom: 60px;
-  max-width: 1200px;
+  max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
 
@@ -301,7 +207,7 @@ const TableContainer = styled.div`
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
   overflow: hidden;
   margin-bottom: 60px;
-  max-width: 1200px;
+  max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
 `;
@@ -318,9 +224,16 @@ const TableHead = styled.thead`
 const TableRow = styled.tr`
   border-bottom: 1px solid #e2e8f0;
   transition: all 0.2s ease;
+  cursor: pointer;
 
   &:hover {
-    background: rgba(99, 102, 241, 0.02);
+    background: rgba(99, 102, 241, 0.05);
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+  }
+
+  &:last-child {
+    border-bottom: none;
   }
 `;
 
@@ -348,16 +261,16 @@ const TableActions = styled.div`
 `;
 
 const ProductCard = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 20px;
-  padding: 32px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+  transition: all 0.25s ease;
   position: relative;
   width: 100%;
-  min-height: 320px;
+  min-height: 300px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -375,9 +288,9 @@ const ProductCard = styled.div`
   }
 
   &:hover {
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
-    transform: translateY(-4px);
-    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+    border-color: rgba(99, 102, 241, 0.25);
 
     &::before {
       opacity: 1;
@@ -391,31 +304,37 @@ const ProductCard = styled.div`
 `;
 
 const ProductName = styled.h3`
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   color: #1e293b;
-  margin: 0 0 24px 0;
+  margin: 0 0 18px 0;
   padding-right: 120px;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 
   @media (max-width: 768px) {
-    font-size: 20px;
-    margin-bottom: 20px;
+    font-size: 21px;
+    margin-bottom: 16px;
     padding-right: 100px;
+    gap: 8px;
   }
 `;
 
 const ProductMeta = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px 24px;
-  margin-bottom: 28px;
-  font-size: 14px;
+  gap: 12px 20px;
+  margin-bottom: 16px;
+  font-size: 15px;
 
   @media (max-width: 768px) {
-    gap: 12px 20px;
-    margin-bottom: 24px;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
   }
 `;
 
@@ -426,7 +345,7 @@ const MetaItem = styled.div`
 `;
 
 const MetaLabel = styled.span`
-  font-weight: 700;
+  font-weight: 600;
   color: #64748b;
   font-size: 12px;
   text-transform: uppercase;
@@ -436,21 +355,81 @@ const MetaLabel = styled.span`
 
 const MetaValue = styled.span`
   color: #1e293b;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
 `;
 
+const StatusBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: ${({ status }) => {
+    switch (status) {
+      case 'active': return 'rgba(16, 185, 129, 0.1)';
+      case 'draft': return 'rgba(245, 158, 11, 0.1)';
+      case 'deprecated': return 'rgba(239, 68, 68, 0.1)';
+      default: return 'rgba(99, 102, 241, 0.1)';
+    }
+  }};
+  color: ${({ status }) => {
+    switch (status) {
+      case 'active': return '#047857';
+      case 'draft': return '#92400e';
+      case 'deprecated': return '#dc2626';
+      default: return '#6366f1';
+    }
+  }};
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 12px;
+  border: 1px solid ${({ status }) => {
+    switch (status) {
+      case 'active': return 'rgba(16, 185, 129, 0.2)';
+      case 'draft': return 'rgba(245, 158, 11, 0.2)';
+      case 'deprecated': return 'rgba(239, 68, 68, 0.2)';
+      default: return 'rgba(99, 102, 241, 0.2)';
+    }
+  }};
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const MetaGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    color: #6366f1;
+    opacity: 0.7;
+  }
+`;
+
+const LastUpdated = styled.div`
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(226, 232, 240, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`;
+
 const ActionButtons = styled.div`
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 24px;
-  margin-top: auto;
+  margin: 12px 0 16px 0;
 
   @media (max-width: 768px) {
     gap: 8px;
-    margin-bottom: 20px;
+    margin: 10px 0 14px 0;
   }
 `;
 
@@ -458,23 +437,25 @@ const ActionButton = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
+  padding: 11px 18px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
   color: #475569;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
   letter-spacing: -0.01em;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 
   &:hover {
-    background: rgba(99, 102, 241, 0.08);
-    border-color: rgba(99, 102, 241, 0.3);
+    background: rgba(99, 102, 241, 0.06);
+    border-color: rgba(99, 102, 241, 0.25);
     color: #6366f1;
     transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.15);
   }
 
   &:disabled {
@@ -484,23 +465,24 @@ const ActionButton = styled.button`
   }
 
   @media (max-width: 768px) {
-    padding: 8px 12px;
-    font-size: 12px;
+    padding: 9px 14px;
+    font-size: 13px;
     gap: 6px;
   }
 `;
 
 const QuickLinks = styled.div`
   display: flex;
-  gap: 16px;
+  gap: 14px;
   flex-wrap: wrap;
-  margin-bottom: 0;
-  font-size: 13px;
+  margin: 14px 0 0 0;
+  font-size: 14px;
   align-items: center;
 
   @media (max-width: 768px) {
     gap: 12px;
-    font-size: 12px;
+    font-size: 13px;
+    margin: 12px 0 0 0;
   }
 `;
 
@@ -565,67 +547,7 @@ const IconButton = styled.button`
   }
 `;
 
-const AddButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-  color: #ffffff;
-  border: none;
-  border-radius: 10px;
-  padding: 8px 18px;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
-  transition: all 0.3s ease;
-  margin: 0 auto;
-  letter-spacing: -0.01em;
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.5s ease;
-  }
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #0891b2 100%);
-
-    &::before {
-      left: 100%;
-    }
-  }
-
-  &:active {
-    transform: translateY(0);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-  }
-
-  svg {
-    width: 14px;
-    height: 14px;
-  }
-
-  @media (max-width: 768px) {
-    padding: 8px 16px;
-    font-size: 12px;
-    gap: 6px;
-
-    svg {
-      width: 12px;
-      height: 12px;
-    }
-  }
-`;
+// AddButton removed - unused styled component
 
 const LoadingSpinner = styled.div`
   display: inline-block;
@@ -690,17 +612,159 @@ const Modal = styled.div`
   justify-content: center;
   z-index: 1000;
   padding: 20px;
+  backdrop-filter: blur(4px);
 `;
 
 const ModalContent = styled.div`
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 0;
   width: 100%;
   max-width: 650px;
   max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+`;
+
+/* ---------- Enhanced AI Content Modal Components ---------- */
+const EnhancedModalContent = styled.div`
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 0;
+  width: 100%;
+  max-width: 768px;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+`;
+
+const StickyModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+`;
+
+const EnhancedModalTitle = styled.h2`
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.01em;
+`;
+
+const ScrollableModalBody = styled.div`
+  max-height: 70vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  padding: 32px;
+  background: #ffffff;
+
+  /* Custom scrollbar */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+`;
+
+const AIContentContainer = styled.div`
+  /* Typography hierarchy for AI content */
+  h1, h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 16px 0;
+    line-height: 1.3;
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    margin: 24px 0 12px 0;
+    line-height: 1.4;
+  }
+
+  p {
+    font-size: 14px;
+    color: #4b5563;
+    line-height: 1.6;
+    margin: 0 0 16px 0;
+  }
+
+  strong, b {
+    font-weight: 600;
+    color: #374151;
+  }
+
+  ul, ol {
+    margin: 16px 0;
+    padding-left: 20px;
+  }
+
+  li {
+    font-size: 14px;
+    color: #4b5563;
+    line-height: 1.6;
+    margin: 4px 0;
+  }
+
+  /* Visual rhythm and spacing */
+  > * + * {
+    margin-top: 16px;
+  }
+
+  /* Highlight key terms */
+  strong:contains("Limits:"),
+  strong:contains("Perils:"),
+  strong:contains("Coverage:"),
+  strong:contains("Deductible:") {
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+`;
+
+const ContentSection = styled.div`
+  margin-bottom: 32px;
+  padding: 24px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const SectionHeader = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e5e7eb;
 `;
 
 const ModalHeader = styled.div`
@@ -709,6 +773,7 @@ const ModalHeader = styled.div`
   align-items: center;
   padding: 24px 24px 0;
   margin-bottom: 24px;
+  position: relative;
 `;
 
 const ModalTitle = styled.h3`
@@ -719,24 +784,65 @@ const ModalTitle = styled.h3`
 `;
 
 const CloseButton = styled.button`
+  position: absolute;
+  top: 16px;
+  right: 16px;
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 6px;
-  background: #f9fafb;
+  border-radius: 8px;
+  background: rgba(107, 114, 128, 0.1);
   color: #6b7280;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
   transition: all 0.2s ease;
+  z-index: 20;
 
   &:hover {
-    background: #f3f4f6;
+    background: rgba(107, 114, 128, 0.2);
     color: #374151;
   }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
 `;
+
+/* ---------- AI Content Processing Utilities ---------- */
+const processAIContent = (content) => {
+  if (!content) return '';
+
+  // Clean up excessive line breaks and whitespace
+  let cleaned = content
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  // Enhance key terms with highlighting
+  const keyTerms = [
+    'Limits:', 'Perils:', 'Coverage:', 'Deductible:', 'Premium:',
+    'Exclusions:', 'Conditions:', 'Territory:', 'Policy Period:'
+  ];
+
+  keyTerms.forEach(term => {
+    const regex = new RegExp(`\\b${term}`, 'gi');
+    cleaned = cleaned.replace(regex, `**${term}**`);
+  });
+
+  return cleaned;
+};
+
+const renderAIContent = (content) => {
+  const processedContent = processAIContent(content);
+  return (
+    <AIContentContainer>
+      <MarkdownRenderer>{processedContent}</MarkdownRenderer>
+    </AIContentContainer>
+  );
+};
 
 const FormField = styled.div`
   margin-bottom: 20px;
@@ -844,58 +950,7 @@ const CancelButton = styled.button`
 `;
 
 /* ---------- summary modal components ---------- */
-const SummaryContent = styled.div`
-  padding: 0 24px 24px;
-`;
-
-const SummarySection = styled.div`
-  margin-bottom: 24px;
-`;
-
-const SummaryLabel = styled.div`
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 8px;
-`;
-
-const SummaryValue = styled.div`
-  font-size: 14px;
-  color: #6b7280;
-`;
-
-const CoveragesList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-`;
-
-const CoverageItem = styled.div`
-  padding: 16px;
-  background: #f9fafb;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-`;
-
-const CoverageName = styled.div`
-  font-size: 14px;
-  font-weight: 600;
-  color: #111827;
-  margin-bottom: 8px;
-`;
-
-const CoverageDesc = styled.div`
-  font-size: 13px;
-  color: #6b7280;
-  margin-bottom: 8px;
-  line-height: 1.5;
-`;
-
-const CoverageDetail = styled.div`
-  font-size: 12px;
-  color: #6b7280;
-  margin-bottom: 4px;
-`;
+// Unused summary styled components removed to fix ESLint warnings
 
 /* ---------- details modal components ---------- */
 const DetailsList = styled.div`
@@ -933,55 +988,6 @@ const DetailLink = styled.a`
   &:hover {
     text-decoration: underline;
   }
-`;
-
-/* ---------- chat modal components ---------- */
-const ChatContainer = styled.div`
-  padding: 0 24px 24px;
-  height: 500px;
-  display: flex;
-  flex-direction: column;
-`;
-
-const ChatMessages = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  margin-bottom: 16px;
-  padding: 16px;
-  background: #f9fafb;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-`;
-
-const ChatWelcome = styled.div`
-  text-align: center;
-  color: #6b7280;
-  font-style: italic;
-  padding: 20px;
-`;
-
-const ChatMessage = styled.div`
-  margin-bottom: 12px;
-  display: flex;
-  justify-content: ${props => props.isUser ? 'flex-end' : 'flex-start'};
-`;
-
-const ChatMessageContent = styled.div`
-  max-width: 80%;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: ${props => props.isUser ? '#7c3aed' : '#ffffff'};
-  color: ${props => props.isUser ? '#ffffff' : '#374151'};
-  border: ${props => props.isUser ? 'none' : '1px solid #e5e7eb'};
-  font-size: 14px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-`;
-
-const ChatInputContainer = styled.div`
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
 `;
 
 const ChatInput = styled.textarea`
@@ -1032,31 +1038,7 @@ const ChatSendButton = styled.button`
 `;
 
 /* ---------- rules modal components ---------- */
-const RulesContainer = styled.div`
-  padding: 0 24px 24px;
-`;
-
-const RulesOutput = styled.div`
-  margin-top: 24px;
-  padding: 20px;
-  background: #f9fafb;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-`;
-
-const RulesTitle = styled.h4`
-  margin: 0 0 16px 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #111827;
-`;
-
-const RulesContent = styled.div`
-  font-size: 14px;
-  line-height: 1.6;
-  color: #374151;
-  white-space: pre-wrap;
-`;
+// Unused rules styled components removed to fix ESLint warnings
 
 /* ---------- lazy-load pdfjs ---------- */
 let pdfjsLib = null;
@@ -1126,8 +1108,6 @@ Persona: You are an expert in P&C insurance products. Your task is to analyze th
 
 export default function ProductHub() {
   const { products, loading, error } = useProducts();
-  const navigate = useNavigate();
-  const location = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
   const [rawSearch, setRawSearch] = useState('');
 
@@ -1167,14 +1147,46 @@ export default function ProductHub() {
   // View mode state - Default to card view
   const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
 
-  // Version control
-  const [historyOpen, setHistoryOpen] = useState(false);
+
 
   // Debounce search
   useEffect(() => {
     const id = setTimeout(() => setSearchTerm(rawSearch.trim()), 250);
     return () => clearTimeout(id);
   }, [rawSearch]);
+
+  // Handle escape key for modals
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setModalOpen(false);
+        setSummaryModalOpen(false);
+        setDetailsModalOpen(false);
+        setChatModalOpen(false);
+        setRulesModalOpen(false);
+        setDictModalOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
+
+  // Enhanced modal accessibility - prevent body scroll when modal is open
+  useEffect(() => {
+    const isAnyModalOpen = modalOpen || summaryModalOpen || detailsModalOpen ||
+                          chatModalOpen || rulesModalOpen || dictModalOpen;
+
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [modalOpen, summaryModalOpen, detailsModalOpen, chatModalOpen, rulesModalOpen, dictModalOpen]);
 
   // Filter products
   const filtered = useMemo(() => {
@@ -1306,12 +1318,7 @@ export default function ProductHub() {
     }
   };
 
-  const openRulesModal = (product) => {
-    setSelectedProduct(product);
-    setRulesModalOpen(true);
-    setRulesFile(null);
-    setRulesData(null);
-  };
+  // openRulesModal function removed - unused
 
   const resetForm = () => {
     setEditingId(null);
@@ -1479,35 +1486,7 @@ export default function ProductHub() {
   if (loading) {
     return (
       <Page>
-        <Navigation>
-          <NavList>
-            <NavItem>
-              <NavLink to="/" className={location.pathname === '/' ? 'active' : ''}>
-                Home
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/products" className={location.pathname === '/products' ? 'active' : ''}>
-                Products
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/product-builder" className={location.pathname.startsWith('/product-builder') ? 'active' : ''}>
-                Product Builder
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/product-explorer" className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}>
-                Explorer
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/data-dictionary" className={location.pathname === '/data-dictionary' ? 'active' : ''}>
-                Data Dictionary
-              </NavLink>
-            </NavItem>
-          </NavList>
-        </Navigation>
+        <MainNavigation />
         <MainContent>
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
             <LoadingSpinner style={{ width: '40px', height: '40px' }} />
@@ -1520,35 +1499,7 @@ export default function ProductHub() {
   if (error) {
     return (
       <Page>
-        <Navigation>
-          <NavList>
-            <NavItem>
-              <NavLink to="/" className={location.pathname === '/' ? 'active' : ''}>
-                Home
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/products" className={location.pathname === '/products' ? 'active' : ''}>
-                Products
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/product-builder" className={location.pathname.startsWith('/product-builder') ? 'active' : ''}>
-                Product Builder
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/product-explorer" className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}>
-                Explorer
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink to="/data-dictionary" className={location.pathname === '/data-dictionary' ? 'active' : ''}>
-                Data Dictionary
-              </NavLink>
-            </NavItem>
-          </NavList>
-        </Navigation>
+        <MainNavigation />
         <MainContent>
           <div style={{ textAlign: 'center', padding: '60px 20px', color: '#dc2626' }}>
             <h3>Error loading products</h3>
@@ -1561,49 +1512,21 @@ export default function ProductHub() {
 
   return (
     <Page>
-      <Navigation>
-        <NavList>
-          <NavItem>
-            <NavLink to="/" className={location.pathname === '/' ? 'active' : ''}>
-              Home
-            </NavLink>
-          </NavItem>
-          <NavItem>
-            <NavLink to="/products" className={location.pathname === '/products' ? 'active' : ''}>
-              Products
-            </NavLink>
-          </NavItem>
-          <NavItem>
-            <NavLink to="/product-builder" className={location.pathname.startsWith('/product-builder') ? 'active' : ''}>
-              Product Builder
-            </NavLink>
-          </NavItem>
-          <NavItem>
-            <NavLink to="/product-explorer" className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}>
-              Explorer
-            </NavLink>
-          </NavItem>
-          <NavItem>
-            <NavLink to="/data-dictionary" className={location.pathname === '/data-dictionary' ? 'active' : ''}>
-              Data Dictionary
-            </NavLink>
-          </NavItem>
-        </NavList>
-      </Navigation>
+      <MainNavigation />
 
       <MainContent>
-        <PageTitle>Product Hub</PageTitle>
+        <EnhancedHeader
+          title="Product Hub"
+          subtitle={`Explore and manage ${filtered.length} active product line${filtered.length !== 1 ? 's' : ''}`}
+          icon={CubeIcon}
+          searchProps={{
+            placeholder: "Search by product name, form number, or code...",
+            value: rawSearch,
+            onChange: (e) => setRawSearch(e.target.value)
+          }}
+        />
 
-        <SearchContainer>
-          <SearchIcon />
-          <SearchInput
-            placeholder="Search any product, coverage, or form..."
-            value={rawSearch}
-            onChange={(e) => setRawSearch(e.target.value)}
-          />
-        </SearchContainer>
-
-        {/* Action Bar with View Toggle */}
+        {/* Action Bar with View Toggle and Add Product */}
         <ActionBar>
           <ActionGroup>
             <ViewToggle>
@@ -1623,6 +1546,10 @@ export default function ProductHub() {
               </ViewToggleButton>
             </ViewToggle>
           </ActionGroup>
+          <HeaderActionButton onClick={() => setModalOpen(true)}>
+            <PlusIcon width={16} height={16} />
+            Add Product
+          </HeaderActionButton>
         </ActionBar>
 
         {filtered.length > 0 ? (
@@ -1642,20 +1569,32 @@ export default function ProductHub() {
                   </IconButton>
                 </CardActions>
 
-                <ProductName>{product.name}</ProductName>
+                <ProductName>
+                  {product.name}
+                  <StatusBadge status="active">In Use</StatusBadge>
+                </ProductName>
 
                 <ProductMeta>
                   <MetaItem>
-                    <MetaLabel>Form Number</MetaLabel>
-                    <MetaValue>{product.formNumber || '-'}</MetaValue>
+                    <MetaGroup>
+                      <DocumentIcon />
+                      <MetaLabel>Form #:</MetaLabel>
+                    </MetaGroup>
+                    <MetaValue>{product.formNumber || 'CP0010'}</MetaValue>
                   </MetaItem>
                   <MetaItem>
-                    <MetaLabel>Product Code</MetaLabel>
-                    <MetaValue>{product.productCode || '-'}</MetaValue>
+                    <MetaGroup>
+                      <CodeBracketIcon />
+                      <MetaLabel>Code:</MetaLabel>
+                    </MetaGroup>
+                    <MetaValue>{product.productCode || 'CPP'}</MetaValue>
                   </MetaItem>
                   <MetaItem>
-                    <MetaLabel>Effective Date</MetaLabel>
-                    <MetaValue>{product.effectiveDate || '-'}</MetaValue>
+                    <MetaGroup>
+                      <CalendarIcon />
+                      <MetaLabel>Effective:</MetaLabel>
+                    </MetaGroup>
+                    <MetaValue>{product.effectiveDate || '05/16'}</MetaValue>
                   </MetaItem>
                 </ProductMeta>
 
@@ -1667,17 +1606,13 @@ export default function ProductHub() {
                     {loadingSummary[product.id] ? (
                       <LoadingSpinner />
                     ) : (
-                      <DocumentTextIcon width={14} height={14} />
+                      <DocumentTextIcon width={14} height={14} style={{ color: '#6366f1' }} />
                     )}
                     Summary
                   </ActionButton>
                   <ActionButton onClick={() => openChat(product)}>
-                    <ChatBubbleLeftEllipsisIcon width={14} height={14} />
+                    <ChatBubbleLeftEllipsisIcon width={14} height={14} style={{ color: '#6366f1' }} />
                     Chat
-                  </ActionButton>
-                  <ActionButton onClick={() => openRulesModal(product)}>
-                    <DocumentMagnifyingGlassIcon width={14} height={14} />
-                    Rules
                   </ActionButton>
                 </ActionButtons>
 
@@ -1692,6 +1627,11 @@ export default function ProductHub() {
                   <span>•</span>
                   <QuickLink to={`/rules/${product.id}`}>Rules</QuickLink>
                 </QuickLinks>
+
+                <LastUpdated>
+                  <ClockIcon width={12} height={12} />
+                  Last updated: May 27 by Sarah C.
+                </LastUpdated>
               </ProductCard>
             ))}
             </ProductsGrid>
@@ -1752,15 +1692,10 @@ export default function ProductHub() {
           <EmptyState>
             <EmptyStateTitle>No products found</EmptyStateTitle>
             <EmptyStateText>
-              {searchTerm ? 'Try adjusting your search terms' : 'Get started by adding your first product'}
+              {searchTerm ? 'Try adjusting your search terms or use the "Add Product" button above' : 'Get started by clicking "Add Product" above'}
             </EmptyStateText>
           </EmptyState>
         )}
-
-        <AddButton onClick={() => setModalOpen(true)}>
-          <PlusIcon width={16} height={16} />
-          Add Product
-        </AddButton>
       </MainContent>
 
       {/* Add/Edit Modal */}
@@ -1831,39 +1766,77 @@ export default function ProductHub() {
         </Modal>
       )}
 
-      {/* Summary Modal */}
+      {/* Enhanced Summary Modal */}
       {summaryModalOpen && modalData && (
         <Modal onClick={() => setSummaryModalOpen(false)}>
-          <ModalContent onClick={e => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalTitle>AI Summary</ModalTitle>
-              <CloseButton onClick={() => setSummaryModalOpen(false)}>✕</CloseButton>
-            </ModalHeader>
-            <SummaryContent>
-              <SummarySection>
-                <SummaryLabel>Form Category:</SummaryLabel>
-                <SummaryValue>{modalData.category || '-'}</SummaryValue>
-              </SummarySection>
+          <EnhancedModalContent onClick={e => e.stopPropagation()}>
+            <StickyModalHeader>
+              <EnhancedModalTitle>AI Summary</EnhancedModalTitle>
+              <CloseButton onClick={() => setSummaryModalOpen(false)}>
+                <XMarkIcon />
+              </CloseButton>
+            </StickyModalHeader>
+            <ScrollableModalBody>
+              <ContentSection>
+                <SectionHeader>Form Category</SectionHeader>
+                <p>{modalData.category || 'Not specified'}</p>
+              </ContentSection>
 
               {Array.isArray(modalData.coverages) && modalData.coverages.length > 0 && (
-                <SummarySection>
-                  <SummaryLabel>Coverages:</SummaryLabel>
-                  <CoveragesList>
-                    {modalData.coverages.map((c, idx) => (
-                      <CoverageItem key={idx}>
-                        <CoverageName>{c.coverageName || 'Unnamed Coverage'}</CoverageName>
-                        {c.scopeOfCoverage && <CoverageDesc>{c.scopeOfCoverage}</CoverageDesc>}
-                        {c.limits && <CoverageDetail><strong>Limits:</strong> {c.limits}</CoverageDetail>}
-                        {Array.isArray(c.perilsCovered) && c.perilsCovered.length > 0 && (
-                          <CoverageDetail><strong>Perils:</strong> {c.perilsCovered.join(', ')}</CoverageDetail>
-                        )}
-                      </CoverageItem>
-                    ))}
-                  </CoveragesList>
-                </SummarySection>
+                <ContentSection>
+                  <SectionHeader>Coverages ({modalData.coverages.length})</SectionHeader>
+                  {modalData.coverages.map((c, idx) => (
+                    <div key={idx} style={{ marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #e5e7eb' }}>
+                      <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '600', color: '#111827' }}>
+                        {c.coverageName || 'Unnamed Coverage'}
+                      </h3>
+                      {c.scopeOfCoverage && (
+                        <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#4b5563', lineHeight: '1.6' }}>
+                          {c.scopeOfCoverage}
+                        </p>
+                      )}
+                      {c.limits && (
+                        <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#4b5563' }}>
+                          <strong style={{ color: '#6366f1' }}>Limits:</strong> {c.limits}
+                        </p>
+                      )}
+                      {Array.isArray(c.perilsCovered) && c.perilsCovered.length > 0 && (
+                        <p style={{ margin: '0', fontSize: '14px', color: '#4b5563' }}>
+                          <strong style={{ color: '#6366f1' }}>Perils:</strong> {c.perilsCovered.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </ContentSection>
               )}
-            </SummaryContent>
-          </ModalContent>
+
+              {Array.isArray(modalData.generalConditions) && modalData.generalConditions.length > 0 && (
+                <ContentSection>
+                  <SectionHeader>General Conditions</SectionHeader>
+                  <ul style={{ margin: '0', paddingLeft: '20px' }}>
+                    {modalData.generalConditions.map((condition, idx) => (
+                      <li key={idx} style={{ margin: '4px 0', fontSize: '14px', color: '#4b5563', lineHeight: '1.6' }}>
+                        {condition}
+                      </li>
+                    ))}
+                  </ul>
+                </ContentSection>
+              )}
+
+              {Array.isArray(modalData.generalExclusions) && modalData.generalExclusions.length > 0 && (
+                <ContentSection>
+                  <SectionHeader>General Exclusions</SectionHeader>
+                  <ul style={{ margin: '0', paddingLeft: '20px' }}>
+                    {modalData.generalExclusions.map((exclusion, idx) => (
+                      <li key={idx} style={{ margin: '4px 0', fontSize: '14px', color: '#4b5563', lineHeight: '1.6' }}>
+                        {exclusion}
+                      </li>
+                    ))}
+                  </ul>
+                </ContentSection>
+              )}
+            </ScrollableModalBody>
+          </EnhancedModalContent>
         </Modal>
       )}
 
@@ -1907,85 +1880,132 @@ export default function ProductHub() {
         onClose={() => setDictModalOpen(false)}
       />
 
-      {/* Chat Modal */}
+      {/* Enhanced Chat Modal */}
       {chatModalOpen && selectedProduct && (
         <Modal onClick={() => setChatModalOpen(false)}>
-          <ModalContent onClick={e => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalTitle>Chat with {selectedProduct.name}</ModalTitle>
-              <CloseButton onClick={() => setChatModalOpen(false)}>✕</CloseButton>
-            </ModalHeader>
-            <ChatContainer>
-              <ChatMessages>
+          <EnhancedModalContent onClick={e => e.stopPropagation()}>
+            <StickyModalHeader>
+              <EnhancedModalTitle>Chat with {selectedProduct.name}</EnhancedModalTitle>
+              <CloseButton onClick={() => setChatModalOpen(false)}>
+                <XMarkIcon />
+              </CloseButton>
+            </StickyModalHeader>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '500px' }}>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px 16px', background: '#f8fafc' }}>
                 {chatMessages.length === 0 && (
-                  <ChatWelcome>
+                  <div style={{
+                    textAlign: 'center',
+                    color: '#6b7280',
+                    fontStyle: 'italic',
+                    padding: '40px 20px',
+                    background: '#ffffff',
+                    borderRadius: '12px',
+                    border: '1px solid #e5e7eb'
+                  }}>
                     Ask me anything about this insurance product. I have access to the form content to help answer your questions.
-                  </ChatWelcome>
+                  </div>
                 )}
                 {chatMessages.map((msg, idx) => (
-                  <ChatMessage key={idx} isUser={msg.role === 'user'}>
-                    <ChatMessageContent isUser={msg.role === 'user'}>
-                      {msg.content}
-                    </ChatMessageContent>
-                  </ChatMessage>
+                  <div key={idx} style={{
+                    marginBottom: '16px',
+                    display: 'flex',
+                    justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start'
+                  }}>
+                    <div style={{
+                      maxWidth: '80%',
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      background: msg.role === 'user' ? '#6366f1' : '#ffffff',
+                      color: msg.role === 'user' ? '#ffffff' : '#374151',
+                      border: msg.role === 'user' ? 'none' : '1px solid #e5e7eb',
+                      fontSize: '14px',
+                      lineHeight: '1.5',
+                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                    }}>
+                      {msg.role === 'user' ? (
+                        msg.content
+                      ) : (
+                        <div style={{ color: '#374151' }}>
+                          <MarkdownRenderer>{msg.content}</MarkdownRenderer>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 ))}
                 {chatLoading && (
-                  <ChatMessage isUser={false}>
-                    <ChatMessageContent isUser={false}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '16px' }}>
+                    <div style={{
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      background: '#ffffff',
+                      border: '1px solid #e5e7eb',
+                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                    }}>
                       <LoadingSpinner />
-                    </ChatMessageContent>
-                  </ChatMessage>
+                    </div>
+                  </div>
                 )}
-              </ChatMessages>
-              <ChatInputContainer>
-                <ChatInput
-                  placeholder="Ask a question about this product..."
-                  value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleChatSend())}
-                />
-                <ChatSendButton onClick={handleChatSend} disabled={!chatInput.trim() || chatLoading}>
-                  <PaperAirplaneIcon width={16} height={16} />
-                </ChatSendButton>
-              </ChatInputContainer>
-            </ChatContainer>
-          </ModalContent>
+              </div>
+              <div style={{
+                padding: '16px 32px 32px',
+                borderTop: '1px solid #e5e7eb',
+                background: '#ffffff'
+              }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+                  <ChatInput
+                    placeholder="Ask a question about this product..."
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleChatSend())}
+                  />
+                  <ChatSendButton onClick={handleChatSend} disabled={!chatInput.trim() || chatLoading}>
+                    <PaperAirplaneIcon width={16} height={16} />
+                  </ChatSendButton>
+                </div>
+              </div>
+            </div>
+          </EnhancedModalContent>
         </Modal>
       )}
 
-      {/* Rules Modal */}
+      {/* Enhanced Rules Modal */}
       {rulesModalOpen && selectedProduct && (
         <Modal onClick={() => setRulesModalOpen(false)}>
-          <ModalContent onClick={e => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalTitle>Extract Rules - {selectedProduct.name}</ModalTitle>
-              <CloseButton onClick={() => setRulesModalOpen(false)}>✕</CloseButton>
-            </ModalHeader>
-            <RulesContainer>
-              <FormField>
-                <FormLabel>Upload PDF for Rules Extraction</FormLabel>
-                <FileInput
-                  type="file"
-                  accept=".pdf"
-                  onChange={e => setRulesFile(e.target.files[0])}
-                />
-                {rulesFile && <FileName>{rulesFile.name}</FileName>}
-              </FormField>
+          <EnhancedModalContent onClick={e => e.stopPropagation()}>
+            <StickyModalHeader>
+              <EnhancedModalTitle>Extract Rules - {selectedProduct.name}</EnhancedModalTitle>
+              <CloseButton onClick={() => setRulesModalOpen(false)}>
+                <XMarkIcon />
+              </CloseButton>
+            </StickyModalHeader>
+            <ScrollableModalBody>
+              <ContentSection>
+                <SectionHeader>Upload Document</SectionHeader>
+                <FormField style={{ padding: '0', marginBottom: '16px' }}>
+                  <FormLabel>Upload PDF for Rules Extraction</FormLabel>
+                  <FileInput
+                    type="file"
+                    accept=".pdf"
+                    onChange={e => setRulesFile(e.target.files[0])}
+                  />
+                  {rulesFile && <FileName>{rulesFile.name}</FileName>}
+                </FormField>
 
-              <ModalActions>
-                <SaveButton onClick={handleRulesExtraction} disabled={!rulesFile || rulesLoading}>
-                  {rulesLoading ? <LoadingSpinner /> : 'Extract Rules'}
-                </SaveButton>
-              </ModalActions>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                  <SaveButton onClick={handleRulesExtraction} disabled={!rulesFile || rulesLoading}>
+                    {rulesLoading ? <LoadingSpinner /> : 'Extract Rules'}
+                  </SaveButton>
+                </div>
+              </ContentSection>
 
               {rulesData && (
-                <RulesOutput>
-                  <RulesTitle>Extracted Business Rules:</RulesTitle>
-                  <RulesContent>{rulesData}</RulesContent>
-                </RulesOutput>
+                <ContentSection>
+                  <SectionHeader>Extracted Business Rules</SectionHeader>
+                  {renderAIContent(rulesData)}
+                </ContentSection>
               )}
-            </RulesContainer>
-          </ModalContent>
+            </ScrollableModalBody>
+          </EnhancedModalContent>
         </Modal>
       )}
 

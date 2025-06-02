@@ -6,7 +6,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Overlay, Modal, ModalHeader, ModalTitle, CloseBtn, Table, THead, Tr, Th, Td } from './ui/Table';
 import { Button } from './ui/Button';
 import styled from 'styled-components';
-import { ArrowUpTrayIcon, TrashIcon, PaperAirplaneIcon } from '@heroicons/react/24/solid';
+import { ArrowUpTrayIcon, TrashIcon } from '@heroicons/react/24/solid';
 import { TextInput } from './ui/Input';
 
 /* ---------- styled ---------- */
