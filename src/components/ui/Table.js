@@ -17,7 +17,9 @@ export const Tr = styled.tr`
   border-bottom: 1px solid #e5e7eb;
 `;
 
-export const Th = styled.th`
+export const Th = styled.th.withConfig({
+  shouldForwardProp: (prop) => prop !== 'align',
+})`
   padding: 12px;
   text-align: ${({ align = 'left' }) => align};
   font-size: 14px;
@@ -25,7 +27,9 @@ export const Th = styled.th`
   color: #6b7280;
 `;
 
-export const Td = styled.td`
+export const Td = styled.td.withConfig({
+  shouldForwardProp: (prop) => prop !== 'align',
+})`
   padding: 12px;
   text-align: ${({ align = 'left' }) => align};
   font-size: 14px;

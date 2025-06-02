@@ -241,7 +241,7 @@ const StatusBadge = styled.span`
   letter-spacing: 0.5px;
 
   ${props => {
-    switch (props.status) {
+    switch (props.$status) {
       case 'todo':
         return `
           background: rgba(107, 114, 128, 0.1);
@@ -282,7 +282,7 @@ const PriorityBadge = styled.span`
   text-transform: uppercase;
 
   ${props => {
-    switch (props.priority) {
+    switch (props.$priority) {
       case 'low':
         return `
           background: rgba(34, 197, 94, 0.1);
@@ -720,11 +720,11 @@ export default function ProductQueueManagement() {
 
                 <TaskMeta>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <StatusBadge status={task.status}>
+                    <StatusBadge $status={task.status}>
                       {getStatusIcon(task.status)}
                       {task.status?.replace('-', ' ')}
                     </StatusBadge>
-                    <PriorityBadge priority={task.priority}>
+                    <PriorityBadge $priority={task.priority}>
                       {getPriorityIcon(task.priority)}
                       {task.priority}
                     </PriorityBadge>

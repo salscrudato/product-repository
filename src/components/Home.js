@@ -1,13 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { HomeIcon } from '@heroicons/react/24/solid';
+import {
+  HomeIcon,
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  XMarkIcon
+} from '@heroicons/react/24/solid';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
 import useProducts from '../hooks/useProducts';
 import { collection, getDocs, collectionGroup } from 'firebase/firestore';
 import { db } from '../firebase';
-import MarkdownRenderer from '../utils/markdownParser';
+
 import InsuranceNewsFeed from './InsuranceNewsFeed';
+import { Button } from './ui/Button';
+import { TextInput } from './ui/Input';
 
 /* ---------- styled components ---------- */
 const Page = styled.div`
@@ -48,20 +56,34 @@ const MainContent = styled.main`
 
 const ContentGrid = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px;
+  grid-template-columns: 350px 1fr 350px;
+  gap: 32px;
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
   align-items: start;
 
+  @media (max-width: 1200px) {
+    grid-template-columns: 300px 1fr 300px;
+    gap: 24px;
+  }
+
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
-    gap: 32px;
+    gap: 24px;
   }
 `;
 
 const QueueColumn = styled.div`
+  width: 100%;
+`;
+
+const ChatColumn = styled.div`
+  width: 100%;
+  min-height: 400px;
+`;
+
+const NewsColumn = styled.div`
   width: 100%;
 `;
 
@@ -78,10 +100,16 @@ const QueueContainer = styled.div`
 const QueueHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
   margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+`;
+
+const QueueHeaderLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
 `;
 
 const QueueTitle = styled.h2`
@@ -90,6 +118,31 @@ const QueueTitle = styled.h2`
   color: #1e293b;
   margin: 0;
   letter-spacing: -0.01em;
+`;
+
+const AddTaskButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
 `;
 
 const QueueIcon = styled.div`
@@ -113,10 +166,24 @@ const QueueItem = styled.div`
   justify-content: space-between;
   padding: 12px 0;
   border-bottom: 1px solid rgba(226, 232, 240, 0.4);
+  transition: all 0.2s ease;
 
   &:last-child {
     border-bottom: none;
   }
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.02);
+    border-radius: 8px;
+    margin: 0 -8px;
+    padding: 12px 8px;
+  }
+`;
+
+const QueueItemLeft = styled.div`
+  display: flex;
+  align-items: center;
+  flex: 1;
 `;
 
 const QueueItemInfo = styled.div`
@@ -135,6 +202,46 @@ const QueueItemMeta = styled.div`
   color: #64748b;
 `;
 
+const QueueItemActions = styled.div`
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  ${QueueItem}:hover & {
+    opacity: 1;
+  }
+`;
+
+const ActionButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+  }
+
+  &.danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
 const StatusBadge = styled.span`
   padding: 4px 8px;
   border-radius: 12px;
@@ -144,7 +251,7 @@ const StatusBadge = styled.span`
   letter-spacing: 0.5px;
 
   ${props => {
-    switch (props.status) {
+    switch (props.$status) {
       case 'in-progress':
         return `
           background: rgba(59, 130, 246, 0.1);
@@ -178,45 +285,194 @@ const PriorityIndicator = styled.div`
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  margin-right: 8px;
-
-  ${props => {
-    switch (props.priority) {
-      case 'high':
-        return 'background: #ef4444;';
-      case 'medium':
-        return 'background: #f59e0b;';
-      case 'low':
-        return 'background: #22c55e;';
-      default:
-        return 'background: #6b7280;';
+  margin-right: 12px;
+  background: ${props => {
+    switch (props.$priority) {
+      case 'high': return '#ef4444';
+      case 'medium': return '#f59e0b';
+      case 'low': return '#10b981';
+      default: return '#6b7280';
     }
-  }}
+  }};
 `;
 
 // More unused styled components removed to fix ESLint warnings
 
 const ResponseContainer = styled.div`
   width: 100%;
-  max-width: 700px;
-  margin: 24px auto 0;
-  padding: 24px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
+  padding: 20px 24px;
+  background: rgba(248, 250, 252, 0.8);
   border-radius: 16px;
   border: 1px solid rgba(226, 232, 240, 0.6);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  white-space: pre-wrap;
-  line-height: 1.6;
-  color: #374151;
-  font-size: 15px;
-  text-align: left;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #1e293b;
+  max-height: 70vh;
+  overflow-y: auto;
+
+  /* Enhanced markdown-style formatting */
+  h1, h2 {
+    margin: 20px 0 12px 0;
+    font-weight: 700;
+    font-size: 18px;
+    color: #1e293b;
+    border-bottom: 2px solid rgba(99, 102, 241, 0.2);
+    padding-bottom: 8px;
+  }
+
+  h3 {
+    margin: 16px 0 8px 0;
+    font-weight: 600;
+    font-size: 16px;
+    color: #475569;
+  }
+
+  h4 {
+    margin: 12px 0 6px 0;
+    font-weight: 600;
+    font-size: 14px;
+    color: #64748b;
+  }
+
+  p {
+    margin: 12px 0;
+    line-height: 1.7;
+  }
+
+  ul, ol {
+    margin: 12px 0;
+    padding-left: 24px;
+  }
+
+  li {
+    margin: 8px 0;
+    line-height: 1.6;
+  }
+
+  strong {
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  code {
+    background: rgba(99, 102, 241, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 13px;
+  }
+
+  /* Sections with better spacing */
+  & > *:first-child {
+    margin-top: 0;
+  }
+
+  & > *:last-child {
+    margin-bottom: 0;
+  }
 
   @media (max-width: 768px) {
-    padding: 20px;
-    margin-top: 20px;
-    font-size: 14px;
+    padding: 16px 20px;
+    font-size: 13px;
   }
+`;
+
+// Task Management Modal Components
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+`;
+
+const ModalTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+`;
+
+const CloseButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(107, 114, 128, 0.1);
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 16px;
+`;
+
+const FormLabel = styled.label`
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+`;
+
+const FormSelect = styled.select`
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(209, 213, 219, 0.8);
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  color: #374151;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+`;
+
+const ModalActions = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
 `;
 
 // LoadingSpinner removed - unused styled component
@@ -224,6 +480,40 @@ const ResponseContainer = styled.div`
 // Removed unused news components - now using InsuranceNewsFeed component
 
 
+
+// Utility function to format AI response content (same as Claims Analysis)
+const formatAIResponse = (content) => {
+  if (!content) return '';
+
+  // Convert markdown-style formatting to HTML
+  let formatted = content
+    // Convert ## headers to h2
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    // Convert ### headers to h3
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    // Convert #### headers to h4
+    .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+    // Convert **bold** to <strong>
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    // Convert bullet points to proper list items
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    // Wrap consecutive list items in <ul>
+    .replace(/(<li>.*<\/li>\s*)+/gs, '<ul>$&</ul>')
+    // Convert line breaks to paragraphs
+    .replace(/\n\n/g, '</p><p>')
+    // Wrap in paragraph tags
+    .replace(/^(?!<[hul])/gm, '<p>')
+    .replace(/(?<!>)$/gm, '</p>')
+    // Clean up empty paragraphs
+    .replace(/<p><\/p>/g, '')
+    // Clean up paragraphs around headers and lists
+    .replace(/<p>(<h[1-6]>)/g, '$1')
+    .replace(/(<\/h[1-6]>)<\/p>/g, '$1')
+    .replace(/<p>(<ul>)/g, '$1')
+    .replace(/(<\/ul>)<\/p>/g, '$1');
+
+  return formatted;
+};
 
 /* ---------- component ---------- */
 export default function Home() {
@@ -236,6 +526,49 @@ export default function Home() {
   const [coverages, setCoverages] = useState([]);
   const [forms, setForms] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
+
+  // Task management state
+  const [tasks, setTasks] = useState([]);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [taskForm, setTaskForm] = useState({
+    title: '',
+    assignee: '',
+    dueDate: '',
+    status: 'in-progress',
+    priority: 'medium'
+  });
+
+  // Initialize tasks with sample data
+  useEffect(() => {
+    const initialTasks = [
+      {
+        id: '1',
+        title: 'Review CGL Form Updates',
+        assignee: 'Sarah Chen',
+        dueDate: '2024-12-25',
+        status: 'in-progress',
+        priority: 'high'
+      },
+      {
+        id: '2',
+        title: 'Update Property Coverage Rules',
+        assignee: 'Mike Johnson',
+        dueDate: '2024-12-28',
+        status: 'pending',
+        priority: 'medium'
+      },
+      {
+        id: '3',
+        title: 'Claims Analysis Training',
+        assignee: 'Lisa Wang',
+        dueDate: '2024-12-30',
+        status: 'completed',
+        priority: 'low'
+      }
+    ];
+    setTasks(initialTasks);
+  }, []);
 
   // Fetch additional context data
   useEffect(() => {
@@ -270,49 +603,69 @@ export default function Home() {
     fetchContextData();
   }, []);
 
-  // Product Management Queue Data
-  const productQueue = [
-    {
-      id: 1,
-      title: "Commercial Auto 2024 Refresh",
-      assignee: "Sarah Chen",
-      dueDate: "Dec 15, 2024",
-      status: "in-progress",
-      priority: "high"
-    },
-    {
-      id: 2,
-      title: "Cyber Liability Enhancement",
-      assignee: "Mike Rodriguez",
-      dueDate: "Jan 8, 2025",
-      status: "review",
-      priority: "high"
-    },
-    {
-      id: 3,
-      title: "Workers Comp Rate Update",
-      assignee: "Lisa Park",
-      dueDate: "Dec 22, 2024",
-      status: "approved",
-      priority: "medium"
-    },
-    {
-      id: 4,
-      title: "Professional Liability Forms",
-      assignee: "David Kim",
-      dueDate: "Jan 15, 2025",
-      status: "blocked",
-      priority: "medium"
-    },
-    {
-      id: 5,
-      title: "Property Coverage Expansion",
-      assignee: "Emma Wilson",
-      dueDate: "Feb 1, 2025",
-      status: "in-progress",
-      priority: "low"
+  // Task management functions
+  const openTaskModal = (task = null) => {
+    if (task) {
+      setEditingTask(task);
+      setTaskForm({
+        title: task.title,
+        assignee: task.assignee,
+        dueDate: task.dueDate,
+        status: task.status,
+        priority: task.priority
+      });
+    } else {
+      setEditingTask(null);
+      setTaskForm({
+        title: '',
+        assignee: '',
+        dueDate: '',
+        status: 'in-progress',
+        priority: 'medium'
+      });
     }
-  ];
+    setShowTaskModal(true);
+  };
+
+  const closeTaskModal = () => {
+    setShowTaskModal(false);
+    setEditingTask(null);
+    setTaskForm({
+      title: '',
+      assignee: '',
+      dueDate: '',
+      status: 'in-progress',
+      priority: 'medium'
+    });
+  };
+
+  const handleTaskSubmit = (e) => {
+    e.preventDefault();
+
+    if (editingTask) {
+      // Update existing task
+      setTasks(prev => prev.map(task =>
+        task.id === editingTask.id
+          ? { ...task, ...taskForm }
+          : task
+      ));
+    } else {
+      // Add new task
+      const newTask = {
+        id: Date.now().toString(),
+        ...taskForm
+      };
+      setTasks(prev => [...prev, newTask]);
+    }
+
+    closeTaskModal();
+  };
+
+  const deleteTask = (taskId) => {
+    setTasks(prev => prev.filter(task => task.id !== taskId));
+  };
+
+
 
   // Placeholder news data
   const marketNews = [
@@ -401,7 +754,7 @@ export default function Home() {
       })),
 
       // Current task queue
-      taskQueue: productQueue.map(task => ({
+      taskQueue: tasks.map(task => ({
         title: task.title,
         assignee: task.assignee,
         dueDate: task.dueDate,
@@ -423,9 +776,9 @@ export default function Home() {
         totalProducts: products.length,
         totalCoverages: coverages.length,
         totalForms: forms.length,
-        activeTasks: productQueue.filter(t => t.status === 'in-progress').length,
-        highPriorityTasks: productQueue.filter(t => t.priority === 'high').length,
-        upcomingDeadlines: productQueue.filter(t => {
+        activeTasks: tasks.filter(t => t.status === 'in-progress').length,
+        highPriorityTasks: tasks.filter(t => t.priority === 'high').length,
+        upcomingDeadlines: tasks.filter(t => {
           const dueDate = new Date(t.dueDate);
           const now = new Date();
           const diffDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
@@ -549,39 +902,142 @@ ${JSON.stringify(context, null, 2)}
           )}
         </EnhancedHeader>
 
-        {response && (
-          <ResponseContainer>
-            <MarkdownRenderer>{response}</MarkdownRenderer>
-          </ResponseContainer>
-        )}
-
         <ContentGrid>
           <QueueColumn>
             <QueueContainer>
               <QueueHeader>
-                <QueueIcon />
-                <QueueTitle>Product Management Queue</QueueTitle>
+                <QueueHeaderLeft>
+                  <QueueIcon />
+                  <QueueTitle>Task Management</QueueTitle>
+                </QueueHeaderLeft>
+                <AddTaskButton onClick={() => openTaskModal()}>
+                  <PlusIcon />
+                  Add Task
+                </AddTaskButton>
               </QueueHeader>
 
-              {productQueue.map((item) => (
-                <QueueItem key={item.id}>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <PriorityIndicator priority={item.priority} />
+              {tasks.map((task) => (
+                <QueueItem key={task.id}>
+                  <QueueItemLeft>
+                    <PriorityIndicator $priority={task.priority} />
                     <QueueItemInfo>
-                      <QueueItemTitle>{item.title}</QueueItemTitle>
-                      <QueueItemMeta>{item.assignee} • Due {item.dueDate}</QueueItemMeta>
+                      <QueueItemTitle>{task.title}</QueueItemTitle>
+                      <QueueItemMeta>{task.assignee} • Due {task.dueDate}</QueueItemMeta>
                     </QueueItemInfo>
+                  </QueueItemLeft>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <StatusBadge $status={task.status}>
+                      {task.status.replace('-', ' ')}
+                    </StatusBadge>
+                    <QueueItemActions>
+                      <ActionButton onClick={() => openTaskModal(task)}>
+                        <PencilIcon />
+                      </ActionButton>
+                      <ActionButton className="danger" onClick={() => deleteTask(task.id)}>
+                        <TrashIcon />
+                      </ActionButton>
+                    </QueueItemActions>
                   </div>
-                  <StatusBadge status={item.status}>
-                    {item.status.replace('-', ' ')}
-                  </StatusBadge>
                 </QueueItem>
               ))}
             </QueueContainer>
           </QueueColumn>
 
-          <InsuranceNewsFeed />
+          <ChatColumn>
+            {response && (
+              <ResponseContainer
+                dangerouslySetInnerHTML={{
+                  __html: formatAIResponse(response)
+                }}
+              />
+            )}
+          </ChatColumn>
+
+          <NewsColumn>
+            <InsuranceNewsFeed />
+          </NewsColumn>
         </ContentGrid>
+
+        {/* Task Management Modal */}
+        {showTaskModal && (
+          <ModalOverlay onClick={closeTaskModal}>
+            <ModalContent onClick={(e) => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>
+                  {editingTask ? 'Edit Task' : 'Add New Task'}
+                </ModalTitle>
+                <CloseButton onClick={closeTaskModal}>
+                  <XMarkIcon />
+                </CloseButton>
+              </ModalHeader>
+
+              <form onSubmit={handleTaskSubmit}>
+                <FormGroup>
+                  <FormLabel>Task Title</FormLabel>
+                  <TextInput
+                    value={taskForm.title}
+                    onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Enter task title"
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <FormLabel>Assignee</FormLabel>
+                  <TextInput
+                    value={taskForm.assignee}
+                    onChange={(e) => setTaskForm(prev => ({ ...prev, assignee: e.target.value }))}
+                    placeholder="Enter assignee name"
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <FormLabel>Due Date</FormLabel>
+                  <TextInput
+                    type="date"
+                    value={taskForm.dueDate}
+                    onChange={(e) => setTaskForm(prev => ({ ...prev, dueDate: e.target.value }))}
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <FormLabel>Status</FormLabel>
+                  <FormSelect
+                    value={taskForm.status}
+                    onChange={(e) => setTaskForm(prev => ({ ...prev, status: e.target.value }))}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                  </FormSelect>
+                </FormGroup>
+
+                <FormGroup>
+                  <FormLabel>Priority</FormLabel>
+                  <FormSelect
+                    value={taskForm.priority}
+                    onChange={(e) => setTaskForm(prev => ({ ...prev, priority: e.target.value }))}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </FormSelect>
+                </FormGroup>
+
+                <ModalActions>
+                  <Button type="button" variant="secondary" onClick={closeTaskModal}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant="primary">
+                    {editingTask ? 'Update Task' : 'Add Task'}
+                  </Button>
+                </ModalActions>
+              </form>
+            </ModalContent>
+          </ModalOverlay>
+        )}
       </MainContent>
     </Page>
   );

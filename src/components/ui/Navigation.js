@@ -33,7 +33,7 @@ const NavigationWrapper = styled.div`
   z-index: 100;
   transition: box-shadow 0.3s ease;
 
-  ${props => props.scrolled && `
+  ${props => props.$scrolled && `
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   `}
 `;
@@ -328,7 +328,7 @@ export default function MainNavigation() {
   };
 
   return (
-    <NavigationWrapper scrolled={scrolled}>
+    <NavigationWrapper $scrolled={scrolled}>
       <Navigation>
         <NavList>
           <NavItem>
@@ -361,6 +361,14 @@ export default function MainNavigation() {
               className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}
             >
               Explorer
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
+              to="/claims-analysis"
+              className={location.pathname === '/claims-analysis' ? 'active' : ''}
+            >
+              Claims Analysis
             </NavLink>
           </NavItem>
           <NavItem>

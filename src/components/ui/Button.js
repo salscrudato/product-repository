@@ -36,7 +36,9 @@ const sizes = {
   `
 };
 
-export const Button = styled.button`
+export const Button = styled.button.withConfig({
+  shouldForwardProp: (prop) => !['variant', 'size'].includes(prop),
+})`
   display: flex;
   align-items: center;
   justify-content: center;

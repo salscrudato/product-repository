@@ -24,6 +24,7 @@ import RulesScreen from './components/RulesScreen';
 import CoverageStatesScreen from './components/CoverageStatesScreen';
 import ProductExplorer from './components/ProductExplorer';
 import ProductBuilder from './components/ProductBuilder';
+import ClaimsAnalysis from './components/ClaimsAnalysis';
 
 
 /* wrapper */
@@ -139,6 +140,14 @@ const HistoryWrapper = () => {
           }
         />
         <Route
+          path="/claims-analysis"
+          element={
+            <RequireAuth>
+              <ClaimsAnalysis />
+            </RequireAuth>
+          }
+        />
+        <Route
           path="/data-dictionary"
           element={
             <RequireAuth>
@@ -159,7 +168,12 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider theme={theme}>
         <GlobalStyle />
-        <Router>
+        <Router
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true
+          }}
+        >
           <HistoryWrapper />
         </Router>
       </ThemeProvider>

@@ -59,6 +59,14 @@ Welcome! This document serves as **permanent project memory** for future develop
   - Real-time analysis of database context for optimal product structures
   - Automated field population based on AI recommendations
   - Iterative refinement through conversational interface
+- **Advanced Claims Analysis System**: AI-powered claim coverage determination
+  - Multi-form selection for comprehensive policy analysis
+  - Intelligent PDF chunking for handling large documents
+  - OpenAI GPT-4o integration for expert-level claims analysis
+  - Conversational interface for iterative claim scenario exploration
+  - Structured coverage determinations with specific policy references
+  - Support for complex multi-coverage claim scenarios
+  - Real-time analysis with detailed reasoning and recommendations
 
 ### Navigation Architecture
 - **Main Component**: `src/components/ui/Navigation.js` - Use this for ALL pages
@@ -178,7 +186,10 @@ formCoverages (collection)                join table
 | `src/components/FormsScreen.js`         | Form repository (PDF upload, link wizard)              |
 | `src/components/ProductBuilder.js`      | "Wizard" to clone/compose new products                 |
 | `src/components/ProductExplorer.js`     | Three-column explorer for products/coverages           |
+| `src/components/ClaimsAnalysis.js`      | AI-powered claims analysis with multi-form support     |
 | `src/components/DataDictionary.js`      | Data dictionary management                              |
+| `src/services/claimsAnalysisService.js` | Claims analysis AI service and prompt management       |
+| `src/utils/pdfChunking.js`             | PDF text extraction and intelligent chunking utilities |
 | `functions/` (optional)                 | Cloud Functions (cascade deletes, heavy AI jobs)       |
 
 ---
@@ -268,12 +279,79 @@ Based on comprehensive UI/UX feedback review, implemented professional-grade enh
 | **Product chat** | Same as above (+ conversational wrapper)         | `gpt-4o`  | Persists per‑product chat log |
 | **Rules extract**| `RULES_SYSTEM_PROMPT`                            | `gpt-4o`  | Returns JSON of Product & Rating rules |
 | **Form diff**    | `COMPARE_SYSTEM_PROMPT`                          | `gpt-4o`  | Local diff via coverage lists |
+| **Claims analysis** | `CLAIMS_ANALYSIS_SYSTEM_PROMPT`               | `gpt-4o`  | Multi-form analysis with chunking support |
 
 All responses are parsed client‑side.  **Store** summaries & rules in Firestore once generated to avoid burning tokens.
 
 ---
 
-## 7. Bulk Operations
+## 7. Claims Analysis System
+
+### Overview
+The Claims Analysis feature provides AI-powered claim coverage determination by analyzing claim scenarios against selected insurance forms. It uses advanced PDF processing and OpenAI's GPT-4o to deliver expert-level claims analysis.
+
+### Key Features
+
+#### Multi-Form Selection
+- **Smart Form Browser**: Search and filter forms by name, number, or category
+- **Multi-Select Interface**: Choose multiple forms for comprehensive policy analysis
+- **Real-time Selection Count**: Visual feedback on selected forms
+- **Form Metadata Display**: Shows form numbers, categories, and types
+
+#### Intelligent PDF Processing
+- **Automatic Text Extraction**: Uses pdf.js to extract text from uploaded PDFs
+- **Smart Chunking**: Handles large documents by splitting into manageable chunks
+- **Overlap Management**: Ensures context continuity between chunks
+- **Error Handling**: Graceful fallback when PDFs can't be processed
+
+#### AI-Powered Analysis
+- **Expert System Prompt**: Specialized prompt for P&C insurance claims analysis
+- **Structured Responses**: Consistent format with coverage determination, reasoning, and recommendations
+- **Multi-Form Synthesis**: Combines analysis from multiple forms into coherent determination
+- **Conversation Memory**: Maintains context across multiple questions
+
+### Technical Implementation
+
+#### Core Components
+- `src/components/ClaimsAnalysis.js` - Main interface component
+- `src/services/claimsAnalysisService.js` - AI analysis logic
+- `src/utils/pdfChunking.js` - PDF processing utilities
+
+#### PDF Chunking Strategy
+```javascript
+// Handles large PDFs by splitting into chunks
+const chunks = chunkText(text, maxTokens=3000, overlap=200);
+// Processes multiple forms with metadata preservation
+const formChunks = await processFormsForAnalysis(selectedForms);
+```
+
+#### AI Analysis Flow
+1. **Form Processing**: Extract and chunk text from selected PDFs
+2. **Context Building**: Create comprehensive context from all form chunks
+3. **Claim Analysis**: Send claim scenario + context to OpenAI GPT-4o
+4. **Response Synthesis**: For large form sets, synthesize multiple analyses
+5. **Structured Output**: Return formatted coverage determination
+
+### Usage Workflow
+
+1. **Navigate to Claims Analysis**: Use main navigation menu
+2. **Select Forms**: Choose relevant policy forms from the searchable list
+3. **Describe Claim**: Enter claim scenario in the chat interface
+4. **Review Analysis**: Get structured coverage determination with reasoning
+5. **Ask Follow-ups**: Continue conversation for clarification or additional scenarios
+
+### Response Format
+The AI provides structured responses including:
+- **Coverage Determination**: COVERED/NOT COVERED/PARTIALLY COVERED
+- **Summary**: Brief overview of the determination
+- **Applicable Coverages**: Specific coverages that apply
+- **Relevant Exclusions**: Exclusions that might apply
+- **Analysis Details**: Detailed reasoning with policy citations
+- **Recommendations**: Suggestions for claim handling
+
+---
+
+## 8. Bulk Operations
 
 | Entity      | Export → Excel | Import ← Excel | Key points |
 |-------------|----------------|----------------|------------|
@@ -324,6 +402,7 @@ CI is GitHub Actions → Firebase Hosting.  See `.github/workflows/deploy.yml`.
 
 | Version | Date (YYYY‑MM‑DD) | Author | Highlights |
 |---------|------------------|--------|------------|
+| **0.5.0** | 2024‑12‑19 | AI Assistant | Advanced Claims Analysis System: AI-powered claim coverage determination with multi-form support, intelligent PDF chunking, conversational interface |
 | **0.4.0** | 2024‑12‑19 | AI Assistant | Production-grade UI/UX: dynamic counts, relocated actions, status badges, enhanced metadata, improved interactions |
 | **0.3.0** | 2024‑12‑19 | AI Assistant | Performance optimization: error boundaries, data caching, monitoring utilities |
 | **0.2.2** | 2024‑12‑19 | AI Assistant | Removed contextual tags/badges from headers for cleaner design |

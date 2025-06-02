@@ -364,16 +364,16 @@ const StatusBadge = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: ${({ status }) => {
-    switch (status) {
+  background: ${({ $status }) => {
+    switch ($status) {
       case 'active': return 'rgba(16, 185, 129, 0.1)';
       case 'draft': return 'rgba(245, 158, 11, 0.1)';
       case 'deprecated': return 'rgba(239, 68, 68, 0.1)';
       default: return 'rgba(99, 102, 241, 0.1)';
     }
   }};
-  color: ${({ status }) => {
-    switch (status) {
+  color: ${({ $status }) => {
+    switch ($status) {
       case 'active': return '#047857';
       case 'draft': return '#92400e';
       case 'deprecated': return '#dc2626';
@@ -384,8 +384,8 @@ const StatusBadge = styled.span`
   font-weight: 600;
   padding: 4px 8px;
   border-radius: 12px;
-  border: 1px solid ${({ status }) => {
-    switch (status) {
+  border: 1px solid ${({ $status }) => {
+    switch ($status) {
       case 'active': return 'rgba(16, 185, 129, 0.2)';
       case 'draft': return 'rgba(245, 158, 11, 0.2)';
       case 'deprecated': return 'rgba(239, 68, 68, 0.2)';
@@ -1571,7 +1571,7 @@ export default function ProductHub() {
 
                 <ProductName>
                   {product.name}
-                  <StatusBadge status="active">In Use</StatusBadge>
+                  <StatusBadge $status="active">In Use</StatusBadge>
                 </ProductName>
 
                 <ProductMeta>
