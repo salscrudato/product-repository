@@ -1,6 +1,6 @@
 // src/components/CoverageScreen.js
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useParams, useLocation, Link as RouterLink, Link } from 'react-router-dom';
+import { useParams, useLocation, useNavigate, Link as RouterLink, Link } from 'react-router-dom';
 import {
   collection,
   getDocs,
@@ -891,6 +891,7 @@ const fmtMoney = n => {
 export default function CoverageScreen() {
   const { productId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // nested path => parentCoverageId
   const segs = location.pathname.split('/').filter(Boolean);
@@ -1476,6 +1477,10 @@ export default function CoverageScreen() {
                               <DocumentTextIcon />
                               Forms {parent.formIds?.length ? `(${parent.formIds.length})` : '(0)'}
                             </MetricItem>
+                            <MetricItem onClick={() => navigate(`/pricing/${productId}?coverage=${encodeURIComponent(parent.name)}`)}>
+                              <CurrencyDollarIcon />
+                              Pricing
+                            </MetricItem>
                           </CardMetrics>
                         </CardContent>
                       </ParentCoverageCard>
@@ -1524,6 +1529,10 @@ export default function CoverageScreen() {
                                 <MetricItem onClick={() => openLinkFormsModal(child)}>
                                   <DocumentTextIcon />
                                   Forms {child.formIds?.length ? `(${child.formIds.length})` : '(0)'}
+                                </MetricItem>
+                                <MetricItem onClick={() => navigate(`/pricing/${productId}?coverage=${encodeURIComponent(child.name)}`)}>
+                                  <CurrencyDollarIcon />
+                                  Pricing
                                 </MetricItem>
                               </CardMetrics>
                             </CardContent>

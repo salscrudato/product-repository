@@ -13,7 +13,10 @@ import {
   ChevronUpIcon,
   ChevronDownIcon,
   FunnelIcon,
-  MapIcon
+  MapIcon,
+  ArrowLeftIcon,
+  CurrencyDollarIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/solid';
 import { ArrowDownTrayIcon as DownloadIcon20, ArrowUpTrayIcon as UploadIcon20 } from '@heroicons/react/20/solid';
 
@@ -289,7 +292,7 @@ const FilterWrapper = styled.div`
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  width: 300px;
+  width: 400px; /* Made wider for coverage dropdown */
 `;
 
 const OptionLabel = styled.label`
@@ -408,6 +411,7 @@ const ActionsContainer = styled.div`
   align-items: center;
   justify-content: center;
   flex-wrap: nowrap;
+  min-height: 40px; /* Ensure consistent height across rows */
 `;
 
 const OverlayFixed = styled.div`
@@ -458,6 +462,181 @@ const OperandGroup = styled.div`
   margin-bottom: 32px;
 `;
 
+// Coverage Page style header components
+const BackButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.2);
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+`;
+
+const TitleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+`;
+
+const TitleIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 8px;
+  color: white;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const CoveragePageHeaderSection = styled.div`
+  display: flex;
+  align-items: center;
+  margin-bottom: 32px;
+  gap: 16px;
+`;
+
+const CoveragePageTitle = styled.h1`
+  font-size: 24px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+  letter-spacing: -0.025em;
+
+  @media (max-width: 768px) {
+    font-size: 20px;
+  }
+`;
+
+// Editable value cell component
+const EditableValueCell = styled.div`
+  position: relative;
+
+  input {
+    width: 120px;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    text-align: center;
+    font-size: 14px;
+
+    &:hover {
+      border-color: #e2e8f0;
+      background: #f8fafc;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: #6366f1;
+      background: white;
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+    }
+  }
+`;
+
+// Coverage Modal Styled Components (similar to forms modal)
+const WideModal = styled(ModalBox)`
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+`;
+
+const CoverageSearchInput = styled(TextInput)`
+  margin-bottom: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+`;
+
+const CoverageLinkActions = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+`;
+
+const CoverageLinkContainer = styled.div`
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  padding: 8px;
+  margin-bottom: 16px;
+  background: rgba(248, 250, 252, 0.5);
+`;
+
+const CoverageLinkItem = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 4px;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.05);
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const CoverageCheckbox = styled.input`
+  width: 18px;
+  height: 18px;
+  accent-color: #6366f1;
+  cursor: pointer;
+`;
+
+const CoverageLabel = styled.span`
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+`;
+
+const Actions = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 16px;
+`;
+
 
 
 // StepModal Component
@@ -472,7 +651,7 @@ function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes
     states: [],
     upstreamId: '',
     operand: '',
-    value: 0
+    value: 1
   };
 
   const [stepData, setStepData] = useState(editingStep ? { ...editingStep } : { ...defaultStep });
@@ -589,10 +768,12 @@ function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes
               <label>Step Name {errors.stepName && <span style={{ color: '#EF4444' }}>{errors.stepName}</span>}</label>
               <TextInput name="stepName" value={stepData.stepName} onChange={handleChange} className={errors.stepName ? 'error' : ''} />
             </FormGroup>
-            <FormGroup>
-              <label>Value</label>
-              <TextInput type="number" name="value" value={stepData.value} onChange={handleChange} placeholder="Enter factor value" />
-            </FormGroup>
+            {editingStep && (
+              <FormGroup>
+                <label>Value</label>
+                <TextInput type="number" name="value" value={stepData.value} onChange={handleChange} placeholder="Enter factor value" />
+              </FormGroup>
+            )}
             <FormGroup>
               <label>Type</label>
               <select name="type" value={stepData.type} onChange={handleChange} style={{ width: '100%', padding: 12, borderRadius: 8, border: '1px solid #D1D5DB' }}>
@@ -656,6 +837,76 @@ function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes
               </select>
             </FormGroup>
           </>
+        ) : stepData.stepType === 'operand' ? (
+          <>
+            <FormGroup>
+              <label>Coverages {errors.coverages && <span style={{ color: '#EF4444' }}>{errors.coverages}</span>}</label>
+              <SelectAllContainer>
+                <OptionLabel>
+                  <input
+                    type="checkbox"
+                    checked={stepData.coverages.length === coverages.length}
+                    onChange={e => handleSelectAllCoverages(e.target.checked)}
+                  />
+                  All
+                </OptionLabel>
+              </SelectAllContainer>
+              <CoverageGrid>
+                {coverages.map(c => (
+                  <OptionLabel key={c.id}>
+                    <input
+                      type="checkbox"
+                      checked={stepData.coverages.includes(c.name)}
+                      onChange={e => handleCoveragesChange(c.name, e.target.checked)}
+                      disabled={stepData.coverages.length === coverages.length && !stepData.coverages.includes(c.name)}
+                    />
+                    {c.name}
+                  </OptionLabel>
+                ))}
+              </CoverageGrid>
+            </FormGroup>
+            <FormGroup>
+              <label>Operand</label>
+              <select
+                name="operand"
+                value={stepData.operand}
+                onChange={handleChange}
+                style={{ width: '100%', padding: 12, borderRadius: 8, border: '1px solid #D1D5DB' }}
+              >
+                <option value="+">+ (Addition)</option>
+                <option value="-">- (Subtraction)</option>
+                <option value="*">* (Multiplication)</option>
+                <option value="/">/ (Division)</option>
+                <option value="=">=  (Equals)</option>
+              </select>
+            </FormGroup>
+            <FormGroup>
+              <label>States <InformationCircleIcon style={{ width: '16px', color: '#6B7280' }} title="Select applicable states" /></label>
+              <SelectAllContainer>
+                <OptionLabel>
+                  <input
+                    type="checkbox"
+                    checked={stepData.states.length === allStates.length}
+                    onChange={e => handleSelectAllStates(e.target.checked)}
+                  />
+                  All
+                </OptionLabel>
+              </SelectAllContainer>
+              <StateGrid>
+                {allStates.map(state => (
+                  <OptionLabel key={state}>
+                    <input
+                      type="checkbox"
+                      checked={stepData.states.includes(state)}
+                      onChange={e => handleStatesChange(state, e.target.checked)}
+                      disabled={stepData.states.length === allStates.length && !stepData.states.includes(state)}
+                    />
+                    {state}
+                  </OptionLabel>
+                ))}
+              </StateGrid>
+            </FormGroup>
+          </>
         ) : null}
         {editingStep && (
           <textarea
@@ -703,6 +954,15 @@ function PricingScreen() {
   const [stepDetailsOpen, setStepDetailsOpen] = useState(false);
   const [detailsStep, setDetailsStep] = useState(null);
 
+  // Handle URL query parameters for coverage filtering
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const coverageParam = urlParams.get('coverage');
+    if (coverageParam) {
+      setSelectedCoverage(coverageParam);
+    }
+  }, []);
+
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -720,12 +980,103 @@ function PricingScreen() {
 
   const [covModalOpen, setCovModalOpen] = useState(false);
   const [covModalList, setCovModalList] = useState([]);
-  const openCovModal = list => {
-    setCovModalList(list);
+  const [selectedCoveragesForStep, setSelectedCoveragesForStep] = useState([]);
+  const [currentEditingStep, setCurrentEditingStep] = useState(null);
+  const [coverageSearchQuery, setCoverageSearchQuery] = useState('');
+
+  // States modal state
+  const [statesModalOpen, setStatesModalOpen] = useState(false);
+  const [selectedStatesForStep, setSelectedStatesForStep] = useState([]);
+  const [currentEditingStepForStates, setCurrentEditingStepForStates] = useState(null);
+  const [stateSearchQuery, setStateSearchQuery] = useState('');
+
+  const openCovModal = (step) => {
+    setCurrentEditingStep(step);
+    setCovModalList(step.coverages || []);
+    setSelectedCoveragesForStep(step.coverages || []);
+    setCoverageSearchQuery('');
     setCovModalOpen(true);
   };
 
+  const openStatesModal = (step) => {
+    setCurrentEditingStepForStates(step);
+    setSelectedStatesForStep(step.states || []);
+    setStateSearchQuery('');
+    setStatesModalOpen(true);
+  };
+
   const allStates = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
+
+  // Filter coverages based on search query
+  const filteredCoverages = useMemo(() => {
+    if (!coverageSearchQuery.trim()) return coverages;
+    const query = coverageSearchQuery.toLowerCase();
+    return coverages.filter(coverage =>
+      coverage.name.toLowerCase().includes(query) ||
+      coverage.coverageCode.toLowerCase().includes(query)
+    );
+  }, [coverages, coverageSearchQuery]);
+
+  // Filter states based on search query
+  const filteredStates = useMemo(() => {
+    if (!stateSearchQuery.trim()) return allStates;
+    const query = stateSearchQuery.toLowerCase();
+    return allStates.filter(state =>
+      state.toLowerCase().includes(query)
+    );
+  }, [allStates, stateSearchQuery]);
+
+  // Save coverage changes
+  const saveSelectedCoverages = async () => {
+    if (!currentEditingStep) return;
+
+    try {
+      await updateDoc(
+        doc(db, `products/${productId}/steps`, currentEditingStep.id),
+        { coverages: selectedCoveragesForStep }
+      );
+
+      // Update local state
+      setSteps(prevSteps =>
+        prevSteps.map(step =>
+          step.id === currentEditingStep.id
+            ? { ...step, coverages: selectedCoveragesForStep }
+            : step
+        )
+      );
+
+      setCovModalOpen(false);
+    } catch (err) {
+      console.error('Failed to save coverage changes:', err);
+      alert('Failed to save coverage changes: ' + err.message);
+    }
+  };
+
+  // Save states changes
+  const saveSelectedStates = async () => {
+    if (!currentEditingStepForStates) return;
+
+    try {
+      await updateDoc(
+        doc(db, `products/${productId}/steps`, currentEditingStepForStates.id),
+        { states: selectedStatesForStep }
+      );
+
+      // Update local state
+      setSteps(prevSteps =>
+        prevSteps.map(step =>
+          step.id === currentEditingStepForStates.id
+            ? { ...step, states: selectedStatesForStep }
+            : step
+        )
+      );
+
+      setStatesModalOpen(false);
+    } catch (err) {
+      console.error('Failed to save states changes:', err);
+      alert('Failed to save states changes: ' + err.message);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -759,13 +1110,16 @@ function PricingScreen() {
   // —— New: add operand row via buttons ——
   const addOperand = async (operandChar) => {
     try {
+      const allCoverageNames = coverages.map(c => c.name);
       const docRef = await addDoc(collection(db, `products/${productId}/steps`), {
         stepType: 'operand',
         operand: operandChar,
+        coverages: allCoverageNames, // Default to all coverages
+        states: allStates, // Default to all states
         order: steps.length
       });
 
-      setSteps(prev => [...prev, { id: docRef.id, stepType:'operand', operand:operandChar, order:steps.length }]
+      setSteps(prev => [...prev, { id: docRef.id, stepType:'operand', operand:operandChar, coverages: allCoverageNames, states: allStates, order:steps.length }]
         .sort((a,b)=>a.order-b.order));
     } catch (err) {
       console.error('Error adding operand:', err);
@@ -803,12 +1157,10 @@ function PricingScreen() {
   const filteredSteps = useMemo(() => {
     return steps
       .filter(step =>
-        step.stepType === 'operand'
-        || (!selectedCoverage || step.coverages.includes(selectedCoverage))
+        (!selectedCoverage || (step.coverages && step.coverages.includes(selectedCoverage)))
       )
       .filter(step =>
-        step.stepType === 'operand'
-        || (selectedStates.length === 0
+        (selectedStates.length === 0
             || selectedStates.every(s => step.states && step.states.includes(s)))
       );
   }, [steps, selectedCoverage, selectedStates]);
@@ -1096,11 +1448,12 @@ function PricingScreen() {
         nextOrder++;
         // Add operand if present
         if (operandRow) {
+          const allCoverageNames = coverages.map(c => c.name);
           const opRef = await addDoc(
             collection(db, `products/${productId}/steps`),
-            { stepType: 'operand', operand: operandRow.operand, order: nextOrder }
+            { stepType: 'operand', operand: operandRow.operand, coverages: allCoverageNames, states: allStates, order: nextOrder }
           );
-          created.push({ id: opRef.id, stepType: 'operand', operand: operandRow.operand, order: nextOrder });
+          created.push({ id: opRef.id, stepType: 'operand', operand: operandRow.operand, coverages: allCoverageNames, states: allStates, order: nextOrder });
           nextOrder++;
         }
       }
@@ -1181,6 +1534,22 @@ function operandGlyph(op) {
 
   const openStepDetails = step => { setDetailsStep(step); setStepDetailsOpen(true); };
 
+  // Handle inline value editing
+  const handleValueUpdate = async (stepId, newValue) => {
+    try {
+      const numericValue = parseFloat(newValue) || 0;
+      await updateDoc(doc(db, `products/${productId}/steps`, stepId), { value: numericValue });
+
+      const updatedSteps = steps.map(s =>
+        s.id === stepId ? { ...s, value: numericValue } : s
+      );
+      setSteps(updatedSteps);
+    } catch (error) {
+      console.error("Error updating step value:", error);
+      alert("Failed to update step value. Please try again.");
+    }
+  };
+
   const renderCalculationPreview = () => {
     if (loading) {
       return (
@@ -1212,30 +1581,26 @@ function operandGlyph(op) {
       <PricingTable>
         <TableHead>
           <TableRow>
-            <TableHeader>Coverage</TableHeader>
-            <TableHeader>Step Name</TableHeader>
-            <TableHeader>States</TableHeader>
-            <TableHeader>Value</TableHeader>
-            <TableHeader style={{ width: 110 }}>Actions</TableHeader>
+            <TableHeader style={{ textAlign: 'center' }}>Coverage</TableHeader>
+            <TableHeader style={{ textAlign: 'center' }}>Step Name</TableHeader>
+            <TableHeader style={{ textAlign: 'center' }}>States</TableHeader>
+            <TableHeader style={{ textAlign: 'center' }}>Value</TableHeader>
+            <TableHeader style={{ width: 110, textAlign: 'center' }}>Actions</TableHeader>
           </TableRow>
         </TableHead>
         <tbody>
           {filteredSteps.map((step, index) => (
             step.stepType === 'factor' ? (
               <FactorRow key={step.id}>
-                <TableCell>
-          {step.coverages.length > 1
-            ? (
-              <CellButton variant="ghost" onClick={() => openCovModal(step.coverages)}>
-                Coverages ({step.coverages.length})
-              </CellButton>
-            )
-            : (
-              <CellButton variant="ghost" as="span">{step.coverages[0] || 'All'}</CellButton>
-            )
-          }
+                <TableCell style={{ textAlign: 'center' }}>
+                  <CellButton variant="ghost" onClick={() => openCovModal(step)}>
+                    {step.coverages.length > 1
+                      ? `Coverages (${step.coverages.length})`
+                      : step.coverages[0] || 'All'
+                    }
+                  </CellButton>
                 </TableCell>
-                <TableCell>
+                <TableCell style={{ textAlign: 'center' }}>
                   {step.table ? (
                     <CellButton
                       variant="ghost"
@@ -1247,23 +1612,33 @@ function operandGlyph(op) {
                     <span>{step.stepName}</span>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell style={{ textAlign: 'center' }}>
                   <CellButton
                     variant="ghost"
-                    title="Edit states for this step"
-                    onClick={() => openEditModal(step)}
+                    title="Select states for this step"
+                    onClick={() => openStatesModal(step)}
                   >
                     {getStatesDisplay(step.states || [])}&nbsp;(
                     {(step.states && step.states.length) ? step.states.length : allStates.length}
                     )
                   </CellButton>
                 </TableCell>
-                <TableCell>{step.value || 0}</TableCell>
-                <TableCell>
+                <TableCell style={{ textAlign: 'center' }}>
+                  <EditableValueCell>
+                    <input
+                      type="number"
+                      defaultValue={step.value || 0}
+                      onBlur={(e) => handleValueUpdate(step.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.target.blur();
+                        }
+                      }}
+                    />
+                  </EditableValueCell>
+                </TableCell>
+                <TableCell style={{ textAlign: 'center' }}>
                   <ActionsContainer>
-                    <Button variant="ghost" onClick={() => openStepDetails(step)}>
-                      <InformationCircleIcon width={20} height={20} />
-                    </Button>
                     <Button variant="ghost" onClick={() => openEditModal(step)}>
                       <PencilIcon width={16} height={16}/>
                     </Button>
@@ -1281,19 +1656,36 @@ function operandGlyph(op) {
               </FactorRow>
             ) : (
               <OperandRow key={step.id}>
-                {/* Empty coverage cell */}
-                <TableCell />
+                {/* Coverage cell for operands */}
+                <TableCell style={{ textAlign: 'center' }}>
+                  <CellButton variant="ghost" onClick={() => openCovModal(step)}>
+                    {step.coverages && step.coverages.length > 1
+                      ? `Coverages (${step.coverages.length})`
+                      : (step.coverages && step.coverages[0]) || 'All'
+                    }
+                  </CellButton>
+                </TableCell>
 
                 {/* Centred operand glyph inside the Step‑Name column */}
                 <OperandStepCell>
                   {operandGlyph(step.operand)}
                 </OperandStepCell>
-                {/* Empty states cell for alignment */}
-                <TableCell />
+                {/* States cell for operands */}
+                <TableCell style={{ textAlign: 'center' }}>
+                  <CellButton
+                    variant="ghost"
+                    title="Select states for this operand"
+                    onClick={() => openStatesModal(step)}
+                  >
+                    {getStatesDisplay(step.states || [])}&nbsp;(
+                    {(step.states && step.states.length) ? step.states.length : allStates.length}
+                    )
+                  </CellButton>
+                </TableCell>
                 {/* Empty Value column to preserve alignment */}
-                <TableCell />
+                <TableCell style={{ textAlign: 'center' }} />
                 {/* Actions cell centered */}
-                <TableCell>
+                <TableCell style={{ textAlign: 'center' }}>
                   <ActionsContainer>
                     <Button variant="ghost" onClick={() => openEditModal(step)}>
                       <PencilIcon width={16} height={16} />
@@ -1305,17 +1697,12 @@ function operandGlyph(op) {
                     >
                       <TrashIcon width={16} height={16} />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => moveStep(step.id, index, 'up')}
-                    >
-                      <ChevronUpIcon width={16} height={16} />
+                    {/* Invisible spacer buttons to align with factor row actions */}
+                    <Button variant="ghost" style={{ visibility: 'hidden' }}>
+                      <ChevronUpIcon width={16} height={16}/>
                     </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => moveStep(step.id, index, 'down')}
-                    >
-                      <ChevronDownIcon width={16} height={16} />
+                    <Button variant="ghost" style={{ visibility: 'hidden' }}>
+                      <ChevronDownIcon width={16} height={16}/>
                     </Button>
                   </ActionsContainer>
                 </TableCell>
@@ -1331,18 +1718,19 @@ function operandGlyph(op) {
     <ModernContainer>
       <MainNavigation />
       <MainContent>
-        <Breadcrumb>
-          <a href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }}>Home</a>
-          <span>›</span>
-          <a href="/products" onClick={(e) => { e.preventDefault(); navigate('/products'); }}>Products</a>
-          <span>›</span>
-          <span>Pricing</span>
-        </Breadcrumb>
-
-        <HeaderSection>
-          <PageTitle>Pricing for {productName}</PageTitle>
-          <Button variant="ghost" onClick={() => navigate('/')}>Return Home</Button>
-        </HeaderSection>
+        <CoveragePageHeaderSection>
+          <BackButton onClick={() => window.history.back()}>
+            <ArrowLeftIcon />
+          </BackButton>
+          <TitleContainer>
+            <TitleIcon>
+              <CurrencyDollarIcon />
+            </TitleIcon>
+            <CoveragePageTitle>
+              {productName} Pricing
+            </CoveragePageTitle>
+          </TitleContainer>
+        </CoveragePageHeaderSection>
         <Card>
           <FiltersBar>
             <FormGroup>
@@ -1353,10 +1741,29 @@ function operandGlyph(op) {
                   options={coverageOptions}
                   value={coverageOptions.find(o => o.value === selectedCoverage)}
                   onChange={o => setSelectedCoverage(o.value)}
+                  placeholder="All Coverages"
                   styles={{
-                    control: base => ({ ...base, width: '100%' }),
-                    menu: base => ({ ...base, background: '#fff', borderRadius: 8 }),
-                    option: (base, state) => ({ ...base, background: state.isFocused ? '#F9FAFB' : '#fff' })
+                    control: (base, state) => ({
+                      ...base,
+                      width: '100%',
+                      borderColor: state.isFocused ? '#6366f1' : '#d1d5db',
+                      boxShadow: state.isFocused ? '0 0 0 1px #6366f1' : 'none',
+                      '&:hover': {
+                        borderColor: '#6366f1'
+                      }
+                    }),
+                    menu: base => ({ ...base, background: '#fff', borderRadius: 8, zIndex: 1000 }),
+                    option: (base, state) => ({
+                      ...base,
+                      background: state.isFocused ? '#F0F5FF' : '#fff',
+                      color: '#1f2937',
+                      fontWeight: state.isSelected ? '600' : '400',
+                      '&:active': {
+                        background: '#E6EEFF'
+                      }
+                    }),
+                    placeholder: base => ({ ...base, color: '#6b7280', fontWeight: '400' }),
+                    singleValue: base => ({ ...base, color: '#1f2937', fontWeight: '500' })
                   }}
                 />
               </FilterWrapper>
@@ -1371,32 +1778,56 @@ function operandGlyph(op) {
                   value={stateOptions.filter(o => selectedStates.includes(o.value))}
                   onChange={opts => setSelectedStates(opts.map(o => o.value))}
                   isMulti
+                  placeholder="All States"
                   styles={{
-                    control: base => ({ ...base, width: '100%' }),
-                    menu: base => ({ ...base, background: '#fff', borderRadius: 8 }),
-                    option: (base, state) => ({ ...base, background: state.isFocused ? '#F9FAFB' : '#fff' })
+                    control: (base, state) => ({
+                      ...base,
+                      width: '100%',
+                      borderColor: state.isFocused ? '#6366f1' : '#d1d5db',
+                      boxShadow: state.isFocused ? '0 0 0 1px #6366f1' : 'none',
+                      '&:hover': {
+                        borderColor: '#6366f1'
+                      }
+                    }),
+                    menu: base => ({ ...base, background: '#fff', borderRadius: 8, zIndex: 1000 }),
+                    option: (base, state) => ({
+                      ...base,
+                      background: state.isFocused ? '#F0F5FF' : '#fff',
+                      color: '#1f2937',
+                      fontWeight: state.isSelected ? '600' : '400',
+                      '&:active': {
+                        background: '#E6EEFF'
+                      }
+                    }),
+                    placeholder: base => ({ ...base, color: '#6b7280', fontWeight: '400' }),
+                    multiValue: base => ({ ...base, backgroundColor: '#e0e7ff' }),
+                    multiValueLabel: base => ({ ...base, color: '#3730a3', fontWeight: '500' }),
+                    multiValueRemove: base => ({ ...base, color: '#6366f1', '&:hover': { backgroundColor: '#c7d2fe', color: '#4338ca' } })
                   }}
                 />
               </FilterWrapper>
             </FormGroup>
-          </FiltersBar>
 
-          {/* XLSX Export/Import Controls */}
-          <div style={{display:'flex',gap:12,margin:'8px 0 20px',alignItems:'center'}}>
-            <ExportBtn onClick={handleExportXLSX}>
-              <DownloadIcon20 width={16} style={{marginRight:4}}/>Export&nbsp;XLSX
-            </ExportBtn>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xls,.xlsx"
-              style={{display:'none'}}
-              onChange={handleImportXLSX}
-            />
-            <Button variant="ghost" onClick={()=>fileInputRef.current?.click()}>
-              <UploadIcon20 width={16} style={{marginRight:4}}/>Import&nbsp;XLSX
-            </Button>
-          </div>
+            {/* Export/Import Controls moved to same row */}
+            <FormGroup>
+              <label style={{ opacity: 0 }}>Actions</label> {/* Invisible label for alignment */}
+              <div style={{display:'flex',gap:12,alignItems:'center'}}>
+                <ExportBtn onClick={handleExportXLSX}>
+                  <DownloadIcon20 width={16} style={{marginRight:4}}/>Export&nbsp;XLSX
+                </ExportBtn>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xls,.xlsx"
+                  style={{display:'none'}}
+                  onChange={handleImportXLSX}
+                />
+                <Button variant="ghost" onClick={()=>fileInputRef.current?.click()}>
+                  <UploadIcon20 width={16} style={{marginRight:4}}/>Import&nbsp;XLSX
+                </Button>
+              </div>
+            </FormGroup>
+          </FiltersBar>
 
           {steps.length ? (
             <>
@@ -1430,19 +1861,136 @@ function operandGlyph(op) {
         )}
         {covModalOpen && (
           <OverlayFixed onClick={() => setCovModalOpen(false)}>
-            <ModalBox onClick={e => e.stopPropagation()}>
+            <WideModal onClick={e => e.stopPropagation()}>
               <ModalHeader>
-                <ModalTitle>Applied Coverages</ModalTitle>
+                <ModalTitle>Select Coverages for {currentEditingStep?.stepName}</ModalTitle>
                 <CloseBtn onClick={() => setCovModalOpen(false)}>
-                  <XMarkIcon width={16} height={16}/>
+                  <XMarkIcon width={20} height={20}/>
                 </CloseBtn>
               </ModalHeader>
-              <ul>
-                {covModalList.sort().map((name,i) => (
-                  <li key={i}>{name}</li>
+
+              <CoverageSearchInput
+                placeholder="Search coverages by name or code..."
+                value={coverageSearchQuery || ''}
+                onChange={e => setCoverageSearchQuery(e.target.value)}
+              />
+
+              <CoverageLinkActions>
+                <Button variant="ghost" onClick={() => setSelectedCoveragesForStep(filteredCoverages.map(c => c.name))}>
+                  Select All ({filteredCoverages.length})
+                </Button>
+                <Button variant="ghost" onClick={() => setSelectedCoveragesForStep([])}>
+                  Clear All
+                </Button>
+                <span style={{ fontSize: '14px', color: '#6b7280', marginLeft: 'auto' }}>
+                  {selectedCoveragesForStep.length} selected
+                </span>
+              </CoverageLinkActions>
+
+              <CoverageLinkContainer>
+                {filteredCoverages.map(coverage => (
+                  <CoverageLinkItem key={coverage.id}>
+                    <CoverageCheckbox
+                      type="checkbox"
+                      value={coverage.name}
+                      checked={selectedCoveragesForStep.includes(coverage.name)}
+                      onChange={e => {
+                        const coverageName = e.target.value;
+                        setSelectedCoveragesForStep(selected =>
+                          selected.includes(coverageName)
+                            ? selected.filter(name => name !== coverageName)
+                            : [...selected, coverageName]
+                        );
+                      }}
+                    />
+                    <CoverageLabel>{coverage.name}</CoverageLabel>
+                  </CoverageLinkItem>
                 ))}
-              </ul>
-            </ModalBox>
+                {filteredCoverages.length === 0 && (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '32px',
+                    color: '#6b7280',
+                    fontStyle: 'italic'
+                  }}>
+                    No coverages found matching your search
+                  </div>
+                )}
+              </CoverageLinkContainer>
+
+              <Actions>
+                <Button onClick={saveSelectedCoverages}>Save Changes</Button>
+                <Button variant="ghost" onClick={() => setCovModalOpen(false)}>Cancel</Button>
+              </Actions>
+            </WideModal>
+          </OverlayFixed>
+        )}
+
+        {/* States Selection Modal */}
+        {statesModalOpen && (
+          <OverlayFixed onClick={() => setStatesModalOpen(false)}>
+            <WideModal onClick={e => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>Select States for {currentEditingStepForStates?.stepName}</ModalTitle>
+                <CloseBtn onClick={() => setStatesModalOpen(false)}>
+                  <XMarkIcon width={20} height={20}/>
+                </CloseBtn>
+              </ModalHeader>
+
+              <CoverageSearchInput
+                placeholder="Search states by abbreviation..."
+                value={stateSearchQuery || ''}
+                onChange={e => setStateSearchQuery(e.target.value)}
+              />
+
+              <CoverageLinkActions>
+                <Button variant="ghost" onClick={() => setSelectedStatesForStep(filteredStates)}>
+                  Select All ({filteredStates.length})
+                </Button>
+                <Button variant="ghost" onClick={() => setSelectedStatesForStep([])}>
+                  Clear All
+                </Button>
+                <span style={{ fontSize: '14px', color: '#6b7280', marginLeft: 'auto' }}>
+                  {selectedStatesForStep.length} selected
+                </span>
+              </CoverageLinkActions>
+
+              <CoverageLinkContainer>
+                {filteredStates.map(state => (
+                  <CoverageLinkItem key={state}>
+                    <CoverageCheckbox
+                      type="checkbox"
+                      value={state}
+                      checked={selectedStatesForStep.includes(state)}
+                      onChange={e => {
+                        const stateName = e.target.value;
+                        setSelectedStatesForStep(selected =>
+                          selected.includes(stateName)
+                            ? selected.filter(name => name !== stateName)
+                            : [...selected, stateName]
+                        );
+                      }}
+                    />
+                    <CoverageLabel>{state}</CoverageLabel>
+                  </CoverageLinkItem>
+                ))}
+                {filteredStates.length === 0 && (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '32px',
+                    color: '#6b7280',
+                    fontStyle: 'italic'
+                  }}>
+                    No states found matching your search
+                  </div>
+                )}
+              </CoverageLinkContainer>
+
+              <Actions>
+                <Button onClick={saveSelectedStates}>Save Changes</Button>
+                <Button variant="ghost" onClick={() => setStatesModalOpen(false)}>Cancel</Button>
+              </Actions>
+            </WideModal>
           </OverlayFixed>
         )}
 

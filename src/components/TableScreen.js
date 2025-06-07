@@ -2,8 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { TrashIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/solid';
-import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
+import {
+  TrashIcon,
+  PencilIcon,
+  XMarkIcon,
+  ArrowLeftIcon,
+  TableCellsIcon,
+  PlusIcon
+} from '@heroicons/react/24/solid';
+
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
 import {
@@ -17,20 +24,117 @@ import {
   ModalTitle,
   CloseBtn
 } from '../components/ui/Table';
+import MainNavigation from './ui/Navigation';
 
 import styled, { keyframes } from 'styled-components';
-import { FixedSizeGrid as Grid } from 'react-window';
 
 /* ---------- styled helpers ---------- */
-const Card = styled.div`
-  background:#ffffff;
-  border-radius:12px;
-  box-shadow:0 4px 12px rgba(0,0,0,0.08);
-  padding:24px;
-  margin-bottom:24px;
-  overflow-x:auto;
+// Modern Container with responsive design
+const ModernContainer = styled.div`
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  position: relative;
 `;
 
+const MainContent = styled.div`
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  position: relative;
+  z-index: 1;
+`;
+
+// Header components consistent with pricing screen
+const BackButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.2);
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+`;
+
+const TitleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+`;
+
+const TitleIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 8px;
+  color: white;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const CoveragePageHeaderSection = styled.div`
+  display: flex;
+  align-items: center;
+  margin-bottom: 32px;
+  gap: 16px;
+`;
+
+const CoveragePageTitle = styled.h1`
+  font-size: 24px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+  letter-spacing: -0.025em;
+
+  @media (max-width: 768px) {
+    font-size: 20px;
+  }
+`;
+
+const Card = styled.div`
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  margin-bottom: 32px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  }
+`;
 
 const spin = keyframes`
   0%{transform:rotate(0deg);}
@@ -46,9 +150,164 @@ const Spinner = styled.div`
   margin:100px auto;
 `;
 
-// ---- virtualised grid sizing ----
-const CELL_WIDTH = 120;     // px
-const CELL_HEIGHT = 40;     // px
+// Enhanced Excel-like table styling
+const ExcelTable = styled.div`
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+`;
+
+const ExcelRow = styled.div`
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const ExcelCell = styled.div`
+  min-width: 120px;
+  height: 40px;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+
+  &:last-child {
+    border-right: none;
+  }
+
+  ${props => props.isHeader && `
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+    letter-spacing: 0.025em;
+  `}
+
+  ${props => props.isRowHeader && `
+    background: rgba(248, 250, 252, 0.8);
+    font-weight: 600;
+    color: #475569;
+    min-width: 100px;
+  `}
+
+  input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    text-align: center;
+    font-size: 14px;
+    padding: 8px;
+
+    &:focus {
+      outline: 2px solid #6366f1;
+      outline-offset: -2px;
+      background: rgba(99, 102, 241, 0.05);
+    }
+
+    &:hover {
+      background: rgba(248, 250, 252, 0.8);
+    }
+  }
+`;
+
+// Enhanced dimension selection styling
+const DimensionCard = styled.div`
+  padding: 16px;
+  border: 2px solid ${props => props.selected ? '#6366f1' : '#e5e7eb'};
+  border-radius: 12px;
+  cursor: pointer;
+  background: ${props => props.selected ? 'rgba(99, 102, 241, 0.05)' : 'white'};
+  transition: all 0.2s ease;
+  opacity: ${props => props.disabled ? 0.5 : 1};
+
+  &:hover {
+    ${props => !props.disabled && `
+      border-color: #6366f1;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    `}
+  }
+
+  .dimension-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #374151;
+    margin-bottom: 4px;
+  }
+
+  .dimension-values {
+    font-size: 12px;
+    color: #6b7280;
+  }
+`;
+
+const SelectedDimensionTag = styled.span`
+  background: #eef2ff;
+  border-radius: 12px;
+  padding: 6px 12px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #c7d2fe;
+
+  svg {
+    cursor: pointer;
+    color: #6366f1;
+
+    &:hover {
+      color: #4f46e5;
+    }
+  }
+`;
+
+// Modern button styling to match Add Product button
+const ModernButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
+  transition: all 0.3s ease;
+  letter-spacing: -0.01em;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    background: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
 
 
 
@@ -84,14 +343,14 @@ function TableScreen() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const stepDoc = await getDoc(doc(db, `products/${productId}/pricingSteps`, stepId));
+        const stepDoc = await getDoc(doc(db, `products/${productId}/steps`, stepId));
         if (stepDoc.exists()) {
           setStep(stepDoc.data());
         } else {
           throw new Error("Step not found");
         }
 
-        const dimensionsSnapshot = await getDocs(collection(db, `products/${productId}/pricingSteps/${stepId}/dimensions`));
+        const dimensionsSnapshot = await getDocs(collection(db, `products/${productId}/steps/${stepId}/dimensions`));
         const dimensionList = dimensionsSnapshot.docs.map(d => {
           const data = d.data();
           const valuesArr = Array.isArray(data.values)
@@ -114,10 +373,17 @@ function TableScreen() {
 
         setDimensions(dimensionList);
 
+        // Auto-select dimensions by default (first two dimensions)
+        if (dimensionList.length >= 2) {
+          setSelectedDimensions([dimensionList[0], dimensionList[1]]);
+        } else if (dimensionList.length === 1) {
+          setSelectedDimensions([dimensionList[0]]);
+        }
+
         // Initialize table data
         const initialData = {};
-        const rowDim = dimensionList.find(dim => dim.type === 'Row');
-        const colDim = dimensionList.find(dim => dim.type === 'Column');
+        const rowDim = dimensionList.find(dim => dim.type === 'Row') || dimensionList[0];
+        const colDim = dimensionList.find(dim => dim.type === 'Column') || dimensionList[1];
         const rowValues = getDimValues(rowDim);
         const colValues = getDimValues(colDim);
 
@@ -189,7 +455,7 @@ function TableScreen() {
       return;
     }
     try {
-      const docRef = await addDoc(collection(db, `products/${productId}/pricingSteps/${stepId}/dimensions`), {
+      const docRef = await addDoc(collection(db, `products/${productId}/steps/${stepId}/dimensions`), {
         name: newDimension.name,
         values: newDimension.values.join(', '),
         technicalCode: newDimension.technicalCode
@@ -226,7 +492,7 @@ function TableScreen() {
       return;
     }
     try {
-      await updateDoc(doc(db, `products/${productId}/pricingSteps/${stepId}/dimensions`, editingDimensionId), {
+      await updateDoc(doc(db, `products/${productId}/steps/${stepId}/dimensions`, editingDimensionId), {
         name: newDimension.name,
         values: newDimension.values.join(', '),
         technicalCode: newDimension.technicalCode
@@ -261,7 +527,7 @@ function TableScreen() {
   const handleDeleteDimension = async (dimensionId) => {
     if (window.confirm("Are you sure you want to delete this dimension?")) {
       try {
-        await deleteDoc(doc(db, `products/${productId}/pricingSteps/${stepId}/dimensions`, dimensionId));
+        await deleteDoc(doc(db, `products/${productId}/steps/${stepId}/dimensions`, dimensionId));
         const updatedDimensions = dimensions.filter(dim => dim.id !== dimensionId);
         setDimensions(updatedDimensions);
 
@@ -284,126 +550,124 @@ function TableScreen() {
     }
   };
 
-  // (filteredDimensions removed, just use dimensions)
 
-  // Prepare dynamic table data from selected dimensions
-  const rowDimension = selectedDimensions[0];
-  const colDimension = selectedDimensions[1];
-  const rowValues = getDimValues(rowDimension);
-  const colValues = getDimValues(colDimension);
-
-  // Ensure we have valid dimensions for the grid
-  const safeRowValues = rowValues.length > 0 ? rowValues : ['No Data'];
-  const safeColValues = colValues.length > 0 ? colValues : ['No Data'];
-  const gridColumnCount = Math.max(1, safeColValues.length + 1);
-  const gridRowCount = Math.max(1, safeRowValues.length + 1);
-  const gridWidth = Math.max(200, gridColumnCount * CELL_WIDTH);
-  const gridHeight = Math.max(100, gridRowCount * CELL_HEIGHT);
 
   // Loading spinner
   if(!dimensions.length && !step){
-    return (<Page><Container><Spinner/></Container></Page>);
+    return (
+      <ModernContainer>
+        <MainNavigation />
+        <MainContent>
+          <Spinner/>
+        </MainContent>
+      </ModernContainer>
+    );
   }
 
-  // ---- virtualised grid cell renderer ----
-  const renderGridCell = ({ columnIndex, rowIndex, style }) => {
-    // top‑left empty corner
-    if (rowIndex === 0 && columnIndex === 0) {
-      return <div style={style} />;
-    }
 
-    // column headers (first row, >0 col)
-    if (rowIndex === 0) {
-      const col = safeColValues[columnIndex - 1];
-      return (
-        <div style={{ ...style, fontWeight: 600, background: '#F9FAFB', display:'flex',alignItems:'center',justifyContent:'center',borderBottom:'1px solid #E5E7EB',borderRight:'1px solid #E5E7EB' }}>
-          {col}
-        </div>
-      );
-    }
 
-    // row headers (first col, >0 row)
-    if (columnIndex === 0) {
-      const row = safeRowValues[rowIndex - 1];
-      return (
-        <div style={{ ...style, fontWeight: 600, background: '#FFFFFF', display:'flex',alignItems:'center',justifyContent:'center',borderBottom:'1px solid #E5E7EB',borderRight:'1px solid #E5E7EB' }}>
-          {row}
-        </div>
-      );
-    }
+  // Enhanced Excel-like table renderer
+  const renderExcelTable = () => {
+    if (selectedDimensions.length !== 2) return null;
 
-    // data cell
-    const rowKey = safeRowValues[rowIndex - 1];
-    const colKey = safeColValues[columnIndex - 1];
-    const cellKey = `${rowKey}-${colKey}`;
+    const rowDimension = selectedDimensions[0];
+    const colDimension = selectedDimensions[1];
+    const rowValues = getDimValues(rowDimension);
+    const colValues = getDimValues(colDimension);
+
     return (
-      <div style={{ ...style, padding:4, borderBottom:'1px solid #E5E7EB',borderRight:'1px solid #E5E7EB' }}>
-        <TextInput
-          type="text"
-          value={tableData[cellKey] || ''}
-          onChange={e => handleTableDataChange(cellKey, e.target.value)}
-          style={{ width:'100%', height:'100%', border:'none', padding:4, boxSizing:'border-box' }}
-        />
-      </div>
+      <ExcelTable>
+        {/* Header row */}
+        <ExcelRow>
+          <ExcelCell isHeader style={{ minWidth: '100px' }}>
+            {/* Empty corner cell */}
+          </ExcelCell>
+          {colValues.map((col, index) => (
+            <ExcelCell key={index} isHeader>
+              {col}
+            </ExcelCell>
+          ))}
+        </ExcelRow>
+
+        {/* Data rows */}
+        {rowValues.map((row, rowIndex) => (
+          <ExcelRow key={rowIndex}>
+            <ExcelCell isRowHeader>
+              {row}
+            </ExcelCell>
+            {colValues.map((col, colIndex) => {
+              const cellKey = `${row}-${col}`;
+              return (
+                <ExcelCell key={colIndex}>
+                  <input
+                    type="number"
+                    value={tableData[cellKey] || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Only allow numbers (including decimals)
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        handleTableDataChange(cellKey, value);
+                      }
+                    }}
+                    placeholder="0"
+                    step="any"
+                  />
+                </ExcelCell>
+              );
+            })}
+          </ExcelRow>
+        ))}
+      </ExcelTable>
     );
   };
 
   return (
-    <Page>
-      <Container>
-        <PageHeader>
-          <Title>Table for Step: {step?.stepName || 'Loading…'}</Title>
-          <Button variant="ghost" onClick={() => navigate(`/pricing/${productId}`)}>
-            Back
-          </Button>
-        </PageHeader>
+    <ModernContainer>
+      <MainNavigation />
+      <MainContent>
+        <CoveragePageHeaderSection>
+          <BackButton onClick={() => navigate(`/pricing/${productId}`)}>
+            <ArrowLeftIcon />
+          </BackButton>
+          <TitleContainer>
+            <TitleIcon>
+              <TableCellsIcon />
+            </TitleIcon>
+            <CoveragePageTitle>
+              Table: {step?.stepName || 'Loading…'}
+            </CoveragePageTitle>
+          </TitleContainer>
+        </CoveragePageHeaderSection>
 
-        {/* Dynamic Excel-like Table with Dimension Labels */}
+        {/* Enhanced Excel-like Table */}
         {selectedDimensions.length === 2 ? (
-          <>
-            <div style={{ marginBottom: '16px' }}>
-              <p style={{ fontSize: 16, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
-                Row Dimension: {rowDimension?.name || 'None'} ({rowValues.length} values)
-              </p>
-              <p style={{ fontSize: 16, fontWeight: 500, color: '#1F2937', marginBottom: 8 }}>
-                Column Dimension: {colDimension?.name || 'None'} ({colValues.length} values)
-              </p>
+          <Card>
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#374151', marginBottom: '12px' }}>
+                Data Table
+              </h3>
+              <div style={{ display: 'flex', gap: '24px', marginBottom: '16px' }}>
+                <div>
+                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Rows: </span>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                    {selectedDimensions[0]?.name} ({getDimValues(selectedDimensions[0]).length} values)
+                  </span>
+                </div>
+                <div>
+                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Columns: </span>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                    {selectedDimensions[1]?.name} ({getDimValues(selectedDimensions[1]).length} values)
+                  </span>
+                </div>
+              </div>
             </div>
-            <Card
-              onPaste={e => {
-                const text = e.clipboardData.getData('text');
-                const rows = text.trim().split(/\r?\n/).map(r => r.split(/\t|,/));
-                const newData = { ...tableData };
-                rows.forEach((rowArr, rIdx) => {
-                  const rowKey = safeRowValues[rIdx];
-                  rowArr.forEach((cellValue, cIdx) => {
-                    const colKey = safeColValues[cIdx];
-                    if (rowKey && colKey && rowKey !== 'No Data' && colKey !== 'No Data') {
-                      newData[`${rowKey}-${colKey}`] = cellValue;
-                    }
-                  });
-                });
-                setTableData(newData);
-                e.preventDefault();
-              }}
-            >
-              <Grid
-                columnCount={gridColumnCount}
-                rowCount={gridRowCount}
-                columnWidth={CELL_WIDTH}
-                rowHeight={CELL_HEIGHT}
-                height={Math.min(400, gridHeight)}
-                width={Math.min(800, gridWidth)}
-              >
-                {renderGridCell}
-              </Grid>
-            </Card>
-          </>
+            {renderExcelTable()}
+          </Card>
         ) : (
           <Card style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>
             <h3 style={{ margin: '0 0 8px 0', color: '#374151' }}>No Table to Display</h3>
             <p style={{ margin: '0' }}>
-              Please select exactly 2 dimensions above to generate a table.
+              Please select exactly 2 dimensions below to generate a table.
             </p>
           </Card>
         )}
@@ -434,24 +698,14 @@ function TableScreen() {
                 </p>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   {selectedDimensions.map((dim, index) => (
-                    <span key={dim.id} style={{
-                      background: '#EEF2FF',
-                      borderRadius: '12px',
-                      padding: '6px 12px',
-                      fontSize: '13px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      border: '1px solid #C7D2FE'
-                    }}>
+                    <SelectedDimensionTag key={dim.id}>
                       {index === 0 ? 'Rows' : 'Columns'}: {dim.name}
                       <XMarkIcon
                         width={14}
                         height={14}
-                        style={{ cursor: 'pointer', color: '#6366f1' }}
                         onClick={() => handleRemoveDimension(dim.id)}
                       />
-                    </span>
+                    </SelectedDimensionTag>
                   ))}
                 </div>
               </div>
@@ -460,34 +714,19 @@ function TableScreen() {
             {/* Available Dimensions */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '12px' }}>
               {filteredDimensions.map(dimension => (
-                <div
+                <DimensionCard
                   key={dimension.id}
+                  selected={selectedDimensions.some(d => d.id === dimension.id)}
+                  disabled={selectedDimensions.length >= 2 && !selectedDimensions.some(d => d.id === dimension.id)}
                   onClick={() => handleSelectDimension(dimension)}
-                  style={{
-                    padding: '12px',
-                    border: selectedDimensions.some(d => d.id === dimension.id)
-                      ? '2px solid #6366f1'
-                      : '1px solid #E5E7EB',
-                    borderRadius: '8px',
-                    cursor: selectedDimensions.length < 2 || selectedDimensions.some(d => d.id === dimension.id)
-                      ? 'pointer'
-                      : 'not-allowed',
-                    background: selectedDimensions.some(d => d.id === dimension.id)
-                      ? 'rgba(99, 102, 241, 0.05)'
-                      : 'white',
-                    opacity: selectedDimensions.length >= 2 && !selectedDimensions.some(d => d.id === dimension.id)
-                      ? 0.5
-                      : 1,
-                    transition: 'all 0.2s ease'
-                  }}
                 >
-                  <div style={{ fontWeight: '500', fontSize: '14px', color: '#374151', marginBottom: '4px' }}>
+                  <div className="dimension-name">
                     {dimension.name}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#6B7280' }}>
+                  <div className="dimension-values">
                     {dimension.values} ({(dimension.values || '').split(',').length} values)
                   </div>
-                </div>
+                </DimensionCard>
               ))}
             </div>
           </div>
@@ -495,9 +734,10 @@ function TableScreen() {
 
         {/* Add Dimension Button */}
         <div style={{margin:'16px 0'}}>
-          <Button onClick={openAddModal}>
-            + Add Dimension
-          </Button>
+          <ModernButton onClick={openAddModal}>
+            <PlusIcon width={16} height={16} />
+            Add Dimension
+          </ModernButton>
         </div>
 
         {/* Dimensions Table */}
@@ -568,7 +808,7 @@ function TableScreen() {
                     style={{flex:1}}
                   />
                   <Button
-                    variant="ghost"
+                    variant="primary"
                     onClick={()=>{
                       const v = valueInput.trim();
                       if(v && !newDimension.values.includes(v)){
@@ -577,9 +817,9 @@ function TableScreen() {
                       setValueInput('');
                     }}
                     title="Add value"
-                    style={{padding:'0 10px'}}
+                    style={{padding:'8px 12px', minWidth: 'auto'}}
                   >
-                    +
+                    <PlusIcon width={14} height={14} />
                   </Button>
                 </div>
                 <div style={{marginTop:8,display:'flex',flexWrap:'wrap',gap:6}}>
@@ -620,20 +860,18 @@ function TableScreen() {
                     <option key={code} value={code}>{code}</option>
                   ))}
                 </TextInput>
-                <Button
+                <ModernButton
                   onClick={editingDimensionId ? handleUpdateDimension : handleAddDimension}
                   style={{ minWidth: 160, marginTop: 4 }}
                 >
                   {editingDimensionId ? 'Update Dimension' : 'Add Dimension'}
-                </Button>
+                </ModernButton>
               </div>
             </Modal>
           </Overlay>
         )}
-
-
-      </Container>
-    </Page>
+      </MainContent>
+    </ModernContainer>
   );
 }
 
