@@ -35,7 +35,7 @@ import {
   PlusIcon,
   TrashIcon,
   XMarkIcon,
-
+  ShieldCheckIcon,
   ChevronRightIcon,
   ChevronDownIcon,
   MagnifyingGlassIcon,
@@ -43,8 +43,8 @@ import {
   CurrencyDollarIcon,
   MapIcon,
   Squares2X2Icon,
-  LinkIcon,
-  TableCellsIcon
+  TableCellsIcon,
+  ArrowLeftIcon
 } from '@heroicons/react/24/solid';
 import { ArrowDownTrayIcon as DownloadIcon20, ArrowUpTrayIcon as UploadIcon20 } from '@heroicons/react/20/solid';
 import { makeCoverageSheet, sheetToCoverageObjects } from '../utils/xlsx';
@@ -67,23 +67,53 @@ const MainContent = styled.div`
   z-index: 1;
 `;
 
-// Header Section - Horizontal layout with breadcrumb and title
+// Header Section - Simple layout with back button and title
 const HeaderSection = styled.div`
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 40px;
-  gap: 24px;
+  margin-bottom: 32px;
+  gap: 16px;
+`;
 
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
+const BackButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.2);
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
   }
 `;
 
+const TitleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+`;
+
 const PageTitle = styled.h1`
-  font-size: 36px;
+  font-size: 24px;
   font-weight: 700;
   background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
   -webkit-background-clip: text;
@@ -91,11 +121,25 @@ const PageTitle = styled.h1`
   background-clip: text;
   margin: 0;
   letter-spacing: -0.025em;
-  white-space: nowrap;
 
   @media (max-width: 768px) {
-    font-size: 28px;
-    white-space: normal;
+    font-size: 20px;
+  }
+`;
+
+const TitleIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 8px;
+  color: white;
+
+  svg {
+    width: 16px;
+    height: 16px;
   }
 `;
 
@@ -301,34 +345,39 @@ const CoverageGroup = styled.div`
   margin-bottom: 8px;
 `;
 
-// Sub-coverage Container with visual connector
+// Sub-coverage Container with professional visual connector
 const SubCoverageContainer = styled.div`
   position: relative;
-  margin-left: 32px;
+  margin-left: 24px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
+  padding-left: 24px;
 
   &::before {
     content: '';
     position: absolute;
-    left: -16px;
-    top: 20px;
-    width: 12px;
-    height: 2px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 50%, #e2e8f0 100%);
     border-radius: 1px;
   }
 
-  &::after {
+  & > * {
+    position: relative;
+  }
+
+  & > *::before {
     content: '';
     position: absolute;
-    left: -20px;
-    top: -20px;
-    width: 2px;
-    height: 42px;
-    background: linear-gradient(180deg, #6366f1, #8b5cf6);
-    border-radius: 1px;
+    left: -24px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 1px;
+    background: #e2e8f0;
   }
 
   ${({ isExpanded }) => isExpanded ? `
@@ -358,7 +407,7 @@ const SubCoverageContainer = styled.div`
 const ParentCoverageCard = styled.div`
   background: white;
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   transition: all 0.2s ease;
@@ -376,7 +425,7 @@ const ParentCoverageCard = styled.div`
 const CoverageCard = styled.div`
   background: white;
   border-radius: 12px;
-  padding: 20px;
+  padding: 14px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   transition: all 0.2s ease;
@@ -399,11 +448,11 @@ const CardHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 `;
 
 const CardTitle = styled.h3`
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: #1e293b;
   margin: 0;
@@ -483,7 +532,7 @@ const Spinner = styled.div`
 
 // Card Content
 const CardContent = styled.div`
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 `;
 
 const CardCategory = styled.div`
@@ -498,31 +547,32 @@ const CardCategory = styled.div`
     category === 'Base Coverage'
       ? '1px solid rgba(59, 130, 246, 0.2)'
       : '1px solid rgba(245, 158, 11, 0.2)'};
-  padding: 8px 16px;
-  border-radius: 12px;
-  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 10px;
   font-weight: 600;
-  margin-bottom: 16px;
+  margin-bottom: ${({ inline }) => inline ? '0' : '12px'};
   text-transform: uppercase;
   letter-spacing: 0.025em;
+  vertical-align: middle;
 `;
 
 const CardMetrics = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 16px;
-  margin-top: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
 `;
 
 const MetricItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
+  gap: 8px;
+  padding: 10px 12px;
   background: rgba(248, 250, 252, 0.8);
   backdrop-filter: blur(8px);
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: 10px;
+  font-size: 13px;
   color: #64748b;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -532,14 +582,14 @@ const MetricItem = styled.div`
   &:hover {
     background: rgba(99, 102, 241, 0.1);
     color: #6366f1;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(99, 102, 241, 0.15);
     border-color: rgba(99, 102, 241, 0.2);
   }
 
   svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     opacity: 0.8;
   }
 `;
@@ -556,7 +606,7 @@ const ExpandButton = styled.button`
   color: #6366f1;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-left: 12px;
+  margin-left: 8px;
   backdrop-filter: blur(8px);
   border: 1px solid rgba(99, 102, 241, 0.2);
 
@@ -567,44 +617,26 @@ const ExpandButton = styled.button`
   }
 `;
 
-const ParentInfo = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: rgba(99, 102, 241, 0.05);
-  border: 1px solid rgba(99, 102, 241, 0.15);
-  border-radius: 12px;
-  margin-bottom: 16px;
-  font-size: 13px;
-  color: #6366f1;
-  font-weight: 500;
-  backdrop-filter: blur(8px);
 
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-`;
 
 const SubCoverageCount = styled.div`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 4px;
+  padding: 3px 8px;
   background: rgba(34, 197, 94, 0.1);
   color: #22c55e;
-  border-radius: 8px;
-  font-size: 11px;
+  border-radius: 6px;
+  font-size: 10px;
   font-weight: 600;
-  margin-left: 12px;
+  margin-left: 8px;
   border: 1px solid rgba(34, 197, 94, 0.2);
   text-transform: uppercase;
   letter-spacing: 0.025em;
 
   svg {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
   }
 `;
 
@@ -699,6 +731,154 @@ const Actions = styled.div`
   margin-top: 24px;
 `;
 
+// Enhanced styling for limits/deductibles modals
+const EntryContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding: 4px;
+`;
+
+const EntryRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(248, 250, 252, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(241, 245, 249, 0.9);
+    border-color: rgba(99, 102, 241, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+`;
+
+const EntryInput = styled(TextInput)`
+  flex: 1;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  background: white;
+  transition: all 0.2s ease;
+
+  &:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    outline: none;
+  }
+`;
+
+const RemoveButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.2);
+    transform: scale(1.05);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const AddEntryButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 2px dashed rgba(99, 102, 241, 0.3);
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.05);
+  color: #6366f1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 8px;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.5);
+    transform: translateY(-1px);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+// Enhanced form linking styles
+const FormLinkContainer = styled.div`
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  padding: 8px;
+  margin-bottom: 16px;
+  background: rgba(248, 250, 252, 0.5);
+`;
+
+const FormLinkItem = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 4px;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.05);
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const FormCheckbox = styled.input`
+  width: 18px;
+  height: 18px;
+  accent-color: #6366f1;
+  cursor: pointer;
+`;
+
+const FormLabel = styled.span`
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+`;
+
+const FormLinkActions = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+`;
+
+
+
 /* ---------- helpers ---------- */
 
 const fmtMoney = n => {
@@ -774,8 +954,7 @@ export default function CoverageScreen() {
   // Sub-coverage add button state
   const [addingParentId, setAddingParentId] = useState(null);
 
-  // View mode state - Default to card view
-  const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
+
 
   // Tree structure generation for proper parent-child rendering
   const treeStructure = useMemo(() => {
@@ -857,6 +1036,7 @@ export default function CoverageScreen() {
   const [selectedCoverageForForms, setSelectedCoverageForForms] = useState(null);
   const [linkFormIds, setLinkFormIds] = useState([]);
   const [changeSummary, setChangeSummary] = useState('');
+  const [formSearchQuery, setFormSearchQuery] = useState('');
 
   /* ---------- effect: load meta (forms + names) ---------- */
   const loadMeta = useCallback(async () => {
@@ -1032,8 +1212,19 @@ export default function CoverageScreen() {
   const openLinkFormsModal = c => {
     setSelectedCoverageForForms(c);
     setLinkFormIds(c.formIds || []);
+    setFormSearchQuery('');
     setLinkFormsModalOpen(true);
   };
+
+  // Filter forms based on search query
+  const filteredForms = useMemo(() => {
+    if (!formSearchQuery.trim()) return forms;
+    const query = formSearchQuery.toLowerCase();
+    return forms.filter(f =>
+      (f.formName && f.formName.toLowerCase().includes(query)) ||
+      (f.formNumber && f.formNumber.toLowerCase().includes(query))
+    );
+  }, [forms, formSearchQuery]);
 
   const handleDelete = async id => {
     if (!window.confirm('Delete this coverage?')) return;
@@ -1187,20 +1378,21 @@ export default function CoverageScreen() {
       <MainNavigation />
       <MainContent>
         <HeaderSection>
-          <Breadcrumb>
-            <Link to="/">Home</Link>
-            <span>›</span>
-            <Link to="/products">Products</Link>
-            <span>›</span>
-            <span>Coverages</span>
-          </Breadcrumb>
-          <PageTitle>
-            {parentCoverageId ? (
-              <>
-                <RouterLink to={`/coverage/${productId}`}>{productName}</RouterLink> › {parentCoverageName}
-              </>
-            ) : productName} Coverages
-          </PageTitle>
+          <BackButton onClick={() => window.history.back()}>
+            <ArrowLeftIcon />
+          </BackButton>
+          <TitleContainer>
+            <TitleIcon>
+              <ShieldCheckIcon />
+            </TitleIcon>
+            <PageTitle>
+              {parentCoverageId ? (
+                <>
+                  {parentCoverageName} Coverages
+                </>
+              ) : `${productName} Coverages`}
+            </PageTitle>
+          </TitleContainer>
         </HeaderSection>
 
         <SearchContainer>
@@ -1213,74 +1405,11 @@ export default function CoverageScreen() {
           />
         </SearchContainer>
 
-        <ActionBar>
-          <ActionGroup>
-            <ViewToggle>
-              <ViewToggleButton
-                active={viewMode === 'cards'}
-                onClick={() => setViewMode('cards')}
-              >
-                <Squares2X2Icon width={16} height={16} />
-                Cards
-              </ViewToggleButton>
-              <ViewToggleButton
-                active={viewMode === 'table'}
-                onClick={() => setViewMode('table')}
-              >
-                <TableCellsIcon width={16} height={16} />
-                Table
-              </ViewToggleButton>
-            </ViewToggle>
 
-            <ExportButton onClick={() => handleExportXLSX(coveragesWithSub, productName)}>
-              <DownloadIcon20 />
-              Export XLSX
-            </ExportButton>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xls,.xlsx"
-              style={{ display: 'none' }}
-              onChange={handleImportXLSX}
-            />
-            <Button variant="ghost" onClick={() => fileInputRef.current?.click()}>
-              <UploadIcon20 width={16} />
-              Import XLSX
-            </Button>
-          </ActionGroup>
-
-          <ActionGroup>
-            {/* Hierarchy controls - only show for card view */}
-            {viewMode === 'cards' && filteredTreeStructure.parentCoverages.some(p => filteredTreeStructure.childrenMap[p.id]?.length > 0) && (
-              <>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    const parentsWithChildren = filteredTreeStructure.parentCoverages
-                      .filter(p => filteredTreeStructure.childrenMap[p.id]?.length > 0)
-                      .map(p => p.id);
-                    setExpandedIds(parentsWithChildren);
-                  }}
-                >
-                  <ChevronDownIcon width={16} />
-                  Expand All
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => setExpandedIds([])}
-                >
-                  <ChevronRightIcon width={16} />
-                  Collapse All
-                </Button>
-              </>
-            )}
-          </ActionGroup>
-        </ActionBar>
 
         {/* Coverages Display */}
         {filteredTreeStructure.parentCoverages.length > 0 ? (
-          viewMode === 'cards' ? (
-            <CoverageGrid>
+          <CoverageGrid>
               {filteredTreeStructure.parentCoverages.map(parent => {
                 const isExpanded = expandedIds.includes(parent.id);
 
@@ -1292,22 +1421,27 @@ export default function CoverageScreen() {
                           <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
                             <CardTitle>
                               {parent.name}
+                              {parent.category && (
+                                <CardCategory category={parent.category} inline style={{ marginLeft: '12px' }}>
+                                  {parent.category}
+                                </CardCategory>
+                              )}
                               {parent.subCount > 0 && (
-                                <SubCoverageCount>
-                                  <Squares2X2Icon />
-                                  {parent.subCount} sub-coverage{parent.subCount !== 1 ? 's' : ''}
-                                </SubCoverageCount>
+                                <>
+                                  <SubCoverageCount>
+                                    <Squares2X2Icon />
+                                    {parent.subCount} sub-coverage{parent.subCount !== 1 ? 's' : ''}
+                                  </SubCoverageCount>
+                                  <ExpandButton onClick={() => toggleExpand(parent.id)}>
+                                    {expandedIds.includes(parent.id) ? (
+                                      <ChevronDownIcon width={16} />
+                                    ) : (
+                                      <ChevronRightIcon width={16} />
+                                    )}
+                                  </ExpandButton>
+                                </>
                               )}
                             </CardTitle>
-                            {parent.subCount > 0 && (
-                              <ExpandButton onClick={() => toggleExpand(parent.id)}>
-                                {expandedIds.includes(parent.id) ? (
-                                  <ChevronDownIcon width={16} />
-                                ) : (
-                                  <ChevronRightIcon width={16} />
-                                )}
-                              </ExpandButton>
-                            )}
                           </div>
                           <CardCode>{parent.coverageCode}</CardCode>
                           <CardActions>
@@ -1324,11 +1458,6 @@ export default function CoverageScreen() {
                         </CardHeader>
 
                         <CardContent>
-                          {parent.category && (
-                            <CardCategory category={parent.category}>
-                              {parent.category}
-                            </CardCategory>
-                          )}
 
                           <CardMetrics>
                             <MetricItem onClick={() => openLimitModal(parent)}>
@@ -1357,7 +1486,14 @@ export default function CoverageScreen() {
                           <CoverageCard key={child.id} isSubCoverage>
                             <CardHeader>
                               <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                                <CardTitle>{child.name}</CardTitle>
+                                <CardTitle>
+                                  {child.name}
+                                  {child.category && (
+                                    <CardCategory category={child.category} inline style={{ marginLeft: '12px' }}>
+                                      {child.category}
+                                    </CardCategory>
+                                  )}
+                                </CardTitle>
                               </div>
                               <CardCode>{child.coverageCode}</CardCode>
                               <CardActions>
@@ -1371,16 +1507,6 @@ export default function CoverageScreen() {
                             </CardHeader>
 
                             <CardContent>
-                              <ParentInfo>
-                                <LinkIcon />
-                                Sub-coverage of: <strong>{parent.name}</strong> ({parent.coverageCode})
-                              </ParentInfo>
-
-                              {child.category && (
-                                <CardCategory category={child.category}>
-                                  {child.category}
-                                </CardCategory>
-                              )}
 
                               <CardMetrics>
                                 <MetricItem onClick={() => openLimitModal(child)}>
@@ -1409,95 +1535,6 @@ export default function CoverageScreen() {
                 );
               })}
             </CoverageGrid>
-          ) : (
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableHeader>Coverage Name</TableHeader>
-                    <TableHeader>Code</TableHeader>
-                    <TableHeader>Category</TableHeader>
-                    <TableHeader>Parent</TableHeader>
-                    <TableHeader>States</TableHeader>
-                    <TableHeader align="center">Actions</TableHeader>
-                  </TableRow>
-                </TableHead>
-                <tbody>
-                  {coveragesWithSub.map(coverage => (
-                    <TableRow key={coverage.id}>
-                      <TableCell>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {coverage.parentCoverageId && (
-                            <span style={{
-                              color: '#6366f1',
-                              fontSize: '14px',
-                              fontWeight: '600',
-                              marginRight: '4px'
-                            }}>
-                              ├─
-                            </span>
-                          )}
-                          {coverage.name}
-                          {coverage.subCount > 0 && (
-                            <span style={{
-                              background: 'rgba(34, 197, 94, 0.1)',
-                              color: '#22c55e',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              fontSize: '11px',
-                              fontWeight: '600'
-                            }}>
-                              {coverage.subCount} sub
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span style={{
-                          background: 'rgba(99, 102, 241, 0.1)',
-                          color: '#6366f1',
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: '600'
-                        }}>
-                          {coverage.coverageCode}
-                        </span>
-                      </TableCell>
-                      <TableCell>{coverage.category || '—'}</TableCell>
-                      <TableCell>
-                        {coverage.parentInfo ? (
-                          <span style={{ color: '#6366f1', fontSize: '13px' }}>
-                            {coverage.parentInfo.name} ({coverage.parentInfo.coverageCode})
-                          </span>
-                        ) : '—'}
-                      </TableCell>
-                      <TableCell>
-                        <span style={{ fontSize: '12px', color: '#64748b' }}>
-                          {coverage.states?.length || 0} states
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <TableActions>
-                          {!coverage.parentCoverageId && (
-                            <IconButton onClick={() => openAddModal(coverage.id)} title="Add sub-coverage">
-                              <PlusIcon width={14} />
-                            </IconButton>
-                          )}
-                          <IconButton onClick={() => openEditModal(coverage)}>
-                            <PencilIcon width={14} />
-                          </IconButton>
-                          <IconButton className="danger" onClick={() => handleDelete(coverage.id)}>
-                            <TrashIcon width={14} />
-                          </IconButton>
-                        </TableActions>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </tbody>
-              </Table>
-            </TableContainer>
-          )
         ) : (
           <EmptyState>
             <EmptyStateTitle>No coverages found</EmptyStateTitle>
@@ -1521,14 +1558,36 @@ export default function CoverageScreen() {
                   <XMarkIcon width={20} height={20}/>
                 </CloseBtn>
               </ModalHeader>
-              <div style={{ display:'flex', gap:8, margin:'8px 0 12px' }}>
-                <Button variant="ghost" onClick={() => setLinkFormIds(forms.map(f => f.id))}>Select All</Button>
-                <Button variant="ghost" onClick={() => setLinkFormIds([])}>Clear All</Button>
-              </div>
-              <div style={{ maxHeight:360, overflowY:'auto', border:'1px solid #E5E7EB', padding:8, marginBottom:16 }}>
-                {forms.map(f => (
-                  <label key={f.id} style={{ display:'block', padding:4 }}>
-                    <input
+
+              <TextInput
+                placeholder="Search forms by name or number..."
+                value={formSearchQuery || ''}
+                onChange={e => setFormSearchQuery(e.target.value)}
+                style={{
+                  marginBottom: '12px',
+                  border: '1px solid rgba(226, 232, 240, 0.6)',
+                  borderRadius: '8px',
+                  padding: '10px 12px',
+                  fontSize: '14px'
+                }}
+              />
+
+              <FormLinkActions>
+                <Button variant="ghost" onClick={() => setLinkFormIds(filteredForms.map(f => f.id))}>
+                  Select All ({filteredForms.length})
+                </Button>
+                <Button variant="ghost" onClick={() => setLinkFormIds([])}>
+                  Clear All
+                </Button>
+                <span style={{ fontSize: '14px', color: '#6b7280', marginLeft: 'auto' }}>
+                  {linkFormIds.length} selected
+                </span>
+              </FormLinkActions>
+
+              <FormLinkContainer>
+                {filteredForms.map(f => (
+                  <FormLinkItem key={f.id}>
+                    <FormCheckbox
                       type="checkbox"
                       value={f.id}
                       checked={linkFormIds.includes(f.id)}
@@ -1539,12 +1598,23 @@ export default function CoverageScreen() {
                         );
                       }}
                     />
-                    {' '}{f.formName || f.formNumber || 'Unnamed Form'}
-                  </label>
+                    <FormLabel>{f.formName || f.formNumber || 'Unnamed Form'}</FormLabel>
+                  </FormLinkItem>
                 ))}
-              </div>
+                {filteredForms.length === 0 && (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '32px',
+                    color: '#6b7280',
+                    fontStyle: 'italic'
+                  }}>
+                    No forms found matching your search
+                  </div>
+                )}
+              </FormLinkContainer>
+
               <Actions>
-                <Button onClick={saveLinkedForms}>Save</Button>
+                <Button onClick={saveLinkedForms}>Save Changes</Button>
                 <Button variant="ghost" onClick={() => setLinkFormsModalOpen(false)}>Cancel</Button>
               </Actions>
             </WideModal>
@@ -1563,10 +1633,11 @@ export default function CoverageScreen() {
                 </CloseBtn>
               </ModalHeader>
 
-              <div style={{ maxHeight: 400, overflowY: 'auto', marginBottom: 16 }}>
+              <EntryContainer>
                 {limitData.map((lim, idx) => (
-                  <div key={idx} style={{ display:'flex', gap:8, marginBottom:8, alignItems:'center' }}>
-                    <TextInput
+                  <EntryRow key={idx}>
+                    <EntryInput
+                      placeholder="Enter limit amount"
                       value={lim ? `$${lim}` : ''}
                       onChange={e => {
                         const raw = e.target.value.replace(/[^0-9]/g, '');
@@ -1575,21 +1646,24 @@ export default function CoverageScreen() {
                       onBlur={() => {
                         setLimitData(d => d.map((row,i) => i===idx ? fmtMoney(row) : row));
                       }}
-                      style={{ flex:1 }}
                     />
-                    <Button variant="ghost" style={{ color:'#dc2626' }}
-                      onClick={()=> setLimitData(d => d.filter((_,i)=> i!==idx))}>
-                      <TrashIcon width={16} height={16}/>
-                    </Button>
-                  </div>
+                    <RemoveButton
+                      onClick={()=> setLimitData(d => d.filter((_,i)=> i!==idx))}
+                      title="Remove limit"
+                    >
+                      <TrashIcon />
+                    </RemoveButton>
+                  </EntryRow>
                 ))}
-              </div>
+
+                <AddEntryButton onClick={() => setLimitData(d => [...d, ''])}>
+                  <PlusIcon />
+                  Add New Limit
+                </AddEntryButton>
+              </EntryContainer>
 
               <Actions>
-                <Button onClick={() => setLimitData(d => [...d, ''])}>
-                  Add Limit
-                </Button>
-                <Button onClick={saveLimits}>Save</Button>
+                <Button onClick={saveLimits}>Save Changes</Button>
                 <Button variant="ghost" onClick={() => setLimitModalOpen(false)}>
                   Cancel
                 </Button>
@@ -1609,10 +1683,11 @@ export default function CoverageScreen() {
                 </CloseBtn>
               </ModalHeader>
 
-              <div style={{ maxHeight: 400, overflowY: 'auto', marginBottom: 16 }}>
+              <EntryContainer>
                 {deductibleData.map((ded, idx) => (
-                  <div key={idx} style={{ display:'flex', gap:8, marginBottom:8, alignItems:'center' }}>
-                    <TextInput
+                  <EntryRow key={idx}>
+                    <EntryInput
+                      placeholder="Enter deductible amount"
                       value={ded ? `$${ded}` : ''}
                       onChange={e => {
                         const raw = e.target.value.replace(/[^0-9]/g, '');
@@ -1621,21 +1696,24 @@ export default function CoverageScreen() {
                       onBlur={() => {
                         setDeductibleData(d => d.map((row,i) => i===idx ? fmtMoney(row) : row));
                       }}
-                      style={{ flex:1 }}
                     />
-                    <Button variant="ghost" style={{ color:'#dc2626' }}
-                      onClick={()=> setDeductibleData(d => d.filter((_,i)=> i!==idx))}>
-                      <TrashIcon width={16} height={16}/>
-                    </Button>
-                  </div>
+                    <RemoveButton
+                      onClick={()=> setDeductibleData(d => d.filter((_,i)=> i!==idx))}
+                      title="Remove deductible"
+                    >
+                      <TrashIcon />
+                    </RemoveButton>
+                  </EntryRow>
                 ))}
-              </div>
+
+                <AddEntryButton onClick={() => setDeductibleData(d => [...d, ''])}>
+                  <PlusIcon />
+                  Add New Deductible
+                </AddEntryButton>
+              </EntryContainer>
 
               <Actions>
-                <Button onClick={() => setDeductibleData(d => [...d, ''])}>
-                  Add Deductible
-                </Button>
-                <Button onClick={saveDeductibles}>Save</Button>
+                <Button onClick={saveDeductibles}>Save Changes</Button>
                 <Button variant="ghost" onClick={() => setDeductibleModalOpen(false)}>
                   Cancel
                 </Button>

@@ -298,6 +298,14 @@ export default function MainNavigation() {
 
   // Get user initials for avatar
   const getUserInitials = () => {
+    // Check for admin session first
+    const sessionStatus = sessionStorage.getItem('ph-authed');
+    const storedUsername = sessionStorage.getItem('ph-username');
+
+    if (sessionStatus === 'admin' && storedUsername) {
+      return storedUsername.substring(0, 2).toUpperCase();
+    }
+
     const user = auth.currentUser;
     if (user?.displayName) {
       return user.displayName.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -309,19 +317,46 @@ export default function MainNavigation() {
   };
 
   const getUserEmail = () => {
+    // Check for admin session first
+    const sessionStatus = sessionStorage.getItem('ph-authed');
+    const storedUsername = sessionStorage.getItem('ph-username');
+
+    if (sessionStatus === 'admin' && storedUsername) {
+      return `${storedUsername}@admin.local`;
+    }
+
     const user = auth.currentUser;
     return user?.email || 'Guest User';
   };
 
   const getUserName = () => {
+    // Check for admin session first
+    const sessionStatus = sessionStorage.getItem('ph-authed');
+    const storedUsername = sessionStorage.getItem('ph-username');
+
+    if (sessionStatus === 'admin' && storedUsername) {
+      return storedUsername;
+    }
+
     const user = auth.currentUser;
     return user?.displayName || user?.email?.split('@')[0] || 'Guest User';
   };
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
-      navigate('/login', { replace: true });
+      // Check if this is an admin session
+      const sessionStatus = sessionStorage.getItem('ph-authed');
+
+      if (sessionStatus === 'admin') {
+        // Admin logout - just clear session storage
+        sessionStorage.removeItem('ph-authed');
+        sessionStorage.removeItem('ph-username');
+        navigate('/login', { replace: true });
+      } else {
+        // Firebase logout
+        await signOut(auth);
+        navigate('/login', { replace: true });
+      }
     } catch (error) {
       console.error('Sign out failed:', error);
     }

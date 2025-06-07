@@ -1572,14 +1572,6 @@ export default function ProductHub() {
             </ViewToggle>
           </ActionGroup>
           <ActionGroup>
-            <HeaderActionButton
-              variant="secondary"
-              onClick={() => setXlsxImportModalOpen(true)}
-              style={{ marginRight: '12px' }}
-            >
-              <DocumentTextIcon width={16} height={16} />
-              Import Excel
-            </HeaderActionButton>
             <HeaderActionButton onClick={() => setModalOpen(true)}>
               <PlusIcon width={16} height={16} />
               Add Product
@@ -1665,7 +1657,7 @@ export default function ProductHub() {
 
                 <LastUpdated>
                   <ClockIcon width={12} height={12} />
-                  Last updated: May 27 by Sarah C.
+                  Last updated: May 16 by Sal S.
                 </LastUpdated>
               </ProductCard>
             ))}

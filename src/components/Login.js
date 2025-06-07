@@ -9,7 +9,6 @@ import {
 } from '@heroicons/react/24/solid';
 import { auth } from '../firebase';
 import {
-  signInWithEmailAndPassword,
   signInAnonymously
 } from 'firebase/auth';
 
@@ -319,10 +318,11 @@ const Divider = styled.div`
 /* ---------- helper function to map Firebase error codes to messages ---------- */
 const prettyError = code => {
   switch (code) {
-    case 'auth/user-not-found':    return 'No account matches that email.';
+    case 'auth/user-not-found':    return 'No account matches that username.';
     case 'auth/wrong-password':    return 'Incorrect password.';
     case 'auth/weak-password':     return 'Choose a stronger password.';
-    case 'auth/email-already-in-use': return 'Email is already registered.';
+    case 'auth/email-already-in-use': return 'Username is already registered.';
+    case 'auth/invalid-credentials': return 'Invalid username or password.';
     default: return 'Something went wrong. Please try again.';
   }
 };
@@ -330,7 +330,7 @@ const prettyError = code => {
 /* ---------- component ---------- */
 export default function Login() {
   const nav = useNavigate();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
   const [success, setSuccess] = useState('');
@@ -339,15 +339,15 @@ export default function Login() {
   const [guestLoading, setGuestLoading] = useState(false);
 
 
-  const isLoginValid = email.trim() !== '' && password !== '';
+  const isLoginValid = username.trim() !== '' && password !== '';
 
   // Clear messages when user starts typing
   useEffect(() => {
-    if (email || password) {
+    if (username || password) {
       setErr('');
       setSuccess('');
     }
-  }, [email, password]);
+  }, [username, password]);
 
   const handleSubmit = useCallback(async e => {
     e.preventDefault();
@@ -356,19 +356,28 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
-      setSuccess('Login successful! Redirecting...');
+      // Check for admin credentials
+      if (username.trim() === 'admin' && password === 'admin') {
+        // Admin login - bypass Firebase and set session directly
+        sessionStorage.setItem('ph-authed', 'admin');
+        sessionStorage.setItem('ph-username', 'admin');
+        setSuccess('Admin login successful! Redirecting...');
 
-      // Small delay to show success message
-      setTimeout(() => {
-        nav('/');
-      }, 1000);
+        // Small delay to show success message
+        setTimeout(() => {
+          nav('/');
+        }, 1000);
+      } else {
+        // For other users, we'll need to handle differently since Firebase expects email
+        // For now, we'll show an error for non-admin users
+        setErr('Only admin login is currently supported. Use username: admin, password: admin');
+      }
     } catch (error) {
       setErr(prettyError(error.code));
     } finally {
       setIsLoading(false);
     }
-  }, [email, password, nav]);
+  }, [username, password, nav]);
 
   const handleGuest = useCallback(async () => {
     setGuestLoading(true);
@@ -400,17 +409,17 @@ export default function Login() {
 
         <InputWrapper>
           <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="Email"
+            id="username"
+            type="text"
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            placeholder="Username"
             autoFocus
-            autoComplete="email"
+            autoComplete="username"
             required
             aria-describedby={err ? "error-message" : undefined}
           />
-          <Label htmlFor="email">Email Address</Label>
+          <Label htmlFor="username">Username</Label>
         </InputWrapper>
 
         <InputWrapper as={PasswordContainer}>

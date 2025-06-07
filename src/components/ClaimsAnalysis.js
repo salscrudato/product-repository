@@ -13,6 +13,7 @@ import MainNavigation from './ui/Navigation';
 import { Button } from './ui/Button';
 import { TextInput } from './ui/Input';
 import { UnifiedAIResponse } from './ui/UnifiedAIResponse';
+import EnhancedHeader from './ui/EnhancedHeader';
 import { processFormsForAnalysis } from '../utils/pdfChunking';
 import { analyzeClaimWithChunking } from '../services/claimsAnalysisService';
 
@@ -148,22 +149,6 @@ const MainContent = styled.div`
   max-width: 1400px;
   margin: 0 auto;
   padding: 32px 24px;
-`;
-
-const HeaderSection = styled.div`
-  text-align: center;
-  margin-bottom: 40px;
-`;
-
-const PageTitle = styled.h1`
-  font-size: 36px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0;
-  letter-spacing: -0.025em;
 `;
 
 const ContentGrid = styled.div`
@@ -734,7 +719,7 @@ function ClaimsAnalysisComponent() {
     }
   };
 
-  const handleKeyPress = (e) => {
+  const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -758,9 +743,11 @@ function ClaimsAnalysisComponent() {
     <Container>
       <MainNavigation />
       <MainContent>
-        <HeaderSection>
-          <PageTitle>Claims Analysis</PageTitle>
-        </HeaderSection>
+        <EnhancedHeader
+          title="Claims Analysis"
+          subtitle="AI-powered claim coverage determination with multi-form analysis"
+          icon={ChatBubbleLeftRightIcon}
+        />
 
         <ContentGrid>
           {/* Forms Selection Panel */}
@@ -882,7 +869,7 @@ function ClaimsAnalysisComponent() {
                     }
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
-                    onKeyPress={handleKeyPress}
+                    onKeyDown={handleKeyDown}
                     disabled={selectedForms.length === 0 || isAnalyzing}
                   />
                   <SendButton
