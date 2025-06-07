@@ -1,4 +1,11 @@
 import * as XLSX from 'xlsx';
+import { db } from '../firebase';
+import {
+  collection,
+  doc,
+  writeBatch,
+  serverTimestamp
+} from 'firebase/firestore';
 
 export const STATE_COLS = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA',
@@ -6,6 +13,607 @@ export const STATE_COLS = [
   'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT',
   'VA','WA','WV','WI','WY'
 ];
+
+// XLSX Import Configuration
+export const SHEET_HANDLERS = {
+  'Product': 'handleProductsSheet',
+  'Forms': 'handleFormsSheet',
+  'ProductCoverageUpload': 'handleFormCoverageMapping',
+  'Pricing': 'handlePricingSheet',
+  'Rules': 'handleRulesSheet',
+  'Data Dictionary': 'handleDataDictionary'
+};
+
+// Column mapping for normalization
+export const COLUMN_MAPPINGS = {
+  'FORM NUMBER': 'formNumber',
+  'FORM NAME': 'formName',
+  'FORM EDITION DATE': 'formEditionDate',
+  'FORM EFFECTIVE DATE': 'effectiveDate',
+  'FORM EXPIRATION DATE': 'expirationDate',
+  'FORM CATEGORY': 'category',
+  'COVERAGE CODE': 'coverageCode',
+  'COVERAGE CATEGORY': 'coverageCategory',
+  'SUB COVERAGE': 'subCoverage',
+  'STATE AVAILABILITY': 'stateAvailability',
+  'PRODUCT FRAMEWORK ID': 'productFrameworkId',
+  'RULE SUB-CATEGORY': 'ruleSubCategory',
+  'RULE CONDITION': 'ruleCondition',
+  'RULE OUTCOME': 'ruleOutcome',
+  'DYNAMIC / STATIC': 'dynamicStatic',
+  'ATTACHMENT CONDITIONS': 'attachmentConditions'
+};
+
+/* ---------- XLSX Import Core Functions ---------- */
+
+// Main XLSX import orchestrator
+export const processXLSXFile = async (file, options = {}) => {
+  try {
+    console.log('🚀 Starting XLSX import process...');
+
+    // Validate file type
+    if (!validateFileType(file)) {
+      throw new Error('Invalid file type. Please upload an Excel file (.xlsx or .xls)');
+    }
+
+    // Parse workbook
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const results = {
+      success: [],
+      errors: [],
+      warnings: [],
+      summary: {}
+    };
+
+    // Create lookup maps for cross-referencing
+    const lookupMaps = {
+      productMap: {},
+      coverageMap: {},
+      formMap: {},
+      ruleMap: {}
+    };
+
+    // Process sheets in dependency order
+    const processingOrder = ['Product', 'Forms', 'ProductCoverageUpload', 'Pricing', 'Rules'];
+
+    for (const sheetName of processingOrder) {
+      if (workbook.SheetNames.includes(sheetName)) {
+        console.log(`📊 Processing sheet: ${sheetName}`);
+        const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+        try {
+          const sheetResult = await processSheet(sheetName, jsonData, lookupMaps, options);
+          results.success.push({
+            sheet: sheetName,
+            recordsProcessed: sheetResult.recordsProcessed,
+            recordsCreated: sheetResult.recordsCreated,
+            recordsUpdated: sheetResult.recordsUpdated
+          });
+          results.summary[sheetName] = sheetResult;
+        } catch (error) {
+          console.error(`❌ Error processing sheet ${sheetName}:`, error);
+          results.errors.push({
+            sheet: sheetName,
+            error: error.message,
+            details: error.details || null
+          });
+        }
+      }
+    }
+
+    console.log('✅ XLSX import process completed');
+    return results;
+
+  } catch (error) {
+    console.error('❌ XLSX import failed:', error);
+    throw error;
+  }
+};
+
+// File type validation
+const validateFileType = (file) => {
+  const validTypes = [
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel'
+  ];
+  return validTypes.includes(file.type) || file.name.match(/\.(xlsx|xls)$/i);
+};
+
+// Sheet processor router
+const processSheet = async (sheetName, jsonData, lookupMaps, options) => {
+  const handlers = {
+    'Product': handleProductsSheet,
+    'Forms': handleFormsSheet,
+    'ProductCoverageUpload': handleFormCoverageMapping,
+    'Pricing': handlePricingSheet,
+    'Rules': handleRulesSheet
+  };
+
+  const handler = handlers[sheetName];
+  if (!handler) {
+    throw new Error(`No handler found for sheet: ${sheetName}`);
+  }
+
+  return await handler(jsonData, lookupMaps, options);
+};
+
+// Data normalization utility
+export const normalizeColumnNames = (data) => {
+  return data.map(row => {
+    const normalizedRow = {};
+    Object.keys(row).forEach(key => {
+      const normalizedKey = COLUMN_MAPPINGS[key] || key.toLowerCase().replace(/\s+/g, '');
+      normalizedRow[normalizedKey] = row[key];
+    });
+    return normalizedRow;
+  });
+};
+
+// State parsing utility
+export const parseStateAvailability = (stateData, row) => {
+  if (typeof stateData === 'string') {
+    if (stateData.trim().toUpperCase() === 'X') {
+      return STATE_COLS; // All states
+    }
+    // Parse comma-separated state codes
+    return stateData.split(',').map(s => s.trim().toUpperCase()).filter(s => STATE_COLS.includes(s));
+  }
+
+  // Check individual state columns
+  const availableStates = [];
+  STATE_COLS.forEach(state => {
+    if (row[state] && (row[state].toString().trim().toUpperCase() === 'X' || row[state] === 1)) {
+      availableStates.push(state);
+    }
+  });
+
+  return availableStates.length > 0 ? availableStates : STATE_COLS;
+};
+
+// Validation utilities
+export const validateRequiredFields = (data, requiredFields, sheetName) => {
+  const errors = [];
+
+  data.forEach((row, index) => {
+    requiredFields.forEach(field => {
+      if (!row[field] || row[field].toString().trim() === '') {
+        errors.push({
+          sheet: sheetName,
+          row: index + 2, // +2 for header and 0-based index
+          field,
+          message: `Required field '${field}' is missing or empty`
+        });
+      }
+    });
+  });
+
+  return errors;
+};
+
+// Type inference utility
+export const inferDataType = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+
+  const str = value.toString().trim();
+
+  // Number detection
+  if (!isNaN(str) && !isNaN(parseFloat(str))) {
+    return parseFloat(str);
+  }
+
+  // Boolean detection
+  if (['true', 'false', 'yes', 'no', 'y', 'n'].includes(str.toLowerCase())) {
+    return ['true', 'yes', 'y'].includes(str.toLowerCase());
+  }
+
+  // Date detection (basic)
+  if (str.match(/^\d{4}-\d{2}-\d{2}/) || str.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)) {
+    const date = new Date(str);
+    return isNaN(date.getTime()) ? str : date.toISOString();
+  }
+
+  return str;
+};
+
+/* ---------- Sheet Handler Functions ---------- */
+
+// Products Sheet Handler
+const handleProductsSheet = async (jsonData, lookupMaps, options = {}) => {
+  console.log('📦 Processing Products sheet...');
+
+  const normalizedData = normalizeColumnNames(jsonData);
+  const requiredFields = ['PRODUCT', 'COVERAGE', 'coverageCode'];
+
+  // Validate required fields
+  const validationErrors = validateRequiredFields(normalizedData, requiredFields, 'Product');
+  if (validationErrors.length > 0 && !options.skipValidation) {
+    throw new Error(`Validation failed: ${validationErrors.map(e => e.message).join(', ')}`);
+  }
+
+  const batch = writeBatch(db);
+  let recordsProcessed = 0;
+  let recordsCreated = 0;
+  let recordsUpdated = 0;
+  const processedProducts = new Set();
+  const processedCoverages = new Set();
+
+  for (const row of normalizedData) {
+    try {
+      recordsProcessed++;
+
+      // Process Product
+      const productKey = row.PRODUCT || row.product;
+      if (productKey && !processedProducts.has(productKey)) {
+        const productRef = doc(collection(db, 'products'));
+        const productData = {
+          name: productKey,
+          status: inferDataType(row.STATUS || row.status) || 'Active',
+          bureau: row.BUREAU || row.bureau || 'ISO',
+          stateAvailability: parseStateAvailability(row.stateAvailability || row['STATE AVAILABILITY'], row),
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+
+        // Add optional fields
+        if (row.formNumber || row['FORM NUMBER']) {
+          productData.formNumber = row.formNumber || row['FORM NUMBER'];
+        }
+        if (row.productCode || row['PRODUCT CODE']) {
+          productData.productCode = row.productCode || row['PRODUCT CODE'];
+        }
+        if (row.effectiveDate || row['EFFECTIVE DATE']) {
+          productData.effectiveDate = inferDataType(row.effectiveDate || row['EFFECTIVE DATE']);
+        }
+
+        batch.set(productRef, productData);
+        lookupMaps.productMap[productKey] = productRef.id;
+        processedProducts.add(productKey);
+        recordsCreated++;
+      }
+
+      // Process Coverage
+      const coverageKey = `${productKey}-${row.COVERAGE || row.coverage}`;
+      if ((row.COVERAGE || row.coverage) && !processedCoverages.has(coverageKey)) {
+        const productId = lookupMaps.productMap[productKey];
+        if (productId) {
+          const coverageRef = doc(collection(db, `products/${productId}/coverages`));
+          const coverageData = {
+            name: row.COVERAGE || row.coverage,
+            coverageCode: row.coverageCode || row['COVERAGE CODE'],
+            category: row.coverageCategory || row['COVERAGE CATEGORY'] || 'Base Coverage',
+            description: row.subCoverage || row['SUB COVERAGE'] || '',
+            type: 'Base coverage',
+            states: parseStateAvailability(row.stateAvailability || row['STATE AVAILABILITY'], row),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          };
+
+          // Add optional fields
+          if (row.formNumber || row['FORM NUMBER']) {
+            coverageData.formNumber = row.formNumber || row['FORM NUMBER'];
+          }
+          if (row.limits) {
+            coverageData.limits = Array.isArray(row.limits) ? row.limits : [row.limits];
+          }
+          if (row.deductibles) {
+            coverageData.deductibles = Array.isArray(row.deductibles) ? row.deductibles : [row.deductibles];
+          }
+
+          batch.set(coverageRef, coverageData);
+          lookupMaps.coverageMap[coverageKey] = coverageRef.id;
+          processedCoverages.add(coverageKey);
+          recordsCreated++;
+        }
+      }
+
+    } catch (error) {
+      console.error(`Error processing product row ${recordsProcessed}:`, error);
+      if (!options.continueOnError) {
+        throw error;
+      }
+    }
+  }
+
+  // Commit batch
+  await batch.commit();
+  console.log(`✅ Products sheet processed: ${recordsCreated} records created`);
+
+  return {
+    recordsProcessed,
+    recordsCreated,
+    recordsUpdated,
+    productMap: lookupMaps.productMap,
+    coverageMap: lookupMaps.coverageMap
+  };
+};
+
+// Forms Sheet Handler
+const handleFormsSheet = async (jsonData, lookupMaps, options = {}) => {
+  console.log('📄 Processing Forms sheet...');
+
+  const normalizedData = normalizeColumnNames(jsonData);
+  const requiredFields = ['formNumber', 'formName'];
+
+  // Validate required fields
+  const validationErrors = validateRequiredFields(normalizedData, requiredFields, 'Forms');
+  if (validationErrors.length > 0 && !options.skipValidation) {
+    throw new Error(`Validation failed: ${validationErrors.map(e => e.message).join(', ')}`);
+  }
+
+  const batch = writeBatch(db);
+  let recordsProcessed = 0;
+  let recordsCreated = 0;
+  let recordsUpdated = 0;
+
+  for (const row of normalizedData) {
+    try {
+      recordsProcessed++;
+
+      const formRef = doc(collection(db, 'forms'));
+      const formData = {
+        formName: row.formName || row['FORM NAME'],
+        formNumber: row.formNumber || row['FORM NUMBER'],
+        effectiveDate: inferDataType(row.effectiveDate || row['FORM EFFECTIVE DATE']) || '',
+        expirationDate: inferDataType(row.expirationDate || row['FORM EXPIRATION DATE']) || '9999-12-31',
+        type: row.bureau || row.BUREAU || 'ISO',
+        category: row.category || row['FORM CATEGORY'] || 'Base Coverage Form',
+        formEditionDate: row.formEditionDate || row['FORM EDITION DATE'] || '',
+        dynamicStatic: row.dynamicStatic || row['DYNAMIC / STATIC'] || 'Static',
+        attachmentConditions: row.attachmentConditions || row['ATTACHMENT CONDITIONS'] || '',
+        productIds: [],
+        coverageIds: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      // Link to product if specified
+      const productKey = row.product || row.PRODUCT || row['PRODUCT ID'];
+      if (productKey && lookupMaps.productMap[productKey]) {
+        formData.productIds = [lookupMaps.productMap[productKey]];
+        formData.productId = lookupMaps.productMap[productKey]; // Legacy field
+      }
+
+      batch.set(formRef, formData);
+      lookupMaps.formMap[formData.formNumber] = formRef.id;
+      recordsCreated++;
+
+    } catch (error) {
+      console.error(`Error processing form row ${recordsProcessed}:`, error);
+      if (!options.continueOnError) {
+        throw error;
+      }
+    }
+  }
+
+  // Commit batch
+  await batch.commit();
+  console.log(`✅ Forms sheet processed: ${recordsCreated} records created`);
+
+  return {
+    recordsProcessed,
+    recordsCreated,
+    recordsUpdated,
+    formMap: lookupMaps.formMap
+  };
+};
+
+// Form Coverage Mapping Sheet Handler
+const handleFormCoverageMapping = async (jsonData, lookupMaps, options = {}) => {
+  console.log('🔗 Processing ProductCoverageUpload sheet...');
+
+  const normalizedData = normalizeColumnNames(jsonData);
+  const requiredFields = ['PRODUCT', 'COVERAGE', 'formNumber'];
+
+  // Validate required fields
+  const validationErrors = validateRequiredFields(normalizedData, requiredFields, 'ProductCoverageUpload');
+  if (validationErrors.length > 0 && !options.skipValidation) {
+    throw new Error(`Validation failed: ${validationErrors.map(e => e.message).join(', ')}`);
+  }
+
+  const batch = writeBatch(db);
+  let recordsProcessed = 0;
+  let recordsCreated = 0;
+  let recordsUpdated = 0;
+
+  for (const row of normalizedData) {
+    try {
+      recordsProcessed++;
+
+      const productKey = row.PRODUCT || row.product;
+      const coverageKey = `${productKey}-${row.COVERAGE || row.coverage}`;
+      const formNumber = row.formNumber || row['FORM NUMBER'];
+
+      const productId = lookupMaps.productMap[productKey];
+      const coverageId = lookupMaps.coverageMap[coverageKey];
+      const formId = lookupMaps.formMap[formNumber];
+
+      if (productId && coverageId && formId) {
+        const linkRef = doc(collection(db, 'formCoverages'));
+        const linkData = {
+          productId,
+          coverageId,
+          formId,
+          createdAt: serverTimestamp()
+        };
+
+        batch.set(linkRef, linkData);
+        recordsCreated++;
+      } else {
+        console.warn(`Skipping link - missing references: Product(${productId}), Coverage(${coverageId}), Form(${formId})`);
+      }
+
+    } catch (error) {
+      console.error(`Error processing form coverage mapping row ${recordsProcessed}:`, error);
+      if (!options.continueOnError) {
+        throw error;
+      }
+    }
+  }
+
+  // Commit batch
+  await batch.commit();
+  console.log(`✅ Form Coverage Mapping sheet processed: ${recordsCreated} records created`);
+
+  return {
+    recordsProcessed,
+    recordsCreated,
+    recordsUpdated
+  };
+};
+
+// Pricing Sheet Handler
+const handlePricingSheet = async (jsonData, lookupMaps, options = {}) => {
+  console.log('💰 Processing Pricing sheet...');
+
+  const normalizedData = normalizeColumnNames(jsonData);
+  const requiredFields = ['Coverage', 'Step Name'];
+
+  // Validate required fields
+  const validationErrors = validateRequiredFields(normalizedData, requiredFields, 'Pricing');
+  if (validationErrors.length > 0 && !options.skipValidation) {
+    throw new Error(`Validation failed: ${validationErrors.map(e => e.message).join(', ')}`);
+  }
+
+  const batch = writeBatch(db);
+  let recordsProcessed = 0;
+  let recordsCreated = 0;
+  let recordsUpdated = 0;
+
+  for (const row of normalizedData) {
+    try {
+      recordsProcessed++;
+
+      // Find the product ID from coverage
+      const coverageName = row.Coverage || row.coverage;
+      let productId = null;
+
+      // Try to find product ID from coverage mapping
+      for (const [key] of Object.entries(lookupMaps.coverageMap)) {
+        if (key.includes(coverageName)) {
+          const productKey = key.split('-')[0];
+          productId = lookupMaps.productMap[productKey];
+          break;
+        }
+      }
+
+      if (productId) {
+        const stepRef = doc(collection(db, `products/${productId}/steps`));
+        const stepData = {
+          stepName: row['Step Name'] || row.stepName,
+          stepType: 'factor', // Default type
+          calculation: row.CALCULATION || row.calculation || '+',
+          rounding: row.ROUNDING || row.rounding || 'none',
+          value: inferDataType(row.Value || row.value) || 0,
+          coverages: [coverageName],
+          states: parseStateAvailability(row.stateAvailability || row['STATE AVAILABILITY'], row),
+          table: row['Table Name'] || row.tableName || '',
+          proprietary: inferDataType(row.PROPRIETARY || row.proprietary) || false,
+          rules: row.RULES || row.rules || '',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+
+        batch.set(stepRef, stepData);
+        recordsCreated++;
+
+        // Create dimensions if needed
+        if (row['COVERAGE NAME'] || row.coverageName) {
+          const dimensionRef = doc(collection(db, `products/${productId}/steps/${stepRef.id}/dimensions`));
+          const dimensionData = {
+            name: row['COVERAGE NAME'] || row.coverageName,
+            technicalCode: row['TABLE NAME'] || row.tableName || '',
+            values: row['EXAMPLE VALUES'] || row.exampleValues || '',
+            type: 'Row',
+            createdAt: serverTimestamp()
+          };
+
+          batch.set(dimensionRef, dimensionData);
+        }
+      } else {
+        console.warn(`Skipping pricing step - no product found for coverage: ${coverageName}`);
+      }
+
+    } catch (error) {
+      console.error(`Error processing pricing row ${recordsProcessed}:`, error);
+      if (!options.continueOnError) {
+        throw error;
+      }
+    }
+  }
+
+  // Commit batch
+  await batch.commit();
+  console.log(`✅ Pricing sheet processed: ${recordsCreated} records created`);
+
+  return {
+    recordsProcessed,
+    recordsCreated,
+    recordsUpdated
+  };
+};
+
+// Rules Sheet Handler
+const handleRulesSheet = async (jsonData, lookupMaps, options = {}) => {
+  console.log('📋 Processing Rules sheet...');
+
+  const normalizedData = normalizeColumnNames(jsonData);
+  const requiredFields = ['ruleSubCategory', 'ruleCondition', 'ruleOutcome'];
+
+  // Validate required fields
+  const validationErrors = validateRequiredFields(normalizedData, requiredFields, 'Rules');
+  if (validationErrors.length > 0 && !options.skipValidation) {
+    throw new Error(`Validation failed: ${validationErrors.map(e => e.message).join(', ')}`);
+  }
+
+  const batch = writeBatch(db);
+  let recordsProcessed = 0;
+  let recordsCreated = 0;
+  let recordsUpdated = 0;
+
+  for (const row of normalizedData) {
+    try {
+      recordsProcessed++;
+
+      const ruleRef = doc(collection(db, 'rules'));
+      const ruleData = {
+        name: row.ruleSubCategory || row['RULE SUB-CATEGORY'],
+        condition: row.ruleCondition || row['RULE CONDITION'],
+        outcome: row.ruleOutcome || row['RULE OUTCOME'],
+        proprietary: inferDataType(row.PROPRIETARY || row.proprietary) === 'YES' || false,
+        reference: row.SOURCE || row.source || row.formNumber || row['FORM NUMBER'] || '',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      // Link to product if framework ID is provided
+      const frameworkId = row.productFrameworkId || row['PRODUCT FRAMEWORK ID'];
+      if (frameworkId && lookupMaps.productMap[frameworkId]) {
+        ruleData.productId = lookupMaps.productMap[frameworkId];
+      }
+
+      batch.set(ruleRef, ruleData);
+      lookupMaps.ruleMap[ruleData.name] = ruleRef.id;
+      recordsCreated++;
+
+    } catch (error) {
+      console.error(`Error processing rule row ${recordsProcessed}:`, error);
+      if (!options.continueOnError) {
+        throw error;
+      }
+    }
+  }
+
+  // Commit batch
+  await batch.commit();
+  console.log(`✅ Rules sheet processed: ${recordsCreated} records created`);
+
+  return {
+    recordsProcessed,
+    recordsCreated,
+    recordsUpdated,
+    ruleMap: lookupMaps.ruleMap
+  };
+};
 
 /* ---------- Enhanced XLSX Export Functions ---------- */
 

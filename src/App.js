@@ -16,8 +16,8 @@ import Home from './components/Home';
 import ProductHub from './components/ProductHub';
 import DataDictionary from './components/DataDictionary';
 import CoverageScreen from './components/CoverageScreen';
-import PricingScreenEnhanced from './components/PricingScreenEnhanced';
-import TableScreenEnhanced from './components/TableScreenEnhanced';
+import PricingScreen from './components/PricingScreen';
+import TableScreen from './components/TableScreen';
 import FormsScreen from './components/FormsScreen';
 import StatesScreen from './components/StatesScreen';
 import RulesScreen from './components/RulesScreen';
@@ -95,7 +95,7 @@ const HistoryWrapper = () => {
           path="/pricing/:productId"
           element={
             <RequireAuth>
-              <PricingScreenEnhanced />
+              <PricingScreen />
             </RequireAuth>
           }
         />
@@ -111,7 +111,7 @@ const HistoryWrapper = () => {
           path="/table/:productId/:stepId"
           element={
             <RequireAuth>
-              <TableScreenEnhanced />
+              <TableScreen />
             </RequireAuth>
           }
         />

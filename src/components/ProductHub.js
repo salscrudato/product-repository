@@ -33,6 +33,7 @@ import {
 } from '@heroicons/react/24/solid';
 import DataDictionaryModal from './DataDictionaryModal';
 import BulkFormUploadModal from './BulkFormUploadModal';
+import XLSXImportModal from './XLSXImportModal';
 import useProducts from '../hooks/useProducts';
 import MarkdownRenderer from '../utils/markdownParser';
 
@@ -82,15 +83,19 @@ const HeaderActionButton = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: #ffffff;
-  border: none;
+  background: ${props => props.variant === 'secondary'
+    ? 'rgba(255, 255, 255, 0.9)'
+    : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'};
+  color: ${props => props.variant === 'secondary' ? '#6366f1' : '#ffffff'};
+  border: ${props => props.variant === 'secondary' ? '1px solid rgba(99, 102, 241, 0.2)' : 'none'};
   border-radius: 12px;
   padding: 12px 20px;
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
+  box-shadow: ${props => props.variant === 'secondary'
+    ? '0 2px 8px rgba(99, 102, 241, 0.1)'
+    : '0 4px 16px rgba(99, 102, 241, 0.25)'};
   transition: all 0.3s ease;
   letter-spacing: -0.01em;
   position: relative;
@@ -108,9 +113,14 @@ const HeaderActionButton = styled.button`
   }
 
   &:hover {
-    background: linear-gradient(135deg, #5b5bf6 0%, #7c3aed 100%);
+    background: ${props => props.variant === 'secondary'
+      ? 'rgba(99, 102, 241, 0.1)'
+      : 'linear-gradient(135deg, #5b5bf6 0%, #7c3aed 100%)'};
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
+    box-shadow: ${props => props.variant === 'secondary'
+      ? '0 4px 16px rgba(99, 102, 241, 0.2)'
+      : '0 8px 24px rgba(99, 102, 241, 0.35)'};
+    border-color: ${props => props.variant === 'secondary' ? 'rgba(99, 102, 241, 0.3)' : 'transparent'};
 
     &::before {
       left: 100%;
@@ -1120,6 +1130,7 @@ export default function ProductHub() {
   const [chatModalOpen, setChatModalOpen] = useState(false);
   const [rulesModalOpen, setRulesModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [xlsxImportModalOpen, setXlsxImportModalOpen] = useState(false);
 
   // Form states
   const [name, setName] = useState('');
@@ -1327,6 +1338,20 @@ export default function ProductHub() {
     setProductCode('');
     setEffectiveDate('');
     setFile(null);
+  };
+
+  const handleXlsxImportSuccess = (results) => {
+    console.log('XLSX Import completed successfully:', results);
+
+    // Show success message
+    const totalRecords = results.success.reduce((total, sheet) => total + sheet.recordsCreated, 0);
+    alert(`Successfully imported ${totalRecords} records from ${results.success.length} sheets!`);
+
+    // Close modal and refresh data
+    setXlsxImportModalOpen(false);
+
+    // The useProducts hook will automatically refresh the products list
+    // due to the real-time Firestore listener
   };
 
   const formatMMYY = value => {
@@ -1546,10 +1571,20 @@ export default function ProductHub() {
               </ViewToggleButton>
             </ViewToggle>
           </ActionGroup>
-          <HeaderActionButton onClick={() => setModalOpen(true)}>
-            <PlusIcon width={16} height={16} />
-            Add Product
-          </HeaderActionButton>
+          <ActionGroup>
+            <HeaderActionButton
+              variant="secondary"
+              onClick={() => setXlsxImportModalOpen(true)}
+              style={{ marginRight: '12px' }}
+            >
+              <DocumentTextIcon width={16} height={16} />
+              Import Excel
+            </HeaderActionButton>
+            <HeaderActionButton onClick={() => setModalOpen(true)}>
+              <PlusIcon width={16} height={16} />
+              Add Product
+            </HeaderActionButton>
+          </ActionGroup>
         </ActionBar>
 
         {filtered.length > 0 ? (
@@ -2020,6 +2055,13 @@ export default function ProductHub() {
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
         products={products}
+      />
+
+      {/* XLSX Import Modal */}
+      <XLSXImportModal
+        open={xlsxImportModalOpen}
+        onClose={() => setXlsxImportModalOpen(false)}
+        onSuccess={handleXlsxImportSuccess}
       />
     </Page>
   );

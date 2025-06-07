@@ -12,8 +12,120 @@ import styled, { keyframes } from 'styled-components';
 import MainNavigation from './ui/Navigation';
 import { Button } from './ui/Button';
 import { TextInput } from './ui/Input';
+import { UnifiedAIResponse } from './ui/UnifiedAIResponse';
 import { processFormsForAnalysis } from '../utils/pdfChunking';
 import { analyzeClaimWithChunking } from '../services/claimsAnalysisService';
+
+// Error boundary component for message content
+class MessageErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Message rendering error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          padding: '16px',
+          background: '#fee2e2',
+          border: '1px solid #fecaca',
+          borderRadius: '8px',
+          color: '#dc2626'
+        }}>
+          <strong>Error displaying message</strong>
+          <p style={{ margin: '8px 0 0 0', fontSize: '14px' }}>
+            There was an error rendering this message. The content may contain invalid formatting.
+          </p>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Top-level error boundary for the entire component
+class ClaimsAnalysisErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Claims Analysis component error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%)'
+        }}>
+          <div style={{
+            maxWidth: '500px',
+            padding: '32px',
+            background: 'white',
+            borderRadius: '16px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+            textAlign: 'center'
+          }}>
+            <h2 style={{ color: '#dc2626', marginBottom: '16px' }}>Claims Analysis Error</h2>
+            <p style={{ color: '#64748b', marginBottom: '24px' }}>
+              Something went wrong while loading the Claims Analysis page. Please try refreshing the page.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                background: '#6366f1',
+                color: 'white',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              Refresh Page
+            </button>
+            {this.state.error && (
+              <details style={{ marginTop: '16px', textAlign: 'left' }}>
+                <summary style={{ cursor: 'pointer', color: '#64748b' }}>Error Details</summary>
+                <pre style={{
+                  background: '#f8fafc',
+                  padding: '12px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  overflow: 'auto',
+                  marginTop: '8px'
+                }}>
+                  {this.state.error.toString()}
+                </pre>
+              </details>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 /* ---------- Animations ---------- */
 const spin = keyframes`
@@ -420,41 +532,9 @@ const EmptyStateText = styled.p`
   margin: 0;
 `;
 
-// Utility function to format AI response content
-const formatAIResponse = (content) => {
-  if (!content) return '';
 
-  // Convert markdown-style formatting to HTML
-  let formatted = content
-    // Convert ## headers to h2
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    // Convert ### headers to h3
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    // Convert #### headers to h4
-    .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
-    // Convert **bold** to <strong>
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    // Convert bullet points to proper list items
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    // Wrap consecutive list items in <ul>
-    .replace(/(<li>.*<\/li>\s*)+/gs, '<ul>$&</ul>')
-    // Convert line breaks to paragraphs
-    .replace(/\n\n/g, '</p><p>')
-    // Wrap in paragraph tags
-    .replace(/^(?!<[hul])/gm, '<p>')
-    .replace(/(?<!>)$/gm, '</p>')
-    // Clean up empty paragraphs
-    .replace(/<p><\/p>/g, '')
-    // Clean up paragraphs around headers and lists
-    .replace(/<p>(<h[1-6]>)/g, '$1')
-    .replace(/(<\/h[1-6]>)<\/p>/g, '$1')
-    .replace(/<p>(<ul>)/g, '$1')
-    .replace(/(<\/ul>)<\/p>/g, '$1');
 
-  return formatted;
-};
-
-export default function ClaimsAnalysis() {
+function ClaimsAnalysisComponent() {
   const [forms, setForms] = useState([]);
   const [filteredForms, setFilteredForms] = useState([]);
   const [selectedForms, setSelectedForms] = useState([]);
@@ -467,41 +547,85 @@ export default function ClaimsAnalysis() {
 
   // Load forms on component mount
   useEffect(() => {
-    loadForms();
+    try {
+      loadForms();
+    } catch (error) {
+      console.error('Error in loadForms useEffect:', error);
+    }
   }, []);
 
   // Filter forms based on search query
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredForms(forms);
-    } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = forms.filter(form =>
-        (form.formName || '').toLowerCase().includes(query) ||
-        (form.formNumber || '').toLowerCase().includes(query) ||
-        (form.category || '').toLowerCase().includes(query)
-      );
-      setFilteredForms(filtered);
+    try {
+      if (!Array.isArray(forms)) {
+        console.warn('Forms is not an array:', forms);
+        setFilteredForms([]);
+        return;
+      }
+
+      if (!searchQuery.trim()) {
+        setFilteredForms(forms);
+      } else {
+        const query = searchQuery.toLowerCase();
+        const filtered = forms.filter(form => {
+          if (!form || typeof form !== 'object') return false;
+          return (
+            (form.formName || '').toLowerCase().includes(query) ||
+            (form.formNumber || '').toLowerCase().includes(query) ||
+            (form.category || '').toLowerCase().includes(query)
+          );
+        });
+        setFilteredForms(filtered);
+      }
+    } catch (error) {
+      console.error('Error in filter useEffect:', error);
+      setFilteredForms([]);
     }
   }, [forms, searchQuery]);
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    try {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+      console.error('Error in scroll useEffect:', error);
+    }
   }, [messages]);
 
   const loadForms = async () => {
     try {
+      console.log('Loading forms from Firestore...');
       setLoading(true);
-      const formsSnapshot = await getDocs(collection(db, 'forms'));
-      const formsData = formsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+
+      // Add timeout to prevent hanging
+      const formsSnapshot = await Promise.race([
+        getDocs(collection(db, 'forms')),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Firestore timeout')), 10000)
+        )
+      ]);
+
+      const formsData = formsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          formName: data.formName || '',
+          formNumber: data.formNumber || '',
+          category: data.category || '',
+          downloadUrl: data.downloadUrl || '',
+          filePath: data.filePath || '',
+          ...data
+        };
+      });
+
+      console.log(`Loaded ${formsData.length} forms`);
       setForms(formsData);
       setFilteredForms(formsData);
     } catch (error) {
       console.error('Error loading forms:', error);
+      // Set empty arrays to prevent undefined errors
+      setForms([]);
+      setFilteredForms([]);
     } finally {
       setLoading(false);
     }
@@ -531,24 +655,56 @@ export default function ClaimsAnalysis() {
       content: userMessage,
       timestamp: new Date()
     };
-    setMessages(prev => [...prev, newUserMessage]);
 
     try {
-      // Process selected forms
-      const formChunks = await processFormsForAnalysis(selectedForms);
-      
+      setMessages(prev => [...prev, newUserMessage]);
+    } catch (error) {
+      console.error('Error adding user message:', error);
+      setIsAnalyzing(false);
+      return;
+    }
+
+    try {
+      // Validate selected forms
+      if (!selectedForms || selectedForms.length === 0) {
+        throw new Error('No forms selected for analysis');
+      }
+
+      // Process selected forms with timeout
+      console.log('Processing forms for analysis...');
+      const formChunks = await Promise.race([
+        processFormsForAnalysis(selectedForms),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Form processing timeout')), 90000)
+        )
+      ]);
+
+      if (!formChunks || formChunks.length === 0) {
+        throw new Error('No content could be extracted from the selected forms');
+      }
+
+      console.log(`Processed ${formChunks.length} form chunks`);
+
       // Get conversation history (excluding current message)
       const conversationHistory = messages.map(msg => ({
         role: msg.role,
-        content: msg.content
-      }));
+        content: msg.content || ''
+      })).filter(msg => msg.content.trim());
 
-      // Analyze claim
-      const analysis = await analyzeClaimWithChunking(
-        userMessage,
-        formChunks,
-        conversationHistory
-      );
+      // Analyze claim with timeout
+      console.log('Analyzing claim...');
+      const analysis = await Promise.race([
+        analyzeClaimWithChunking(userMessage, formChunks, conversationHistory),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Analysis timeout')), 120000)
+        )
+      ]);
+
+      if (!analysis || typeof analysis !== 'string') {
+        throw new Error('Invalid analysis response received');
+      }
+
+      console.log('Analysis completed successfully');
 
       // Add AI response to chat
       const aiMessage = {
@@ -560,12 +716,19 @@ export default function ClaimsAnalysis() {
 
     } catch (error) {
       console.error('Error analyzing claim:', error);
+
+      // Create a safe error message
       const errorMessage = {
         role: 'assistant',
-        content: `I apologize, but I encountered an error while analyzing your claim: ${error.message}. Please try again or contact support if the issue persists.`,
+        content: `I apologize, but I encountered an error while analyzing your claim: ${error.message || 'Unknown error'}. Please try again or contact support if the issue persists.`,
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, errorMessage]);
+
+      try {
+        setMessages(prev => [...prev, errorMessage]);
+      } catch (setError) {
+        console.error('Error setting error message:', setError);
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -619,26 +782,29 @@ export default function ClaimsAnalysis() {
               </SearchContainer>
 
               <FormsList>
-                {filteredForms.map(form => (
-                  <FormItem
-                    key={form.id}
-                    selected={selectedForms.some(f => f.id === form.id)}
-                    onClick={() => toggleFormSelection(form)}
-                  >
-                    <FormCheckbox checked={selectedForms.some(f => f.id === form.id)}>
-                      <CheckCircleIcon />
-                    </FormCheckbox>
-                    <FormInfo>
-                      <FormName>
-                        {form.formName || form.formNumber || 'Unnamed Form'}
-                      </FormName>
-                      <FormMeta>
-                        {form.formNumber && `${form.formNumber} • `}
-                        {form.category || 'Unknown Category'}
-                      </FormMeta>
-                    </FormInfo>
-                  </FormItem>
-                ))}
+                {Array.isArray(filteredForms) && filteredForms.map(form => {
+                  if (!form || !form.id) return null;
+                  return (
+                    <FormItem
+                      key={form.id}
+                      selected={selectedForms.some(f => f && f.id === form.id)}
+                      onClick={() => toggleFormSelection(form)}
+                    >
+                      <FormCheckbox checked={selectedForms.some(f => f && f.id === form.id)}>
+                        <CheckCircleIcon />
+                      </FormCheckbox>
+                      <FormInfo>
+                        <FormName>
+                          {form.formName || form.formNumber || 'Unnamed Form'}
+                        </FormName>
+                        <FormMeta>
+                          {form.formNumber && `${form.formNumber} • `}
+                          {form.category || 'Unknown Category'}
+                        </FormMeta>
+                      </FormInfo>
+                    </FormItem>
+                  );
+                })}
               </FormsList>
 
               {selectedForms.length > 0 && (
@@ -671,21 +837,27 @@ export default function ClaimsAnalysis() {
                       </EmptyStateText>
                     </EmptyState>
                   ) : (
-                    messages.map((message, index) => (
-                      <Message key={index}>
-                        <MessageHeader isUser={message.role === 'user'}>
-                          {message.role === 'user' ? 'You' : 'Claims Analyst AI'}
-                        </MessageHeader>
-                        <MessageContent
-                          isUser={message.role === 'user'}
-                          dangerouslySetInnerHTML={{
-                            __html: message.role === 'user'
-                              ? message.content
-                              : formatAIResponse(message.content)
-                          }}
-                        />
-                      </Message>
-                    ))
+                    Array.isArray(messages) && messages.map((message, index) => {
+                      if (!message || typeof message !== 'object') return null;
+                      return (
+                        <Message key={index}>
+                          <MessageHeader isUser={message.role === 'user'}>
+                            {message.role === 'user' ? 'You' : 'Claims Analyst AI'}
+                          </MessageHeader>
+                          <MessageErrorBoundary>
+                            <MessageContent isUser={message.role === 'user'}>
+                              {message.role === 'user' ? (
+                                <div style={{ whiteSpace: 'pre-wrap' }}>
+                                  {message.content || ''}
+                                </div>
+                              ) : (
+                                <UnifiedAIResponse content={message.content || ''} />
+                              )}
+                            </MessageContent>
+                          </MessageErrorBoundary>
+                        </Message>
+                      );
+                    })
                   )}
                   {isAnalyzing && (
                     <Message>
@@ -726,5 +898,14 @@ export default function ClaimsAnalysis() {
         </ContentGrid>
       </MainContent>
     </Container>
+  );
+}
+
+// Export with error boundary wrapper
+export default function ClaimsAnalysis() {
+  return (
+    <ClaimsAnalysisErrorBoundary>
+      <ClaimsAnalysisComponent />
+    </ClaimsAnalysisErrorBoundary>
   );
 }

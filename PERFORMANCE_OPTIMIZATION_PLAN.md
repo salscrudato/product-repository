@@ -85,7 +85,8 @@ const ProductExplorer = lazy(() => import('./components/ProductExplorer'));
 </Suspense>
 
 // Remove unused dependencies
-// Remove tailwindcss from package.json (using styled-components)
+// ✅ Removed tailwindcss from package.json (using styled-components)
+// ✅ Removed task management and news feed dependencies
 // Consider lighter PDF library alternatives
 ```
 
@@ -98,11 +99,11 @@ const ProductExplorer = lazy(() => import('./components/ProductExplorer'));
 
 #### Solutions:
 ```javascript
-// Proper cleanup in ProductQueueManagement
+// Proper cleanup example for Firestore listeners
 useEffect(() => {
-  const unsubscribe = onSnapshot(tasksQuery, callback);
+  const unsubscribe = onSnapshot(query, callback);
   return () => {
-    unsubscribe(); // ✅ Already implemented correctly
+    unsubscribe(); // ✅ Always clean up subscriptions
   };
 }, []);
 

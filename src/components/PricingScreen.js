@@ -1,28 +1,19 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import {
   TrashIcon,
   PencilIcon,
   XMarkIcon,
   InformationCircleIcon,
-  PlusCircleIcon,
   PlusIcon,
   MinusIcon,
-  MapIcon,
+  MagnifyingGlassIcon,
   ChevronUpIcon,
   ChevronDownIcon,
-
-  DocumentDuplicateIcon,
-  EyeIcon,
-  EyeSlashIcon,
   FunnelIcon,
-  MagnifyingGlassIcon,
-  ArrowsUpDownIcon,
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
-  Bars3Icon
+  MapIcon
 } from '@heroicons/react/24/solid';
 import { ArrowDownTrayIcon as DownloadIcon20, ArrowUpTrayIcon as UploadIcon20 } from '@heroicons/react/20/solid';
 
@@ -34,22 +25,14 @@ import {
   Tr as TableRow,
   Th as TableHeader,
   Td as TableCell,
-  Overlay,
   Modal as ModalBox,
   ModalHeader,
   ModalTitle,
   CloseBtn
 } from '../components/ui/Table';
 import styled, { keyframes } from 'styled-components';
+import { TextInput } from '../components/ui/Input';
 import Select from 'react-select';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { toast } from 'react-hot-toast';
-
-// Import our new custom hooks and components
-import { usePricingSteps } from '../hooks/usePricingSteps';
-import { useSearchFilter } from '../hooks/useSearchFilter';
-import PricingStepItem from './pricing/PricingStepItem';
-import StepForm from './pricing/StepForm';
 
 /* ========== MODERN STYLED COMPONENTS ========== */
 
@@ -259,45 +242,6 @@ const PriceDisplay = styled.div`
   }
 `;
 
-// Loading States
-const LoadingSpinner = styled.div`
-  width: 20px;
-  height: 20px;
-  border: 2px solid #e5e7eb;
-  border-top: 2px solid #6366f1;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-`;
-
-const SkeletonRow = styled.div`
-  display: flex;
-  gap: 12px;
-  padding: 16px 12px;
-
-  .skeleton {
-    background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 6px;
-    height: 20px;
-
-    &.coverage { width: 120px; }
-    &.step { width: 180px; }
-    &.states { width: 100px; }
-    &.value { width: 80px; }
-    &.actions { width: 100px; }
-  }
-
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-  }
-`;
-
 // Ensures any button/link used inside table cells fills the cell width and centers its text
 const CellButton = styled(Button)`
   width: 100%;
@@ -386,41 +330,7 @@ const ExportBtn = styled(Button)`
   &:active{transform:none;box-shadow:0 3px 8px rgba(124,92,255,.3);}
 `;
 
-const Skeleton = styled.div`
-  width: 100%;
-  height: 20px;
-  background: #E5E7EB;
-  border-radius: 4px;
-  animation: pulse 1.5s infinite;
-  @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-  }
-`;
-
-/* ---------- Modern Styled Components ---------- */
-
-// Container - Modern gradient background
-const ModernContainer = styled.div`
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
-  position: relative;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 200px;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-    opacity: 0.1;
-    z-index: 0;
-  }
-`;
-
-// Main Content - Modern layout
+// Main styled components
 const MainContent = styled.div`
   max-width: 1400px;
   margin: 0 auto;
@@ -429,25 +339,6 @@ const MainContent = styled.div`
   z-index: 1;
 `;
 
-// Header Section
-const HeaderSection = styled.div`
-  text-align: center;
-  margin-bottom: 48px;
-`;
-
-// Page Title - Modern typography
-const PageTitle = styled.h1`
-  font-size: 48px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0 0 16px 0;
-  letter-spacing: -0.025em;
-`;
-
-// Breadcrumb
 const Breadcrumb = styled.nav`
   display: flex;
   align-items: center;
@@ -505,11 +396,31 @@ const PriceBar = styled.div`
   margin-top: 24px;
 `;
 
-const OperandGroup = styled.div`
+const PricingTable = styled(Table)`
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+`;
+
+const ActionsContainer = styled.div`
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 32px;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+`;
+
+const OverlayFixed = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
 // Loading spinner
@@ -525,6 +436,26 @@ const Spinner = styled.div`
   height: 40px;
   animation: ${spin} 1s linear infinite;
   margin: 100px auto;
+`;
+
+const Skeleton = styled.div`
+  width: 100%;
+  height: 20px;
+  background: #E5E7EB;
+  border-radius: 4px;
+  animation: pulse 1.5s infinite;
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+`;
+
+const OperandGroup = styled.div`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
 `;
 
 

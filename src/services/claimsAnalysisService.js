@@ -99,142 +99,290 @@ TOTAL SECTIONS: ${formChunks.length}
       content: `Please analyze the following claim scenario:\n\n${claimDescription}`
     });
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: messages,
-        max_tokens: 2000,
-        temperature: 0.2 // Lower temperature for more consistent analysis
-      })
-    });
+    // Validate API key
+    if (!process.env.REACT_APP_OPENAI_KEY) {
+      throw new Error('OpenAI API key is not configured');
+    }
+
+    const response = await Promise.race([
+      fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: messages,
+          max_tokens: 2000,
+          temperature: 0.2 // Lower temperature for more consistent analysis
+        })
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('OpenAI API request timeout')), 45000)
+      )
+    ]);
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      let errorMessage = `OpenAI API error: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error?.message) {
+          errorMessage += ` - ${errorData.error.message}`;
+        }
+      } catch (e) {
+        // Ignore JSON parsing errors
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content?.trim() || 'No analysis generated';
+    const content = data.choices?.[0]?.message?.content?.trim();
+
+    if (!content) {
+      throw new Error('No analysis content received from OpenAI');
+    }
+
+    return content;
 
   } catch (error) {
     console.error('Error in claim analysis:', error);
-    throw new Error(`Failed to analyze claim: ${error.message}`);
+
+    // Provide more specific error messages
+    if (error.message.includes('timeout')) {
+      throw new Error('Analysis request timed out. Please try again with fewer forms or a simpler question.');
+    } else if (error.message.includes('API key')) {
+      throw new Error('AI service configuration error. Please contact support.');
+    } else if (error.message.includes('rate limit')) {
+      throw new Error('Too many requests. Please wait a moment and try again.');
+    } else {
+      throw new Error(`Analysis failed: ${error.message}`);
+    }
   }
 }
 
 /**
- * Analyze claim with chunked processing for large forms
+ * Analyze claim with intelligent chunking for multiple documents
  * @param {string} claimDescription - Description of the claim scenario
  * @param {Array} formChunks - Array of form chunks
  * @param {Array} conversationHistory - Previous conversation
  * @returns {Promise<string>} - Combined analysis response
  */
 export async function analyzeClaimWithChunking(claimDescription, formChunks, conversationHistory = []) {
-  // If we have a reasonable number of chunks, process them all at once
-  if (formChunks.length <= 5) {
-    return await analyzeClaimCoverage(claimDescription, formChunks, conversationHistory);
+  console.log(`Starting analysis with ${formChunks.length} form chunks`);
+
+  // Filter out error chunks for initial processing
+  const validChunks = formChunks.filter(chunk => !chunk.error);
+  const errorChunks = formChunks.filter(chunk => chunk.error);
+
+  if (validChunks.length === 0) {
+    throw new Error('No valid form content available for analysis. Please check that the selected forms are accessible and contain readable text.');
   }
 
-  // For many chunks, we need to process in batches and synthesize
-  const batchSize = 3;
+  // Group chunks by form to ensure complete form analysis
+  const chunksByForm = validChunks.reduce((acc, chunk) => {
+    const formKey = `${chunk.formId}-${chunk.formName}`;
+    if (!acc[formKey]) {
+      acc[formKey] = [];
+    }
+    acc[formKey].push(chunk);
+    return acc;
+  }, {});
+
+  const formGroups = Object.values(chunksByForm);
+  console.log(`Organized into ${formGroups.length} form groups`);
+
+  // If we have few forms or small total content, process all together
+  if (formGroups.length <= 3 && validChunks.length <= 8) {
+    console.log('Processing all forms together (small dataset)');
+    return await analyzeClaimCoverage(claimDescription, validChunks, conversationHistory);
+  }
+
+  // For larger datasets, process by form groups and synthesize
   const analyses = [];
 
-  for (let i = 0; i < formChunks.length; i += batchSize) {
-    const batch = formChunks.slice(i, i + batchSize);
+  for (let i = 0; i < formGroups.length; i++) {
+    const formGroup = formGroups[i];
+    const formName = formGroup[0].formName;
+
     try {
-      const analysis = await analyzeClaimCoverage(claimDescription, batch, conversationHistory);
+      console.log(`Analyzing form group ${i + 1}/${formGroups.length}: ${formName}`);
+      const analysis = await analyzeClaimCoverage(claimDescription, formGroup, conversationHistory);
       analyses.push({
         analysis,
-        forms: batch.map(chunk => `${chunk.formName} (Part ${chunk.chunkIndex + 1}/${chunk.totalChunks})`)
+        formName,
+        formNumber: formGroup[0].formNumber,
+        category: formGroup[0].category,
+        chunkCount: formGroup.length
       });
     } catch (error) {
-      console.error(`Failed to analyze batch ${i / batchSize + 1}:`, error);
+      console.error(`Failed to analyze form ${formName}:`, error);
       analyses.push({
-        analysis: `Error analyzing forms: ${error.message}`,
-        forms: batch.map(chunk => chunk.formName)
+        analysis: `**Error analyzing ${formName}**: ${error.message}`,
+        formName,
+        formNumber: formGroup[0].formNumber,
+        category: formGroup[0].category,
+        chunkCount: formGroup.length,
+        error: true
       });
+    }
+
+    // Small delay between form analyses to prevent rate limiting
+    if (i < formGroups.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
 
+  // Add information about any error chunks
+  if (errorChunks.length > 0) {
+    const errorSummary = errorChunks.map(chunk =>
+      `- ${chunk.formName}: ${chunk.text.replace('[Error: ', '').replace(']', '')}`
+    ).join('\n');
+
+    analyses.push({
+      analysis: `**Forms with Processing Errors:**\n${errorSummary}\n\nThese forms could not be analyzed due to processing errors.`,
+      formName: 'Processing Errors',
+      error: true
+    });
+  }
+
   // Synthesize all analyses into a final response
+  console.log(`Synthesizing ${analyses.length} form analyses`);
   return await synthesizeAnalyses(claimDescription, analyses);
 }
 
 /**
- * Synthesize multiple analyses into a coherent final response
+ * Synthesize multiple form analyses into a coherent final response
  * @param {string} claimDescription - Original claim description
- * @param {Array} analyses - Array of analysis objects
+ * @param {Array} analyses - Array of analysis objects with formName, analysis, etc.
  * @returns {Promise<string>} - Synthesized response
  */
 async function synthesizeAnalyses(claimDescription, analyses) {
+  // Separate successful analyses from errors
+  const successfulAnalyses = analyses.filter(a => !a.error);
+  const errorAnalyses = analyses.filter(a => a.error);
+
+  // Create a comprehensive prompt for synthesis
+  const formsAnalyzed = successfulAnalyses.map(a =>
+    `${a.formName} (${a.formNumber || 'No number'}) - ${a.category || 'Unknown category'}`
+  ).join('\n');
+
   const synthesisPrompt = `
-You are synthesizing multiple claim analyses into a final determination. 
+You are synthesizing multiple insurance form analyses into a comprehensive final claim determination.
 
-Original Claim: ${claimDescription}
+**CLAIM SCENARIO:**
+${claimDescription}
 
-Individual Analyses:
-${analyses.map((analysis, index) => `
-Analysis ${index + 1} (Forms: ${analysis.forms.join(', ')}):
+**FORMS ANALYZED:**
+${formsAnalyzed}
+
+**INDIVIDUAL FORM ANALYSES:**
+${successfulAnalyses.map((analysis) => `
+=== ${analysis.formName} ===
+Form Number: ${analysis.formNumber || 'Not specified'}
+Category: ${analysis.category || 'Unknown'}
+Chunks Analyzed: ${analysis.chunkCount || 1}
+
+ANALYSIS:
 ${analysis.analysis}
 `).join('\n\n')}
 
-Please provide a comprehensive final analysis that:
-1. Reconciles any conflicting determinations
-2. Provides a clear overall coverage determination
-3. Lists all applicable coverages found across all forms
-4. Notes any exclusions that apply
-5. Gives specific recommendations
+${errorAnalyses.length > 0 ? `
+**FORMS WITH ERRORS:**
+${errorAnalyses.map(a => a.analysis).join('\n')}
+` : ''}
 
-Use the same structured format as individual analyses.
+**SYNTHESIS INSTRUCTIONS:**
+Provide a comprehensive final analysis that:
+1. **Reconciles** any conflicting determinations between forms
+2. **Determines** overall coverage (COVERED/NOT COVERED/PARTIALLY COVERED)
+3. **Consolidates** all applicable coverages found across forms
+4. **Identifies** all relevant exclusions that apply
+5. **Prioritizes** primary vs. excess coverages appropriately
+6. **Addresses** any gaps or conflicts between forms
+7. **Provides** clear, actionable recommendations
+
+Use the standard structured format with clear sections and specific form references.
 `;
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert insurance claims analyst synthesizing multiple form analyses into a final determination.'
-          },
-          {
-            role: 'user',
-            content: synthesisPrompt
-          }
-        ],
-        max_tokens: 2500,
-        temperature: 0.1
-      })
-    });
+    const response = await Promise.race([
+      fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert insurance claims analyst with deep knowledge of policy interactions and coverage determinations. Synthesize multiple form analyses into a definitive final determination.'
+            },
+            {
+              role: 'user',
+              content: synthesisPrompt
+            }
+          ],
+          max_tokens: 3000,
+          temperature: 0.1
+        })
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Synthesis timeout')), 60000)
+      )
+    ]);
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      let errorMessage = `OpenAI API error: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error?.message) {
+          errorMessage += ` - ${errorData.error.message}`;
+        }
+      } catch (e) {
+        // Ignore JSON parsing errors
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content?.trim() || 'Failed to synthesize analyses';
+    const content = data.choices?.[0]?.message?.content?.trim();
+
+    if (!content) {
+      throw new Error('No synthesis content received from OpenAI');
+    }
+
+    return content;
 
   } catch (error) {
     console.error('Error synthesizing analyses:', error);
-    // Return a basic synthesis if AI fails
+
+    // Return a structured fallback synthesis
     return `## Coverage Analysis Summary
 
-Based on analysis of multiple forms, here are the key findings:
+**Claim:** ${claimDescription}
 
-${analyses.map((analysis, index) => `
-### Analysis ${index + 1}
+**Forms Analyzed:** ${successfulAnalyses.length} form(s)
+
+### Individual Form Findings
+
+${successfulAnalyses.map((analysis) => `
+#### ${analysis.formName}
 ${analysis.analysis}
 `).join('\n')}
 
-**Note**: This is a compilation of individual analyses. Please review each section for specific coverage determinations.`;
+${errorAnalyses.length > 0 ? `
+### Processing Issues
+${errorAnalyses.map(a => a.analysis).join('\n')}
+` : ''}
+
+### Final Determination
+**Status:** Requires manual review due to synthesis error: ${error.message}
+
+**Recommendation:** Please review the individual form analyses above and consult with a senior claims examiner for final determination.
+
+*Note: This is a compilation of individual analyses due to a technical issue with the synthesis process.*`;
   }
 }

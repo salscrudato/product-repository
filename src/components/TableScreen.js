@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { TrashIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/solid';
@@ -14,7 +14,6 @@ import {
   Td,
   Overlay,
   Modal,
-  ModalHeader,
   ModalTitle,
   CloseBtn
 } from '../components/ui/Table';

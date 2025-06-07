@@ -178,7 +178,7 @@ formCoverages (collection)                join table
 |-----------------------------------------|--------------------------------------------------------|
 | `src/components/ui/Navigation.js`       | **NEW** - Consolidated navigation component (USE THIS) |
 | `src/components/ui/`                    | Re‑usable UI atoms (Button, Input, Table…)             |
-| `src/components/Home.js`                | Dashboard with search, queue, and news feed            |
+| `src/components/Home.js`                | Dashboard with AI chat assistant                       |
 | `src/components/ProductHub.js` (≈1.6 kLOC) | Primary product management (search, AI actions, CRUD)  |
 | `src/components/CoverageScreen.js`      | Coverage list & hierarchy, limits/deductibles modal    |
 | `src/components/PricingScreen.js`       | Step builder + Excel import/export                     |
