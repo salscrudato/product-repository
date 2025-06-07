@@ -116,10 +116,18 @@ const HistoryWrapper = () => {
           }
         />
         <Route
+          path="/rules"
+          element={
+            <RequireAuth>
+              <RulesScreen />
+            </RequireAuth>
+          }
+        />
+        <Route
           path="/rules/:productId"
           element={
             <RequireAuth>
-              <RulesScreen title="Rules" />
+              <RulesScreen />
             </RequireAuth>
           }
         />

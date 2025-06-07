@@ -10,7 +10,9 @@ import {
   PaperAirplaneIcon,
   SparklesIcon,
   LightBulbIcon,
-  CpuChipIcon
+  CpuChipIcon,
+  MagnifyingGlassIcon,
+  DocumentDuplicateIcon
 } from '@heroicons/react/24/solid';
 import { useNavigate } from 'react-router-dom';
 import MainNavigation from '../components/ui/Navigation';
@@ -304,35 +306,536 @@ const SuggestionChip = styled.button`
   }
 `;
 
-// Content Grid - Two column layout with wider coverage card
-const ContentGrid = styled.div`
+// Modern Product Builder Layout - Three column responsive grid
+const ProductBuilderGrid = styled.div`
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 32px;
+  grid-template-columns: 1fr 400px 350px;
+  gap: 24px;
   margin-bottom: 40px;
   max-width: 2000px;
   margin-left: auto;
   margin-right: auto;
 
+  @media (max-width: 1400px) {
+    grid-template-columns: 1fr 350px;
+    & > *:last-child {
+      grid-column: 1 / -1;
+    }
+  }
+
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 20px;
   }
 `;
 
-// Section Card - Modern card container with less padding
-const SectionCard = styled.div`
+// Coverage Browser Container
+const CoverageBrowserContainer = styled.div`
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   border-radius: 20px;
-  padding: 24px;
   border: 1px solid rgba(226, 232, 240, 0.6);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
   transition: all 0.3s ease;
 
   &:hover {
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
     border-color: rgba(99, 102, 241, 0.3);
+  }
+`;
+
+// Coverage Browser Header
+const CoverageBrowserHeader = styled.div`
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+`;
+
+// Search and Filter Controls
+const SearchFilterContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 12px 16px 12px 40px;
+  font-size: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  transition: all 0.3s ease;
+  position: relative;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+
+  &::placeholder {
+    color: #94a3b8;
+  }
+`;
+
+const SearchIconWrapper = styled.div`
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+`;
+
+const FilterRow = styled.div`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const FilterSelect = styled.select`
+  padding: 8px 12px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 8px;
+  background: white;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+  }
+`;
+
+// Coverage Cards Grid
+const CoverageCardsGrid = styled.div`
+  padding: 16px;
+  max-height: 600px;
+  overflow-y: auto;
+  display: grid;
+  gap: 12px;
+
+  /* Custom scrollbar */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(226, 232, 240, 0.3);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.3);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.5);
+  }
+`;
+
+// Individual Coverage Card
+const CoverageCard = styled.div`
+  padding: 16px;
+  border: 1px solid ${props => props.selected ? '#6366f1' : 'rgba(226, 232, 240, 0.6)'};
+  border-radius: 12px;
+  background: ${props => props.selected ? 'rgba(99, 102, 241, 0.05)' : 'white'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+
+  &:hover {
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.02);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  ${props => props.selected && `
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
+  `}
+`;
+
+const CoverageCardHeader = styled.div`
+  display: flex;
+  justify-content: between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+`;
+
+const CoverageCardTitle = styled.h4`
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  line-height: 1.3;
+  flex: 1;
+`;
+
+const CoverageCardBadge = styled.span`
+  padding: 2px 8px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 8px;
+`;
+
+const CoverageCardMeta = styled.div`
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 8px;
+`;
+
+const CoverageCardActions = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+`;
+
+const FormCount = styled.span`
+  font-size: 11px;
+  color: #6b7280;
+  background: rgba(107, 114, 128, 0.1);
+  padding: 2px 6px;
+  border-radius: 8px;
+`;
+
+const SelectButton = styled.button`
+  padding: 4px 12px;
+  background: ${props => props.selected ? '#6366f1' : 'transparent'};
+  color: ${props => props.selected ? 'white' : '#6366f1'};
+  border: 1px solid #6366f1;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${props => props.selected ? '#4f46e5' : 'rgba(99, 102, 241, 0.1)'};
+  }
+`;
+
+// Product Builder Panel
+const ProductBuilderPanel = styled.div`
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+`;
+
+const ProductBuilderHeader = styled.div`
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+`;
+
+const ProductBuilderContent = styled.div`
+  padding: 24px;
+`;
+
+// Selected Coverages Display
+const SelectedCoveragesContainer = styled.div`
+  margin-bottom: 24px;
+`;
+
+const SelectedCoveragesList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 12px;
+  background: rgba(248, 250, 252, 0.8);
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(226, 232, 240, 0.3);
+    border-radius: 2px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.3);
+    border-radius: 2px;
+  }
+`;
+
+const SelectedCoverageItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+`;
+
+const SelectedCoverageInfo = styled.div`
+  flex: 1;
+`;
+
+const SelectedCoverageName = styled.div`
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 2px;
+`;
+
+const SelectedCoverageProduct = styled.div`
+  font-size: 11px;
+  color: #6b7280;
+`;
+
+const RemoveCoverageButton = styled.button`
+  padding: 4px;
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+  }
+`;
+
+// Product Details Form
+const ProductDetailsForm = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const FormLabel = styled.label`
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+`;
+
+const CompactFormInput = styled.input`
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  transition: all 0.3s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+
+  &::placeholder {
+    color: #94a3b8;
+  }
+`;
+
+const FileUploadArea = styled.div`
+  border: 2px dashed rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  background: rgba(248, 250, 252, 0.5);
+  transition: all 0.3s ease;
+  cursor: pointer;
+
+  &:hover {
+    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.02);
+  }
+
+  &.dragover {
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.05);
+  }
+`;
+
+const FileUploadText = styled.div`
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 8px;
+`;
+
+const FileUploadInput = styled.input`
+  display: none;
+`;
+
+// Preview Panel
+const PreviewPanel = styled.div`
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+`;
+
+const PreviewHeader = styled.div`
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+`;
+
+const PreviewContent = styled.div`
+  padding: 20px;
+  max-height: 500px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(226, 232, 240, 0.3);
+    border-radius: 2px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.3);
+    border-radius: 2px;
+  }
+`;
+
+const PreviewSection = styled.div`
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(248, 250, 252, 0.8);
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const PreviewSectionTitle = styled.h4`
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+`;
+
+const PreviewItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+  color: #6b7280;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.4);
+
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const PreviewLabel = styled.span`
+  font-weight: 500;
+  color: #374151;
+`;
+
+const PreviewValue = styled.span`
+  color: #6b7280;
+`;
+
+// Action Buttons
+const ActionButtonsContainer = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+`;
+
+const PrimaryActionButton = styled.button`
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+  }
+
+  &:disabled {
+    background: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+`;
+
+const SecondaryActionButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+    background: rgba(99, 102, 241, 0.02);
   }
 `;
 
@@ -641,6 +1144,14 @@ const ProductBuilder = () => {
   const [loading, setLoading] = useState(true);
   const [cloneLoading, setCloneLoading] = useState(false);
   const [cloneModalOpen, setCloneModalOpen] = useState(false);
+
+  // New state for enhanced interface
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProductFilter, setSelectedProductFilter] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
+  const [pricingSteps, setPricingSteps] = useState([]);
+  const [rules, setRules] = useState([]);
+  const [draggedCoverage, setDraggedCoverage] = useState(null);
   const [cloneTargetId, setCloneTargetId] = useState('');
 
   // AI Chat State
@@ -677,6 +1188,20 @@ const ProductBuilder = () => {
         const formsSnap = await getDocs(collection(db, 'forms'));
         const formList = formsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setForms(formList);
+
+        // Fetch pricing steps across all products
+        const stepsSnap = await getDocs(collectionGroup(db, 'steps'));
+        const stepsList = stepsSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          productId: doc.ref.parent.parent.id,
+        }));
+        setPricingSteps(stepsList);
+
+        // Fetch rules
+        const rulesSnap = await getDocs(collection(db, 'rules'));
+        const rulesList = rulesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setRules(rulesList);
       } catch (error) {
         console.error('Error fetching data:', error);
         alert('Failed to load data. Please try again.');
@@ -962,11 +1487,188 @@ const ProductBuilder = () => {
     }
   };
 
-  // Show all coverages (AI will help users navigate)
-  const filteredCoverages = coverages;
+  // Enhanced filtering for coverages
+  const filteredCoverages = coverages.filter(coverage => {
+    const matchesSearch = !searchTerm ||
+      coverage.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      coverage.coverageCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      coverage.scopeOfCoverage?.toLowerCase().includes(searchTerm.toLowerCase());
 
+    const matchesProduct = !selectedProductFilter || coverage.productId === selectedProductFilter;
+    const matchesCategory = !selectedCategoryFilter || coverage.category === selectedCategoryFilter;
 
-  // Helper to get form names for a coverage
+    return matchesSearch && matchesProduct && matchesCategory;
+  });
+
+  // Get unique product names for filter
+  const uniqueProducts = [...new Set(coverages.map(c => c.productId))]
+    .map(id => ({ id, name: products[id] }))
+    .filter(p => p.name)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Get unique categories for filter
+  const uniqueCategories = [...new Set(coverages.map(c => c.category))]
+    .filter(Boolean)
+    .sort();
+
+  // Helper to get associated forms for a coverage
+  const getAssociatedForms = (coverageId) => {
+    return forms.filter(f => f.coverageIds?.includes(coverageId));
+  };
+
+  // Helper to get pricing steps for selected coverages
+  const getRelevantPricingSteps = () => {
+    const selectedCoverageIds = Object.keys(selectedCoverages);
+    return pricingSteps.filter(step =>
+      step.coverages?.some(cov => selectedCoverageIds.includes(cov))
+    );
+  };
+
+  // Helper to get relevant rules for selected coverages
+  const getRelevantRules = () => {
+    const selectedProductIds = [...new Set(
+      Object.keys(selectedCoverages).map(covId =>
+        coverages.find(c => c.id === covId)?.productId
+      ).filter(Boolean)
+    )];
+    return rules.filter(rule => selectedProductIds.includes(rule.productId));
+  };
+
+  // Handle coverage selection with smart form association
+  const handleSmartCoverageSelect = (coverage) => {
+    const associatedForms = getAssociatedForms(coverage.id);
+
+    if (selectedCoverages[coverage.id]) {
+      // Deselect coverage
+      const newSelected = { ...selectedCoverages };
+      delete newSelected[coverage.id];
+      setSelectedCoverages(newSelected);
+    } else {
+      // Auto-select coverage with its forms
+      setSelectedCoverages(prev => ({
+        ...prev,
+        [coverage.id]: associatedForms.map(f => f.id)
+      }));
+    }
+  };
+
+  // Handle removing a selected coverage
+  const handleRemoveCoverage = (coverageId) => {
+    const newSelected = { ...selectedCoverages };
+    delete newSelected[coverageId];
+    setSelectedCoverages(newSelected);
+  };
+
+  // Enhanced product creation with pricing and rules inheritance
+  const handleEnhancedCreateProduct = async () => {
+    if (!newProductName || !formNumber || !effectiveDate || !file || Object.keys(selectedCoverages).length === 0) {
+      alert('Please fill in all required fields and select at least one coverage.');
+      return;
+    }
+
+    try {
+      // Upload file to Firebase Storage
+      const storageRef = ref(storage, `products/${file.name}`);
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      // Create new product
+      const productRef = await addDoc(collection(db, 'products'), {
+        name: newProductName,
+        formNumber,
+        productCode,
+        formDownloadUrl: downloadUrl,
+        effectiveDate,
+      });
+      const newProductId = productRef.id;
+
+      // Clone selected coverages with their metadata
+      const newCoverageIds = {};
+      const newFormIds = {};
+
+      for (const coverageId in selectedCoverages) {
+        const coverage = coverages.find(c => c.id === coverageId);
+        const newCoverageRef = await addDoc(collection(db, `products/${newProductId}/coverages`), {
+          name: coverage.name,
+          coverageCode: coverage.coverageCode || '',
+          coverageName: coverage.coverageName || coverage.name,
+          scopeOfCoverage: coverage.scopeOfCoverage || '',
+          limits: coverage.limits || [],
+          deductibles: coverage.deductibles || [],
+          states: coverage.states || [],
+          category: coverage.category || 'Base Coverage',
+          parentCoverageId: coverage.parentCoverageId || null,
+          formIds: [],
+        });
+        newCoverageIds[coverageId] = newCoverageRef.id;
+      }
+
+      // Clone associated forms
+      const allFormIds = [...new Set(Object.values(selectedCoverages).flat())];
+      for (const formId of allFormIds) {
+        const form = forms.find(f => f.id === formId);
+        if (form) {
+          const relatedCoverageIds = Object.entries(selectedCoverages)
+            .filter(([_, formIds]) => formIds.includes(formId))
+            .map(([covId, _]) => newCoverageIds[covId])
+            .filter(Boolean);
+
+          const newFormRef = await addDoc(collection(db, 'forms'), {
+            formName: form.formName || null,
+            formNumber: form.formNumber,
+            effectiveDate: form.effectiveDate || effectiveDate,
+            type: form.type || 'ISO',
+            category: form.category || 'Base Coverage Form',
+            productId: newProductId,
+            coverageIds: relatedCoverageIds,
+            downloadUrl: form.downloadUrl || '',
+            filePath: form.filePath || null,
+          });
+          newFormIds[formId] = newFormRef.id;
+        }
+      }
+
+      // Update coverage formIds
+      for (const coverageId in selectedCoverages) {
+        const newCoverageId = newCoverageIds[coverageId];
+        const relatedFormIds = selectedCoverages[coverageId]
+          .map(fId => newFormIds[fId])
+          .filter(Boolean);
+
+        await updateDoc(doc(db, `products/${newProductId}/coverages`, newCoverageId), {
+          formIds: relatedFormIds,
+        });
+      }
+
+      // Clone relevant pricing steps
+      const relevantSteps = getRelevantPricingSteps();
+      for (const step of relevantSteps) {
+        const newCoverageNames = step.coverages?.map(covId => {
+          const oldCoverage = coverages.find(c => c.id === covId);
+          return oldCoverage?.name || oldCoverage?.coverageName;
+        }).filter(Boolean) || [];
+
+        await addDoc(collection(db, `products/${newProductId}/steps`), {
+          stepName: step.stepName,
+          stepType: step.stepType,
+          coverages: newCoverageNames,
+          states: step.states || [],
+          value: step.value || 1,
+          rounding: step.rounding || 'none',
+          order: step.order || 0,
+          operand: step.operand || '',
+          table: step.table || '',
+          calculation: step.calculation || '',
+        });
+      }
+
+      alert('Product created successfully with inherited pricing and metadata! Returning to ProductHub.');
+      navigate('/');
+    } catch (error) {
+      console.error('Error creating product:', error);
+      alert('Failed to create product. Please try again.');
+    }
+  };
 
 
   if (cloneLoading) {
@@ -1176,147 +1878,311 @@ const ProductBuilder = () => {
           </ChatInputContainer>
         </AIBuilderContainer>
 
-        <ContentGrid>
-          {/* Coverage Section */}
-          <SectionCard>
-            <SectionTitle>Coverages</SectionTitle>
-            <TableContainer>
-              <ModernTable>
-                <TableHead>
-                  <TableRow>
-                    <TableHeaderCell>Select</TableHeaderCell>
-                    <TableHeaderCell>Name</TableHeaderCell>
-                    <TableHeaderCell>Product Name</TableHeaderCell>
-                    <TableHeaderCell>Associated Forms</TableHeaderCell>
-                  </TableRow>
-                </TableHead>
-                <tbody>
-                  {filteredCoverages.map(coverage => (
-                    <TableRow key={coverage.id}>
-                      <TableCell>
-                        <input
-                          type="checkbox"
-                          checked={!!selectedCoverages[coverage.id]}
-                          onChange={() => handleCoverageSelect(coverage)}
-                          style={{ marginRight: 8 }}
-                        />
-                        {!!selectedCoverages[coverage.id] && (
-                          <button
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              padding: 0,
-                              marginLeft: 4,
-                              cursor: 'pointer',
-                              color: '#ef4444'
-                            }}
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleCoverageSelect(coverage);
-                            }}
-                            title="Deselect"
-                          >
-                            <XMarkIcon style={{ width: 18, height: 18 }} />
-                          </button>
-                        )}
-                      </TableCell>
-                      <TableCell>{coverage.name}</TableCell>
-                      <TableCell>{products[coverage.productId] || 'Unknown Product'}</TableCell>
-                      <TableCell style={{ textAlign: 'center' }}>
-                        <button
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#6366f1',
-                            cursor: 'pointer',
-                            textDecoration: 'underline'
-                          }}
-                          onClick={() => {
-                            setModalItem(coverage);
-                            setModalOpen(true);
-                          }}
-                        >
-                          Forms ({selectedCoverages[coverage.id]?.length || 0})
-                        </button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </tbody>
-              </ModernTable>
-            </TableContainer>
-          </SectionCard>
-          {/* New Product Details */}
-          <SectionCard>
-            <SectionTitle>New Product Details</SectionTitle>
-            <FormInput
-              placeholder="Enter product name"
-              value={newProductName}
-              onChange={e => setNewProductName(e.target.value)}
-            />
-            <FormInput
-              placeholder="Form Number"
-              value={formNumber}
-              onChange={e => setFormNumber(e.target.value)}
-            />
-            <FormInput
-              placeholder="Product Code"
-              value={productCode}
-              onChange={e => setProductCode(e.target.value)}
-            />
-            <FormInput
-              placeholder="Effective Date (MM/YYYY)"
-              value={effectiveDate}
-              onChange={e => setEffectiveDate(e.target.value)}
-            />
-            <FileInputContainer>
-              <FileInput
-                type="file"
-                onChange={e => setFile(e.target.files[0])}
-              />
-            </FileInputContainer>
+        {/* Modern Product Builder Interface */}
+        <ProductBuilderGrid>
+          {/* Coverage Browser */}
+          <CoverageBrowserContainer>
+            <CoverageBrowserHeader>
+              <SectionTitle style={{ margin: '0 0 16px 0' }}>Coverage Library</SectionTitle>
+              <SearchFilterContainer>
+                <div style={{ position: 'relative' }}>
+                  <SearchInput
+                    placeholder="Search coverages by name, code, or scope..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  <SearchIconWrapper>
+                    <MagnifyingGlassIcon width={16} height={16} />
+                  </SearchIconWrapper>
+                </div>
+                <FilterRow>
+                  <FilterSelect
+                    value={selectedProductFilter}
+                    onChange={(e) => setSelectedProductFilter(e.target.value)}
+                  >
+                    <option value="">All Products</option>
+                    {uniqueProducts.map(product => (
+                      <option key={product.id} value={product.id}>
+                        {product.name}
+                      </option>
+                    ))}
+                  </FilterSelect>
+                  <FilterSelect
+                    value={selectedCategoryFilter}
+                    onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                  >
+                    <option value="">All Categories</option>
+                    {uniqueCategories.map(category => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </FilterSelect>
+                </FilterRow>
+              </SearchFilterContainer>
+            </CoverageBrowserHeader>
 
-            {Object.keys(selectedCoverages).length > 0 && (
-              <TableContainer>
-                <ModernTable>
-                  <TableHead>
-                    <TableRow>
-                      <TableHeaderCell>Coverage</TableHeaderCell>
-                      <TableHeaderCell>Forms</TableHeaderCell>
-                    </TableRow>
-                  </TableHead>
-                  <tbody>
+            <CoverageCardsGrid>
+              {filteredCoverages.map(coverage => {
+                const associatedForms = getAssociatedForms(coverage.id);
+                const isSelected = !!selectedCoverages[coverage.id];
+
+                return (
+                  <CoverageCard
+                    key={coverage.id}
+                    selected={isSelected}
+                    onClick={() => handleSmartCoverageSelect(coverage)}
+                  >
+                    <CoverageCardHeader>
+                      <CoverageCardTitle>
+                        {coverage.name || coverage.coverageName || 'Unnamed Coverage'}
+                      </CoverageCardTitle>
+                      {coverage.category && (
+                        <CoverageCardBadge>{coverage.category}</CoverageCardBadge>
+                      )}
+                    </CoverageCardHeader>
+
+                    <CoverageCardMeta>
+                      <div>Product: {products[coverage.productId] || 'Unknown'}</div>
+                      {coverage.coverageCode && <div>Code: {coverage.coverageCode}</div>}
+                    </CoverageCardMeta>
+
+                    {coverage.scopeOfCoverage && (
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#6b7280',
+                        marginBottom: '8px',
+                        lineHeight: '1.4'
+                      }}>
+                        {coverage.scopeOfCoverage.substring(0, 100)}
+                        {coverage.scopeOfCoverage.length > 100 && '...'}
+                      </div>
+                    )}
+
+                    <CoverageCardActions>
+                      <FormCount>{associatedForms.length} forms</FormCount>
+                      <SelectButton selected={isSelected}>
+                        {isSelected ? 'Selected' : 'Select'}
+                      </SelectButton>
+                    </CoverageCardActions>
+                  </CoverageCard>
+                );
+              })}
+            </CoverageCardsGrid>
+          </CoverageBrowserContainer>
+
+          {/* Product Builder Panel */}
+          <ProductBuilderPanel>
+            <ProductBuilderHeader>
+              <SectionTitle style={{ margin: '0 0 8px 0' }}>Product Builder</SectionTitle>
+              <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                {Object.keys(selectedCoverages).length} coverages selected
+              </div>
+            </ProductBuilderHeader>
+
+            <ProductBuilderContent>
+              {/* Selected Coverages */}
+              {Object.keys(selectedCoverages).length > 0 && (
+                <SelectedCoveragesContainer>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                    Selected Coverages
+                  </h4>
+                  <SelectedCoveragesList>
                     {Object.keys(selectedCoverages).map(coverageId => {
                       const coverage = coverages.find(c => c.id === coverageId);
-                      const formNames = selectedCoverages[coverageId]
-                        .map(formId => forms.find(f => f.id === formId)?.formName || 'Unknown Form')
-                        .join(', ');
+                      const associatedForms = getAssociatedForms(coverageId);
+
                       return (
-                        <TableRow key={coverageId}>
-                          <TableCell>{coverage?.name}</TableCell>
-                          <TableCell>{formNames}</TableCell>
-                        </TableRow>
+                        <SelectedCoverageItem key={coverageId}>
+                          <SelectedCoverageInfo>
+                            <SelectedCoverageName>
+                              {coverage?.name || coverage?.coverageName || 'Unknown Coverage'}
+                            </SelectedCoverageName>
+                            <SelectedCoverageProduct>
+                              {products[coverage?.productId]} • {associatedForms.length} forms
+                            </SelectedCoverageProduct>
+                          </SelectedCoverageInfo>
+                          <RemoveCoverageButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveCoverage(coverageId);
+                            }}
+                          >
+                            <XMarkIcon width={14} height={14} />
+                          </RemoveCoverageButton>
+                        </SelectedCoverageItem>
                       );
                     })}
-                  </tbody>
-                </ModernTable>
-              </TableContainer>
-            )}
+                  </SelectedCoveragesList>
+                </SelectedCoveragesContainer>
+              )}
 
-            <ModernButton
-              onClick={handleCreateProduct}
-              disabled={
-                !newProductName ||
-                !formNumber ||
-                !effectiveDate ||
-                !file ||
-                Object.keys(selectedCoverages).length === 0
-              }
-            >
-              <PlusIcon style={{ width: 20, height: 20 }} />
-              Create Product
-            </ModernButton>
-          </SectionCard>
-        </ContentGrid>
+              {/* Product Details Form */}
+              <ProductDetailsForm>
+                <FormGroup>
+                  <FormLabel>Product Name *</FormLabel>
+                  <CompactFormInput
+                    placeholder="Enter product name"
+                    value={newProductName}
+                    onChange={e => setNewProductName(e.target.value)}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <FormLabel>Form Number *</FormLabel>
+                  <CompactFormInput
+                    placeholder="Form Number"
+                    value={formNumber}
+                    onChange={e => setFormNumber(e.target.value)}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <FormLabel>Product Code</FormLabel>
+                  <CompactFormInput
+                    placeholder="Product Code"
+                    value={productCode}
+                    onChange={e => setProductCode(e.target.value)}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <FormLabel>Effective Date *</FormLabel>
+                  <CompactFormInput
+                    placeholder="MM/YYYY"
+                    value={effectiveDate}
+                    onChange={e => setEffectiveDate(e.target.value)}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <FormLabel>Product Document *</FormLabel>
+                  <FileUploadArea
+                    onClick={() => document.getElementById('file-upload').click()}
+                  >
+                    <FileUploadText>
+                      {file ? file.name : 'Click to upload product document'}
+                    </FileUploadText>
+                    <div style={{ fontSize: '11px', color: '#9ca3af' }}>
+                      PDF, DOC, or DOCX files
+                    </div>
+                    <FileUploadInput
+                      id="file-upload"
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      onChange={e => setFile(e.target.files[0])}
+                    />
+                  </FileUploadArea>
+                </FormGroup>
+              </ProductDetailsForm>
+
+              <ActionButtonsContainer>
+                <PrimaryActionButton
+                  onClick={handleEnhancedCreateProduct}
+                  disabled={
+                    !newProductName ||
+                    !formNumber ||
+                    !effectiveDate ||
+                    !file ||
+                    Object.keys(selectedCoverages).length === 0
+                  }
+                >
+                  <PlusIcon width={16} height={16} />
+                  Create Product
+                </PrimaryActionButton>
+                <SecondaryActionButton onClick={() => setCloneModalOpen(true)}>
+                  <DocumentDuplicateIcon width={16} height={16} />
+                  Clone Existing
+                </SecondaryActionButton>
+              </ActionButtonsContainer>
+            </ProductBuilderContent>
+          </ProductBuilderPanel>
+
+          {/* Preview Panel */}
+          <PreviewPanel>
+            <PreviewHeader>
+              <SectionTitle style={{ margin: '0 0 8px 0' }}>Product Preview</SectionTitle>
+              <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                Live preview of your new product
+              </div>
+            </PreviewHeader>
+
+            <PreviewContent>
+              <PreviewSection>
+                <PreviewSectionTitle>Product Information</PreviewSectionTitle>
+                <PreviewItem>
+                  <PreviewLabel>Name:</PreviewLabel>
+                  <PreviewValue>{newProductName || 'Not specified'}</PreviewValue>
+                </PreviewItem>
+                <PreviewItem>
+                  <PreviewLabel>Form Number:</PreviewLabel>
+                  <PreviewValue>{formNumber || 'Not specified'}</PreviewValue>
+                </PreviewItem>
+                <PreviewItem>
+                  <PreviewLabel>Product Code:</PreviewLabel>
+                  <PreviewValue>{productCode || 'Not specified'}</PreviewValue>
+                </PreviewItem>
+                <PreviewItem>
+                  <PreviewLabel>Effective Date:</PreviewLabel>
+                  <PreviewValue>{effectiveDate || 'Not specified'}</PreviewValue>
+                </PreviewItem>
+                <PreviewItem>
+                  <PreviewLabel>Document:</PreviewLabel>
+                  <PreviewValue>{file ? file.name : 'Not uploaded'}</PreviewValue>
+                </PreviewItem>
+              </PreviewSection>
+
+              <PreviewSection>
+                <PreviewSectionTitle>Coverage Summary</PreviewSectionTitle>
+                <PreviewItem>
+                  <PreviewLabel>Total Coverages:</PreviewLabel>
+                  <PreviewValue>{Object.keys(selectedCoverages).length}</PreviewValue>
+                </PreviewItem>
+                <PreviewItem>
+                  <PreviewLabel>Total Forms:</PreviewLabel>
+                  <PreviewValue>
+                    {[...new Set(Object.values(selectedCoverages).flat())].length}
+                  </PreviewValue>
+                </PreviewItem>
+                <PreviewItem>
+                  <PreviewLabel>Pricing Steps:</PreviewLabel>
+                  <PreviewValue>{getRelevantPricingSteps().length} inherited</PreviewValue>
+                </PreviewItem>
+                <PreviewItem>
+                  <PreviewLabel>Rules:</PreviewLabel>
+                  <PreviewValue>{getRelevantRules().length} inherited</PreviewValue>
+                </PreviewItem>
+              </PreviewSection>
+
+              {Object.keys(selectedCoverages).length > 0 && (
+                <PreviewSection>
+                  <PreviewSectionTitle>Selected Coverages</PreviewSectionTitle>
+                  {Object.keys(selectedCoverages).slice(0, 5).map(coverageId => {
+                    const coverage = coverages.find(c => c.id === coverageId);
+                    const formCount = selectedCoverages[coverageId]?.length || 0;
+
+                    return (
+                      <PreviewItem key={coverageId}>
+                        <PreviewLabel>
+                          {coverage?.name || coverage?.coverageName || 'Unknown'}
+                        </PreviewLabel>
+                        <PreviewValue>{formCount} forms</PreviewValue>
+                      </PreviewItem>
+                    );
+                  })}
+                  {Object.keys(selectedCoverages).length > 5 && (
+                    <PreviewItem>
+                      <PreviewLabel>...</PreviewLabel>
+                      <PreviewValue>
+                        +{Object.keys(selectedCoverages).length - 5} more
+                      </PreviewValue>
+                    </PreviewItem>
+                  )}
+                </PreviewSection>
+              )}
+            </PreviewContent>
+          </PreviewPanel>
+        </ProductBuilderGrid>
 
 
         {/* Modal for Multiple Associations */}

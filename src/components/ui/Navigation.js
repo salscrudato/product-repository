@@ -408,6 +408,14 @@ export default function MainNavigation() {
           </NavItem>
           <NavItem>
             <NavLink
+              to="/rules"
+              className={location.pathname === '/rules' ? 'active' : ''}
+            >
+              Rules
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
               to="/data-dictionary"
               className={location.pathname === '/data-dictionary' ? 'active' : ''}
             >

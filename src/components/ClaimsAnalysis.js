@@ -4,7 +4,6 @@ import { collection, getDocs } from 'firebase/firestore';
 import {
   DocumentTextIcon,
   ChatBubbleLeftRightIcon,
-  CheckCircleIcon,
   MagnifyingGlassIcon,
   PaperAirplaneIcon
 } from '@heroicons/react/24/solid';
@@ -259,22 +258,26 @@ const FormItem = styled.div`
   }
 `;
 
-const FormCheckbox = styled.div`
+const FormRadio = styled.div`
   width: 20px;
   height: 20px;
   border: 2px solid ${props => props.checked ? '#6366f1' : '#d1d5db'};
-  border-radius: 4px;
+  border-radius: 50%;
   background: ${props => props.checked ? '#6366f1' : 'transparent'};
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  position: relative;
 
-  svg {
-    width: 12px;
-    height: 12px;
-    color: white;
+  &::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: white;
     opacity: ${props => props.checked ? 1 : 0};
+    transition: opacity 0.2s ease;
   }
 `;
 
@@ -522,7 +525,7 @@ const EmptyStateText = styled.p`
 function ClaimsAnalysisComponent() {
   const [forms, setForms] = useState([]);
   const [filteredForms, setFilteredForms] = useState([]);
-  const [selectedForms, setSelectedForms] = useState([]);
+  const [selectedForm, setSelectedForm] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState([]);
@@ -616,19 +619,19 @@ function ClaimsAnalysisComponent() {
     }
   };
 
-  const toggleFormSelection = (form) => {
-    setSelectedForms(prev => {
-      const isSelected = prev.some(f => f.id === form.id);
-      if (isSelected) {
-        return prev.filter(f => f.id !== form.id);
-      } else {
-        return [...prev, form];
+  const selectForm = (form) => {
+    setSelectedForm(prev => {
+      // If clicking the same form, deselect it
+      if (prev && prev.id === form.id) {
+        return null;
       }
+      // Otherwise, select the new form
+      return form;
     });
   };
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || selectedForms.length === 0 || isAnalyzing) return;
+    if (!inputValue.trim() || !selectedForm || isAnalyzing) return;
 
     const userMessage = inputValue.trim();
     setInputValue('');
@@ -650,22 +653,22 @@ function ClaimsAnalysisComponent() {
     }
 
     try {
-      // Validate selected forms
-      if (!selectedForms || selectedForms.length === 0) {
-        throw new Error('No forms selected for analysis');
+      // Validate selected form
+      if (!selectedForm) {
+        throw new Error('No form selected for analysis');
       }
 
-      // Process selected forms with timeout
-      console.log('Processing forms for analysis...');
+      // Process selected form with timeout
+      console.log('Processing form for analysis...');
       const formChunks = await Promise.race([
-        processFormsForAnalysis(selectedForms),
+        processFormsForAnalysis([selectedForm]),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Form processing timeout')), 90000)
         )
       ]);
 
       if (!formChunks || formChunks.length === 0) {
-        throw new Error('No content could be extracted from the selected forms');
+        throw new Error('No content could be extracted from the selected form');
       }
 
       console.log(`Processed ${formChunks.length} form chunks`);
@@ -745,7 +748,7 @@ function ClaimsAnalysisComponent() {
       <MainContent>
         <EnhancedHeader
           title="Claims Analysis"
-          subtitle="AI-powered claim coverage determination with multi-form analysis"
+          subtitle="AI-powered claim coverage determination with form analysis"
           icon={ChatBubbleLeftRightIcon}
         />
 
@@ -755,7 +758,7 @@ function ClaimsAnalysisComponent() {
             <PanelHeader>
               <PanelTitle>
                 <DocumentTextIcon />
-                Select Forms for Analysis
+                Select Form for Analysis
               </PanelTitle>
             </PanelHeader>
             <PanelContent>
@@ -774,12 +777,10 @@ function ClaimsAnalysisComponent() {
                   return (
                     <FormItem
                       key={form.id}
-                      selected={selectedForms.some(f => f && f.id === form.id)}
-                      onClick={() => toggleFormSelection(form)}
+                      selected={selectedForm && selectedForm.id === form.id}
+                      onClick={() => selectForm(form)}
                     >
-                      <FormCheckbox checked={selectedForms.some(f => f && f.id === form.id)}>
-                        <CheckCircleIcon />
-                      </FormCheckbox>
+                      <FormRadio checked={selectedForm && selectedForm.id === form.id} />
                       <FormInfo>
                         <FormName>
                           {form.formName || form.formNumber || 'Unnamed Form'}
@@ -794,9 +795,9 @@ function ClaimsAnalysisComponent() {
                 })}
               </FormsList>
 
-              {selectedForms.length > 0 && (
+              {selectedForm && (
                 <SelectedCount>
-                  {selectedForms.length} form{selectedForms.length !== 1 ? 's' : ''} selected for analysis
+                  {selectedForm.formName || selectedForm.formNumber || 'Form'} selected for analysis
                 </SelectedCount>
               )}
             </PanelContent>
@@ -820,7 +821,7 @@ function ClaimsAnalysisComponent() {
                       </EmptyStateIcon>
                       <EmptyStateTitle>Ready to Analyze Claims</EmptyStateTitle>
                       <EmptyStateText>
-                        Select one or more forms and describe a claim scenario to get started.
+                        Select a form and describe a claim scenario to get started.
                       </EmptyStateText>
                     </EmptyState>
                   ) : (
@@ -852,7 +853,7 @@ function ClaimsAnalysisComponent() {
                       <MessageContent>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <LoadingSpinner />
-                          Analyzing claim against selected forms...
+                          Analyzing claim against selected form...
                         </div>
                       </MessageContent>
                     </Message>
@@ -863,18 +864,18 @@ function ClaimsAnalysisComponent() {
                 <InputArea>
                   <ChatInput
                     placeholder={
-                      selectedForms.length === 0
-                        ? "Please select forms first..."
+                      !selectedForm
+                        ? "Please select a form first..."
                         : "Describe a claim scenario for analysis..."
                     }
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    disabled={selectedForms.length === 0 || isAnalyzing}
+                    disabled={!selectedForm || isAnalyzing}
                   />
                   <SendButton
                     onClick={handleSendMessage}
-                    disabled={!inputValue.trim() || selectedForms.length === 0 || isAnalyzing}
+                    disabled={!inputValue.trim() || !selectedForm || isAnalyzing}
                   >
                     {isAnalyzing ? <LoadingSpinner /> : <PaperAirplaneIcon />}
                   </SendButton>

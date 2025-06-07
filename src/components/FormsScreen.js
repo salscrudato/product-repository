@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useParams, useLocation, Link } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { db, storage } from '../firebase';
 import {
   collection, getDocs, addDoc, deleteDoc, doc, updateDoc,
@@ -9,18 +9,17 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   TrashIcon, DocumentTextIcon, PlusIcon, XMarkIcon,
   LinkIcon, PencilIcon, MagnifyingGlassIcon,
-  Squares2X2Icon, TableCellsIcon
+  Squares2X2Icon, ArrowLeftIcon, MapIcon, FunnelIcon
 } from '@heroicons/react/24/solid';
-import { ArrowDownTrayIcon as DownloadIcon20 } from '@heroicons/react/20/solid';
 
-import { makeFormSheet } from '../utils/xlsx';
+
 
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
 import MainNavigation from '../components/ui/Navigation';
+import Select from 'react-select';
 
 import {
-  Table, THead, Tr, Th, Td,
   Overlay, Modal, ModalHeader, ModalTitle, CloseBtn
 } from '../components/ui/Table';
 
@@ -76,71 +75,65 @@ const MainContent = styled.div`
   z-index: 1;
 `;
 
-// Header Section - Horizontal layout with breadcrumb and title
+// Header Section - Simple layout with back button and title
 const HeaderSection = styled.div`
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 40px;
-  gap: 24px;
-
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
+  margin-bottom: 32px;
+  gap: 16px;
 `;
 
-// Breadcrumb navigation - Modern design
-const Breadcrumb = styled.div`
+const BackButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
   color: #64748b;
-  background: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: all 0.2s ease;
   backdrop-filter: blur(12px);
-  padding: 12px 20px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  width: fit-content;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 
-  a {
+  &:hover {
+    background: rgba(99, 102, 241, 0.1);
     color: #6366f1;
-    text-decoration: none;
-    font-weight: 500;
-    transition: all 0.2s ease;
-
-    &:hover {
-      color: #4f46e5;
-      text-decoration: underline;
-    }
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.2);
   }
 
-  span {
-    color: #94a3b8;
-    font-weight: 400;
+  svg {
+    width: 20px;
+    height: 20px;
   }
 `;
 
-// Page Title - Modern typography
+const TitleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+`;
+
+// Page Title - Modern typography with dark grey color
 const PageTitle = styled.h1`
-  font-size: 36px;
+  font-size: 24px;
   font-weight: 700;
-  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #374151;
   margin: 0;
   letter-spacing: -0.025em;
-  white-space: nowrap;
 
   @media (max-width: 768px) {
-    font-size: 28px;
-    white-space: normal;
+    font-size: 20px;
   }
 `;
+
+
 
 // Search Container - Centered modern design
 const SearchContainer = styled.div`
@@ -153,10 +146,10 @@ const SearchContainer = styled.div`
 
 const SearchInput = styled(TextInput)`
   width: 100%;
-  padding: 12px 20px 12px 56px;
+  padding: 20px 24px 20px 56px;
   font-size: 16px;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(20px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -187,56 +180,53 @@ const SearchIcon = styled(MagnifyingGlassIcon)`
   pointer-events: none;
 `;
 
-// Action Bar - Modern design
-const ActionBar = styled.div`
+// Filters Bar - Similar to pricing screen
+const FiltersBar = styled.div`
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  gap: 24px;
   margin-bottom: 32px;
-  gap: 20px;
-  flex-wrap: wrap;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
   padding: 20px 24px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-`;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  align-items: end;
+  position: relative;
+  z-index: 10;
 
-const ActionGroup = styled.div`
-  display: flex;
-  gap: 12px;
-  align-items: center;
-`;
-
-// View Toggle
-const ViewToggle = styled.div`
-  display: flex;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 12px;
-  padding: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-`;
-
-const ViewToggleButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
-  background: ${({ active }) => active ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' : 'transparent'};
-  color: ${({ active }) => active ? '#ffffff' : '#64748b'};
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: ${({ active }) => active ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' : 'rgba(99, 102, 241, 0.1)'};
-    color: ${({ active }) => active ? '#ffffff' : '#6366f1'};
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
   }
 `;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+
+  label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 4px;
+  }
+`;
+
+const FilterWrapper = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 200px;
+  position: relative;
+  z-index: 20;
+`;
+
+
 
 const AddButton = styled.button`
   position: fixed;
@@ -272,38 +262,35 @@ const AddButton = styled.button`
   }
 `;
 
-// Forms Grid - 3-column layout for cards
+// Forms Grid - Single column layout like coverage screen
 const FormsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   margin-bottom: 120px;
 
-  @media (max-width: 1400px) {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-  }
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-    gap: 16px;
+  @media (max-width: 768px) {
+    gap: 12px;
   }
 `;
 
-// Form Card - Simple clean design matching coverage cards
+// Form Card - Full width design matching parent coverage cards
 const FormCard = styled.div`
   background: white;
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   transition: all 0.2s ease;
   position: relative;
+  width: 100%;
+  z-index: 1;
 
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
     border-color: #6366f1;
+    z-index: 2;
   }
 `;
 
@@ -311,15 +298,24 @@ const CardHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
+  gap: 8px;
+`;
+
+// Container for title and tags
+const TitleAndTagsContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  flex-wrap: wrap;
 `;
 
 const CardTitle = styled.h3`
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: #1e293b;
   margin: 0;
-  flex: 1;
   line-height: 1.3;
   letter-spacing: -0.025em;
 `;
@@ -373,7 +369,7 @@ const IconButton = styled.button`
 
 // Card Content
 const CardContent = styled.div`
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 `;
 
 const CardCategory = styled.div`
@@ -402,31 +398,31 @@ const CardCategory = styled.div`
       default: return '1px solid rgba(99, 102, 241, 0.2)';
     }
   }};
-  padding: 8px 16px;
-  border-radius: 12px;
-  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 10px;
   font-weight: 600;
-  margin-bottom: 16px;
+  margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.025em;
 `;
 
 const CardMetrics = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 16px;
-  margin-top: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
 `;
 
 const MetricItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
+  gap: 8px;
+  padding: 10px 12px;
   background: rgba(248, 250, 252, 0.8);
   backdrop-filter: blur(8px);
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: 10px;
+  font-size: 13px;
   color: #64748b;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -436,29 +432,19 @@ const MetricItem = styled.div`
   &:hover {
     background: rgba(99, 102, 241, 0.1);
     color: #6366f1;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(99, 102, 241, 0.15);
     border-color: rgba(99, 102, 241, 0.2);
   }
 
   svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     opacity: 0.8;
   }
 `;
 
-// Table Container
-const TableContainer = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  padding: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-  margin-bottom: 32px;
-`;
+
 
 // Empty State
 const EmptyState = styled.div`
@@ -500,8 +486,12 @@ export default function FormsScreen() {
 
   /* search state (debounced) */
   const [rawSearch, setRawSearch] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const searchQuery = useDebounce(rawSearch, 250);
   const searchRef = useRef(null);
+
+  /* filter state */
+  const [selectedCoverage, setSelectedCoverage] = useState(null);
+  const [selectedFilterStates, setSelectedFilterStates] = useState([]);
 
   /* ui state */
   const [loading, setLoading] = useState(true);
@@ -516,6 +506,7 @@ export default function FormsScreen() {
   const [category, setCategory] = useState('Base Coverage Form');
   const [selectedProduct, setSelectedProduct] = useState(productId || '');
   const [selectedCoverages, setSelectedCoverages] = useState([]);
+  const [selectedStates, setSelectedStates] = useState([]);
   const [file, setFile] = useState(null);
 
   /* link‑coverage modal */
@@ -527,22 +518,35 @@ export default function FormsScreen() {
   const [linkProductModalOpen, setLinkProductModalOpen] = useState(false);
   const [linkProductIds, setLinkProductIds] = useState([]);
 
+  /* states modal */
+  const [statesModalOpen, setStatesModalOpen] = useState(false);
+  const [selectedFormForStates, setSelectedFormForStates] = useState(null);
+  const [formStates, setFormStates] = useState([]);
+
   /* version sidebar */
   const [editingId, setEditingId] = useState(null);
   const [changeSummary, setChangeSummary] = useState('');
 
 
-  /* view toggle */
-  const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
 
 
+
+
+  /* ---------- computed values ---------- */
+  const allStates = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
+
+  // Filter options for dropdowns
+  const coverageOptions = [
+    { value: null, label: 'All Coverages' },
+    ...coverages.map(c => ({ value: c.name, label: c.name }))
+  ].sort((a, b) => a.label.localeCompare(b.label));
+
+  const stateOptions = [
+    { value: null, label: 'All States' },
+    ...allStates.map(state => ({ value: state, label: state }))
+  ];
 
   /* ---------- side‑effects ---------- */
-  /* debounce rawSearch */
-  useEffect(() => {
-    const id = setTimeout(() => setSearchQuery(rawSearch.trim()), 250);
-    return () => clearTimeout(id);
-  }, [rawSearch]);
 
   /* `/` shortcut to focus */
   useEffect(() => {
@@ -626,11 +630,26 @@ export default function FormsScreen() {
       const q = searchQuery.toLowerCase();
       const matchesSearch =
         (f.formName || '').toLowerCase().includes(q) ||
-        f.formNumber.toLowerCase().includes(q);
+        f.formNumber.toLowerCase().includes(q) ||
+        (f.category || '').toLowerCase().includes(q) ||
+        (f.type || '').toLowerCase().includes(q);
+
       const matchesProduct = productId ? (f.productIds || []).includes(productId) : true;
-      return matchesSearch && matchesProduct;
+
+      // Apply coverage filter
+      const matchesCoverage = selectedCoverage ?
+        f.coverageIds && f.coverageIds.some(covId => {
+          const coverage = coverages.find(c => c.id === covId);
+          return coverage && coverage.name === selectedCoverage;
+        }) : true;
+
+      // Apply states filter
+      const matchesStates = selectedFilterStates.length > 0 ?
+        f.states && selectedFilterStates.every(state => f.states.includes(state)) : true;
+
+      return matchesSearch && matchesProduct && matchesCoverage && matchesStates;
     });
-  }, [forms, searchQuery, productId]);
+  }, [forms, searchQuery, productId, selectedCoverage, selectedFilterStates, coverages]);
 
   /* ---------- handlers (add, delete, link) ---------- */
   // open the modal pre‑filled for editing an existing form
@@ -642,6 +661,7 @@ export default function FormsScreen() {
     setCategory(formObj.category);
     setSelectedProduct(formObj.productIds?.[0] || formObj.productId || '');
     setSelectedCoverages(formObj.coverageIds || []);
+    setSelectedStates(formObj.states || []);
     setFile(null);            // user can (re)upload if desired
     setEditingId(formObj.id);
     setChangeSummary('');
@@ -692,7 +712,8 @@ export default function FormsScreen() {
         category,
         productIds: selectedProduct ? [selectedProduct] : [],
         productId: selectedProduct,
-        coverageIds: selectedCoverages
+        coverageIds: selectedCoverages,
+        states: selectedStates
       };
       let filePath = null;
       let downloadUrl = null;
@@ -750,6 +771,7 @@ export default function FormsScreen() {
       setCategory('Base Coverage Form');
       setSelectedProduct(productId || '');
       setSelectedCoverages([]);
+      setSelectedStates([]);
       setFile(null);
       setEditingId(null);
       setChangeSummary('');
@@ -814,6 +836,12 @@ export default function FormsScreen() {
     setLinkCoverageModalOpen(true);
   };
 
+  const openStatesModal = form => {
+    setSelectedFormForStates(form);
+    setFormStates(form.states || []);
+    setStatesModalOpen(true);
+  };
+
   const handleLinkCoverage = async () => {
     if (!selectedForm) return;
     // map coverageId -> owning productId for quick look‑up
@@ -876,28 +904,25 @@ export default function FormsScreen() {
     }
   };
 
-  // XLSX Export functionality
-  const handleExportXLSX = async () => {
+  const handleSaveStates = async () => {
+    if (!selectedFormForStates) return;
     try {
-      const XLSXmod = await import('xlsx');
-      const XLSX = XLSXmod.default || XLSXmod;
-      const fsMod = await import('file-saver');
-      const saveAs = fsMod.saveAs || fsMod.default;
-
-      const ws = makeFormSheet(filteredForms);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Forms');
-      const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-
-      const filename = productId && productMap[productId]
-        ? `forms_${productMap[productId]}.xlsx`
-        : 'forms_export.xlsx';
-
-      saveAs(new Blob([buf], { type: 'application/octet-stream' }), filename);
+      await updateDoc(doc(db, 'forms', selectedFormForStates.id), {
+        states: formStates
+      });
+      setForms(fs => fs.map(f =>
+        f.id === selectedFormForStates.id ? { ...f, states: formStates } : f
+      ));
+      setStatesModalOpen(false);
+      setSelectedFormForStates(null);
+      setFormStates([]);
     } catch (err) {
-      alert('Export failed: ' + err.message);
+      console.error(err);
+      alert('Failed to save states.');
     }
   };
+
+
 
   /* ---------- render ---------- */
   if (loading) {
@@ -929,14 +954,12 @@ export default function FormsScreen() {
       <MainNavigation />
       <MainContent>
         <HeaderSection>
-          <Breadcrumb>
-            <Link to="/">Home</Link>
-            <span>›</span>
-            <Link to="/products">Products</Link>
-            <span>›</span>
-            <span>Forms</span>
-          </Breadcrumb>
-          <PageTitle>{title}</PageTitle>
+          <BackButton onClick={() => window.history.back()}>
+            <ArrowLeftIcon />
+          </BackButton>
+          <TitleContainer>
+            <PageTitle>{title}</PageTitle>
+          </TitleContainer>
         </HeaderSection>
 
         <SearchContainer>
@@ -949,60 +972,113 @@ export default function FormsScreen() {
           />
         </SearchContainer>
 
-        {/* Action Bar */}
-        <ActionBar>
-          <ActionGroup>
-            <ViewToggle>
-              <ViewToggleButton
-                active={viewMode === 'cards'}
-                onClick={() => setViewMode('cards')}
-              >
-                <Squares2X2Icon width={16} height={16} />
-                Cards
-              </ViewToggleButton>
-              <ViewToggleButton
-                active={viewMode === 'table'}
-                onClick={() => setViewMode('table')}
-              >
-                <TableCellsIcon width={16} height={16} />
-                Table
-              </ViewToggleButton>
-            </ViewToggle>
-          </ActionGroup>
+        {/* Filters Bar */}
+        <FiltersBar>
+          <FormGroup>
+            <label>Select Coverage</label>
+            <FilterWrapper>
+              <FunnelIcon width={16} height={16} style={{ color: '#6B7280' }} />
+              <Select
+                options={coverageOptions}
+                value={coverageOptions.find(o => o.value === selectedCoverage)}
+                onChange={o => setSelectedCoverage(o?.value || null)}
+                placeholder="All Coverages"
+                isClearable
+                styles={{
+                  control: (base, state) => ({
+                    ...base,
+                    width: '100%',
+                    borderColor: state.isFocused ? '#6366f1' : '#d1d5db',
+                    boxShadow: state.isFocused ? '0 0 0 1px #6366f1' : 'none',
+                    '&:hover': {
+                      borderColor: '#6366f1'
+                    }
+                  }),
+                  menu: base => ({ ...base, background: '#fff', borderRadius: 8, zIndex: 9999 }),
+                  option: (base, state) => ({
+                    ...base,
+                    background: state.isFocused ? '#F0F5FF' : '#fff',
+                    color: '#1f2937',
+                    fontWeight: state.isSelected ? '600' : '400',
+                    '&:active': {
+                      background: '#E6EEFF'
+                    }
+                  }),
+                  placeholder: base => ({ ...base, color: '#6b7280', fontWeight: '400' }),
+                  singleValue: base => ({ ...base, color: '#1f2937', fontWeight: '500' })
+                }}
+              />
+            </FilterWrapper>
+          </FormGroup>
 
-          <ActionGroup>
-            <Button variant="ghost" onClick={handleExportXLSX}>
-              <DownloadIcon20 width={16} height={16} />
-              Export XLSX
-            </Button>
-          </ActionGroup>
-        </ActionBar>
+          <FormGroup>
+            <label>Select States</label>
+            <FilterWrapper>
+              <MapIcon width={16} height={16} style={{ color: '#6B7280' }} />
+              <Select
+                options={stateOptions.filter(o => o.value !== null)}
+                value={stateOptions.filter(o => selectedFilterStates.includes(o.value))}
+                onChange={opts => setSelectedFilterStates(opts ? opts.map(o => o.value) : [])}
+                isMulti
+                placeholder="All States"
+                styles={{
+                  control: (base, state) => ({
+                    ...base,
+                    width: '100%',
+                    borderColor: state.isFocused ? '#6366f1' : '#d1d5db',
+                    boxShadow: state.isFocused ? '0 0 0 1px #6366f1' : 'none',
+                    '&:hover': {
+                      borderColor: '#6366f1'
+                    }
+                  }),
+                  menu: base => ({ ...base, background: '#fff', borderRadius: 8, zIndex: 9999 }),
+                  option: (base, state) => ({
+                    ...base,
+                    background: state.isFocused ? '#F0F5FF' : '#fff',
+                    color: '#1f2937',
+                    fontWeight: state.isSelected ? '600' : '400',
+                    '&:active': {
+                      background: '#E6EEFF'
+                    }
+                  }),
+                  placeholder: base => ({ ...base, color: '#6b7280', fontWeight: '400' }),
+                  multiValue: base => ({ ...base, backgroundColor: '#e0e7ff' }),
+                  multiValueLabel: base => ({ ...base, color: '#3730a3', fontWeight: '500' }),
+                  multiValueRemove: base => ({ ...base, color: '#6366f1', '&:hover': { backgroundColor: '#c7d2fe', color: '#4338ca' } })
+                }}
+              />
+            </FilterWrapper>
+          </FormGroup>
+        </FiltersBar>
 
         {/* Forms Display */}
         {filteredForms.length ? (
-          viewMode === 'cards' ? (
-            <FormsGrid>
-              {filteredForms.map(f => (
+          <FormsGrid>
+            {filteredForms.map(f => (
                 <FormCard key={f.id}>
                   <CardHeader>
-                    <CardTitle>
-                      <DocumentTextIcon width={20} height={20} />
-                      {f.downloadUrl ? (
-                        <a
-                          href={f.downloadUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ textDecoration: 'none', color: 'inherit' }}
-                        >
-                          {(f.formName || f.formNumber || 'Unnamed Form').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
-                        </a>
-                      ) : (
-                        <span>
-                          {(f.formName || f.formNumber || 'Unnamed Form').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
-                        </span>
-                      )}
-                    </CardTitle>
-                    <CardCode>{f.formNumber}</CardCode>
+                    <TitleAndTagsContainer>
+                      <CardTitle>
+                        {f.downloadUrl ? (
+                          <a
+                            href={f.downloadUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ textDecoration: 'none', color: 'inherit' }}
+                          >
+                            {(f.formName || f.formNumber || 'Unnamed Form').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
+                          </a>
+                        ) : (
+                          <span>
+                            {(f.formName || f.formNumber || 'Unnamed Form').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
+                          </span>
+                        )}
+                      </CardTitle>
+                      <CardCategory category={f.category}>
+                        {f.category}
+                      </CardCategory>
+                      <CardCode>{f.formNumber}</CardCode>
+                    </TitleAndTagsContainer>
                     <CardActions>
                       <IconButton onClick={() => openEditModal(f)} title="Edit">
                         <PencilIcon width={16} height={16} />
@@ -1014,10 +1090,6 @@ export default function FormsScreen() {
                   </CardHeader>
 
                   <CardContent>
-                    <CardCategory category={f.category}>
-                      {f.category}
-                    </CardCategory>
-
                     <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', fontSize: '14px', color: '#64748b' }}>
                       <span><strong>Type:</strong> {f.type}</span>
                       <span><strong>Edition:</strong> {f.effectiveDate || '—'}</span>
@@ -1032,80 +1104,15 @@ export default function FormsScreen() {
                         <LinkIcon />
                         Coverages {f.coverageIds?.length ? `(${f.coverageIds.length})` : '(0)'}
                       </MetricItem>
+                      <MetricItem onClick={() => openStatesModal(f)}>
+                        <MapIcon />
+                        States {f.states?.length ? `(${f.states.length})` : '(0)'}
+                      </MetricItem>
                     </CardMetrics>
                   </CardContent>
                 </FormCard>
               ))}
-            </FormsGrid>
-          ) : (
-            <TableContainer>
-              <Table>
-                <THead>
-                  <Tr>
-                    <Th style={{ width: '15%' }}>Name</Th>
-                    <Th style={{ width: '12%' }}>Number</Th>
-                    <Th style={{ width: '12%' }}>Edition</Th>
-                    <Th style={{ width: '10%' }}>Type</Th>
-                    <Th style={{ width: '15%' }}>Category</Th>
-                    <Th style={{ width: '15%' }}>Products</Th>
-                    <Th style={{ width: '15%' }}>Coverages</Th>
-                    <Th style={{ width: '10%' }}>Edit</Th>
-                    <Th style={{ width: '10%' }}>Delete</Th>
-                  </Tr>
-                </THead>
-                <tbody>
-                  {filteredForms.map(f => (
-                    <Tr key={f.id}>
-                      <Td>
-                        {f.downloadUrl ? (
-                          <a
-                            href={f.downloadUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ textDecoration: 'none', color: '#2563eb', opacity: 0.85 }}
-                          >
-                            {(f.formName || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
-                          </a>
-                        ) : (
-                          <span style={{ color: '#6B7280' }}>
-                            {(f.formName || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
-                          </span>
-                        )}
-                      </Td>
-                      <Td>{f.formNumber || '—'}</Td>
-                      <Td>{f.effectiveDate || '—'}</Td>
-                      <Td>{f.type}</Td>
-                      <Td>{f.category}</Td>
-                      <Td align="center">
-                        <Button variant="ghost" onClick={() => openLinkProductModal(f)}>
-                          Products{f.productIds?.length ? ` (${f.productIds.length})` : ''}
-                        </Button>
-                      </Td>
-                      <Td align="center">
-                        <Button
-                          variant="ghost"
-                          onClick={() => openLinkCoverageModal(f)}
-                          title="Link coverages"
-                        >
-                          Coverages{f.coverageIds?.length ? ` (${f.coverageIds.length})` : ''}
-                        </Button>
-                      </Td>
-                      <Td>
-                        <Button variant="ghost" onClick={() => openEditModal(f)} title="Edit">
-                          <PencilIcon width={16} height={16}/>
-                        </Button>
-                      </Td>
-                      <Td>
-                        <Button variant="ghost" onClick={() => handleDeleteForm(f.id)} title="Delete">
-                          <TrashIcon width={16} height={16} />
-                        </Button>
-                      </Td>
-                    </Tr>
-                  ))}
-                </tbody>
-              </Table>
-            </TableContainer>
-          )
+          </FormsGrid>
         ) : (
           <EmptyState>
             <EmptyStateTitle>No forms found</EmptyStateTitle>
@@ -1172,6 +1179,36 @@ export default function FormsScreen() {
                           }}
                         />{' '}
                         {c.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display:'flex', flexWrap:'wrap', gap:16, marginBottom:16 }}>
+                <div style={{ flex:1, minWidth:140 }}>
+                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
+                    Applicable States (optional)
+                  </label>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                    <Button variant="ghost" onClick={() => setSelectedStates(['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'])}>Select All</Button>
+                    <Button variant="ghost" onClick={() => setSelectedStates([])}>Clear All</Button>
+                  </div>
+                  <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #E5E7EB', borderRadius: 4, padding: 8 }}>
+                    {['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(state => (
+                      <label key={state} style={{ display: 'block', padding: 4 }}>
+                        <input
+                          type="checkbox"
+                          value={state}
+                          checked={selectedStates.includes(state)}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setSelectedStates(prev =>
+                              prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]
+                            );
+                          }}
+                        />{' '}
+                        {state}
                       </label>
                     ))}
                   </div>
@@ -1417,10 +1454,64 @@ export default function FormsScreen() {
           </OverlayFixed>
         )}
 
+        {/* States Modal */}
+        {statesModalOpen && (
+          <OverlayFixed onClick={() => setStatesModalOpen(false)}>
+            <Modal onClick={e => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>Manage States for {selectedFormForStates?.formName || selectedFormForStates?.formNumber}</ModalTitle>
+                <CloseBtn onClick={() => setStatesModalOpen(false)}>✕</CloseBtn>
+              </ModalHeader>
 
+              <p style={{ margin:'8px 0 12px' }}>
+                Form:&nbsp;<strong>{selectedFormForStates?.formName || selectedFormForStates?.formNumber}</strong>
+              </p>
 
+              <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                <Button variant="ghost" onClick={() => setFormStates(['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'])}>
+                  Select All (50)
+                </Button>
+                <Button variant="ghost" onClick={() => setFormStates([])}>Clear All</Button>
+                <span style={{ fontSize: '14px', color: '#6b7280', marginLeft: 'auto' }}>
+                  {formStates.length} selected
+                </span>
+              </div>
+
+              <div style={{ maxHeight:220, overflowY:'auto', border:'1px solid #E5E7EB', borderRadius:4, padding:8 }}>
+                {['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(state => (
+                  <label key={state} style={{ display:'block', padding:4 }}>
+                    <input
+                      type="checkbox"
+                      value={state}
+                      checked={formStates.includes(state)}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setFormStates(prev =>
+                          prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]
+                        );
+                      }}
+                    />{' '}
+                    {state}
+                  </label>
+                ))}
+              </div>
+
+              <div style={{ marginTop:16, display:'flex', gap:12 }}>
+                <Button onClick={handleSaveStates}>Save</Button>
+                <Button variant="ghost" onClick={() => setStatesModalOpen(false)}>Cancel</Button>
+              </div>
+            </Modal>
+          </OverlayFixed>
+        )}
 
       </MainContent>
     </ModernContainer>
   );
+}
+
+/* ---------- simple debounce hook ---------- */
+function useDebounce(value, ms=250){
+  const [v,setV]=useState(value);
+  useEffect(()=>{const id=setTimeout(()=>setV(value),ms);return ()=>clearTimeout(id);},[value,ms]);
+  return v;
 }
