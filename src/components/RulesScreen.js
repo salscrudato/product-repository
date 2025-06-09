@@ -13,7 +13,16 @@ import {
   ArrowLeftIcon,
   Cog6ToothIcon,
   ShieldCheckIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+
+  Squares2X2Icon,
+  TableCellsIcon,
+  ListBulletIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  TagIcon,
+  BuildingOfficeIcon,
+  CurrencyDollarIcon
 } from '@heroicons/react/24/solid';
 
 import MainNavigation from '../components/ui/Navigation';
@@ -149,15 +158,108 @@ const SearchIcon = styled.div`
   }
 `;
 
-// Filter Controls
+// Enhanced Filter Controls
 const FilterContainer = styled.div`
   display: flex;
   gap: 12px;
   margin-bottom: 24px;
   flex-wrap: wrap;
+  align-items: center;
+`;
+
+const FilterRow = styled.div`
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 16px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
 `;
 
 const FilterSelect = styled.select`
+  padding: 8px 12px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 8px;
+  background: white;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: 40px;
+  min-width: 140px;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+`;
+
+const FilterLabel = styled.label`
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-right: 8px;
+  white-space: nowrap;
+`;
+
+const FilterGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+`;
+
+
+
+const ViewModeToggle = styled.div`
+  display: flex;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  padding: 4px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+`;
+
+const ViewModeButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: ${({ active }) => active ? '#6366f1' : 'transparent'};
+  color: ${({ active }) => active ? 'white' : '#64748b'};
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${({ active }) => active ? '#5b5bd6' : 'rgba(99, 102, 241, 0.1)'};
+    color: ${({ active }) => active ? 'white' : '#6366f1'};
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
+const SortControls = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+`;
+
+const SortSelect = styled.select`
   padding: 6px 10px;
   border: 1px solid rgba(226, 232, 240, 0.8);
   border-radius: 6px;
@@ -166,7 +268,6 @@ const FilterSelect = styled.select`
   color: #374151;
   cursor: pointer;
   transition: all 0.2s ease;
-  height: 36px;
 
   &:focus {
     outline: none;
@@ -174,20 +275,18 @@ const FilterSelect = styled.select`
   }
 `;
 
-const FilterChip = styled.button`
-  padding: 6px 12px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 20px;
-  background: ${props => props.active ? 'rgba(99, 102, 241, 0.1)' : 'white'};
-  color: ${props => props.active ? '#6366f1' : '#6b7280'};
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  height: 36px;
+const SortOrderButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 6px;
+  background: white;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
 
   &:hover {
     border-color: #6366f1;
@@ -196,10 +295,12 @@ const FilterChip = styled.button`
   }
 
   svg {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
   }
 `;
+
+
 
 // Toggle Switch for Proprietary Filter
 const ToggleContainer = styled.div`
@@ -630,27 +731,37 @@ export default function RulesScreen() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
 
-  // Form state - Simplified structure
+  // Enhanced form state with comprehensive rule structure
   const [formData, setFormData] = useState({
     name: '',
     productId: preselectedProductId || '',
-    ruleType: '', // 'Coverage' or 'Forms'
+    ruleType: '', // 'Product', 'Coverage', 'Forms', 'Pricing'
+    ruleCategory: '', // 'Eligibility', 'Pricing', 'Compliance', 'Coverage', 'Forms'
     targetId: '',
     condition: '',
     outcome: '',
     reference: '',
-    proprietary: false
+    proprietary: false,
+    status: 'Active' // 'Active', 'Inactive', 'Draft', 'Under Review'
   });
 
-  // Additional state for dynamic data
+  // Additional state for dynamic data and enhanced functionality
   const [coverages, setCoverages] = useState([]);
   const [forms, setForms] = useState([]);
+  const [pricingSteps, setPricingSteps] = useState([]);
   const [loadingTargets, setLoadingTargets] = useState(false);
+  const [ruleCategories] = useState(['Eligibility', 'Pricing', 'Compliance', 'Coverage', 'Forms']);
+  const [statuses] = useState(['Active', 'Inactive', 'Draft', 'Under Review', 'Archived']);
 
-  // Search and filter state
+  // Enhanced search and filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProductFilter, setSelectedProductFilter] = useState('');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('');
+  const [sortBy, setSortBy] = useState('name');
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [viewMode, setViewMode] = useState('cards'); // 'cards', 'table', 'hierarchy'
   const searchRef = useRef(null);
 
   // Load data on mount
@@ -673,9 +784,15 @@ export default function RulesScreen() {
         const formsList = formsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setForms(formsList);
 
-        // If we have a preselected product, load its coverages
+        // Fetch pricing steps for pricing rules
+        const stepsSnap = await getDocs(collection(db, 'steps'));
+        const stepsList = stepsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setPricingSteps(stepsList);
+
+        // If we have a preselected product, load its coverages and pricing steps
         if (preselectedProductId) {
           loadCoveragesForProduct(preselectedProductId);
+          loadPricingStepsForProduct(preselectedProductId);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -698,11 +815,11 @@ export default function RulesScreen() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Enhanced filtering
+  // Enhanced filtering with comprehensive filter options
   const filteredRules = useMemo(() => {
     let filtered = rules;
 
-    // Text search
+    // Text search across multiple fields
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       filtered = filtered.filter(rule =>
@@ -710,7 +827,8 @@ export default function RulesScreen() {
         (rule.condition || '').toLowerCase().includes(search) ||
         (rule.outcome || '').toLowerCase().includes(search) ||
         (rule.reference || '').toLowerCase().includes(search) ||
-        (rule.ruleType || '').toLowerCase().includes(search)
+        (rule.ruleType || '').toLowerCase().includes(search) ||
+        (rule.ruleCategory || '').toLowerCase().includes(search)
       );
     }
 
@@ -719,33 +837,64 @@ export default function RulesScreen() {
       filtered = filtered.filter(rule => rule.productId === selectedProductFilter);
     }
 
-    // Type filter
+    // Rule category filter
+    if (selectedCategoryFilter) {
+      filtered = filtered.filter(rule => rule.ruleCategory === selectedCategoryFilter);
+    }
+
+    // Status filter
+    if (selectedStatusFilter) {
+      filtered = filtered.filter(rule => rule.status === selectedStatusFilter);
+    }
+
+    // Type filter (proprietary/standard)
     if (selectedTypeFilter === 'proprietary') {
       filtered = filtered.filter(rule => rule.proprietary);
     } else if (selectedTypeFilter === 'standard') {
       filtered = filtered.filter(rule => !rule.proprietary);
     }
 
+    // Sorting
+    filtered.sort((a, b) => {
+      let aValue = a[sortBy] || '';
+      let bValue = b[sortBy] || '';
+
+      if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+
     return filtered;
-  }, [rules, searchTerm, selectedProductFilter, selectedTypeFilter]);
+  }, [rules, searchTerm, selectedProductFilter, selectedCategoryFilter, selectedStatusFilter,
+      selectedTypeFilter, sortBy, sortOrder]);
 
   // Get unique products for filter
   const uniqueProducts = products.filter(p => p.name).sort((a, b) => a.name.localeCompare(b.name));
 
-  // Form handlers
+  // Enhanced form handlers
   const resetForm = () => {
     setFormData({
       name: '',
       productId: preselectedProductId || '',
       ruleType: '',
+      ruleCategory: '',
       targetId: '',
       condition: '',
       outcome: '',
       reference: '',
-      proprietary: false
+      proprietary: false,
+      status: 'Active'
     });
     if (!preselectedProductId) {
       setCoverages([]);
+      setPricingSteps([]);
     }
     setEditingRule(null);
   };
@@ -756,17 +905,20 @@ export default function RulesScreen() {
         name: rule.name || '',
         productId: rule.productId || '',
         ruleType: rule.ruleType || '',
+        ruleCategory: rule.ruleCategory || '',
         targetId: rule.targetId || '',
         condition: rule.condition || '',
         outcome: rule.outcome || '',
         reference: rule.reference || '',
-        proprietary: rule.proprietary || false
+        proprietary: rule.proprietary || false,
+        status: rule.status || 'Active'
       });
       setEditingRule(rule);
 
-      // Load coverages if editing a rule with a product
+      // Load coverages and pricing steps if editing a rule with a product
       if (rule.productId) {
         await loadCoveragesForProduct(rule.productId);
+        await loadPricingStepsForProduct(rule.productId);
       }
     } else {
       resetForm();
@@ -799,6 +951,23 @@ export default function RulesScreen() {
     }
   };
 
+  // Load pricing steps when product is selected
+  const loadPricingStepsForProduct = async (productId) => {
+    if (!productId) {
+      setPricingSteps([]);
+      return;
+    }
+
+    try {
+      const stepsSnap = await getDocs(collection(db, `products/${productId}/steps`));
+      const stepsList = stepsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setPricingSteps(stepsList);
+    } catch (error) {
+      console.error('Error loading pricing steps:', error);
+      setPricingSteps([]);
+    }
+  };
+
   // Handle product selection
   const handleProductChange = (productId) => {
     setFormData(prev => ({
@@ -808,6 +977,7 @@ export default function RulesScreen() {
       targetId: ''
     }));
     loadCoveragesForProduct(productId);
+    loadPricingStepsForProduct(productId);
   };
 
   // Handle rule type change
@@ -833,7 +1003,7 @@ export default function RulesScreen() {
       alert('Please select a rule type.');
       return;
     }
-    if (!formData.targetId) {
+    if (formData.ruleType !== 'Product' && !formData.targetId) {
       alert('Please select a target for this rule.');
       return;
     }
@@ -843,11 +1013,13 @@ export default function RulesScreen() {
         name: formData.name.trim(),
         productId: formData.productId,
         ruleType: formData.ruleType,
+        ruleCategory: formData.ruleCategory,
         targetId: formData.targetId,
         condition: formData.condition.trim(),
         outcome: formData.outcome.trim(),
         reference: formData.reference.trim(),
         proprietary: formData.proprietary,
+        status: formData.status,
         updatedAt: new Date()
       };
 
@@ -889,7 +1061,9 @@ export default function RulesScreen() {
   };
 
   const getTargetName = (rule) => {
-    if (!rule.ruleType || !rule.targetId) return 'No Target';
+    if (!rule.ruleType) return 'Product Level';
+    if (rule.ruleType === 'Product') return 'Product Level';
+    if (!rule.targetId) return 'No Target';
 
     switch (rule.ruleType) {
       case 'Coverage':
@@ -899,6 +1073,9 @@ export default function RulesScreen() {
       case 'Forms':
         const form = forms.find(f => f.id === rule.targetId);
         return form?.formName || form?.formNumber || 'Unknown Form';
+      case 'Pricing':
+        const step = pricingSteps.find(s => s.id === rule.targetId);
+        return step?.stepName || 'Unknown Pricing Step';
       default:
         return 'Unknown Target';
     }
@@ -906,9 +1083,11 @@ export default function RulesScreen() {
 
   const getRuleTypeColor = (ruleType) => {
     switch (ruleType) {
+      case 'Product': return '#6366f1';
       case 'Coverage': return '#10b981';
       case 'Forms': return '#f59e0b';
-      default: return '#6366f1';
+      case 'Pricing': return '#8b5cf6';
+      default: return '#6b7280';
     }
   };
 
@@ -949,35 +1128,108 @@ export default function RulesScreen() {
         </SearchContainer>
 
         <FilterContainer>
-          <FilterSelect
-            value={selectedProductFilter}
-            onChange={(e) => setSelectedProductFilter(e.target.value)}
-          >
-            <option value="">All Products</option>
-            {uniqueProducts.map(product => (
-              <option key={product.id} value={product.id}>
-                {product.name}
-              </option>
-            ))}
-          </FilterSelect>
+          <FilterRow>
+            <FilterGroup>
+              <FilterLabel>Product:</FilterLabel>
+              <FilterSelect
+                value={selectedProductFilter}
+                onChange={(e) => setSelectedProductFilter(e.target.value)}
+              >
+                <option value="">All Products</option>
+                {uniqueProducts.map(product => (
+                  <option key={product.id} value={product.id}>
+                    {product.name}
+                  </option>
+                ))}
+              </FilterSelect>
+            </FilterGroup>
 
-          <ToggleContainer>
-            <ToggleLabel>Proprietary</ToggleLabel>
-            <ToggleSwitch
-              active={selectedTypeFilter === 'proprietary'}
-              onClick={() => setSelectedTypeFilter(selectedTypeFilter === 'proprietary' ? '' : 'proprietary')}
-            >
-              <ToggleKnob active={selectedTypeFilter === 'proprietary'} />
-            </ToggleSwitch>
-          </ToggleContainer>
+            <FilterGroup>
+              <FilterLabel>Category:</FilterLabel>
+              <FilterSelect
+                value={selectedCategoryFilter}
+                onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+              >
+                <option value="">All Categories</option>
+                {ruleCategories.map(category => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </FilterSelect>
+            </FilterGroup>
 
-          <FilterChip
-            active={selectedTypeFilter === 'standard'}
-            onClick={() => setSelectedTypeFilter(selectedTypeFilter === 'standard' ? '' : 'standard')}
-          >
-            <DocumentTextIcon />
-            Standard
-          </FilterChip>
+            <FilterGroup>
+              <FilterLabel>Status:</FilterLabel>
+              <FilterSelect
+                value={selectedStatusFilter}
+                onChange={(e) => setSelectedStatusFilter(e.target.value)}
+              >
+                <option value="">All Statuses</option>
+                {statuses.map(status => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </FilterSelect>
+            </FilterGroup>
+
+            <ToggleContainer>
+              <ToggleLabel>Proprietary</ToggleLabel>
+              <ToggleSwitch
+                active={selectedTypeFilter === 'proprietary'}
+                onClick={() => setSelectedTypeFilter(selectedTypeFilter === 'proprietary' ? '' : 'proprietary')}
+              >
+                <ToggleKnob active={selectedTypeFilter === 'proprietary'} />
+              </ToggleSwitch>
+            </ToggleContainer>
+
+
+
+            <SortControls>
+              <FilterLabel>Sort:</FilterLabel>
+              <SortSelect
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="name">Name</option>
+                <option value="status">Status</option>
+                <option value="ruleCategory">Category</option>
+                <option value="updatedAt">Updated</option>
+              </SortSelect>
+              <SortOrderButton
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              >
+                {sortOrder === 'asc' ? <ArrowUpIcon /> : <ArrowDownIcon />}
+              </SortOrderButton>
+            </SortControls>
+
+            <ViewModeToggle>
+              <ViewModeButton
+                active={viewMode === 'cards'}
+                onClick={() => setViewMode('cards')}
+              >
+                <Squares2X2Icon />
+                Cards
+              </ViewModeButton>
+              <ViewModeButton
+                active={viewMode === 'table'}
+                onClick={() => setViewMode('table')}
+              >
+                <TableCellsIcon />
+                Table
+              </ViewModeButton>
+              <ViewModeButton
+                active={viewMode === 'hierarchy'}
+                onClick={() => setViewMode('hierarchy')}
+              >
+                <ListBulletIcon />
+                Hierarchy
+              </ViewModeButton>
+            </ViewModeToggle>
+          </FilterRow>
+
+
         </FilterContainer>
 
         {loading ? (
@@ -1058,7 +1310,24 @@ export default function RulesScreen() {
                     <MetricBadge style={{ backgroundColor: `${getRuleTypeColor(rule.ruleType)}15`, color: getRuleTypeColor(rule.ruleType), border: `1px solid ${getRuleTypeColor(rule.ruleType)}30` }}>
                       {rule.ruleType === 'Coverage' && <ShieldCheckIcon />}
                       {rule.ruleType === 'Forms' && <DocumentTextIcon />}
+                      {rule.ruleType === 'Pricing' && <CurrencyDollarIcon />}
+                      {rule.ruleType === 'Product' && <BuildingOfficeIcon />}
                       {rule.ruleType} Rule
+                    </MetricBadge>
+                  )}
+                  {rule.ruleCategory && (
+                    <MetricBadge style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+                      <TagIcon />
+                      {rule.ruleCategory}
+                    </MetricBadge>
+                  )}
+                  {rule.status && rule.status !== 'Active' && (
+                    <MetricBadge style={{
+                      backgroundColor: rule.status === 'Draft' ? 'rgba(251, 191, 36, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                      color: rule.status === 'Draft' ? '#fbbf24' : '#6b7280',
+                      border: `1px solid ${rule.status === 'Draft' ? 'rgba(251, 191, 36, 0.3)' : 'rgba(107, 114, 128, 0.3)'}`
+                    }}>
+                      {rule.status}
                     </MetricBadge>
                   )}
                   {rule.proprietary && (
@@ -1135,23 +1404,41 @@ export default function RulesScreen() {
 
               {formData.productId && (
                 <FormGroup>
-                  <FormLabel>Rule Category *</FormLabel>
+                  <FormLabel>Rule Type *</FormLabel>
                   <FormSelect
                     value={formData.ruleType}
                     onChange={(e) => handleRuleTypeChange(e.target.value)}
                   >
-                    <option value="">Select rule category</option>
+                    <option value="">Select rule type</option>
+                    <option value="Product">Product Rule</option>
                     <option value="Coverage">Coverage Rule</option>
                     <option value="Forms">Forms Rule</option>
+                    <option value="Pricing">Pricing Rule</option>
                   </FormSelect>
                 </FormGroup>
               )}
 
-              {formData.ruleType && (
+              <FormGroup>
+                <FormLabel>Rule Category *</FormLabel>
+                <FormSelect
+                  value={formData.ruleCategory}
+                  onChange={(e) => setFormData({ ...formData, ruleCategory: e.target.value })}
+                >
+                  <option value="">Select category</option>
+                  {ruleCategories.map(category => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </FormSelect>
+              </FormGroup>
+
+              {formData.ruleType && formData.ruleType !== 'Product' && (
                 <FormGroup>
                   <FormLabel>
                     {formData.ruleType === 'Coverage' && 'Target Coverage *'}
                     {formData.ruleType === 'Forms' && 'Target Form *'}
+                    {formData.ruleType === 'Pricing' && 'Target Pricing Step *'}
                   </FormLabel>
                   <FormSelect
                     value={formData.targetId}
@@ -1172,6 +1459,13 @@ export default function RulesScreen() {
                       forms.filter(form => form.productId === formData.productId).map(form => (
                         <option key={form.id} value={form.id}>
                           {form.formName || form.formNumber}
+                        </option>
+                      ))
+                    }
+                    {formData.ruleType === 'Pricing' &&
+                      pricingSteps.map(step => (
+                        <option key={step.id} value={step.id}>
+                          {step.stepName}
                         </option>
                       ))
                     }
@@ -1204,6 +1498,20 @@ export default function RulesScreen() {
                   value={formData.reference}
                   onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
                 />
+              </FormGroup>
+
+              <FormGroup>
+                <FormLabel>Status</FormLabel>
+                <FormSelect
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                >
+                  {statuses.map(status => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </FormSelect>
               </FormGroup>
 
               <FormGroup>
