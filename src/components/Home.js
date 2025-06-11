@@ -7,7 +7,9 @@ import {
   DocumentTextIcon,
   CurrencyDollarIcon,
   Cog6ToothIcon,
-  BookOpenIcon
+  BookOpenIcon,
+  ClipboardDocumentListIcon,
+  NewspaperIcon
 } from '@heroicons/react/24/solid';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
@@ -15,6 +17,7 @@ import { UnifiedAIResponse } from './ui/UnifiedAIResponse';
 import useProducts from '../hooks/useProducts';
 import { collection, getDocs, collectionGroup } from 'firebase/firestore';
 import { db } from '../firebase';
+import { sampleNews } from '../data/sampleNews';
 
 /* ---------- styled components ---------- */
 const Page = styled.div`
@@ -82,6 +85,8 @@ export default function Home() {
   const [pricingSteps, setPricingSteps] = useState([]);
   const [dataDictionary, setDataDictionary] = useState([]);
   const [formCoverages, setFormCoverages] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [newsArticles, setNewsArticles] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   // Fetch comprehensive application data for enhanced AI context
@@ -139,6 +144,17 @@ export default function Home() {
           ...doc.data()
         }));
         setFormCoverages(formCovList);
+
+        // Fetch tasks
+        const tasksSnap = await getDocs(collection(db, 'tasks'));
+        const tasksList = tasksSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setTasks(tasksList);
+
+        // Load sample news data (in a real app, this would be from an API or database)
+        setNewsArticles(sampleNews);
 
       } catch (error) {
         console.error('Error fetching context data:', error);
@@ -263,6 +279,45 @@ export default function Home() {
         formNumber: forms.find(f => f.id === fc.formId)?.formNumber
       })),
 
+      // Tasks data
+      tasks: tasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        description: t.description,
+        phase: t.phase,
+        priority: t.priority,
+        assignee: t.assignee,
+        dueDate: t.dueDate,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+        isOverdue: t.dueDate ? new Date(t.dueDate) < new Date() : false,
+        phaseDescription: {
+          'research': 'Market Research & Ideation',
+          'develop': 'Product Development',
+          'compliance': 'Compliance & Filings',
+          'implementation': 'Implementation & Launch'
+        }[t.phase] || t.phase
+      })),
+
+      // News articles data
+      newsArticles: newsArticles.map(n => ({
+        id: n.id,
+        title: n.title,
+        excerpt: n.excerpt,
+        category: n.category,
+        source: n.source,
+        publishedAt: n.publishedAt,
+        url: n.url,
+        categoryDescription: {
+          'regulation': 'Regulatory and compliance news',
+          'market': 'Market trends and analysis',
+          'technology': 'Technology and innovation',
+          'claims': 'Claims and legal developments',
+          'underwriting': 'Underwriting and risk assessment'
+        }[n.category] || n.category,
+        daysAgo: Math.ceil((new Date() - new Date(n.publishedAt)) / (1000 * 60 * 60 * 24))
+      })),
+
       // Enhanced summary statistics
       summary: {
         totalProducts: products.length,
@@ -272,10 +327,35 @@ export default function Home() {
         totalPricingSteps: pricingSteps.length,
         totalDataDictionaryEntries: dataDictionary.length,
         totalFormCoverageMappings: formCoverages.length,
+        totalTasks: tasks.length,
+        totalNewsArticles: newsArticles.length,
         productsWithForms: products.filter(p => p.formDownloadUrl).length,
         subCoverages: coverages.filter(c => c.parentCoverage).length,
         proprietaryRules: rules.filter(r => r.proprietary).length,
-        statesRepresented: [...new Set(products.flatMap(p => p.availableStates || []))].length
+        statesRepresented: [...new Set(products.flatMap(p => p.availableStates || []))].length,
+        tasksByPhase: {
+          research: tasks.filter(t => t.phase === 'research').length,
+          develop: tasks.filter(t => t.phase === 'develop').length,
+          compliance: tasks.filter(t => t.phase === 'compliance').length,
+          implementation: tasks.filter(t => t.phase === 'implementation').length
+        },
+        tasksByPriority: {
+          high: tasks.filter(t => t.priority === 'high').length,
+          medium: tasks.filter(t => t.priority === 'medium').length,
+          low: tasks.filter(t => t.priority === 'low').length
+        },
+        overdueTasks: tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date()).length,
+        tasksWithAssignees: tasks.filter(t => t.assignee).length,
+        newsByCategory: {
+          regulation: newsArticles.filter(n => n.category === 'regulation').length,
+          market: newsArticles.filter(n => n.category === 'market').length,
+          technology: newsArticles.filter(n => n.category === 'technology').length,
+          claims: newsArticles.filter(n => n.category === 'claims').length,
+          underwriting: newsArticles.filter(n => n.category === 'underwriting').length
+        },
+        recentNews: newsArticles.filter(n =>
+          (new Date() - new Date(n.publishedAt)) / (1000 * 60 * 60 * 24) <= 7
+        ).length
       }
     };
 
@@ -296,7 +376,7 @@ export default function Home() {
       const context = buildContext();
 
       // Create enhanced system prompt with comprehensive domain expertise
-      const systemPrompt = `You are an expert AI assistant for a comprehensive P&C insurance product management system. You have access to complete real-time data about the company's insurance products, coverages, forms, pricing models, business rules, and regulatory compliance data.
+      const systemPrompt = `You are an expert AI assistant for a comprehensive P&C insurance product management system. You have access to complete real-time data about the company's insurance products, coverages, forms, pricing models, business rules, regulatory compliance data, task management information, and current industry news.
 
 **Your Role & Expertise:**
 - Senior Insurance Product Management Expert and Business Intelligence Analyst
@@ -304,6 +384,8 @@ export default function Home() {
 - Strategic Business Advisor for product portfolio optimization
 - Regulatory Compliance and Risk Assessment Specialist
 - Data Analytics Expert for insurance product performance
+- Project Management and Task Coordination Specialist
+- Industry News Analyst and Market Intelligence Expert
 
 **Your Capabilities:**
 - Analyze product portfolios and coverage hierarchies
@@ -314,6 +396,14 @@ export default function Home() {
 - Perform competitive analysis and market positioning
 - Analyze state availability and geographic distribution
 - Review business rules and underwriting guidelines
+- Track project progress and task management across product development lifecycle
+- Analyze team workload and task distribution
+- Identify bottlenecks and resource allocation issues
+- Provide insights on project timelines and deliverables
+- Monitor industry news and regulatory developments
+- Analyze market trends and competitive intelligence
+- Correlate news events with business impact and opportunities
+- Provide strategic insights based on industry developments
 
 **Current System Context (Complete Dataset):**
 ${JSON.stringify(context, null, 2)}
@@ -335,7 +425,15 @@ ${JSON.stringify(context, null, 2)}
 - Pricing step sequences and calculation logic
 - State availability and geographic distribution patterns
 - Business rules and their impact on underwriting
-- Data dictionary constraints and validation rules`;
+- Data dictionary constraints and validation rules
+- Task management and project workflow phases
+- Team assignments and workload distribution
+- Project timelines and milestone tracking
+- Cross-functional dependencies between tasks and product components
+- Industry news trends and regulatory developments
+- Market intelligence and competitive landscape analysis
+- News impact on business strategy and product development
+- Regulatory news correlation with compliance requirements`;
 
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -404,10 +502,10 @@ ${JSON.stringify(context, null, 2)}
       <MainContent>
         <EnhancedHeader
           title="How can I help you?"
-          subtitle={"I have access to uploaded products, coverages, forms, pricing and rules"}
+          subtitle={"I have access to uploaded products, coverages, forms, pricing, rules, tasks and industry news"}
           icon={HomeIcon}
           searchProps={{
-            placeholder: "Ask about products, pricing models, coverage analysis, regulatory compliance, or strategic insights...",
+            placeholder: "Ask about products, pricing models, coverage analysis, regulatory compliance, task management, industry news, or strategic insights...",
             value: searchQuery,
             onChange: (e) => setSearchQuery(e.target.value),
             onKeyPress: handleKeyPress,
@@ -423,7 +521,7 @@ ${JSON.stringify(context, null, 2)}
               marginTop: '16px',
               textAlign: 'center'
             }}>
-              Loading comprehensive system data (products, coverages, forms, pricing, rules, compliance data)...
+              Loading comprehensive system data (products, coverages, forms, pricing, rules, tasks, news, compliance data)...
             </div>
           )}
           {!dataLoading && !productsLoading && (
@@ -461,6 +559,14 @@ ${JSON.stringify(context, null, 2)}
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <BookOpenIcon style={{ width: '14px', height: '14px' }} />
                 {dataDictionary.length} Data Definitions
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <ClipboardDocumentListIcon style={{ width: '14px', height: '14px' }} />
+                {tasks.length} Tasks
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <NewspaperIcon style={{ width: '14px', height: '14px' }} />
+                {newsArticles.length} News Articles
               </span>
             </div>
           )}

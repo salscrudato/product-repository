@@ -271,10 +271,455 @@ Based on comprehensive UI/UX feedback review, implemented professional-grade enh
 
 ---
 
-## 6. AI Workflow Cheatsheet
+## 6. 🤖 Agentic AI Implementation
+
+### Overview
+
+The Product Hub App now features **InsuranceAgent**, an advanced agentic AI system that can autonomously perform complex insurance product management tasks through observable, multi-step workflows.
+
+### Key Features
+
+- **🔄 Multi-Step Execution**: Agent breaks down complex tasks into observable steps
+- **🛠️ Tool Integration**: Direct access to Firestore operations (products, coverages, forms, pricing, rules)
+- **📊 Real-Time Monitoring**: Live execution tracking with performance metrics
+- **🎯 Goal-Oriented**: Natural language goal specification with intelligent validation
+- **🔍 Observable Workflows**: Each step is logged and can be monitored in real-time
+- **⚡ Performance Tracking**: Built-in execution timing and step analysis
+
+### Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   Firebase       │    │   OpenAI        │
+│   AgentAssistant│◄──►│   Functions      │◄──►│   GPT-4.1-mini  │
+│   Widget        │    │   (Agent Runner) │    │   (Agent Brain) │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                        │
+         ▼                        ▼
+┌─────────────────┐    ┌──────────────────┐
+│   Agent Service │    │   Agent Tools    │
+│   (Orchestrator)│◄──►│   (Firestore     │
+│                 │    │    Operations)   │
+└─────────────────┘    └──────────────────┘
+```
+
+### Agent Capabilities
+
+| Category | Capabilities | Example Prompts |
+|----------|-------------|-----------------|
+| **Product Management** | Create, update, search products | "Create a new auto insurance product with liability coverage" |
+| **Coverage & Forms** | Add coverages, link forms, manage relationships | "Add comprehensive coverage to all auto products" |
+| **Pricing & Rules** | Create pricing steps, business rules | "Add 10% multi-policy discount rule to all products" |
+| **Analysis & Insights** | Gap analysis, compliance checks | "Find all products missing required state filings" |
+
+### Usage
+
+#### 1. **Demo Page**
+- Visit `/agent-demo` or click "🤖 Agent Demo" in navigation
+- Interactive showcase of agent capabilities
+- Example prompts and feature explanations
+
+#### 2. **Floating Widget**
+- Located in bottom-right corner of the application
+- Always accessible across all pages
+- Minimizable interface with execution log
+
+#### 2. **Natural Language Goals**
+```javascript
+// Example goals the agent can handle:
+"Create a new homeowners insurance product with basic coverages"
+"Add flood coverage to all property insurance products"
+"Update deductible options for auto insurance to include $250, $500, $1000"
+"Find all products that are missing required forms for New York state"
+```
+
+#### 3. **Observable Execution**
+Each agent execution shows:
+- **Thought Process**: Agent's reasoning for each step
+- **Actions Taken**: Specific tools called with parameters
+- **Results**: Success/failure status and returned data
+- **Performance**: Execution time and step count
+
+### Implementation Details
+
+#### Frontend Components
+
+```javascript
+// Main agent widget
+src/components/AgentAssistant.js
+
+// Demo page showcasing capabilities
+src/components/AgentDemo.js
+
+// Agent service for API communication
+src/services/agentService.js
+
+// Performance tracking utilities
+src/utils/performance.js (AgentExecutionTracker)
+```
+
+#### Backend (Firebase Functions)
+
+```javascript
+// Main agent function
+functions/index.js
+
+// Agent tools for Firestore operations:
+- fetchProduct(id)
+- createProduct(data)
+- updateProduct(id, data)
+- fetchCoverages(productId)
+- createCoverage(productId, data)
+- updateCoverage(productId, coverageId, data)
+- fetchForms(productId)
+- createForm(data)
+- linkFormToCoverage(formId, productId, coverageId)
+- fetchPricingSteps(productId)
+- createPricingStep(productId, data)
+- updatePricingStep(productId, stepId, data)
+- fetchRules(productId)
+- createRule(data)
+- searchProducts(query)
+```
+
+### Development Mode
+
+Currently running in **MOCK_MODE** for development:
+- Simulates realistic agent responses
+- No Firebase Functions deployment required
+- Demonstrates full workflow capabilities
+- Set `MOCK_MODE = false` in `agentService.js` for production
+
+### Performance Monitoring
+
+The agent includes comprehensive performance tracking:
+
+```javascript
+// Track agent execution
+const tracker = useAgentTracker();
+tracker.startExecution(sessionId, goal);
+tracker.addStep(sessionId, step);
+tracker.completeExecution(sessionId, result);
+
+// Measure individual steps
+const stepResult = await measureAgentStep('createProduct', async () => {
+  return await agentTools.createProduct(data);
+});
+```
+
+### Security & Validation
+
+- **Goal Validation**: Prevents destructive operations
+- **Input Sanitization**: All user inputs are validated
+- **Error Handling**: Graceful failure with detailed error messages
+- **Rate Limiting**: Built-in execution limits (max 10 steps per workflow)
+
+### Future Enhancements
+
+- **🔌 Plugin System**: Extensible tool architecture
+- **📈 Analytics Dashboard**: Agent usage and performance analytics
+- **🎨 Custom Workflows**: User-defined agent workflows
+- **🔄 Workflow Templates**: Pre-built workflows for common tasks
+- **🤝 Multi-Agent Coordination**: Multiple agents working together
+- **📱 Mobile Optimization**: Mobile-friendly agent interface
+
+---
+
+## 7. 📋 Task Management System
+
+### Overview
+
+The Product Hub App includes a comprehensive **Task Management System** designed specifically for insurance product development workflows. This Kanban-style interface helps teams track progress across the complete product lifecycle.
+
+### Key Features
+
+- **🎯 Phase-Based Workflow**: Four distinct phases covering the complete product development lifecycle
+- **🎨 Drag & Drop Interface**: Intuitive task movement between phases
+- **📊 Real-Time Statistics**: Live dashboard showing task counts, priorities, and overdue items
+- **🔍 Smart Filtering**: Filter by priority level and assignee
+- **⚡ Visual Indicators**: Color-coded priorities and overdue task highlighting
+- **📱 Responsive Design**: Works seamlessly on desktop and mobile devices
+
+### Workflow Phases
+
+| Phase | Purpose | Icon | Color |
+|-------|---------|------|-------|
+| **Market Research & Ideation** | Market analysis, competitive research, product ideation | 💡 | Amber |
+| **Product Development** | Product design, coverage creation, form development | 📋 | Blue |
+| **Compliance & Filings** | Regulatory review, state filings, compliance checks | 🛡️ | Purple |
+| **Implementation & Launch** | System setup, training, go-to-market execution | 🚀 | Green |
+
+### Task Features
+
+#### **Task Cards Include:**
+- **Title & Description**: Clear task identification and details
+- **Priority Levels**: High (red), Medium (yellow), Low (green)
+- **Assignee**: Team member responsible for the task
+- **Due Date**: Timeline tracking with overdue indicators
+- **Phase Status**: Current workflow position
+
+#### **Visual Indicators:**
+- **Overdue Tasks**: Red left border and subtle background highlight
+- **Priority Badges**: Color-coded priority levels
+- **Phase Counters**: Real-time task count per phase
+- **Drag States**: Visual feedback during drag operations
+
+### Usage
+
+#### **Accessing Task Management**
+1. Navigate to `/tasks` or click "Tasks" in the main navigation
+2. View the Kanban board with four workflow phases
+3. Use filters to focus on specific priorities or assignees
+
+#### **Creating Tasks**
+1. Click "Add New Task" button
+2. Fill in task details:
+   - Title (required)
+   - Description
+   - Phase (starting phase)
+   - Priority level
+   - Assignee
+   - Due date
+3. Task appears in the selected phase column
+
+#### **Managing Tasks**
+- **Move Tasks**: Drag and drop between phases to update status
+- **Filter Tasks**: Use priority and assignee filters
+- **Delete Tasks**: Click X button on task cards
+- **View Statistics**: Monitor progress with real-time stats
+
+#### **Sample Data**
+- Click "Add Sample Data" when no tasks exist
+- Includes realistic insurance product development tasks
+- Demonstrates all features and workflow phases
+
+### Technical Implementation
+
+#### **Frontend Components**
+```javascript
+// Main task management interface
+src/components/TaskManagement.js
+
+// Sample data seeder
+src/utils/taskSeeder.js
+```
+
+#### **Backend (Firestore)**
+```javascript
+// Tasks collection structure
+{
+  title: string,
+  description: string,
+  phase: 'research' | 'develop' | 'compliance' | 'implementation',
+  priority: 'low' | 'medium' | 'high',
+  assignee: string,
+  dueDate: string,
+  createdAt: timestamp,
+  updatedAt: timestamp
+}
+```
+
+#### **Drag & Drop Implementation**
+- Native HTML5 drag and drop API
+- Real-time visual feedback
+- Automatic Firestore updates
+- Error handling and rollback
+
+### Sample Tasks Included
+
+The system includes 12 realistic sample tasks covering:
+- **Market Research**: Cyber insurance analysis, customer surveys
+- **Product Development**: Umbrella insurance design, pricing models
+- **Compliance**: State filings, regulatory reviews
+- **Implementation**: Product launches, system integration, training
+
+### Performance Features
+
+- **Real-time Updates**: Live synchronization across all users
+- **Optimistic Updates**: Immediate UI feedback with server sync
+- **Efficient Filtering**: Client-side filtering for instant results
+- **Responsive Design**: Optimized for all screen sizes
+
+### Future Enhancements
+
+- **📈 Advanced Analytics**: Task completion trends and team performance
+- **🔔 Notifications**: Due date reminders and assignment alerts
+- **📎 File Attachments**: Document uploads for task context
+- **💬 Comments**: Team collaboration on individual tasks
+- **🔄 Workflow Automation**: Automatic task progression rules
+- **📊 Reporting**: Detailed progress reports and exports
+
+---
+
+## 8. 📰 Insurance News System
+
+### Overview
+
+The Product Hub App includes a comprehensive **Insurance News System** that provides users with curated industry news and developments. This feature helps insurance professionals stay informed about regulatory changes, market trends, and technological innovations.
+
+### Key Features
+
+- **📰 Curated Content**: 15+ realistic insurance industry news articles
+- **🏷️ Category Organization**: News organized by regulation, market, technology, claims, and underwriting
+- **🔍 Advanced Search**: Full-text search across headlines and content
+- **🎯 Smart Filtering**: Filter by category and news source
+- **📖 Bookmark System**: Save articles for later reading
+- **📱 Responsive Design**: Optimized for all device sizes
+- **🔗 Social Sharing**: Share articles with team members
+
+### News Categories
+
+| Category | Focus Area | Color Code |
+|----------|------------|------------|
+| **Regulation** | Regulatory changes, compliance requirements, state filings | Amber |
+| **Market** | Market trends, pricing analysis, industry growth | Blue |
+| **Technology** | InsurTech innovations, AI, automation, digital transformation | Purple |
+| **Claims** | Claims processing, legal developments, court rulings | Red |
+| **Underwriting** | Risk assessment, ESG factors, underwriting guidelines | Green |
+
+### Sample News Content
+
+#### **Regulatory News**
+- NAIC climate risk disclosure requirements
+- State-specific insurance regulations
+- Hurricane deductible regulations
+- Auto insurance fraud penalties
+
+#### **Market Intelligence**
+- Cyber insurance market growth (25% increase)
+- Commercial auto rate increases
+- D&O insurance market stabilization
+- Catastrophe bond record issuance
+
+#### **Technology Innovations**
+- AI-powered claims processing (40% faster settlements)
+- Parametric insurance for agriculture
+- Blockchain in reinsurance
+- Telematics-driven pricing
+
+#### **Claims & Legal**
+- Supreme Court business interruption rulings
+- Workers' compensation mental health trends
+- Coverage dispute resolutions
+
+#### **Underwriting Developments**
+- ESG factors in underwriting decisions
+- Risk assessment model improvements
+- Climate risk integration
+
+### User Interface Features
+
+#### **Search & Discovery**
+- **Global Search**: Search across all article titles and excerpts
+- **Category Filters**: Quick filtering by news category
+- **Source Filters**: Filter by publication source
+- **Real-time Results**: Instant search results as you type
+
+#### **Article Cards**
+- **Visual Hierarchy**: Clear title, excerpt, and metadata
+- **Category Badges**: Color-coded category identification
+- **Publication Info**: Source and publication date
+- **Action Buttons**: Bookmark, share, and external link options
+
+#### **Interactive Elements**
+- **Bookmark Toggle**: Save/unsave articles with visual feedback
+- **Hover Effects**: Smooth animations and visual feedback
+- **Click Handling**: Full article interaction (stubbed for demo)
+
+### Integration with Home Page AI
+
+The news system is fully integrated with the home page AI assistant, enabling:
+
+#### **News-Related Queries**
+- "What are the latest regulatory developments affecting our products?"
+- "Show me recent technology trends in insurance"
+- "Are there any market changes that could impact our pricing?"
+- "What compliance news should we be aware of?"
+
+#### **Strategic Analysis**
+- "How might recent regulatory changes affect our product portfolio?"
+- "What technology trends should we consider for our roadmap?"
+- "Are there market opportunities based on recent news?"
+- "What risks do current industry developments present?"
+
+#### **Cross-Functional Insights**
+- Correlation between news events and business strategy
+- Regulatory news impact on compliance tasks
+- Market trends influence on product development
+- Technology news relevance to operational improvements
+
+### Technical Implementation
+
+#### **Frontend Components**
+```javascript
+// Main news interface
+src/components/News.js
+
+// Shared news data
+src/data/sampleNews.js
+
+// Home page integration
+src/components/Home.js (enhanced with news context)
+```
+
+#### **Data Structure**
+```javascript
+// News article schema
+{
+  id: number,
+  title: string,
+  excerpt: string,
+  category: 'regulation' | 'market' | 'technology' | 'claims' | 'underwriting',
+  source: string,
+  publishedAt: ISO date string,
+  url: string
+}
+```
+
+#### **Search & Filter Logic**
+- **Client-side filtering** for instant results
+- **Multi-criteria search** (title + excerpt)
+- **Category and source filtering**
+- **Bookmark state management**
+
+### Business Value
+
+#### **Strategic Intelligence**
+- **📈 Market Awareness**: Stay informed about industry trends
+- **⚖️ Regulatory Compliance**: Track regulatory changes and requirements
+- **🚀 Innovation Insights**: Discover new technologies and approaches
+- **🎯 Competitive Intelligence**: Monitor market developments
+
+#### **Operational Benefits**
+- **📚 Centralized Information**: Single source for industry news
+- **⏰ Time Efficiency**: Curated content saves research time
+- **🔍 Focused Learning**: Category-based organization for targeted reading
+- **📱 Accessibility**: Available across all devices and platforms
+
+#### **Decision Support**
+- **📊 Data-Driven Decisions**: News-informed strategic planning
+- **🔮 Trend Analysis**: Early identification of industry shifts
+- **⚠️ Risk Management**: Awareness of emerging risks and challenges
+- **💡 Innovation Opportunities**: Discovery of new business possibilities
+
+### Future Enhancements
+
+- **🔄 Real-time Feeds**: Integration with live news APIs
+- **🤖 AI Summarization**: Automated article summaries
+- **📧 Email Alerts**: Personalized news notifications
+- **📈 Trend Analysis**: AI-powered trend identification
+- **🏷️ Custom Tags**: User-defined article categorization
+- **💬 Comments**: Team discussion on articles
+- **📊 Analytics**: Reading patterns and engagement metrics
+
+---
+
+## 9. AI Workflow Cheatsheet
 
 | Feature          | Prompt file / system role                        | API model | Notes |
 |------------------|--------------------------------------------------|-----------|-------|
+| **🤖 Agentic AI** | `AGENT_SYSTEM_PROMPT` in _functions/index.js_   | `gpt-4.1-mini`  | Multi-step autonomous workflows |
+| **🏠 Home Chat** | Enhanced system prompt in _Home.js_             | `gpt-4.1-mini`  | Full system context + tasks + news |
 | **Form summary** | `SYSTEM_INSTRUCTIONS` in _ProductHub.js_         | `gpt-4.1-mini`  | First 100 k tokens of PDF |
 | **Product chat** | Same as above (+ conversational wrapper)         | `gpt-4.1-mini`  | Persists per‑product chat log |
 | **Rules extract**| `RULES_SYSTEM_PROMPT`                            | `gpt-4.1-mini`  | Returns JSON of Product & Rating rules |

@@ -348,3 +348,159 @@ export const initPerformanceMonitoring = () => {
 };
 
 export default performanceMonitor;
+
+// ============================================================================
+// AGENTIC AI UTILITIES
+// ============================================================================
+
+/**
+ * Agent execution tracker for monitoring agentic AI operations
+ */
+class AgentExecutionTracker {
+  constructor() {
+    this.executions = new Map();
+    this.isEnabled = true;
+  }
+
+  // Start tracking an agent execution
+  startExecution(sessionId, goal) {
+    if (!this.isEnabled) return;
+
+    this.executions.set(sessionId, {
+      sessionId,
+      goal,
+      startTime: performance.now(),
+      steps: [],
+      status: 'running',
+      currentStep: null
+    });
+
+    console.log(`🤖 Agent started: ${goal} (Session: ${sessionId})`);
+  }
+
+  // Add a step to the execution
+  addStep(sessionId, step) {
+    if (!this.isEnabled) return;
+
+    const execution = this.executions.get(sessionId);
+    if (!execution) return;
+
+    const stepWithTiming = {
+      ...step,
+      timestamp: performance.now(),
+      duration: step.startTime ? performance.now() - step.startTime : 0
+    };
+
+    execution.steps.push(stepWithTiming);
+    execution.currentStep = stepWithTiming;
+
+    console.log(`🔧 Agent step: ${step.action || step.thought}`, stepWithTiming);
+  }
+
+  // Complete an execution
+  completeExecution(sessionId, result) {
+    if (!this.isEnabled) return;
+
+    const execution = this.executions.get(sessionId);
+    if (!execution) return;
+
+    execution.status = 'completed';
+    execution.endTime = performance.now();
+    execution.totalDuration = execution.endTime - execution.startTime;
+    execution.result = result;
+
+    console.log(`✅ Agent completed: ${execution.goal}`, {
+      duration: `${execution.totalDuration.toFixed(2)}ms`,
+      steps: execution.steps.length,
+      result
+    });
+  }
+
+  // Mark execution as failed
+  failExecution(sessionId, error) {
+    if (!this.isEnabled) return;
+
+    const execution = this.executions.get(sessionId);
+    if (!execution) return;
+
+    execution.status = 'failed';
+    execution.endTime = performance.now();
+    execution.totalDuration = execution.endTime - execution.startTime;
+    execution.error = error;
+
+    console.error(`❌ Agent failed: ${execution.goal}`, {
+      duration: `${execution.totalDuration.toFixed(2)}ms`,
+      steps: execution.steps.length,
+      error
+    });
+  }
+
+  // Get execution details
+  getExecution(sessionId) {
+    return this.executions.get(sessionId);
+  }
+
+  // Get all executions
+  getAllExecutions() {
+    return Array.from(this.executions.values());
+  }
+
+  // Clear old executions (keep last 10)
+  cleanup() {
+    const executions = Array.from(this.executions.entries());
+    if (executions.length > 10) {
+      const toKeep = executions.slice(-10);
+      this.executions.clear();
+      toKeep.forEach(([id, execution]) => {
+        this.executions.set(id, execution);
+      });
+    }
+  }
+}
+
+// Create singleton instance
+const agentTracker = new AgentExecutionTracker();
+
+// React hook for agent execution tracking
+export const useAgentTracker = () => {
+  return {
+    startExecution: agentTracker.startExecution.bind(agentTracker),
+    addStep: agentTracker.addStep.bind(agentTracker),
+    completeExecution: agentTracker.completeExecution.bind(agentTracker),
+    failExecution: agentTracker.failExecution.bind(agentTracker),
+    getExecution: agentTracker.getExecution.bind(agentTracker),
+    getAllExecutions: agentTracker.getAllExecutions.bind(agentTracker)
+  };
+};
+
+// Agent performance monitoring utilities
+export const measureAgentStep = async (stepName, stepFunction) => {
+  const startTime = performance.now();
+
+  try {
+    const result = await stepFunction();
+    const duration = performance.now() - startTime;
+
+    console.log(`⚡ Agent step "${stepName}" completed in ${duration.toFixed(2)}ms`);
+
+    return {
+      success: true,
+      result,
+      duration,
+      stepName
+    };
+  } catch (error) {
+    const duration = performance.now() - startTime;
+
+    console.error(`❌ Agent step "${stepName}" failed after ${duration.toFixed(2)}ms:`, error);
+
+    return {
+      success: false,
+      error,
+      duration,
+      stepName
+    };
+  }
+};
+
+export { agentTracker };

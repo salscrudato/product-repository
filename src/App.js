@@ -6,6 +6,7 @@ import { GlobalStyle } from './styles/GlobalStyle';
 import { theme } from './styles/theme';
 import ErrorBoundary from './components/ErrorBoundary';
 import { initBundleOptimizations, createOptimizedLazyComponent } from './utils/bundleOptimization';
+// import AgentAssistant from './components/AgentAssistant';
 
 /* public */
 import Login from './components/Login';
@@ -73,6 +74,18 @@ const ProductBuilder = createOptimizedLazyComponent(
 const ClaimsAnalysis = createOptimizedLazyComponent(
   () => import('./components/ClaimsAnalysis'),
   { chunkName: 'ClaimsAnalysis', fallback: <LoadingSpinner /> }
+);
+const AgentDemo = createOptimizedLazyComponent(
+  () => import('./components/AgentDemo'),
+  { chunkName: 'AgentDemo', fallback: <LoadingSpinner /> }
+);
+const TaskManagement = createOptimizedLazyComponent(
+  () => import('./components/TaskManagement'),
+  { chunkName: 'TaskManagement', fallback: <LoadingSpinner /> }
+);
+const News = createOptimizedLazyComponent(
+  () => import('./components/News'),
+  { chunkName: 'News', fallback: <LoadingSpinner /> }
 );
 
 
@@ -232,6 +245,36 @@ const HistoryWrapper = () => {
             </RequireAuth>
           }
         />
+        <Route
+          path="/agent-demo"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <AgentDemo />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/tasks"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <TaskManagement />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/news"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <News />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
 
         {/* catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -257,6 +300,7 @@ function App() {
           }}
         >
           <HistoryWrapper />
+          {/* <AgentAssistant /> */}
         </Router>
       </ThemeProvider>
     </ErrorBoundary>

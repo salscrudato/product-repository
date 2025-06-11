@@ -406,12 +406,28 @@ export default function MainNavigation() {
               Claims Analysis
             </NavLink>
           </NavItem>
-          <NavItem>
+          {/* <NavItem>
             <NavLink
               to="/rules"
               className={location.pathname === '/rules' ? 'active' : ''}
             >
               Rules
+            </NavLink>
+          </NavItem> */}
+          <NavItem>
+            <NavLink
+              to="/tasks"
+              className={location.pathname === '/tasks' ? 'active' : ''}
+            >
+              Tasks
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
+              to="/news"
+              className={location.pathname === '/news' ? 'active' : ''}
+            >
+              News
             </NavLink>
           </NavItem>
           <NavItem>
@@ -422,6 +438,14 @@ export default function MainNavigation() {
               Data Dictionary
             </NavLink>
           </NavItem>
+          {/* <NavItem>
+            <NavLink
+              to="/agent-demo"
+              className={location.pathname === '/agent-demo' ? 'active' : ''}
+            >
+              🤖 Agent Demo
+            </NavLink>
+          </NavItem> */}
         </NavList>
 
         <ProfileSection data-profile-menu>
