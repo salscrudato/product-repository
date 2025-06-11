@@ -1,10 +1,11 @@
 // src/App.js
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from 'styled-components';
 import { GlobalStyle } from './styles/GlobalStyle';
 import { theme } from './styles/theme';
 import ErrorBoundary from './components/ErrorBoundary';
+import { initBundleOptimizations, createOptimizedLazyComponent } from './utils/bundleOptimization';
 
 /* public */
 import Login from './components/Login';
@@ -28,18 +29,51 @@ const LoadingSpinner = () => (
   </div>
 );
 
-/* protected - Heavy components lazy loaded */
-const DataDictionary = lazy(() => import('./components/DataDictionary'));
-const CoverageScreen = lazy(() => import('./components/CoverageScreen'));
-const PricingScreen = lazy(() => import('./components/PricingScreen'));
-const TableScreen = lazy(() => import('./components/TableScreen'));
-const FormsScreen = lazy(() => import('./components/FormsScreen'));
-const StatesScreen = lazy(() => import('./components/StatesScreen'));
-const RulesScreen = lazy(() => import('./components/RulesScreen'));
-const CoverageStatesScreen = lazy(() => import('./components/CoverageStatesScreen'));
-const ProductExplorer = lazy(() => import('./components/ProductExplorer'));
-const ProductBuilder = lazy(() => import('./components/ProductBuilder'));
-const ClaimsAnalysis = lazy(() => import('./components/ClaimsAnalysis'));
+/* protected - Heavy components lazy loaded with optimization */
+const DataDictionary = createOptimizedLazyComponent(
+  () => import('./components/DataDictionary'),
+  { chunkName: 'DataDictionary', fallback: <LoadingSpinner /> }
+);
+const CoverageScreen = createOptimizedLazyComponent(
+  () => import('./components/CoverageScreen'),
+  { chunkName: 'CoverageScreen', fallback: <LoadingSpinner /> }
+);
+const PricingScreen = createOptimizedLazyComponent(
+  () => import('./components/PricingScreen'),
+  { chunkName: 'PricingScreen', fallback: <LoadingSpinner /> }
+);
+const TableScreen = createOptimizedLazyComponent(
+  () => import('./components/TableScreen'),
+  { chunkName: 'TableScreen', fallback: <LoadingSpinner /> }
+);
+const FormsScreen = createOptimizedLazyComponent(
+  () => import('./components/FormsScreen'),
+  { chunkName: 'FormsScreen', fallback: <LoadingSpinner /> }
+);
+const StatesScreen = createOptimizedLazyComponent(
+  () => import('./components/StatesScreen'),
+  { chunkName: 'StatesScreen', fallback: <LoadingSpinner /> }
+);
+const RulesScreen = createOptimizedLazyComponent(
+  () => import('./components/RulesScreen'),
+  { chunkName: 'RulesScreen', fallback: <LoadingSpinner /> }
+);
+const CoverageStatesScreen = createOptimizedLazyComponent(
+  () => import('./components/CoverageStatesScreen'),
+  { chunkName: 'CoverageStatesScreen', fallback: <LoadingSpinner /> }
+);
+const ProductExplorer = createOptimizedLazyComponent(
+  () => import('./components/ProductExplorer'),
+  { chunkName: 'ProductExplorer', fallback: <LoadingSpinner /> }
+);
+const ProductBuilder = createOptimizedLazyComponent(
+  () => import('./components/ProductBuilder'),
+  { chunkName: 'ProductBuilder', fallback: <LoadingSpinner /> }
+);
+const ClaimsAnalysis = createOptimizedLazyComponent(
+  () => import('./components/ClaimsAnalysis'),
+  { chunkName: 'ClaimsAnalysis', fallback: <LoadingSpinner /> }
+);
 
 
 
@@ -207,6 +241,11 @@ const HistoryWrapper = () => {
 };
 
 function App() {
+  // Initialize bundle optimizations
+  useEffect(() => {
+    initBundleOptimizations();
+  }, []);
+
   return (
     <ErrorBoundary>
       <ThemeProvider theme={theme}>

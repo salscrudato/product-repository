@@ -190,17 +190,136 @@ export const createLazyComponent = (importFn, fallback = null) => {
   ));
 };
 
-// Bundle size analyzer (development only)
+// Enhanced bundle size analyzer with detailed metrics
 export const analyzeBundleSize = () => {
   if (process.env.NODE_ENV !== 'development') return;
-  
+
   const scripts = Array.from(document.querySelectorAll('script[src]'));
-  const totalSize = scripts.reduce((total, script) => {
-    // This is a rough estimation - in production you'd use webpack-bundle-analyzer
-    return total + (script.src.length * 100); // Rough estimate
-  }, 0);
-  
-  console.log(`📦 Estimated bundle size: ${(totalSize / 1024).toFixed(2)} KB`);
+  const stylesheets = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
+
+  // Analyze JavaScript bundles
+  const jsAnalysis = scripts.map(script => {
+    const url = new URL(script.src);
+    const filename = url.pathname.split('/').pop();
+    return {
+      filename,
+      url: script.src,
+      estimated: script.src.length * 100 // Rough estimate
+    };
+  });
+
+  // Analyze CSS bundles
+  const cssAnalysis = stylesheets.map(link => {
+    const url = new URL(link.href);
+    const filename = url.pathname.split('/').pop();
+    return {
+      filename,
+      url: link.href,
+      estimated: link.href.length * 50 // CSS typically smaller
+    };
+  });
+
+  const totalJS = jsAnalysis.reduce((sum, item) => sum + item.estimated, 0);
+  const totalCSS = cssAnalysis.reduce((sum, item) => sum + item.estimated, 0);
+  const totalSize = totalJS + totalCSS;
+
+  console.group('📦 Bundle Analysis');
+  console.log(`Total estimated size: ${(totalSize / 1024).toFixed(2)} KB`);
+  console.log(`JavaScript: ${(totalJS / 1024).toFixed(2)} KB (${jsAnalysis.length} files)`);
+  console.log(`CSS: ${(totalCSS / 1024).toFixed(2)} KB (${cssAnalysis.length} files)`);
+
+  if (jsAnalysis.length > 0) {
+    console.log('JavaScript bundles:', jsAnalysis);
+  }
+  if (cssAnalysis.length > 0) {
+    console.log('CSS bundles:', cssAnalysis);
+  }
+  console.groupEnd();
+
+  // Performance recommendations
+  if (totalSize > 1024 * 1024) { // > 1MB
+    console.warn('⚠️ Large bundle detected. Consider code splitting or tree shaking.');
+  }
+  if (jsAnalysis.length > 10) {
+    console.warn('⚠️ Many JS chunks detected. Consider bundle consolidation.');
+  }
+};
+
+// Resource monitoring utilities
+export const monitorResourceUsage = () => {
+  if (!performanceMonitor.isEnabled) return;
+
+  // Monitor network requests
+  if (window.PerformanceObserver) {
+    try {
+      const networkObserver = new PerformanceObserver((list) => {
+        list.getEntries().forEach((entry) => {
+          if (entry.duration > 1000) { // Slow requests > 1s
+            console.warn(`🐌 Slow network request: ${entry.name} took ${entry.duration.toFixed(2)}ms`);
+          }
+        });
+      });
+      networkObserver.observe({ entryTypes: ['navigation', 'resource'] });
+    } catch (e) {
+      console.log('Network monitoring not supported');
+    }
+  }
+
+  // Monitor DOM mutations (expensive operations)
+  if (window.MutationObserver) {
+    let mutationCount = 0;
+    const mutationObserver = new MutationObserver((mutations) => {
+      mutationCount += mutations.length;
+
+      // Log if too many mutations in short time
+      if (mutationCount > 100) {
+        console.warn(`🔄 High DOM mutation rate: ${mutationCount} mutations`);
+        mutationCount = 0;
+      }
+    });
+
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true
+    });
+
+    // Reset counter periodically
+    setInterval(() => {
+      mutationCount = 0;
+    }, 5000);
+  }
+};
+
+// Web Vitals monitoring
+export const measureWebVitals = () => {
+  if (!performanceMonitor.isEnabled) return;
+
+  // Largest Contentful Paint
+  if (window.PerformanceObserver) {
+    try {
+      const lcpObserver = new PerformanceObserver((list) => {
+        const entries = list.getEntries();
+        const lastEntry = entries[entries.length - 1];
+        console.log(`🎨 LCP: ${lastEntry.startTime.toFixed(2)}ms`);
+      });
+      lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
+    } catch (e) {
+      console.log('LCP monitoring not supported');
+    }
+
+    // First Input Delay
+    try {
+      const fidObserver = new PerformanceObserver((list) => {
+        list.getEntries().forEach((entry) => {
+          console.log(`⚡ FID: ${entry.processingStart - entry.startTime}ms`);
+        });
+      });
+      fidObserver.observe({ entryTypes: ['first-input'] });
+    } catch (e) {
+      console.log('FID monitoring not supported');
+    }
+  }
 };
 
 // Initialize performance monitoring
@@ -208,12 +327,19 @@ export const initPerformanceMonitoring = () => {
   if (process.env.NODE_ENV === 'development') {
     performanceMonitor.observeLongTasks();
     performanceMonitor.observeLayoutShifts();
-    
+    monitorResourceUsage();
+    measureWebVitals();
+
+    // Enhanced bundle analysis
+    setTimeout(() => {
+      analyzeBundleSize();
+    }, 2000);
+
     // Check memory usage periodically
     setInterval(() => {
       performanceMonitor.checkMemoryUsage('Periodic Check');
     }, 30000); // Every 30 seconds
-    
+
     // Cleanup on page unload
     window.addEventListener('beforeunload', () => {
       performanceMonitor.cleanup();

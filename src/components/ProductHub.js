@@ -39,6 +39,8 @@ import MarkdownRenderer from '../utils/markdownParser';
 import ProductCard from './ui/ProductCard';
 import VirtualizedGrid from './ui/VirtualizedGrid';
 import { usePerformanceMonitor, debounce } from '../utils/performance';
+import { useMemoryManager } from '../utils/memoryManager';
+import { OptimizedSearchInput, OptimizedTable } from './ui/OptimizedComponents';
 
 /* ---------- Animations ---------- */
 // float animation removed - unused
@@ -872,6 +874,7 @@ Persona: You are an expert in P&C insurance products. Your task is to analyze th
 // Memoized ProductHub component for better performance
 const ProductHub = memo(() => {
   const performanceMonitor = usePerformanceMonitor();
+  const memoryManager = useMemoryManager();
   const { products, loading, error } = useProducts({ enableCache: true, maxResults: 500 });
   const [searchTerm, setSearchTerm] = useState('');
   const [rawSearch, setRawSearch] = useState('');
@@ -961,6 +964,29 @@ const ProductHub = memo(() => {
       document.body.style.overflow = 'unset';
     };
   }, [modalOpen, summaryModalOpen, detailsModalOpen, chatModalOpen, rulesModalOpen, dictModalOpen]);
+
+  // Memory management and performance monitoring
+  useEffect(() => {
+    performanceMonitor.startTiming('ProductHub Mount');
+
+    // Register cleanup for this component
+    const cleanup = memoryManager.registerCleanup(() => {
+      // Clear any component-specific data
+      setLoadingSummary({});
+      setChatMessages([]);
+      setModalData(null);
+      setSelectedProduct(null);
+      setChatInput('');
+      performanceMonitor.checkMemoryUsage('ProductHub Cleanup');
+    });
+
+    performanceMonitor.endTiming('ProductHub Mount');
+
+    return () => {
+      cleanup();
+      performanceMonitor.checkMemoryUsage('ProductHub Unmount');
+    };
+  }, [performanceMonitor, memoryManager]);
 
   // Optimized product filtering with enhanced search
   const filtered = useMemo(() => {

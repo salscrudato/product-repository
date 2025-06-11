@@ -25,9 +25,14 @@ class FirebaseOptimizedService {
     this.subscribers = new Map();
     this.batchQueue = [];
     this.batchTimeout = null;
+    this.queryCache = new Map(); // Enhanced query result caching
+    this.indexHints = new Map(); // Store index optimization hints
     this.CACHE_TTL = 5 * 60 * 1000; // 5 minutes
     this.BATCH_SIZE = 500;
     this.BATCH_DELAY = 100; // 100ms
+    this.MAX_CONCURRENT_QUERIES = 3; // Limit concurrent queries
+    this.activeQueries = 0;
+    this.queryQueue = [];
   }
 
   // Enhanced caching with TTL
@@ -50,18 +55,50 @@ class FirebaseOptimizedService {
     });
   }
 
-  // Optimized collection fetching with caching
+  // Enhanced query queue management
+  async executeQuery(queryFn, cacheKey) {
+    return new Promise((resolve, reject) => {
+      const queryTask = async () => {
+        this.activeQueries++;
+        try {
+          const result = await queryFn();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        } finally {
+          this.activeQueries--;
+          this.processQueryQueue();
+        }
+      };
+
+      if (this.activeQueries < this.MAX_CONCURRENT_QUERIES) {
+        queryTask();
+      } else {
+        this.queryQueue.push(queryTask);
+      }
+    });
+  }
+
+  processQueryQueue() {
+    if (this.queryQueue.length > 0 && this.activeQueries < this.MAX_CONCURRENT_QUERIES) {
+      const nextQuery = this.queryQueue.shift();
+      nextQuery();
+    }
+  }
+
+  // Optimized collection fetching with enhanced caching and query optimization
   async getCollection(collectionName, options = {}) {
-    const { 
-      useCache = true, 
-      orderByField = null, 
+    const {
+      useCache = true,
+      orderByField = null,
       orderDirection = 'asc',
       limitCount = null,
-      whereConditions = []
+      whereConditions = [],
+      enableQueryOptimization = true
     } = options;
 
     const cacheKey = `${collectionName}_${JSON.stringify(options)}`;
-    
+
     // Check cache first
     if (useCache) {
       const cached = this.getCachedData(cacheKey);
@@ -71,41 +108,126 @@ class FirebaseOptimizedService {
       }
     }
 
-    try {
-      let q = collection(db, collectionName);
-      
-      // Apply where conditions
-      whereConditions.forEach(([field, operator, value]) => {
-        q = query(q, where(field, operator, value));
-      });
-      
-      // Apply ordering
-      if (orderByField) {
-        q = query(q, orderBy(orderByField, orderDirection));
+    // Check query cache for similar queries
+    if (useCache && this.queryCache.has(cacheKey)) {
+      const cachedQuery = this.queryCache.get(cacheKey);
+      if (Date.now() - cachedQuery.timestamp < this.CACHE_TTL) {
+        console.log(`🎯 Query cache hit for ${collectionName}`);
+        return cachedQuery.data;
       }
-      
-      // Apply limit
-      if (limitCount) {
-        q = query(q, limit(limitCount));
-      }
-
-      const snapshot = await getDocs(q);
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      // Cache the result
-      if (useCache) {
-        this.setCachedData(cacheKey, data);
-      }
-
-      console.log(`🔥 Fetched ${data.length} documents from ${collectionName}`);
-      return data;
-    } catch (error) {
-      console.error(`Error fetching ${collectionName}:`, error);
-      throw error;
     }
+
+    const queryFn = async () => {
+      try {
+        let q = collection(db, collectionName);
+
+        // Optimize query order for better performance
+        if (enableQueryOptimization && whereConditions.length > 0) {
+          // Sort where conditions by selectivity (most selective first)
+          const optimizedConditions = this.optimizeWhereConditions(whereConditions, collectionName);
+          optimizedConditions.forEach(([field, operator, value]) => {
+            q = query(q, where(field, operator, value));
+          });
+        } else {
+          whereConditions.forEach(([field, operator, value]) => {
+            q = query(q, where(field, operator, value));
+          });
+        }
+
+        // Apply ordering
+        if (orderByField) {
+          q = query(q, orderBy(orderByField, orderDirection));
+        }
+
+        // Apply limit (always use limit for performance)
+        const effectiveLimit = limitCount || 1000; // Default limit
+        q = query(q, limit(effectiveLimit));
+
+        const startTime = performance.now();
+        const snapshot = await getDocs(q);
+        const queryTime = performance.now() - startTime;
+
+        const data = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        // Store performance metrics for query optimization
+        this.storeQueryMetrics(collectionName, options, queryTime, data.length);
+
+        // Cache the result
+        if (useCache) {
+          this.setCachedData(cacheKey, data);
+          this.queryCache.set(cacheKey, {
+            data,
+            timestamp: Date.now(),
+            queryTime,
+            resultCount: data.length
+          });
+        }
+
+        console.log(`🔥 Fetched ${data.length} documents from ${collectionName} in ${queryTime.toFixed(2)}ms`);
+        return data;
+      } catch (error) {
+        console.error(`Error fetching ${collectionName}:`, error);
+
+        // Provide index optimization hints
+        if (error.code === 'failed-precondition' && error.message.includes('index')) {
+          this.suggestIndexOptimization(collectionName, options, error);
+        }
+
+        throw error;
+      }
+    };
+
+    return this.executeQuery(queryFn, cacheKey);
+  }
+
+  // Optimize where conditions based on field selectivity
+  optimizeWhereConditions(conditions, collectionName) {
+    const hints = this.indexHints.get(collectionName) || {};
+
+    return [...conditions].sort((a, b) => {
+      const [fieldA] = a;
+      const [fieldB] = b;
+
+      // Prioritize fields with known high selectivity
+      const selectivityA = hints[fieldA]?.selectivity || 0.5;
+      const selectivityB = hints[fieldB]?.selectivity || 0.5;
+
+      return selectivityB - selectivityA; // Higher selectivity first
+    });
+  }
+
+  // Store query performance metrics
+  storeQueryMetrics(collectionName, options, queryTime, resultCount) {
+    const metrics = {
+      timestamp: Date.now(),
+      queryTime,
+      resultCount,
+      options
+    };
+
+    // Store in performance monitoring (could be sent to analytics)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📊 Query metrics for ${collectionName}:`, metrics);
+    }
+  }
+
+  // Suggest index optimizations
+  suggestIndexOptimization(collectionName, options, error) {
+    console.group('🔍 Index Optimization Suggestion');
+    console.log(`Collection: ${collectionName}`);
+    console.log('Query options:', options);
+    console.log('Error:', error.message);
+
+    // Extract suggested index from error message
+    const indexMatch = error.message.match(/https:\/\/console\.firebase\.google\.com[^\s]+/);
+    if (indexMatch) {
+      console.log('🔗 Create index:', indexMatch[0]);
+    }
+
+    console.groupEnd();
   }
 
   // Optimized document fetching
