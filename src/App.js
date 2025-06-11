@@ -1,34 +1,45 @@
 // src/App.js
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from 'styled-components';
 import { GlobalStyle } from './styles/GlobalStyle';
 import { theme } from './styles/theme';
 import ErrorBoundary from './components/ErrorBoundary';
 
-
-
 /* public */
 import Login from './components/Login';
 
-/* protected */
+/* protected - Core components loaded immediately */
 import Home from './components/Home';
 import ProductHub from './components/ProductHub';
-import DataDictionary from './components/DataDictionary';
-import CoverageScreen from './components/CoverageScreen';
-import PricingScreen from './components/PricingScreen';
-import TableScreen from './components/TableScreen';
-import FormsScreen from './components/FormsScreen';
-import StatesScreen from './components/StatesScreen';
-import RulesScreen from './components/RulesScreen';
-import CoverageStatesScreen from './components/CoverageStatesScreen';
-import ProductExplorer from './components/ProductExplorer';
-import ProductBuilder from './components/ProductBuilder';
-import ClaimsAnalysis from './components/ClaimsAnalysis';
-
-
-/* wrapper */
 import RequireAuth from './components/RequireAuth';
+
+// Loading component for lazy-loaded routes
+const LoadingSpinner = () => (
+  <div style={{
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100vh',
+    fontSize: '16px',
+    color: '#6b7280'
+  }}>
+    Loading...
+  </div>
+);
+
+/* protected - Heavy components lazy loaded */
+const DataDictionary = lazy(() => import('./components/DataDictionary'));
+const CoverageScreen = lazy(() => import('./components/CoverageScreen'));
+const PricingScreen = lazy(() => import('./components/PricingScreen'));
+const TableScreen = lazy(() => import('./components/TableScreen'));
+const FormsScreen = lazy(() => import('./components/FormsScreen'));
+const StatesScreen = lazy(() => import('./components/StatesScreen'));
+const RulesScreen = lazy(() => import('./components/RulesScreen'));
+const CoverageStatesScreen = lazy(() => import('./components/CoverageStatesScreen'));
+const ProductExplorer = lazy(() => import('./components/ProductExplorer'));
+const ProductBuilder = lazy(() => import('./components/ProductBuilder'));
+const ClaimsAnalysis = lazy(() => import('./components/ClaimsAnalysis'));
 
 
 
@@ -71,7 +82,9 @@ const HistoryWrapper = () => {
           path="/coverage/:productId/*"
           element={
             <RequireAuth>
-              <CoverageScreen />
+              <Suspense fallback={<LoadingSpinner />}>
+                <CoverageScreen />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -79,7 +92,9 @@ const HistoryWrapper = () => {
           path="/coverage-states/:productId/:coverageId"
           element={
             <RequireAuth>
-              <CoverageStatesScreen />
+              <Suspense fallback={<LoadingSpinner />}>
+                <CoverageStatesScreen />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -87,7 +102,9 @@ const HistoryWrapper = () => {
           path="/forms/:productId/*"
           element={
             <RequireAuth>
-              <FormsScreen />
+              <Suspense fallback={<LoadingSpinner />}>
+                <FormsScreen />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -95,7 +112,9 @@ const HistoryWrapper = () => {
           path="/pricing/:productId"
           element={
             <RequireAuth>
-              <PricingScreen />
+              <Suspense fallback={<LoadingSpinner />}>
+                <PricingScreen />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -103,7 +122,9 @@ const HistoryWrapper = () => {
           path="/states/:productId"
           element={
             <RequireAuth>
-              <StatesScreen />
+              <Suspense fallback={<LoadingSpinner />}>
+                <StatesScreen />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -111,7 +132,9 @@ const HistoryWrapper = () => {
           path="/table/:productId/:stepId"
           element={
             <RequireAuth>
-              <TableScreen />
+              <Suspense fallback={<LoadingSpinner />}>
+                <TableScreen />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -119,7 +142,9 @@ const HistoryWrapper = () => {
           path="/rules"
           element={
             <RequireAuth>
-              <RulesScreen />
+              <Suspense fallback={<LoadingSpinner />}>
+                <RulesScreen />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -127,7 +152,9 @@ const HistoryWrapper = () => {
           path="/rules/:productId"
           element={
             <RequireAuth>
-              <RulesScreen />
+              <Suspense fallback={<LoadingSpinner />}>
+                <RulesScreen />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -135,7 +162,9 @@ const HistoryWrapper = () => {
           path="/product-explorer"
           element={
             <RequireAuth>
-              <ProductExplorer />
+              <Suspense fallback={<LoadingSpinner />}>
+                <ProductExplorer />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -143,7 +172,9 @@ const HistoryWrapper = () => {
           path="/product-builder"
           element={
             <RequireAuth>
-              <ProductBuilder />
+              <Suspense fallback={<LoadingSpinner />}>
+                <ProductBuilder />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -151,7 +182,9 @@ const HistoryWrapper = () => {
           path="/claims-analysis"
           element={
             <RequireAuth>
-              <ClaimsAnalysis />
+              <Suspense fallback={<LoadingSpinner />}>
+                <ClaimsAnalysis />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -159,7 +192,9 @@ const HistoryWrapper = () => {
           path="/data-dictionary"
           element={
             <RequireAuth>
-              <DataDictionary />
+              <Suspense fallback={<LoadingSpinner />}>
+                <DataDictionary />
+              </Suspense>
             </RequireAuth>
           }
         />

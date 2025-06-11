@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import MainNavigation from './ui/Navigation';
@@ -36,6 +36,9 @@ import BulkFormUploadModal from './BulkFormUploadModal';
 import XLSXImportModal from './XLSXImportModal';
 import useProducts from '../hooks/useProducts';
 import MarkdownRenderer from '../utils/markdownParser';
+import ProductCard from './ui/ProductCard';
+import VirtualizedGrid from './ui/VirtualizedGrid';
+import { usePerformanceMonitor, debounce } from '../utils/performance';
 
 /* ---------- Animations ---------- */
 // float animation removed - unused
@@ -270,259 +273,9 @@ const TableActions = styled.div`
   justify-content: center;
 `;
 
-const ProductCard = styled.div`
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(226, 232, 240, 0.5);
-  border-radius: 18px;
-  padding: 28px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
-  transition: all 0.25s ease;
-  position: relative;
-  width: 100%;
-  min-height: 300px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+// Removed duplicate styled components - now using separate ProductCard component
 
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-
-  &:hover {
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
-    transform: translateY(-2px);
-    border-color: rgba(99, 102, 241, 0.25);
-
-    &::before {
-      opacity: 1;
-    }
-  }
-
-  @media (max-width: 768px) {
-    padding: 24px;
-    min-height: 280px;
-  }
-`;
-
-const ProductName = styled.h3`
-  font-size: 24px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0 0 18px 0;
-  padding-right: 120px;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-
-  @media (max-width: 768px) {
-    font-size: 21px;
-    margin-bottom: 16px;
-    padding-right: 100px;
-    gap: 8px;
-  }
-`;
-
-const ProductMeta = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px 20px;
-  margin-bottom: 16px;
-  font-size: 15px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-`;
-
-const MetaItem = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-`;
-
-const MetaLabel = styled.span`
-  font-weight: 600;
-  color: #64748b;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-bottom: 2px;
-`;
-
-const MetaValue = styled.span`
-  color: #1e293b;
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-`;
-
-const StatusBadge = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: ${({ $status }) => {
-    switch ($status) {
-      case 'active': return 'rgba(16, 185, 129, 0.1)';
-      case 'draft': return 'rgba(245, 158, 11, 0.1)';
-      case 'deprecated': return 'rgba(239, 68, 68, 0.1)';
-      default: return 'rgba(99, 102, 241, 0.1)';
-    }
-  }};
-  color: ${({ $status }) => {
-    switch ($status) {
-      case 'active': return '#047857';
-      case 'draft': return '#92400e';
-      case 'deprecated': return '#dc2626';
-      default: return '#6366f1';
-    }
-  }};
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 12px;
-  border: 1px solid ${({ $status }) => {
-    switch ($status) {
-      case 'active': return 'rgba(16, 185, 129, 0.2)';
-      case 'draft': return 'rgba(245, 158, 11, 0.2)';
-      case 'deprecated': return 'rgba(239, 68, 68, 0.2)';
-      default: return 'rgba(99, 102, 241, 0.2)';
-    }
-  }};
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const MetaGroup = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-
-  svg {
-    width: 14px;
-    height: 14px;
-    color: #6366f1;
-    opacity: 0.7;
-  }
-`;
-
-const LastUpdated = styled.div`
-  font-size: 12px;
-  color: #6b7280;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(226, 232, 240, 0.5);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-`;
-
-const ActionButtons = styled.div`
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin: 12px 0 16px 0;
-
-  @media (max-width: 768px) {
-    gap: 8px;
-    margin: 10px 0 14px 0;
-  }
-`;
-
-const ActionButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 11px 18px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  color: #475569;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  letter-spacing: -0.01em;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-
-  &:hover {
-    background: rgba(99, 102, 241, 0.06);
-    border-color: rgba(99, 102, 241, 0.25);
-    color: #6366f1;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.15);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  @media (max-width: 768px) {
-    padding: 9px 14px;
-    font-size: 13px;
-    gap: 6px;
-  }
-`;
-
-const QuickLinks = styled.div`
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin: 14px 0 0 0;
-  font-size: 14px;
-  align-items: center;
-
-  @media (max-width: 768px) {
-    gap: 12px;
-    font-size: 13px;
-    margin: 12px 0 0 0;
-  }
-`;
-
-const QuickLink = styled(Link)`
-  color: #6366f1;
-  text-decoration: none;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  letter-spacing: -0.01em;
-
-  &:hover {
-    color: #4f46e5;
-    text-decoration: underline;
-  }
-`;
-
-const CardActions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  position: absolute;
-  top: 20px;
-  right: 20px;
-
-  @media (max-width: 768px) {
-    top: 16px;
-    right: 16px;
-  }
-`;
-
+// Keep IconButton for table view
 const IconButton = styled.button`
   width: 36px;
   height: 36px;
@@ -1077,18 +830,18 @@ Persona: You are an expert in P&C insurance products. Your task is to analyze th
    - **Notice:** A policyholder notice explaining certain revisions and other mandatory legal disclaimers.
    - **Dec/Quote:** The cover letter of the policy explaining all the policyholder information, coverages, limits, deductibles, list of forms attached, etc.
 
-2. **Identify All Coverages:**
+2. **Identify and List All Coverages Individually:**
    - For each coverage, extract the following details:
      - **coverageName:** The name of the coverage. If not explicitly stated, infer based on context.
-     - **scopeOfCoverage:** A description of what is covered, including specific items or scenarios.
+     - **scopeOfCoverage:** A description of what is covered, including specific items or scenarios (2-3 sentences max)
      - **limits:** Any monetary or other limits applied to the coverage. Include specific values if available.
      - **perilsCovered:** An array of perils or risks that are covered under this coverage.
      - **enhances:** (For endorsements) An array of coverage names that this endorsement modifies or enhances. Leave empty if not applicable.
    - If the form is an endorsement, ensure to identify which coverages it enhances or modifies.
 
 3. **Extract General Conditions and Exclusions:**
-   - **generalConditions:** An array of conditions that apply to the entire document or policy.
-   - **generalExclusions:** An array of exclusions that apply to the entire document or policy.
+   - **generalConditions:** An array of conditions that apply to the entire document or policy (2-3 sentences max)
+   - **generalExclusions:** An array of exclusions that apply to the entire document or policy (2-3 sentences max)
    - These should be distinct from conditions and exclusions specific to individual coverages.
 
 **Important Guidelines:**
@@ -1116,8 +869,10 @@ Persona: You are an expert in P&C insurance products. Your task is to analyze th
 }
 `;
 
-export default function ProductHub() {
-  const { products, loading, error } = useProducts();
+// Memoized ProductHub component for better performance
+const ProductHub = memo(() => {
+  const performanceMonitor = usePerformanceMonitor();
+  const { products, loading, error } = useProducts({ enableCache: true, maxResults: 500 });
   const [searchTerm, setSearchTerm] = useState('');
   const [rawSearch, setRawSearch] = useState('');
 
@@ -1160,11 +915,19 @@ export default function ProductHub() {
 
 
 
-  // Debounce search
+  // Optimized debounced search with performance monitoring
+  const debouncedSetSearchTerm = useCallback(
+    debounce((term) => {
+      performanceMonitor.startTiming('search_filter');
+      setSearchTerm(term.trim());
+      performanceMonitor.endTiming('search_filter');
+    }, 300),
+    [performanceMonitor]
+  );
+
   useEffect(() => {
-    const id = setTimeout(() => setSearchTerm(rawSearch.trim()), 250);
-    return () => clearTimeout(id);
-  }, [rawSearch]);
+    debouncedSetSearchTerm(rawSearch);
+  }, [rawSearch, debouncedSetSearchTerm]);
 
   // Handle escape key for modals
   useEffect(() => {
@@ -1199,36 +962,52 @@ export default function ProductHub() {
     };
   }, [modalOpen, summaryModalOpen, detailsModalOpen, chatModalOpen, rulesModalOpen, dictModalOpen]);
 
-  // Filter products
+  // Optimized product filtering with enhanced search
   const filtered = useMemo(() => {
-    const q = searchTerm.toLowerCase();
-    return products.filter(p => p.name.toLowerCase().includes(q));
-  }, [products, searchTerm]);
+    performanceMonitor.startTiming('product_filtering');
 
-  // Helper functions
-  const handleOpenDetails = (product) => {
+    if (!searchTerm) {
+      performanceMonitor.endTiming('product_filtering');
+      return products;
+    }
+
+    const q = searchTerm.toLowerCase();
+    const result = products.filter(p =>
+      p.name?.toLowerCase().includes(q) ||
+      p.formNumber?.toLowerCase().includes(q) ||
+      p.productCode?.toLowerCase().includes(q)
+    );
+
+    performanceMonitor.endTiming('product_filtering');
+    return result;
+  }, [products, searchTerm, performanceMonitor]);
+
+  // Memoized helper functions to prevent unnecessary re-renders
+  const handleOpenDetails = useCallback((product) => {
     setSelectedProduct(product);
     setDetailsModalOpen(true);
-  };
+  }, []);
 
-  const handleEdit = (product) => {
+  const handleEdit = useCallback((product) => {
     setEditingId(product.id);
     setName(product.name);
     setFormNumber(product.formNumber || '');
     setProductCode(product.productCode || '');
     setEffectiveDate(product.effectiveDate || '');
     setModalOpen(true);
-  };
+  }, []);
 
-  const handleDelete = async (id) => {
+  const handleDelete = useCallback(async (id) => {
     if (!window.confirm('Delete product?')) return;
     try {
+      performanceMonitor.startTiming('product_delete');
       await deleteDoc(doc(db, 'products', id));
+      performanceMonitor.endTiming('product_delete');
     } catch (error) {
       console.error('Delete failed:', error);
       alert('Failed to delete product');
     }
-  };
+  }, [performanceMonitor]);
 
   const handleSummary = async (id, url) => {
     if (!url) {
@@ -1261,7 +1040,7 @@ export default function ProductHub() {
           'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'gpt-4.5-preview',
           messages: [
             { role: 'system', content: SYSTEM_INSTRUCTIONS.trim() },
             { role: 'user', content: snippet }
@@ -1417,7 +1196,7 @@ export default function ProductHub() {
           'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'gpt-4.1-mini',
           messages: [
             { role: 'system', content: systemPrompt },
             ...chatMessages.slice(-10), // Keep last 10 messages for context
@@ -1478,7 +1257,7 @@ export default function ProductHub() {
           'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'gpt-4.1-mini',
           messages: [
             {
               role: 'system',
@@ -1581,87 +1360,42 @@ export default function ProductHub() {
 
         {filtered.length > 0 ? (
           viewMode === 'cards' ? (
-            <ProductsGrid>
-            {filtered.map(product => (
-              <ProductCard key={product.id}>
-                <CardActions>
-                  <IconButton onClick={() => handleOpenDetails(product)}>
-                    <InformationCircleIcon width={16} height={16} />
-                  </IconButton>
-                  <IconButton onClick={() => handleEdit(product)}>
-                    <PencilIcon width={16} height={16} />
-                  </IconButton>
-                  <IconButton className="danger" onClick={() => handleDelete(product.id)}>
-                    <TrashIcon width={16} height={16} />
-                  </IconButton>
-                </CardActions>
-
-                <ProductName>
-                  {product.name}
-                  <StatusBadge $status="active">In Use</StatusBadge>
-                </ProductName>
-
-                <ProductMeta>
-                  <MetaItem>
-                    <MetaGroup>
-                      <DocumentIcon />
-                      <MetaLabel>Form #:</MetaLabel>
-                    </MetaGroup>
-                    <MetaValue>{product.formNumber || 'CP0010'}</MetaValue>
-                  </MetaItem>
-                  <MetaItem>
-                    <MetaGroup>
-                      <CodeBracketIcon />
-                      <MetaLabel>Code:</MetaLabel>
-                    </MetaGroup>
-                    <MetaValue>{product.productCode || 'CPP'}</MetaValue>
-                  </MetaItem>
-                  <MetaItem>
-                    <MetaGroup>
-                      <CalendarIcon />
-                      <MetaLabel>Effective:</MetaLabel>
-                    </MetaGroup>
-                    <MetaValue>{product.effectiveDate || '05/16'}</MetaValue>
-                  </MetaItem>
-                </ProductMeta>
-
-                <ActionButtons>
-                  <ActionButton
-                    onClick={() => handleSummary(product.id, product.formDownloadUrl)}
-                    disabled={loadingSummary[product.id]}
-                  >
-                    {loadingSummary[product.id] ? (
-                      <LoadingSpinner />
-                    ) : (
-                      <DocumentTextIcon width={14} height={14} style={{ color: '#6366f1' }} />
-                    )}
-                    Summary
-                  </ActionButton>
-                  <ActionButton onClick={() => openChat(product)}>
-                    <ChatBubbleLeftEllipsisIcon width={14} height={14} style={{ color: '#6366f1' }} />
-                    Chat
-                  </ActionButton>
-                </ActionButtons>
-
-                <QuickLinks>
-                  <QuickLink to={`/coverage/${product.id}`}>Coverages</QuickLink>
-                  <span>•</span>
-                  <QuickLink to={`/pricing/${product.id}`}>Pricing</QuickLink>
-                  <span>•</span>
-                  <QuickLink to={`/forms/${product.id}`}>Forms</QuickLink>
-                  <span>•</span>
-                  <QuickLink to={`/states/${product.id}`}>States</QuickLink>
-                  <span>•</span>
-                  <QuickLink to={`/rules/${product.id}`}>Rules</QuickLink>
-                </QuickLinks>
-
-                <LastUpdated>
-                  <ClockIcon width={12} height={12} />
-                  Last updated: May 16 by Sal S.
-                </LastUpdated>
-              </ProductCard>
-            ))}
-            </ProductsGrid>
+            // Use virtualization for large lists (>20 items) for better performance
+            filtered.length > 20 ? (
+              <VirtualizedGrid
+                items={filtered}
+                renderItem={(product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onOpenDetails={handleOpenDetails}
+                    onSummary={handleSummary}
+                    onChat={openChat}
+                    loadingSummary={loadingSummary[product.id]}
+                  />
+                )}
+                columnCount={2}
+                rowHeight={350}
+                height={600}
+              />
+            ) : (
+              <ProductsGrid>
+                {filtered.map(product => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onOpenDetails={handleOpenDetails}
+                    onSummary={handleSummary}
+                    onChat={openChat}
+                    loadingSummary={loadingSummary[product.id]}
+                  />
+                ))}
+              </ProductsGrid>
+            )
           ) : (
             <TableContainer>
               <Table>
@@ -2057,4 +1791,8 @@ export default function ProductHub() {
       />
     </Page>
   );
-}
+});
+
+ProductHub.displayName = 'ProductHub';
+
+export default ProductHub;

@@ -1,6 +1,6 @@
 // src/components/CoverageScreen.js
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useParams, useLocation, useNavigate, Link as RouterLink, Link } from 'react-router-dom';
+import { useParams, useLocation, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   collection,
   getDocs,
@@ -43,10 +43,8 @@ import {
   CurrencyDollarIcon,
   MapIcon,
   Squares2X2Icon,
-  TableCellsIcon,
   ArrowLeftIcon
 } from '@heroicons/react/24/solid';
-import { ArrowDownTrayIcon as DownloadIcon20, ArrowUpTrayIcon as UploadIcon20 } from '@heroicons/react/20/solid';
 import { makeCoverageSheet, sheetToCoverageObjects } from '../utils/xlsx';
 
 /* ---------- styled components ---------- */
@@ -143,7 +141,8 @@ const TitleIcon = styled.div`
   }
 `;
 
-// Breadcrumb navigation - Modern design
+// Breadcrumb navigation - Modern design (unused)
+// eslint-disable-next-line no-unused-vars
 const Breadcrumb = styled.div`
   display: flex;
   align-items: center;
@@ -221,7 +220,8 @@ const SearchIcon = styled(MagnifyingGlassIcon)`
   pointer-events: none;
 `;
 
-// Action Bar - Modern design
+// Action Bar - Modern design (unused)
+// eslint-disable-next-line no-unused-vars
 const ActionBar = styled.div`
   display: flex;
   justify-content: space-between;
@@ -237,13 +237,15 @@ const ActionBar = styled.div`
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 `;
 
+// eslint-disable-next-line no-unused-vars
 const ActionGroup = styled.div`
   display: flex;
   gap: 12px;
   align-items: center;
 `;
 
-// View Toggle
+// View Toggle (unused)
+// eslint-disable-next-line no-unused-vars
 const ViewToggle = styled.div`
   display: flex;
   background: rgba(255, 255, 255, 0.9);
@@ -252,6 +254,7 @@ const ViewToggle = styled.div`
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 `;
 
+// eslint-disable-next-line no-unused-vars
 const ViewToggleButton = styled.button`
   display: flex;
   align-items: center;
@@ -284,7 +287,8 @@ const CoverageGrid = styled.div`
   }
 `;
 
-// Table Container for table view
+// Table Container for table view (unused)
+// eslint-disable-next-line no-unused-vars
 const TableContainer = styled.div`
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
@@ -296,15 +300,18 @@ const TableContainer = styled.div`
   margin-bottom: 120px;
 `;
 
+// eslint-disable-next-line no-unused-vars
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
 `;
 
+// eslint-disable-next-line no-unused-vars
 const TableHead = styled.thead`
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
 `;
 
+// eslint-disable-next-line no-unused-vars
 const TableRow = styled.tr`
   border-bottom: 1px solid #e2e8f0;
   transition: all 0.2s ease;
@@ -314,6 +321,7 @@ const TableRow = styled.tr`
   }
 `;
 
+// eslint-disable-next-line no-unused-vars
 const TableHeader = styled.th`
   padding: 16px 12px;
   text-align: left;
@@ -324,6 +332,7 @@ const TableHeader = styled.th`
   letter-spacing: 0.05em;
 `;
 
+// eslint-disable-next-line no-unused-vars
 const TableCell = styled.td`
   padding: 16px 12px;
   font-size: 14px;
@@ -331,6 +340,7 @@ const TableCell = styled.td`
   vertical-align: middle;
 `;
 
+// eslint-disable-next-line no-unused-vars
 const TableActions = styled.div`
   display: flex;
   gap: 8px;
@@ -685,6 +695,7 @@ const AddButton = styled.button`
   }
 `;
 
+// eslint-disable-next-line no-unused-vars
 const ExportButton = styled(Button)`
   display: inline-flex;
   align-items: center;
@@ -939,7 +950,7 @@ export default function CoverageScreen() {
   const [productName, setProductName] = useState('');
   const [parentCoverageName, setParentCoverageName] = useState('');
 
-  const fileInputRef = useRef(null);
+  // Removed unused fileInputRef
   const searchRef = useRef(null);
   const [rawSearch, setRawSearch] = useState('');
   const searchQuery = useDebounce(rawSearch, 250);
@@ -1104,7 +1115,8 @@ export default function CoverageScreen() {
 
   /* ---------- handlers missing after refactor ---------- */
 
-  // XLSX import implementation
+  // XLSX import implementation (unused)
+  // eslint-disable-next-line no-unused-vars
   const handleImportXLSX = async e => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1793,6 +1805,7 @@ function useDebounce(value, ms=250){
 }
 
 /* ---------- XLSX helpers wrappers ---------- */
+// eslint-disable-next-line no-unused-vars
 async function handleExportXLSX(rows, productName){
   try{
     const XLSXmod = await import('xlsx'); const XLSX=XLSXmod.default||XLSXmod;

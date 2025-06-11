@@ -95,7 +95,7 @@ async function extractMetaAI(text) {
         'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1-mini',
         messages: [
           { role: 'system', content: META_SYSTEM_PROMPT },
           { role: 'user', content: text }

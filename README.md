@@ -62,7 +62,7 @@ Welcome! This document serves as **permanent project memory** for future develop
 - **Advanced Claims Analysis System**: AI-powered claim coverage determination
   - Multi-form selection for comprehensive policy analysis
   - Intelligent PDF chunking for handling large documents
-  - OpenAI GPT-4o integration for expert-level claims analysis
+  - OpenAI GPT-4.1-mini integration for expert-level claims analysis
   - Conversational interface for iterative claim scenario exploration
   - Structured coverage determinations with specific policy references
   - Support for complex multi-coverage claim scenarios
@@ -115,7 +115,7 @@ export default function MyPage() {
 |-------|-------------|---------|
 | Front-end | React 18 (Create-React-App) + React-Router v6 + styled-components | SPA that admins live in all day |
 | Back-end | Firebase ★ Firestore (NoSQL) ★ Storage ★ Auth  | Zero-ops data & file layer |
-| AI | OpenAI GPT-4o (via `chat/completions`) | Summaries, chat, rules extraction, coverage diff |
+| AI | OpenAI GPT-4.1-mini (via `chat/completions`) | Summaries, chat, rules extraction, coverage diff |
 | Parsing | pdf.js in-browser worker | Turns PDFs → raw text |
 | Bundling | CRA + Webpack code-split | Instant dev boot, automatic chunking |
 
@@ -275,11 +275,11 @@ Based on comprehensive UI/UX feedback review, implemented professional-grade enh
 
 | Feature          | Prompt file / system role                        | API model | Notes |
 |------------------|--------------------------------------------------|-----------|-------|
-| **Form summary** | `SYSTEM_INSTRUCTIONS` in _ProductHub.js_         | `gpt-4o`  | First 100 k tokens of PDF |
-| **Product chat** | Same as above (+ conversational wrapper)         | `gpt-4o`  | Persists per‑product chat log |
-| **Rules extract**| `RULES_SYSTEM_PROMPT`                            | `gpt-4o`  | Returns JSON of Product & Rating rules |
-| **Form diff**    | `COMPARE_SYSTEM_PROMPT`                          | `gpt-4o`  | Local diff via coverage lists |
-| **Claims analysis** | `CLAIMS_ANALYSIS_SYSTEM_PROMPT`               | `gpt-4o`  | Multi-form analysis with chunking support |
+| **Form summary** | `SYSTEM_INSTRUCTIONS` in _ProductHub.js_         | `gpt-4.1-mini`  | First 100 k tokens of PDF |
+| **Product chat** | Same as above (+ conversational wrapper)         | `gpt-4.1-mini`  | Persists per‑product chat log |
+| **Rules extract**| `RULES_SYSTEM_PROMPT`                            | `gpt-4.1-mini`  | Returns JSON of Product & Rating rules |
+| **Form diff**    | `COMPARE_SYSTEM_PROMPT`                          | `gpt-4.1-mini`  | Local diff via coverage lists |
+| **Claims analysis** | `CLAIMS_ANALYSIS_SYSTEM_PROMPT`               | `gpt-4.1-mini`  | Multi-form analysis with chunking support |
 
 All responses are parsed client‑side.  **Store** summaries & rules in Firestore once generated to avoid burning tokens.
 
@@ -288,7 +288,7 @@ All responses are parsed client‑side.  **Store** summaries & rules in Firestor
 ## 7. Claims Analysis System
 
 ### Overview
-The Claims Analysis feature provides AI-powered claim coverage determination by analyzing claim scenarios against selected insurance forms. It uses advanced PDF processing and OpenAI's GPT-4o to deliver expert-level claims analysis.
+The Claims Analysis feature provides AI-powered claim coverage determination by analyzing claim scenarios against selected insurance forms. It uses advanced PDF processing and OpenAI's GPT-4.1-mini to deliver expert-level claims analysis.
 
 ### Key Features
 

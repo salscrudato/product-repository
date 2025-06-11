@@ -2,6 +2,11 @@
 import { getDownloadURL, ref } from 'firebase/storage';
 import { storage } from '../firebase';
 
+// PDF processing cache to avoid reprocessing
+const pdfCache = new Map();
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const MAX_CACHE_SIZE = 50; // Maximum number of cached PDFs
+
 // Lazy load pdfjs to avoid bundle bloat
 let pdfjsLib = null;
 const loadPdfJs = async () => {
@@ -25,6 +30,28 @@ const loadPdfJs = async () => {
   }
 };
 
+// Cache management
+const cleanupCache = () => {
+  const now = Date.now();
+  const entries = Array.from(pdfCache.entries());
+
+  // Remove expired entries
+  entries.forEach(([key, value]) => {
+    if (now - value.timestamp > CACHE_TTL) {
+      pdfCache.delete(key);
+    }
+  });
+
+  // Remove oldest entries if cache is too large
+  if (pdfCache.size > MAX_CACHE_SIZE) {
+    const sortedEntries = entries
+      .sort((a, b) => a[1].timestamp - b[1].timestamp)
+      .slice(0, pdfCache.size - MAX_CACHE_SIZE);
+
+    sortedEntries.forEach(([key]) => pdfCache.delete(key));
+  }
+};
+
 /**
  * Extract text from a PDF file (either from Firebase Storage or File object)
  * @param {string|File} source - Firebase storage path or File object
@@ -32,6 +59,19 @@ const loadPdfJs = async () => {
  * @returns {Promise<string>} - Extracted text
  */
 export async function extractPdfText(source, timeout = 30000) {
+  const cacheKey = typeof source === 'string' ? source : `file_${source.name}_${source.size}`;
+
+  // Check cache first
+  const cached = pdfCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log('📋 PDF cache hit for:', cacheKey);
+    return cached.text;
+  }
+
+  // Clean up cache periodically
+  cleanupCache();
+
+  let pdf = null;
   try {
     await loadPdfJs();
 
@@ -70,8 +110,14 @@ export async function extractPdfText(source, timeout = 30000) {
       pdfData = await source.arrayBuffer();
     }
 
-    const pdf = await Promise.race([
-      pdfjsLib.getDocument({ data: new Uint8Array(pdfData) }).promise,
+    pdf = await Promise.race([
+      pdfjsLib.getDocument({
+        data: new Uint8Array(pdfData),
+        // Optimize memory usage
+        disableFontFace: true,
+        disableRange: false,
+        disableStream: false
+      }).promise,
       new Promise((_, reject) =>
         setTimeout(() => reject(new Error('PDF parsing timeout')), 10000)
       )
@@ -79,31 +125,44 @@ export async function extractPdfText(source, timeout = 30000) {
 
     let text = '';
     const maxPages = Math.min(pdf.numPages, 50); // Limit to 50 pages to prevent memory issues
+    const pages = [];
 
-    for (let i = 1; i <= maxPages; i++) {
-      try {
-        const page = await Promise.race([
-          pdf.getPage(i),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(`Page ${i} timeout`)), 5000)
-          )
-        ]);
+    // Process pages in batches to manage memory
+    const batchSize = 5;
+    for (let batchStart = 1; batchStart <= maxPages; batchStart += batchSize) {
+      const batchEnd = Math.min(batchStart + batchSize - 1, maxPages);
 
-        const content = await Promise.race([
-          page.getTextContent(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(`Page ${i} content timeout`)), 5000)
-          )
-        ]);
+      for (let i = batchStart; i <= batchEnd; i++) {
+        try {
+          const page = await Promise.race([
+            pdf.getPage(i),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error(`Page ${i} timeout`)), 5000)
+            )
+          ]);
 
-        const pageText = content.items.map(item => item.str).join(' ');
-        text += pageText + '\n\n';
+          const content = await Promise.race([
+            page.getTextContent(),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error(`Page ${i} content timeout`)), 5000)
+            )
+          ]);
 
-        // Clean up page resources
-        page.cleanup();
-      } catch (pageError) {
-        console.warn(`Failed to extract text from page ${i}:`, pageError);
-        text += `[Error extracting page ${i}: ${pageError.message}]\n\n`;
+          const pageText = content.items.map(item => item.str).join(' ');
+          text += pageText + '\n\n';
+
+          // Clean up page resources immediately
+          page.cleanup();
+          pages.push(page);
+        } catch (pageError) {
+          console.warn(`Failed to extract text from page ${i}:`, pageError);
+          text += `[Error extracting page ${i}: ${pageError.message}]\n\n`;
+        }
+      }
+
+      // Force garbage collection hint between batches
+      if (batchEnd < maxPages && typeof window !== 'undefined' && window.gc) {
+        window.gc();
       }
     }
 
@@ -111,10 +170,27 @@ export async function extractPdfText(source, timeout = 30000) {
       text += `\n[Note: PDF has ${pdf.numPages} pages, but only first ${maxPages} were processed]\n`;
     }
 
-    return text.trim();
+    const finalText = text.trim();
+
+    // Cache the result
+    pdfCache.set(cacheKey, {
+      text: finalText,
+      timestamp: Date.now()
+    });
+
+    return finalText;
   } catch (error) {
     console.error('PDF text extraction failed:', error);
     throw new Error(`PDF text extraction failed: ${error.message}`);
+  } finally {
+    // Cleanup PDF document
+    if (pdf) {
+      try {
+        pdf.destroy();
+      } catch (cleanupError) {
+        console.warn('PDF cleanup error:', cleanupError);
+      }
+    }
   }
 }
 

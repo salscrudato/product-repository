@@ -1280,7 +1280,7 @@ const ProductBuilder = () => {
           'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'gpt-4.1-mini',
           messages: [
             { role: 'system', content: AI_SYSTEM_PROMPT },
             { role: 'system', content: `Current database context: ${JSON.stringify(context, null, 2)}` },
