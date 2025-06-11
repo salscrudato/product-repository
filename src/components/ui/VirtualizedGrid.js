@@ -1,5 +1,5 @@
 // src/components/ui/VirtualizedGrid.js
-import React, { memo, useMemo, useCallback } from 'react';
+import React, { memo, useMemo } from 'react';
 import { FixedSizeGrid as Grid } from 'react-window';
 import styled from 'styled-components';
 

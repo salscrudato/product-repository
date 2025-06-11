@@ -150,4 +150,5 @@ export async function clearTasks() {
   }
 }
 
-export default { seedTasks, clearTasks };
+const taskSeederExports = { seedTasks, clearTasks };
+export default taskSeederExports;

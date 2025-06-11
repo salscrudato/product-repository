@@ -853,65 +853,7 @@ const SectionTitle = styled.h2`
 
 
 
-// Form Input - Modern styled input
-const FormInput = styled.input`
-  width: 100%;
-  padding: 12px 16px;
-  font-size: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-  font-weight: 400;
-  margin-bottom: 16px;
 
-  &:focus {
-    outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.2), 0 0 0 4px rgba(99, 102, 241, 0.1);
-    background: rgba(255, 255, 255, 0.95);
-    transform: translateY(-2px);
-  }
-
-  &::placeholder {
-    color: #94a3b8;
-    font-weight: 400;
-  }
-`;
-
-// File Input Container
-const FileInputContainer = styled.div`
-  position: relative;
-  margin-bottom: 16px;
-`;
-
-// File Input - Modern styled file input
-const FileInput = styled.input`
-  width: 100%;
-  padding: 12px 16px;
-  font-size: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.2), 0 0 0 4px rgba(99, 102, 241, 0.1);
-    background: rgba(255, 255, 255, 0.95);
-  }
-
-  &:hover {
-    border-color: rgba(99, 102, 241, 0.3);
-    transform: translateY(-1px);
-  }
-`;
 
 // Modern Button
 const ModernButton = styled.button`
@@ -948,69 +890,7 @@ const ModernButton = styled.button`
   }
 `;
 
-// Table Container - Modern table styling with less padding
-const TableContainer = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  overflow-x: auto;
-  margin-bottom: 20px;
-`;
 
-// Modern Table
-const ModernTable = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-`;
-
-// Table Header
-const TableHead = styled.thead`
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-`;
-
-// Table Row
-const TableRow = styled.tr`
-  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: rgba(99, 102, 241, 0.02);
-  }
-
-  &:last-child {
-    border-bottom: none;
-  }
-`;
-
-// Table Header Cell
-const TableHeaderCell = styled.th`
-  padding: 16px 20px;
-  text-align: left;
-  font-weight: 600;
-  color: #374151;
-  font-size: 14px;
-  letter-spacing: 0.025em;
-  text-transform: uppercase;
-  border-bottom: 2px solid rgba(226, 232, 240, 0.8);
-`;
-
-// Table Cell
-const TableCell = styled.td`
-  padding: 16px 20px;
-  color: #6b7280;
-  font-size: 14px;
-  line-height: 1.5;
-  vertical-align: middle;
-
-  /* Prevent text wrapping for name columns */
-  &:nth-child(2), &:nth-child(3) {
-    white-space: nowrap;
-    min-width: 200px;
-  }
-`;
 
 // Loading Container
 const LoadingContainer = styled.div`
@@ -1140,7 +1020,7 @@ const ProductBuilder = () => {
   const [effectiveDate, setEffectiveDate] = useState('');
   const [file, setFile] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalItem, setModalItem] = useState(null);
+  const [modalItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cloneLoading, setCloneLoading] = useState(false);
   const [cloneModalOpen, setCloneModalOpen] = useState(false);
@@ -1151,7 +1031,7 @@ const ProductBuilder = () => {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
   const [pricingSteps, setPricingSteps] = useState([]);
   const [rules, setRules] = useState([]);
-  const [draggedCoverage, setDraggedCoverage] = useState(null);
+
   const [cloneTargetId, setCloneTargetId] = useState('');
 
   // AI Chat State
@@ -1350,28 +1230,7 @@ const ProductBuilder = () => {
     }
   };
 
-  // Handle coverage selection
-  const handleCoverageSelect = (coverage) => {
-    const associatedForms = forms
-      .filter(f => f.coverageIds?.includes(coverage.id))
-      .map(f => f.id);
-    if (selectedCoverages[coverage.id]) {
-      // Deselect coverage
-      const newSelected = { ...selectedCoverages };
-      delete newSelected[coverage.id];
-      setSelectedCoverages(newSelected);
-    } else if (associatedForms.length <= 1) {
-      // Auto-select coverage with its form(s)
-      setSelectedCoverages(prev => ({
-        ...prev,
-        [coverage.id]: associatedForms
-      }));
-    } else {
-      // Open modal for multiple forms
-      setModalItem(coverage);
-      setModalOpen(true);
-    }
-  };
+
 
 
   // Handle modal submission for multiple associations
@@ -1380,112 +1239,7 @@ const ProductBuilder = () => {
     setModalOpen(false);
   };
 
-  // Create the new product
-  const handleCreateProduct = async () => {
-    // Build map of formId -> [coverageIds]
-    const selectedFormsMap = Object.entries(selectedCoverages).reduce((acc, [covId, formIds]) => {
-      formIds.forEach(fId => {
-        if (!acc[fId]) acc[fId] = [];
-        acc[fId].push(covId);
-      });
-      return acc;
-    }, {});
-    if (!newProductName || !formNumber || !effectiveDate || !file || Object.keys(selectedCoverages).length === 0 || Object.keys(selectedFormsMap).length === 0) {
-      alert('Please fill in all required fields and select at least one coverage and one form.');
-      return;
-    }
-    try {
-      // Upload file to Firebase Storage
-      const storageRef = ref(storage, `products/${file.name}`);
-      await uploadBytes(storageRef, file);
-      const downloadUrl = await getDownloadURL(storageRef);
 
-      // Create new product
-      const productRef = await addDoc(collection(db, 'products'), {
-        name: newProductName,
-        formNumber,
-        productCode,
-        formDownloadUrl: downloadUrl,
-        effectiveDate,
-      });
-      const newProductId = productRef.id;
-
-      // Map old IDs to new IDs
-      const newCoverageIds = {};
-      const newFormIds = {};
-
-      // Create new coverage documents
-      for (const coverageId in selectedCoverages) {
-        const coverage = coverages.find(c => c.id === coverageId);
-        const newCoverageRef = await addDoc(collection(db, `products/${newProductId}/coverages`), {
-          name: coverage.name,
-          coverageCode: coverage.coverageCode || '',
-          formIds: [],
-          limits: coverage.limits || [],
-          deductibles: coverage.deductibles || [],
-          states: coverage.states || [],
-          category: coverage.category || 'Base Coverage',
-          parentCoverageId: coverage.parentCoverageId || null,
-        });
-        newCoverageIds[coverageId] = newCoverageRef.id;
-      }
-
-      // Create new form documents
-      for (const formId in selectedFormsMap) {
-        const form = forms.find(f => f.id === formId);
-        const newCoverageIdsForForm = selectedFormsMap[formId].map(cId => newCoverageIds[cId]).filter(id => id);
-        const newFormRef = await addDoc(collection(db, 'forms'), {
-          formName: form.formName || null,
-          formNumber: form.formNumber,
-          effectiveDate: form.effectiveDate || '',
-          type: form.type || 'ISO',
-          category: form.category || 'Base Coverage Form',
-          productId: newProductId,
-          coverageIds: newCoverageIdsForForm,
-          downloadUrl: form.downloadUrl || '',
-          filePath: form.filePath || null,
-        });
-        newFormIds[formId] = newFormRef.id;
-      }
-
-      // Update coverage formIds
-      for (const coverageId in selectedCoverages) {
-        const newCoverageId = newCoverageIds[coverageId];
-        const newFormIdsForCoverage = selectedCoverages[coverageId]
-          .map(fId => newFormIds[fId])
-          .filter(id => id);
-        await updateDoc(doc(db, `products/${newProductId}/coverages`, newCoverageId), {
-          formIds: newFormIdsForCoverage,
-        });
-
-        // Update formCoverages collection for bidirectional linking
-        for (const formId of newFormIdsForCoverage) {
-          await addDoc(collection(db, 'formCoverages'), {
-            formId: formId,
-            coverageId: newCoverageId,
-            productId: newProductId,
-          });
-        }
-      }
-
-      // Update forms with new coverage IDs
-      for (const formId in selectedFormsMap) {
-        const newFormId = newFormIds[formId];
-        const newCoverageIdsForForm = selectedFormsMap[formId]
-          .map(cId => newCoverageIds[cId])
-          .filter(id => id);
-        await updateDoc(doc(db, 'forms', newFormId), {
-          coverageIds: newCoverageIdsForForm,
-        });
-      }
-
-      alert('Product created successfully! Returning to ProductHub.');
-      navigate('/');
-    } catch (error) {
-      console.error('Error creating product:', error);
-      alert('Failed to create product. Please try again.');
-    }
-  };
 
   // Enhanced filtering for coverages
   const filteredCoverages = coverages.filter(coverage => {

@@ -1,18 +1,16 @@
 // src/components/TaskManagement.js
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
-import { 
-  PlusIcon, 
+import {
+  PlusIcon,
   XMarkIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
   LightBulbIcon,
   DocumentCheckIcon,
   ShieldCheckIcon,
   RocketLaunchIcon,
   CalendarIcon,
-  UserIcon
+  UserIcon,
+  ClipboardDocumentListIcon
 } from '@heroicons/react/24/solid';
 import { 
   collection, 
@@ -25,6 +23,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import MainNavigation from './ui/Navigation';
+import EnhancedHeader from './ui/EnhancedHeader';
 import { seedTasks } from '../utils/taskSeeder';
 
 // ============================================================================
@@ -36,45 +35,45 @@ const Container = styled.div`
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
 `;
 
-const Content = styled.div`
+const MainContent = styled.div`
   max-width: 1400px;
   margin: 0 auto;
-  padding: 32px 24px;
+  padding: 0 24px 32px;
 `;
 
-const Header = styled.div`
-  text-align: center;
-  margin-bottom: 40px;
+const ActionBar = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding: 0 4px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
 `;
 
-const Title = styled.h1`
-  font-size: 32px;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 8px;
-`;
-
-const Subtitle = styled.p`
-  font-size: 16px;
-  color: #6b7280;
-  margin-bottom: 24px;
-`;
-
-const HeaderActions = styled.div`
+const ActionGroup = styled.div`
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-top: 16px;
+  gap: 12px;
+
+  @media (max-width: 768px) {
+    justify-content: center;
+  }
 `;
 
 const FilterSelect = styled.select`
-  padding: 8px 12px;
+  padding: 10px 12px;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 14px;
   background: white;
   color: #374151;
   cursor: pointer;
+  min-width: 140px;
 
   &:focus {
     outline: none;
@@ -112,12 +111,12 @@ const StatItem = styled.div`
   }
 `;
 
-const AddTaskButton = styled.button`
+const HeaderActionButton = styled.button`
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   color: white;
   border: none;
   border-radius: 12px;
-  padding: 12px 24px;
+  padding: 12px 20px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
@@ -125,6 +124,7 @@ const AddTaskButton = styled.button`
   gap: 8px;
   transition: all 0.2s ease;
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  font-size: 14px;
 
   &:hover {
     transform: translateY(-2px);
@@ -134,6 +134,17 @@ const AddTaskButton = styled.button`
   svg {
     width: 16px;
     height: 16px;
+  }
+`;
+
+const FilterGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  @media (max-width: 768px) {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 `;
 
@@ -694,45 +705,51 @@ export default function TaskManagement() {
   return (
     <Container>
       <MainNavigation />
-      <Content>
-        <Header>
-          <Title>Product Task Management</Title>
-          <Subtitle>
-            Manage insurance product development tasks across the complete lifecycle
-          </Subtitle>
-          <HeaderActions>
-            <FilterSelect
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-            >
-              <option value="all">All Priorities</option>
-              <option value="high">High Priority</option>
-              <option value="medium">Medium Priority</option>
-              <option value="low">Low Priority</option>
-            </FilterSelect>
+      <MainContent>
+        <EnhancedHeader
+          title="Product Task Management"
+          subtitle={`Manage ${filteredTasks.length} task${filteredTasks.length !== 1 ? 's' : ''} across the complete product development lifecycle`}
+          icon={ClipboardDocumentListIcon}
+        />
 
-            <FilterSelect
-              value={assigneeFilter}
-              onChange={(e) => setAssigneeFilter(e.target.value)}
-            >
-              <option value="all">All Assignees</option>
-              {getUniqueAssignees().map(assignee => (
-                <option key={assignee} value={assignee}>{assignee}</option>
-              ))}
-            </FilterSelect>
+        <ActionBar>
+          <ActionGroup>
+            <FilterGroup>
+              <FilterSelect
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+              >
+                <option value="all">All Priorities</option>
+                <option value="high">High Priority</option>
+                <option value="medium">Medium Priority</option>
+                <option value="low">Low Priority</option>
+              </FilterSelect>
 
-            <AddTaskButton onClick={() => setShowModal(true)}>
+              <FilterSelect
+                value={assigneeFilter}
+                onChange={(e) => setAssigneeFilter(e.target.value)}
+              >
+                <option value="all">All Assignees</option>
+                {getUniqueAssignees().map(assignee => (
+                  <option key={assignee} value={assignee}>{assignee}</option>
+                ))}
+              </FilterSelect>
+            </FilterGroup>
+          </ActionGroup>
+
+          <ActionGroup>
+            <HeaderActionButton onClick={() => setShowModal(true)}>
               <PlusIcon />
               Add New Task
-            </AddTaskButton>
+            </HeaderActionButton>
 
             {tasks.length === 0 && (
               <SeedButton onClick={handleSeedData}>
                 Add Sample Data
               </SeedButton>
             )}
-          </HeaderActions>
-        </Header>
+          </ActionGroup>
+        </ActionBar>
 
         <TaskStats>
           <StatItem>
@@ -909,7 +926,7 @@ export default function TaskManagement() {
             </Modal>
           </Overlay>
         )}
-      </Content>
+      </MainContent>
     </Container>
   );
 }

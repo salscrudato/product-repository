@@ -656,7 +656,7 @@ const Actions = styled.div`
 
 // StepModal Component
 function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes }) {
-  const defaultStep = {
+  const defaultStep = useMemo(() => ({
     stepType: 'factor',
     coverages: [],
     stepName: '',
@@ -667,7 +667,7 @@ function StepModal({ onClose, onSubmit, editingStep, steps, coverages, dataCodes
     upstreamId: '',
     operand: '',
     value: 1
-  };
+  }), []);
 
   const [stepData, setStepData] = useState(editingStep ? { ...editingStep } : { ...defaultStep });
   const [errors, setErrors] = useState({});
@@ -1373,7 +1373,7 @@ function PricingScreen() {
         stepName: r['Step Name'],
         table: r['Table Name'] || '',
         rounding: r['ROUNDING'] || 'none',
-        value: parseFloat(String(r['Value']).replace(/[^0-9\.\-]/g,''))||0,
+        value: parseFloat(String(r['Value']).replace(/[^0-9.-]/g,''))||0,
         states: ALL_STATES.filter(st=> String(r[st]).trim().toUpperCase()==='X')
       };
       out.push(factor);

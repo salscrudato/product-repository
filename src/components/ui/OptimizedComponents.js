@@ -49,6 +49,7 @@ export const OptimizedSearchInput = memo(({
     debounce((newValue) => {
       onChange?.(newValue);
     }, debounceMs),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [onChange, debounceMs]
   );
   
@@ -111,6 +112,7 @@ export const VirtualizedList = memo(({
     throttle((e) => {
       setScrollTop(e.target.scrollTop);
     }, 16), // ~60fps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
   

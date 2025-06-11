@@ -153,9 +153,10 @@ export const optimizeImports = () => {
     
     largeLibraries.forEach(lib => {
       try {
-        // eslint-disable-next-line import/no-dynamic-require
-        require.resolve(lib);
-        console.warn(`📦 Large library detected: ${lib} - consider using specific imports`);
+        // Check if library is available without dynamic require
+        if (typeof window !== 'undefined' && window[lib]) {
+          console.warn(`📦 Large library detected: ${lib} - consider using specific imports`);
+        }
       } catch (e) {
         // Library not installed, which is good
       }

@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback, memo } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState, useMemo, useCallback, memo } from 'react'; // eslint-disable-line no-unused-vars
 import styled from 'styled-components';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
@@ -17,18 +16,11 @@ import {
   TrashIcon,
   PencilIcon,
   InformationCircleIcon,
-  DocumentTextIcon,
-  ChatBubbleLeftEllipsisIcon,
-
   PlusIcon,
   PaperAirplaneIcon,
   Squares2X2Icon,
   TableCellsIcon,
   CubeIcon,
-  DocumentIcon,
-  CodeBracketIcon,
-  CalendarIcon,
-  ClockIcon,
   XMarkIcon
 } from '@heroicons/react/24/solid';
 import DataDictionaryModal from './DataDictionaryModal';
@@ -40,7 +32,7 @@ import ProductCard from './ui/ProductCard';
 import VirtualizedGrid from './ui/VirtualizedGrid';
 import { usePerformanceMonitor, debounce } from '../utils/performance';
 import { useMemoryManager } from '../utils/memoryManager';
-import { OptimizedSearchInput, OptimizedTable } from './ui/OptimizedComponents';
+
 
 /* ---------- Animations ---------- */
 // float animation removed - unused
@@ -925,6 +917,7 @@ const ProductHub = memo(() => {
       setSearchTerm(term.trim());
       performanceMonitor.endTiming('search_filter');
     }, 300),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [performanceMonitor]
   );
 

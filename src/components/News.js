@@ -1,10 +1,9 @@
 // src/components/News.js
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import {
   NewspaperIcon,
   ClockIcon,
-  TagIcon,
   ArrowTopRightOnSquareIcon,
   FunnelIcon,
   MagnifyingGlassIcon
@@ -15,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkSolidIcon } from '@heroicons/react/24/solid';
 import MainNavigation from './ui/Navigation';
+import EnhancedHeader from './ui/EnhancedHeader';
 import { sampleNews } from '../data/sampleNews';
 
 // ============================================================================
@@ -26,63 +26,58 @@ const Container = styled.div`
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
 `;
 
-const Content = styled.div`
+const MainContent = styled.div`
   max-width: 1200px;
   margin: 0 auto;
-  padding: 32px 24px;
+  padding: 0 24px 32px;
 `;
 
-const Header = styled.div`
-  text-align: center;
-  margin-bottom: 40px;
-`;
-
-const Title = styled.h1`
-  font-size: 32px;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 8px;
+const ActionBar = styled.div`
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-`;
-
-const Subtitle = styled.p`
-  font-size: 16px;
-  color: #6b7280;
-  margin-bottom: 32px;
-`;
-
-const Controls = styled.div`
-  display: flex;
-  gap: 16px;
-  margin-bottom: 32px;
-  flex-wrap: wrap;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding: 0 4px;
 
   @media (max-width: 768px) {
     flex-direction: column;
+    gap: 16px;
     align-items: stretch;
   }
 `;
 
-const SearchContainer = styled.div`
-  position: relative;
+const ActionGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  @media (max-width: 768px) {
+    justify-content: center;
+  }
+`;
+
+const SearchGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex: 1;
-  max-width: 400px;
+  max-width: 500px;
 
   @media (max-width: 768px) {
     max-width: 100%;
   }
 `;
 
+const SearchContainer = styled.div`
+  position: relative;
+  flex: 1;
+`;
+
 const SearchInput = styled.input`
   width: 100%;
-  padding: 12px 16px 12px 44px;
+  padding: 10px 16px 10px 40px;
   border: 1px solid #d1d5db;
-  border-radius: 12px;
+  border-radius: 8px;
   font-size: 14px;
   background: white;
   transition: all 0.2s ease;
@@ -100,18 +95,18 @@ const SearchInput = styled.input`
 
 const SearchIcon = styled.div`
   position: absolute;
-  left: 14px;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
   color: #9ca3af;
 
   svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
   }
 `;
 
-const FilterContainer = styled.div`
+const FilterGroup = styled.div`
   display: flex;
   gap: 12px;
   align-items: center;
@@ -125,7 +120,7 @@ const FilterSelect = styled.select`
   background: white;
   color: #374151;
   cursor: pointer;
-  min-width: 120px;
+  min-width: 140px;
 
   &:focus {
     outline: none;
@@ -349,57 +344,59 @@ export default function News() {
   return (
     <Container>
       <MainNavigation />
-      <Content>
-        <Header>
-          <Title>
-            <NewspaperIcon style={{ width: 32, height: 32 }} />
-            Insurance News
-          </Title>
-          <Subtitle>
-            Stay informed with the latest developments in the insurance industry
-          </Subtitle>
-        </Header>
+      <MainContent>
+        <EnhancedHeader
+          title="Insurance News"
+          subtitle={`Stay informed with ${filteredNews.length} latest development${filteredNews.length !== 1 ? 's' : ''} in the insurance industry`}
+          icon={NewspaperIcon}
+        />
 
-        <Controls>
-          <SearchContainer>
-            <SearchIcon>
-              <MagnifyingGlassIcon />
-            </SearchIcon>
-            <SearchInput
-              type="text"
-              placeholder="Search news articles..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </SearchContainer>
+        <ActionBar>
+          <ActionGroup>
+            <SearchGroup>
+              <SearchContainer>
+                <SearchIcon>
+                  <MagnifyingGlassIcon />
+                </SearchIcon>
+                <SearchInput
+                  type="text"
+                  placeholder="Search news articles..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </SearchContainer>
+            </SearchGroup>
+          </ActionGroup>
 
-          <FilterContainer>
-            <FunnelIcon style={{ width: 16, height: 16, color: '#6b7280' }} />
-            <FilterSelect
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-            >
-              <option value="all">All Categories</option>
-              {categories.map(category => (
-                <option key={category} value={category}>
-                  {category.charAt(0).toUpperCase() + category.slice(1)}
-                </option>
-              ))}
-            </FilterSelect>
+          <ActionGroup>
+            <FilterGroup>
+              <FunnelIcon style={{ width: 16, height: 16, color: '#6b7280' }} />
+              <FilterSelect
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                <option value="all">All Categories</option>
+                {categories.map(category => (
+                  <option key={category} value={category}>
+                    {category.charAt(0).toUpperCase() + category.slice(1)}
+                  </option>
+                ))}
+              </FilterSelect>
 
-            <FilterSelect
-              value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value)}
-            >
-              <option value="all">All Sources</option>
-              {sources.map(source => (
-                <option key={source} value={source}>
-                  {source}
-                </option>
-              ))}
-            </FilterSelect>
-          </FilterContainer>
-        </Controls>
+              <FilterSelect
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+              >
+                <option value="all">All Sources</option>
+                {sources.map(source => (
+                  <option key={source} value={source}>
+                    {source}
+                  </option>
+                ))}
+              </FilterSelect>
+            </FilterGroup>
+          </ActionGroup>
+        </ActionBar>
 
         {filteredNews.length === 0 ? (
           <EmptyState>
@@ -451,7 +448,7 @@ export default function News() {
             ))}
           </NewsGrid>
         )}
-      </Content>
+      </MainContent>
     </Container>
   );
 }
