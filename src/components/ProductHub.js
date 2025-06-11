@@ -1059,7 +1059,7 @@ const ProductHub = memo(() => {
           'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
         },
         body: JSON.stringify({
-          model: 'gpt-4.5-preview',
+          model: 'gpt-4.1-mini',
           messages: [
             { role: 'system', content: SYSTEM_INSTRUCTIONS.trim() },
             { role: 'user', content: snippet }
