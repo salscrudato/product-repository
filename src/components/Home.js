@@ -22,10 +22,14 @@ import { sampleNews } from '../data/sampleNews';
 /* ---------- styled components ---------- */
 const Page = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  background: ${({ theme }) => theme.isDarkMode
+    ? theme.colours.background
+    : 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%)'
+  };
   display: flex;
   flex-direction: column;
   position: relative;
+  transition: background 0.3s ease;
 
   &::before {
     content: '';
@@ -34,8 +38,11 @@ const Page = styled.div`
     left: 0;
     right: 0;
     height: 300px;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-    opacity: 0.08;
+    background: ${({ theme }) => theme.isDarkMode
+      ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 50%, rgba(168, 85, 247, 0.1) 100%)'
+      : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%)'
+    };
+    opacity: ${({ theme }) => theme.isDarkMode ? '0.3' : '0.08'};
     z-index: 0;
   }
 `;

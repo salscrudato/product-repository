@@ -18,9 +18,13 @@ export const GlobalStyle = createGlobalStyle`
   body {
     margin:0;
     font-family:${({ theme }) => theme.font};
-    background: linear-gradient(135deg,#f7f8fc 0%,#ffffff 35%,#f7f8fc 100%);
+    background: ${({ theme }) => theme.isDarkMode
+      ? theme.colours.background
+      : 'linear-gradient(135deg,#f7f8fc 0%,#ffffff 35%,#f7f8fc 100%)'
+    };
     color:${({ theme }) => theme.colours.text};
     -webkit-font-smoothing: antialiased;
+    transition: background 0.3s ease, color 0.3s ease;
   }
 
   /* subtle animated radial glow – confined to top‑left corner */
@@ -33,18 +37,39 @@ export const GlobalStyle = createGlobalStyle`
     height:60vmax;
     z-index:-1;
     pointer-events:none;
+    opacity: ${({ theme }) => theme.isDarkMode ? '0.3' : '1'};
 
-    background:
-      radial-gradient(
-        circle at 30% 30%,
-        ${({ theme }) => theme.colours.primary}20 25%,
-        transparent 60%
-      ),
-      radial-gradient(
-        circle at 70% 70%,
-        ${({ theme }) => theme.colours.primaryDark}1A 0%,
-        transparent 55%
-      );
+    background: ${({ theme }) => theme.isDarkMode
+      ? `
+        radial-gradient(
+          circle at 20% 80%,
+          rgba(139, 92, 246, 0.15) 0%,
+          transparent 50%
+        ),
+        radial-gradient(
+          circle at 80% 20%,
+          rgba(59, 130, 246, 0.15) 0%,
+          transparent 50%
+        ),
+        radial-gradient(
+          circle at 40% 40%,
+          rgba(168, 85, 247, 0.1) 0%,
+          transparent 50%
+        )
+      `
+      : `
+        radial-gradient(
+          circle at 30% 30%,
+          ${({ theme }) => theme.colours.primary}20 25%,
+          transparent 60%
+        ),
+        radial-gradient(
+          circle at 70% 70%,
+          ${({ theme }) => theme.colours.primaryDark}1A 0%,
+          transparent 55%
+        )
+      `
+    };
 
     animation:${backgroundPulse} 4s ease-in-out infinite alternate;
   }
@@ -59,18 +84,31 @@ export const GlobalStyle = createGlobalStyle`
     height:65vmax;
     z-index:-2;              /* behind the glow */
     pointer-events:none;
+    opacity: ${({ theme }) => theme.isDarkMode ? '0.2' : '1'};
 
-    background:
-      repeating-linear-gradient(
-        120deg,
-        ${({ theme }) => theme.colours.primaryDark}08 0px,
-        ${({ theme }) => theme.colours.primaryDark}08 2px,
-        transparent 2px,
-        transparent 12px
-      );
+    background: ${({ theme }) => theme.isDarkMode
+      ? `
+        repeating-linear-gradient(
+          120deg,
+          rgba(139, 92, 246, 0.05) 0px,
+          rgba(139, 92, 246, 0.05) 2px,
+          transparent 2px,
+          transparent 12px
+        )
+      `
+      : `
+        repeating-linear-gradient(
+          120deg,
+          ${({ theme }) => theme.colours.primaryDark}08 0px,
+          ${({ theme }) => theme.colours.primaryDark}08 2px,
+          transparent 2px,
+          transparent 12px
+        )
+      `
+    };
 
     animation:${waveScroll} 2s linear infinite;
-    mix-blend-mode: soft-light;
+    mix-blend-mode: ${({ theme }) => theme.isDarkMode ? 'overlay' : 'soft-light'};
   }
 
   a { color:inherit; text-decoration:none; }

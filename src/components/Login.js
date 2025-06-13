@@ -360,6 +360,105 @@ const Button = styled.button`
   }
 `;
 
+/* ---------- guest button ---------- */
+const GuestButton = styled.button`
+  width: 100%;
+  height: 50px;
+  padding: 0 24px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    transition: left 0.5s ease;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(255, 255, 255, 0.1);
+
+    &::before {
+      left: 100%;
+    }
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0px);
+    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+
+    &::before {
+      display: none;
+    }
+  }
+`;
+
+/* ---------- divider ---------- */
+const Divider = styled.div`
+  display: flex;
+  align-items: center;
+  margin: 20px 0 16px 0;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.85rem;
+  font-weight: 500;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+  }
+
+  &::before {
+    margin-right: 16px;
+  }
+
+  &::after {
+    margin-left: 16px;
+  }
+`;
+
 
 
 /* ---------- error/success message ---------- */
@@ -460,6 +559,28 @@ export default function Login() {
     }
   }, [username, password, nav]);
 
+  const handleGuestLogin = useCallback(async () => {
+    setErr('');
+    setSuccess('');
+    setIsLoading(true);
+
+    try {
+      // Guest login - set session directly
+      sessionStorage.setItem('ph-authed', 'guest');
+      sessionStorage.setItem('ph-username', 'guest');
+      setSuccess('Guest login successful! Redirecting...');
+
+      // Small delay to show success message
+      setTimeout(() => {
+        nav('/');
+      }, 1000);
+    } catch (error) {
+      setErr('An error occurred during guest login');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [nav]);
+
   return (
     <Page>
       {/* Animated space elements */}
@@ -555,6 +676,23 @@ export default function Login() {
             'Sign In'
           )}
         </Button>
+
+        <Divider>or</Divider>
+
+        <GuestButton
+          type="button"
+          onClick={handleGuestLogin}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <LoadingSpinner />
+              Continuing as Guest...
+            </>
+          ) : (
+            'Continue as Guest'
+          )}
+        </GuestButton>
 
         {err && (
           <Message type="error" id="error-message" role="alert">

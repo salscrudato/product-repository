@@ -3,8 +3,9 @@ import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from 'styled-components';
 import { GlobalStyle } from './styles/GlobalStyle';
-import { theme } from './styles/theme';
+import { createTheme } from './styles/theme';
 import ErrorBoundary from './components/ErrorBoundary';
+import { DarkModeProvider, useDarkMode } from './contexts/DarkModeContext';
 import { initBundleOptimizations, createOptimizedLazyComponent } from './utils/bundleOptimization';
 // import AgentAssistant from './components/AgentAssistant';
 
@@ -283,6 +284,27 @@ const HistoryWrapper = () => {
   );
 };
 
+// Theme wrapper component that uses dark mode context
+const ThemedApp = () => {
+  const { isDarkMode } = useDarkMode();
+  const theme = createTheme(isDarkMode);
+
+  return (
+    <ThemeProvider theme={theme}>
+      <GlobalStyle />
+      <Router
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true
+        }}
+      >
+        <HistoryWrapper />
+        {/* <AgentAssistant /> */}
+      </Router>
+    </ThemeProvider>
+  );
+};
+
 function App() {
   // Initialize bundle optimizations
   useEffect(() => {
@@ -291,18 +313,9 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <ThemeProvider theme={theme}>
-        <GlobalStyle />
-        <Router
-          future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true
-          }}
-        >
-          <HistoryWrapper />
-          {/* <AgentAssistant /> */}
-        </Router>
-      </ThemeProvider>
+      <DarkModeProvider>
+        <ThemedApp />
+      </DarkModeProvider>
     </ErrorBoundary>
   );
 }

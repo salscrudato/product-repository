@@ -4,6 +4,7 @@ import styled, { keyframes } from 'styled-components';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { FaUser, FaCog, FaSignOutAlt, FaMoon, FaSun } from 'react-icons/fa';
+import { useDarkMode } from '../../contexts/DarkModeContext';
 
 /* ---------- animations ---------- */
 const slideDown = keyframes`
@@ -43,13 +44,20 @@ const Navigation = styled.nav`
   justify-content: space-between;
   align-items: center;
   padding: 12px 32px;
-  background: rgba(255, 255, 255, 0.95);
+  background: ${({ theme }) => theme.isDarkMode
+    ? 'rgba(255, 255, 255, 0.08)'
+    : 'rgba(255, 255, 255, 0.95)'
+  };
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  border-bottom: 1px solid ${({ theme }) => theme.isDarkMode
+    ? 'rgba(255, 255, 255, 0.1)'
+    : 'rgba(226, 232, 240, 0.8)'
+  };
   position: relative;
   z-index: 10;
   max-width: 1400px;
   margin: 0 auto;
+  transition: background 0.3s ease, border-color 0.3s ease;
 
   @media (max-width: 1024px) {
     padding: 12px 24px;
@@ -80,7 +88,10 @@ const NavItem = styled.li``;
 
 const NavLink = styled(Link)`
   text-decoration: none;
-  color: #64748b;
+  color: ${({ theme }) => theme.isDarkMode
+    ? 'rgba(255, 255, 255, 0.7)'
+    : '#64748b'
+  };
   font-weight: 600;
   font-size: 15px;
   padding: 12px 20px;
@@ -92,8 +103,14 @@ const NavLink = styled(Link)`
   display: block;
 
   &:hover {
-    color: #1e293b;
-    background: rgba(99, 102, 241, 0.08);
+    color: ${({ theme }) => theme.isDarkMode
+      ? 'rgba(255, 255, 255, 0.9)'
+      : '#1e293b'
+    };
+    background: ${({ theme }) => theme.isDarkMode
+      ? 'rgba(139, 92, 246, 0.15)'
+      : 'rgba(99, 102, 241, 0.08)'
+    };
     transform: translateY(-1px);
 
     &::before {
@@ -109,17 +126,32 @@ const NavLink = styled(Link)`
     transform: translateX(-50%);
     height: 2px;
     width: 0;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: ${({ theme }) => theme.isDarkMode
+      ? 'linear-gradient(90deg, #8b5cf6, #3b82f6)'
+      : 'linear-gradient(90deg, #6366f1, #8b5cf6)'
+    };
     border-radius: 1px;
     transition: width 0.3s ease;
   }
 
   &.active {
-    color: #6366f1;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%);
-    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.2);
+    color: ${({ theme }) => theme.isDarkMode
+      ? '#8b5cf6'
+      : '#6366f1'
+    };
+    background: ${({ theme }) => theme.isDarkMode
+      ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)'
+      : 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%)'
+    };
+    box-shadow: ${({ theme }) => theme.isDarkMode
+      ? '0 2px 12px rgba(139, 92, 246, 0.3)'
+      : '0 2px 12px rgba(99, 102, 241, 0.2)'
+    };
     font-weight: 700;
-    border: 2px solid rgba(99, 102, 241, 0.2);
+    border: 2px solid ${({ theme }) => theme.isDarkMode
+      ? 'rgba(139, 92, 246, 0.3)'
+      : 'rgba(99, 102, 241, 0.2)'
+    };
 
     &::before {
       width: 60%;
@@ -185,13 +217,24 @@ const ProfileDropdown = styled.div`
   right: 0;
   margin-top: 8px;
   min-width: 200px;
-  background: white;
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: ${({ theme }) => theme.isDarkMode
+    ? 'rgba(255, 255, 255, 0.08)'
+    : 'white'
+  };
+  backdrop-filter: blur(20px);
+  border: 1px solid ${({ theme }) => theme.isDarkMode
+    ? 'rgba(255, 255, 255, 0.1)'
+    : 'rgba(226, 232, 240, 0.8)'
+  };
   border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: ${({ theme }) => theme.isDarkMode
+    ? '0 8px 32px rgba(0, 0, 0, 0.3), 0 0 30px rgba(139, 92, 246, 0.2)'
+    : '0 8px 32px rgba(0, 0, 0, 0.12)'
+  };
   z-index: 1000;
   animation: ${slideDown} 0.3s ease;
   overflow: hidden;
+  transition: background 0.3s ease, border-color 0.3s ease;
 `;
 
 const DropdownHeader = styled.div`
@@ -272,7 +315,7 @@ export default function MainNavigation() {
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const { isDarkMode, toggleDarkMode } = useDarkMode();
 
   // Handle scroll effect for sticky nav
   useEffect(() => {
@@ -298,12 +341,16 @@ export default function MainNavigation() {
 
   // Get user initials for avatar
   const getUserInitials = () => {
-    // Check for admin session first
+    // Check for admin or guest session first
     const sessionStatus = sessionStorage.getItem('ph-authed');
     const storedUsername = sessionStorage.getItem('ph-username');
 
     if (sessionStatus === 'admin' && storedUsername) {
       return storedUsername.substring(0, 2).toUpperCase();
+    }
+
+    if (sessionStatus === 'guest') {
+      return 'GU';
     }
 
     const user = auth.currentUser;
@@ -317,7 +364,7 @@ export default function MainNavigation() {
   };
 
   const getUserEmail = () => {
-    // Check for admin session first
+    // Check for admin or guest session first
     const sessionStatus = sessionStorage.getItem('ph-authed');
     const storedUsername = sessionStorage.getItem('ph-username');
 
@@ -325,17 +372,25 @@ export default function MainNavigation() {
       return `${storedUsername}@admin.local`;
     }
 
+    if (sessionStatus === 'guest') {
+      return 'guest@temporary.local';
+    }
+
     const user = auth.currentUser;
     return user?.email || 'Guest User';
   };
 
   const getUserName = () => {
-    // Check for admin session first
+    // Check for admin or guest session first
     const sessionStatus = sessionStorage.getItem('ph-authed');
     const storedUsername = sessionStorage.getItem('ph-username');
 
     if (sessionStatus === 'admin' && storedUsername) {
       return storedUsername;
+    }
+
+    if (sessionStatus === 'guest') {
+      return 'Guest User';
     }
 
     const user = auth.currentUser;
@@ -344,11 +399,11 @@ export default function MainNavigation() {
 
   const handleSignOut = async () => {
     try {
-      // Check if this is an admin session
+      // Check if this is an admin or guest session
       const sessionStatus = sessionStorage.getItem('ph-authed');
 
-      if (sessionStatus === 'admin') {
-        // Admin logout - just clear session storage
+      if (sessionStatus === 'admin' || sessionStatus === 'guest') {
+        // Admin/Guest logout - just clear session storage
         sessionStorage.removeItem('ph-authed');
         sessionStorage.removeItem('ph-username');
         navigate('/login', { replace: true });
@@ -477,9 +532,9 @@ export default function MainNavigation() {
                   <FaCog />
                   Account Settings
                 </DropdownItem>
-                <DropdownItem onClick={() => setDarkMode(!darkMode)}>
-                  {darkMode ? <FaSun /> : <FaMoon />}
-                  {darkMode ? 'Light Mode' : 'Dark Mode'}
+                <DropdownItem onClick={toggleDarkMode}>
+                  {isDarkMode ? <FaSun /> : <FaMoon />}
+                  {isDarkMode ? 'Light Mode' : 'Dark Mode'}
                 </DropdownItem>
               </DropdownSection>
 
