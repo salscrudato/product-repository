@@ -121,6 +121,14 @@ export const AI_PARAMETERS = {
     max_tokens: 2000,
     temperature: 0.4,
     timeout: AI_API_CONFIG.TIMEOUTS.STANDARD
+  },
+
+  // Task summary - concise, actionable insights
+  TASK_SUMMARY: {
+    model: AI_MODELS.PRIMARY,
+    max_tokens: 800,
+    temperature: 0.3,
+    timeout: AI_API_CONFIG.TIMEOUTS.QUICK_RESPONSE
   }
 };
 
@@ -294,7 +302,18 @@ Your capabilities:
 - Consider regulatory requirements and market standards
 - Structure responses clearly with headings and bullet points
 - Reference specific existing products or coverages when relevant
-- Focus on practical, implementable solutions`
+- Focus on practical, implementable solutions`,
+
+  // Task summary - concise task analysis and insights
+  TASK_SUMMARY_SYSTEM: `You are an expert P&C insurance task analyst. Analyze the provided tasks and generate concise, actionable summaries that help insurance product managers understand priorities and next steps.
+
+For each task, provide:
+1. **Key Insights**: What makes this task important or urgent
+2. **Strategic Impact**: How this task affects broader product goals
+3. **Next Actions**: Specific steps to move the task forward
+4. **Risk Factors**: Potential blockers or dependencies to watch
+
+Keep summaries concise (2-3 sentences max per task) but insightful. Focus on actionable intelligence that helps prioritize work and identify opportunities.`
 };
 
 // ============================================================================

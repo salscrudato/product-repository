@@ -14,10 +14,14 @@ import {
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
 import { UnifiedAIResponse } from './ui/UnifiedAIResponse';
+import TaskOverviewCard from './ui/TaskOverviewCard';
+import NewsFeedCard from './ui/NewsFeedCard';
 import useProducts from '../hooks/useProducts';
 import { collection, getDocs, collectionGroup } from 'firebase/firestore';
 import { db } from '../firebase';
 import { sampleNews } from '../data/sampleNews';
+import { generateTaskSummaries, getUpcomingTasks } from '../services/aiTaskSummaryService';
+import { seedTasks } from '../utils/taskSeeder';
 
 /* ---------- styled components ---------- */
 const Page = styled.div`
@@ -61,10 +65,87 @@ const MainContent = styled.main`
   }
 `;
 
+const ContentLayout = styled.div`
+  display: grid;
+  grid-template-columns: 300px 1fr 300px;
+  gap: 24px;
+  margin-top: 32px;
+  align-items: start;
+
+  @media (max-width: 1400px) {
+    grid-template-columns: 280px 1fr 280px;
+    gap: 20px;
+  }
+
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+`;
+
+const SideColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 100px;
+
+  @media (max-width: 1200px) {
+    position: static;
+  }
+`;
+
+const CenterColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+`;
+
+const WelcomeContainer = styled.div`
+  background: ${({ theme }) => theme.isDarkMode ? theme.colours.cardBackground : 'white'};
+  border-radius: 16px;
+  padding: 32px 24px;
+  border: 1px solid ${({ theme }) => theme.isDarkMode ? theme.colours.border : '#e5e7eb'};
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  margin-bottom: 24px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+
+  h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#1f2937'};
+    margin: 0 0 12px 0;
+  }
+
+  p {
+    font-size: 16px;
+    color: ${({ theme }) => theme.isDarkMode ? theme.colours.textSecondary : '#6b7280'};
+    margin: 0;
+    line-height: 1.6;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+`;
+
 const ChatContainer = styled.div`
   width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
   min-height: 400px;
 `;
 
@@ -84,6 +165,10 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState('');
 
+  // Task summary states
+  const [upcomingTasks, setUpcomingTasks] = useState([]);
+  const [taskSummariesLoading, setTaskSummariesLoading] = useState(false);
+
   // Data for context - comprehensive application data
   const { products, loading: productsLoading } = useProducts();
   const [coverages, setCoverages] = useState([]);
@@ -95,6 +180,45 @@ export default function Home() {
   const [tasks, setTasks] = useState([]);
   const [newsArticles, setNewsArticles] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
+
+  // Generate task summaries when tasks are loaded
+  useEffect(() => {
+    const generateSummaries = async () => {
+      if (tasks.length > 0) {
+        console.log('Tasks loaded, generating summaries for', tasks.length, 'tasks');
+
+        // First, set the tasks without summaries immediately
+        const upcoming = getUpcomingTasks(tasks, 5);
+        setUpcomingTasks(upcoming);
+
+        // Then try to generate AI summaries
+        const apiKey = process.env.REACT_APP_OPENAI_KEY;
+        if (apiKey && upcoming.length > 0) {
+          setTaskSummariesLoading(true);
+          try {
+            console.log('Generating AI summaries for', upcoming.length, 'upcoming tasks');
+            const tasksWithSummaries = await generateTaskSummaries(upcoming, apiKey);
+            setUpcomingTasks(tasksWithSummaries);
+            console.log('AI summaries generated successfully');
+          } catch (error) {
+            console.error('Error generating task summaries:', error);
+            // Keep the tasks without AI summaries
+          } finally {
+            setTaskSummariesLoading(false);
+          }
+        } else {
+          console.log('No API key or no upcoming tasks, skipping AI summaries');
+          setTaskSummariesLoading(false);
+        }
+      } else if (tasks.length === 0 && !dataLoading) {
+        console.log('No tasks found, setting empty array');
+        setUpcomingTasks([]);
+        setTaskSummariesLoading(false);
+      }
+    };
+
+    generateSummaries();
+  }, [tasks, dataLoading]);
 
   // Fetch comprehensive application data for enhanced AI context
   useEffect(() => {
@@ -154,10 +278,23 @@ export default function Home() {
 
         // Fetch tasks
         const tasksSnap = await getDocs(collection(db, 'tasks'));
-        const tasksList = tasksSnap.docs.map(doc => ({
+        let tasksList = tasksSnap.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
+
+        // If no tasks exist, seed with sample data
+        if (tasksList.length === 0) {
+          console.log('No tasks found, seeding with sample data...');
+          await seedTasks();
+          // Fetch tasks again after seeding
+          const newTasksSnap = await getDocs(collection(db, 'tasks'));
+          tasksList = newTasksSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+        }
+
         setTasks(tasksList);
 
         // Load sample news data (in a real app, this would be from an API or database)
@@ -502,6 +639,12 @@ ${JSON.stringify(context, null, 2)}
     }
   };
 
+  // Handle news article click
+  const handleArticleClick = (article) => {
+    // In a real implementation, this would navigate to the full article
+    console.log('Opening article:', article.title);
+  };
+
   return (
     <Page>
       <MainNavigation />
@@ -579,12 +722,38 @@ ${JSON.stringify(context, null, 2)}
           )}
         </EnhancedHeader>
 
-        <ChatContainer>
-          {response && (
-            <UnifiedAIResponse content={response} />
-          )}
-        </ChatContainer>
+        <ContentLayout>
+          <SideColumn>
+            <TaskOverviewCard
+              tasks={upcomingTasks}
+              isLoading={taskSummariesLoading}
+              maxItems={5}
+            />
+          </SideColumn>
 
+          <CenterColumn>
+            {!response && (
+              <WelcomeContainer>
+                <h2>Welcome to Product Hub</h2>
+                <p>Your comprehensive insurance product management platform. Ask me anything about your products, coverages, forms, pricing, rules, tasks, or industry news to get started.</p>
+              </WelcomeContainer>
+            )}
+
+            <ChatContainer>
+              {response && (
+                <UnifiedAIResponse content={response} />
+              )}
+            </ChatContainer>
+          </CenterColumn>
+
+          <SideColumn>
+            <NewsFeedCard
+              articles={newsArticles}
+              onArticleClick={handleArticleClick}
+              maxItems={4}
+            />
+          </SideColumn>
+        </ContentLayout>
 
       </MainContent>
     </Page>
