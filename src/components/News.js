@@ -440,10 +440,10 @@ export default function News() {
   const [sourceFilter, setSourceFilter] = useState('all');
   const [bookmarkedArticles, setBookmarkedArticles] = useState(new Set());
 
-  // P&C news preferences state
+  // P&C news preferences state - Default to Commercial Lines and Regulatory & Compliance
   const [newsPreferences, setNewsPreferences] = useState({
-    focusArea: 'general',
-    minRelevanceScore: 1,
+    focusArea: 'commercial',
+    minRelevanceScore: 3,
     includeRegulatory: true,
     includeTechnology: true,
     maxArticles: 15

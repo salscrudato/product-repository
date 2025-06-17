@@ -171,8 +171,18 @@ const NewsDate = styled.div`
 `;
 
 const FeedContainer = styled.div`
+  background: ${({ theme }) => theme.isDarkMode ? theme.colours.cardBackground : 'white'};
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid ${({ theme }) => theme.isDarkMode ? theme.colours.border : '#e5e7eb'};
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
 `;
 
 const FeedHeader = styled.div`

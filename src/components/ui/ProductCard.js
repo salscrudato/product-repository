@@ -164,33 +164,71 @@ const MetaValue = styled.span`
   color: #374151;
 `;
 
-const ActionButtons = styled.div`
+const NavigationButtons = styled.div`
   display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
 `;
 
-const ActionButton = styled.button`
+const NavigationButton = styled(Link)`
   flex: 1;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
   color: white;
   border: none;
-  border-radius: 10px;
-  padding: 12px 16px;
-  font-size: 13px;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-height: 40px;
+  gap: 4px;
+  min-height: 36px;
+  text-decoration: none;
+  min-width: 0;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(31, 41, 55, 0.3);
+    background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+`;
+
+const ActionButton = styled.button`
+  flex: 1;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  color: #6366f1;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 32px;
   position: relative;
 
   &:hover:not(:disabled) {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+    border-color: rgba(99, 102, 241, 0.3);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
   }
 
   &:active:not(:disabled) {
@@ -198,15 +236,17 @@ const ActionButton = styled.button`
   }
 
   &:disabled {
-    opacity: 0.8;
+    opacity: 0.6;
     cursor: not-allowed;
     transform: none;
-    background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+    background: rgba(156, 163, 175, 0.1);
+    color: #9ca3af;
+    border-color: rgba(156, 163, 175, 0.2);
   }
 
   svg {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     transition: opacity 0.2s ease;
   }
 
@@ -216,30 +256,7 @@ const ActionButton = styled.button`
   }
 `;
 
-const QuickLinks = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-  font-size: 12px;
 
-  span {
-    color: #d1d5db;
-  }
-`;
-
-const QuickLink = styled(Link)`
-  color: #6366f1;
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.2s ease;
-
-  &:hover {
-    color: #4f46e5;
-    text-decoration: underline;
-  }
-`;
 
 const LastUpdated = styled.div`
   display: flex;
@@ -315,10 +332,18 @@ const ProductCard = memo(({
         </MetaItem>
       </ProductMeta>
 
+      <NavigationButtons>
+        <NavigationButton to={`/coverage/${product.id}`}>Coverages</NavigationButton>
+        <NavigationButton to={`/pricing/${product.id}`}>Pricing</NavigationButton>
+        <NavigationButton to={`/forms/${product.id}`}>Forms</NavigationButton>
+        <NavigationButton to={`/states/${product.id}`}>States</NavigationButton>
+        <NavigationButton to={`/rules/${product.id}`}>Rules</NavigationButton>
+      </NavigationButtons>
+
       <ActionButtons>
         <ActionButton onClick={handleSummary} disabled={loadingSummary}>
           {loadingSummary ? (
-            <LoadingSpinner type="circular" size="14px" color="white" />
+            <LoadingSpinner type="circular" size="12px" color="#6366f1" />
           ) : (
             <DocumentTextIcon />
           )}
@@ -329,18 +354,6 @@ const ProductCard = memo(({
           Chat
         </ActionButton>
       </ActionButtons>
-
-      <QuickLinks>
-        <QuickLink to={`/coverage/${product.id}`}>Coverages</QuickLink>
-        <span>•</span>
-        <QuickLink to={`/pricing/${product.id}`}>Pricing</QuickLink>
-        <span>•</span>
-        <QuickLink to={`/forms/${product.id}`}>Forms</QuickLink>
-        <span>•</span>
-        <QuickLink to={`/states/${product.id}`}>States</QuickLink>
-        <span>•</span>
-        <QuickLink to={`/rules/${product.id}`}>Rules</QuickLink>
-      </QuickLinks>
 
       <LastUpdated>
         <ClockIcon width={12} height={12} />

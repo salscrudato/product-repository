@@ -71,13 +71,13 @@ const MainContent = styled.main`
 const ContentLayout = styled.div`
   display: grid;
   grid-template-columns: 300px 1fr 300px;
-  gap: 24px;
+  gap: 32px;
   margin-top: 32px;
   align-items: start;
 
   @media (max-width: 1400px) {
     grid-template-columns: 280px 1fr 280px;
-    gap: 20px;
+    gap: 24px;
   }
 
   @media (max-width: 1200px) {
@@ -94,6 +94,14 @@ const SideColumn = styled.div`
 
   @media (max-width: 1200px) {
     position: static;
+  }
+
+  &:first-child {
+    padding-left: 24px;
+  }
+
+  &:last-child {
+    padding-right: 24px;
   }
 `;
 
@@ -333,11 +341,13 @@ export default function Home() {
   const [tasks, setTasks] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
-  // Load news data using the news hook
+  // Load news data using the news hook - Default to Commercial Lines
   const { articles: newsArticles } = useNews({
     enableAI: false, // Disable AI for home page to improve performance
     enableCache: true,
-    fallbackToSample: true
+    fallbackToSample: true,
+    focusArea: 'commercial',
+    includeRegulatory: true
   });
 
 
@@ -937,13 +947,6 @@ ${JSON.stringify(context, null, 2)}
           </SideColumn>
 
           <CenterColumn>
-            {!response && (
-              <WelcomeContainer>
-                <h2>Welcome to Product Hub</h2>
-                <p>Your comprehensive insurance product management platform. Ask me anything about your products, coverages, forms, pricing, rules, tasks, or industry news to get started.</p>
-              </WelcomeContainer>
-            )}
-
             <ChatContainer>
               {response && (
                 <ResponseCard>

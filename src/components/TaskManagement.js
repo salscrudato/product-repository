@@ -25,6 +25,7 @@ import { db } from '../firebase';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
 import { seedTasks } from '../utils/taskSeeder';
+import { resetWithCommercialPropertyTasks } from '../utils/commercialPropertyTaskSeeder';
 
 // ============================================================================
 // Styled Components
@@ -162,6 +163,27 @@ const SeedButton = styled.button`
   &:hover {
     background: rgba(16, 185, 129, 0.2);
     border-color: rgba(16, 185, 129, 0.5);
+  }
+`;
+
+const CommercialPropertyButton = styled.button`
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.5);
+    transform: translateY(-1px);
   }
 `;
 
@@ -687,6 +709,36 @@ export default function TaskManagement() {
     }
   };
 
+  // Handle commercial property task reset
+  const handleCommercialPropertyReset = async () => {
+    const confirmed = window.confirm(
+      '🏢 Commercial Property Task Reset\n\n' +
+      'This will DELETE ALL existing tasks and replace them with 10 realistic commercial property insurance tasks.\n\n' +
+      'Are you sure you want to proceed?'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const result = await resetWithCommercialPropertyTasks();
+
+      if (result.success) {
+        alert(
+          '✅ Success!\n\n' +
+          `Deleted ${result.deleted} old tasks\n` +
+          `Added ${result.added} commercial property tasks\n\n` +
+          'Your task board now shows a realistic commercial property workflow!'
+        );
+      } else {
+        alert('❌ Reset failed. Check the console for details.');
+        console.error('Reset failed:', result.error);
+      }
+    } catch (error) {
+      console.error('Error resetting tasks:', error);
+      alert('❌ Error resetting tasks. Check the console for details.');
+    }
+  };
+
   // Format date for display
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -748,6 +800,10 @@ export default function TaskManagement() {
                 Add Sample Data
               </SeedButton>
             )}
+
+            <CommercialPropertyButton onClick={handleCommercialPropertyReset}>
+              🏢 Commercial Property Reset
+            </CommercialPropertyButton>
           </ActionGroup>
         </ActionBar>
 

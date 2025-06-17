@@ -96,8 +96,8 @@ export function useNews(options = {}) {
     autoRefresh = false,
     refreshInterval = 30 * 60 * 1000, // 30 minutes
     fallbackToSample = true,
-    // Ultra-strict P&C‑specific options
-    focusArea = 'pc', // 'pc' (combined), 'property', 'casualty', 'commercial', 'personal'
+    // Ultra-strict P&C‑specific options - Default to Commercial Lines
+    focusArea = 'commercial', // 'pc' (combined), 'property', 'casualty', 'commercial', 'personal'
     minRelevanceScore = 3, // Increased minimum for ultra-strict P&C focus
     includeRegulatory = true,
     includeTechnology = true,

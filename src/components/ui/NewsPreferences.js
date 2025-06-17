@@ -270,7 +270,7 @@ const Button = styled.button`
 const NewsPreferences = ({ currentPreferences, onPreferencesChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [preferences, setPreferences] = useState({
-    focusArea: 'pc',
+    focusArea: 'commercial',
     minRelevanceScore: 3, // Higher default for ultra-strict P&C focus
     includeRegulatory: true,
     includeTechnology: true,

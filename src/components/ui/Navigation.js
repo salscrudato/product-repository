@@ -453,14 +453,6 @@ export default function MainNavigation() {
               Explorer
             </NavLink>
           </NavItem>
-          <NavItem>
-            <NavLink
-              to="/claims-analysis"
-              className={location.pathname === '/claims-analysis' ? 'active' : ''}
-            >
-              Claims Analysis
-            </NavLink>
-          </NavItem>
           {/* <NavItem>
             <NavLink
               to="/rules"
@@ -487,20 +479,31 @@ export default function MainNavigation() {
           </NavItem>
           <NavItem>
             <NavLink
-              to="/earnings"
-              className={location.pathname === '/earnings' ? 'active' : ''}
-            >
-              Earnings
-            </NavLink>
-          </NavItem>
-          <NavItem>
-            <NavLink
               to="/data-dictionary"
               className={location.pathname === '/data-dictionary' ? 'active' : ''}
             >
               Data Dictionary
             </NavLink>
           </NavItem>
+          {/* Temporarily disabled tabs - moved to end */}
+          {/* <NavItem>
+            <NavLink
+              to="/claims-analysis"
+              className={location.pathname === '/claims-analysis' ? 'active' : ''}
+              style={{ opacity: 0.5, pointerEvents: 'none' }}
+            >
+              Claims Analysis
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
+              to="/earnings"
+              className={location.pathname === '/earnings' ? 'active' : ''}
+              style={{ opacity: 0.5, pointerEvents: 'none' }}
+            >
+              Earnings
+            </NavLink>
+          </NavItem> */}
           {/* <NavItem>
             <NavLink
               to="/agent-demo"

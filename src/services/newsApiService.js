@@ -61,7 +61,7 @@ function setRateLimitCooldown(delayMs = NEWS_API_CONFIG.RATE_LIMIT_DELAY) {
  */
 function buildQueryParams(options = {}) {
   const {
-    focusArea = 'general',
+    focusArea = 'commercial',
     size = 10
   } = options;
 
@@ -81,13 +81,13 @@ function buildQueryParams(options = {}) {
       query = 'liability insurance workers compensation';
       break;
     case 'commercial':
-      query = 'commercial insurance business';
+      query = 'commercial insurance business regulatory compliance';
       break;
     case 'personal':
       query = 'auto insurance homeowners';
       break;
     default:
-      query = 'insurance';
+      query = 'insurance regulatory compliance';
   }
 
   // Respect free tier limits
@@ -165,8 +165,8 @@ function transformArticle(apiArticle, index) {
  */
 export async function fetchNewsArticles(options = {}) {
   const {
-    focusArea = 'general',
-    minRelevanceScore = 1,
+    focusArea = 'commercial',
+    minRelevanceScore = 3,
     minProductManagerRelevance = 0,
     includeRegulatory = true,
     includeTechnology = true,

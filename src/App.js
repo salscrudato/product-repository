@@ -19,6 +19,7 @@ import Login from './components/Login';
 import Home from './components/Home';
 import ProductHub from './components/ProductHub';
 import RequireAuth from './components/RequireAuth';
+import AdminTaskReset from './components/AdminTaskReset';
 
 // Loading component for lazy-loaded routes
 const LoadingSpinner = () => (
@@ -119,6 +120,9 @@ const HistoryWrapper = () => {
       <Routes>
         {/* public */}
         <Route path="/login" element={<Login />} />
+
+        {/* Admin route for task reset - public access */}
+        <Route path="/admin/task-reset" element={<AdminTaskReset />} />
 
         {/* protected */}
         <Route
@@ -304,6 +308,16 @@ const HistoryWrapper = () => {
               <Suspense fallback={<LoadingSpinner />}>
                 <PCNewsTest />
               </Suspense>
+            </RequireAuth>
+          }
+        />
+
+        {/* Admin route for task reset - temporary */}
+        <Route
+          path="/admin/task-reset"
+          element={
+            <RequireAuth>
+              <AdminTaskReset />
             </RequireAuth>
           }
         />
