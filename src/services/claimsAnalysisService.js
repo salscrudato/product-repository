@@ -112,7 +112,7 @@ TOTAL SECTIONS: ${formChunks.length}
           'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
         },
         body: JSON.stringify({
-          model: 'gpt-4.1-mini',
+          model: 'gpt-4o',
           messages: messages,
           max_tokens: 2000,
           temperature: 0.2 // Lower temperature for more consistent analysis
@@ -314,7 +314,7 @@ Use the standard structured format with clear sections and specific form referen
           'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
         },
         body: JSON.stringify({
-          model: 'gpt-4.1-mini',
+          model: 'gpt-4o',
           messages: [
             {
               role: 'system',

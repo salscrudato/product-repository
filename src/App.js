@@ -7,6 +7,9 @@ import { createTheme } from './styles/theme';
 import ErrorBoundary from './components/ErrorBoundary';
 import { DarkModeProvider, useDarkMode } from './contexts/DarkModeContext';
 import { initBundleOptimizations, createOptimizedLazyComponent } from './utils/bundleOptimization';
+import PerformanceDashboard from './components/ui/PerformanceDashboard';
+import dataPrefetchingService from './services/dataPrefetchingService';
+import imageOptimizationService from './services/imageOptimizationService';
 // import AgentAssistant from './components/AgentAssistant';
 
 /* public */
@@ -87,6 +90,10 @@ const TaskManagement = createOptimizedLazyComponent(
 const News = createOptimizedLazyComponent(
   () => import('./components/News'),
   { chunkName: 'News', fallback: <LoadingSpinner /> }
+);
+const PCNewsTest = createOptimizedLazyComponent(
+  () => import('./components/PCNewsTest'),
+  { chunkName: 'PCNewsTest', fallback: <LoadingSpinner /> }
 );
 
 
@@ -276,6 +283,16 @@ const HistoryWrapper = () => {
             </RequireAuth>
           }
         />
+        <Route
+          path="/pc-news-test"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <PCNewsTest />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
 
         {/* catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -306,15 +323,29 @@ const ThemedApp = () => {
 };
 
 function App() {
-  // Initialize bundle optimizations
+  // Initialize bundle optimizations and performance services
   useEffect(() => {
     initBundleOptimizations();
+
+    // Initialize advanced performance services
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🚀 Initializing advanced performance optimizations...');
+
+      // Initialize data prefetching service
+      dataPrefetchingService.reset(); // Start fresh
+
+      // Initialize image optimization
+      imageOptimizationService.initializeLazyLoading();
+
+      console.log('✅ Advanced performance optimizations initialized');
+    }
   }, []);
 
   return (
     <ErrorBoundary>
       <DarkModeProvider>
         <ThemedApp />
+        <PerformanceDashboard />
       </DarkModeProvider>
     </ErrorBoundary>
   );

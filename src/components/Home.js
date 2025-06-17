@@ -17,11 +17,14 @@ import { UnifiedAIResponse } from './ui/UnifiedAIResponse';
 import TaskOverviewCard from './ui/TaskOverviewCard';
 import NewsFeedCard from './ui/NewsFeedCard';
 import useProducts from '../hooks/useProducts';
+import { useDeepMemo } from '../hooks/useAdvancedMemo';
+import { ProgressiveLoader } from '../components/ui/ProgressiveLoader';
 import { collection, getDocs, collectionGroup } from 'firebase/firestore';
 import { db } from '../firebase';
-import { sampleNews } from '../data/sampleNews';
+import useNews from '../hooks/useNews';
 import { generateTaskSummaries, getUpcomingTasks } from '../services/aiTaskSummaryService';
 import { seedTasks } from '../utils/taskSeeder';
+import { AI_MODELS, AI_PARAMETERS, AI_API_CONFIG } from '../config/aiConfig';
 
 /* ---------- styled components ---------- */
 const Page = styled.div`
@@ -149,6 +152,156 @@ const ChatContainer = styled.div`
   min-height: 400px;
 `;
 
+const ResponseCard = styled.div`
+  background: ${({ theme }) => theme.isDarkMode ? theme.colours.cardBackground : 'white'};
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid ${({ theme }) => theme.isDarkMode ? theme.colours.border : '#e5e7eb'};
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const ResponseHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid ${({ theme }) => theme.isDarkMode ? theme.colours.border : '#f3f4f6'};
+`;
+
+const ResponseIcon = styled.div`
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+`;
+
+const ResponseTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#1f2937'};
+  margin: 0;
+  flex: 1;
+`;
+
+const ResponseTimestamp = styled.span`
+  font-size: 12px;
+  color: ${({ theme }) => theme.isDarkMode ? theme.colours.textSecondary : '#9ca3af'};
+  font-weight: 500;
+`;
+
+const ResponseContent = styled.div`
+  color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#374151'};
+  line-height: 1.6;
+
+  /* Enhanced markdown styling */
+  h1, h2, h3, h4, h5, h6 {
+    color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#1f2937'};
+    margin: 16px 0 8px 0;
+    font-weight: 600;
+  }
+
+  h1 { font-size: 20px; }
+  h2 { font-size: 18px; }
+  h3 { font-size: 16px; }
+
+  p {
+    margin: 12px 0;
+  }
+
+  ul, ol {
+    margin: 12px 0;
+    padding-left: 20px;
+  }
+
+  li {
+    margin: 4px 0;
+  }
+
+  code {
+    background: ${({ theme }) => theme.isDarkMode ? 'rgba(139, 92, 246, 0.1)' : '#f3f4f6'};
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 13px;
+    color: ${({ theme }) => theme.isDarkMode ? '#a855f7' : '#7c3aed'};
+  }
+
+  pre {
+    background: ${({ theme }) => theme.isDarkMode ? 'rgba(139, 92, 246, 0.05)' : '#f9fafb'};
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    border: 1px solid ${({ theme }) => theme.isDarkMode ? theme.colours.border : '#e5e7eb'};
+
+    code {
+      background: none;
+      padding: 0;
+      color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#374151'};
+    }
+  }
+
+  blockquote {
+    border-left: 3px solid #6366f1;
+    padding-left: 16px;
+    margin: 16px 0;
+    color: ${({ theme }) => theme.isDarkMode ? theme.colours.textSecondary : '#6b7280'};
+    font-style: italic;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+
+    th, td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid ${({ theme }) => theme.isDarkMode ? theme.colours.border : '#e5e7eb'};
+    }
+
+    th {
+      font-weight: 600;
+      background: ${({ theme }) => theme.isDarkMode ? 'rgba(139, 92, 246, 0.05)' : '#f9fafb'};
+    }
+  }
+
+  strong {
+    font-weight: 600;
+    color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#1f2937'};
+  }
+
+  em {
+    font-style: italic;
+    color: ${({ theme }) => theme.isDarkMode ? theme.colours.textSecondary : '#6b7280'};
+  }
+`;
+
 
 
 
@@ -178,46 +331,76 @@ export default function Home() {
   const [dataDictionary, setDataDictionary] = useState([]);
   const [formCoverages, setFormCoverages] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [newsArticles, setNewsArticles] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
-  // Generate task summaries when tasks are loaded
+  // Load news data using the news hook
+  const { articles: newsArticles } = useNews({
+    enableAI: false, // Disable AI for home page to improve performance
+    enableCache: true,
+    fallbackToSample: true
+  });
+
+  // Generate overall task summary when tasks are loaded
   useEffect(() => {
-    const generateSummaries = async () => {
+    const generateOverallSummary = async () => {
       if (tasks.length > 0) {
-        console.log('Tasks loaded, generating summaries for', tasks.length, 'tasks');
+        console.log('Tasks loaded, generating overall summary for', tasks.length, 'tasks');
 
-        // First, set the tasks without summaries immediately
-        const upcoming = getUpcomingTasks(tasks, 5);
-        setUpcomingTasks(upcoming);
-
-        // Then try to generate AI summaries
+        // Try to generate AI-powered overall summary
         const apiKey = process.env.REACT_APP_OPENAI_KEY;
-        if (apiKey && upcoming.length > 0) {
+        if (apiKey) {
           setTaskSummariesLoading(true);
           try {
-            console.log('Generating AI summaries for', upcoming.length, 'upcoming tasks');
-            const tasksWithSummaries = await generateTaskSummaries(upcoming, apiKey);
-            setUpcomingTasks(tasksWithSummaries);
-            console.log('AI summaries generated successfully');
+            console.log('Generating AI-powered task portfolio summary');
+            const taskSummary = await generateTaskSummaries(tasks, apiKey);
+            setUpcomingTasks(taskSummary);
+            console.log('Task portfolio summary generated successfully');
           } catch (error) {
-            console.error('Error generating task summaries:', error);
-            // Keep the tasks without AI summaries
+            console.error('Error generating task summary:', error);
+            // Fallback to basic summary
+            const fallbackSummary = {
+              overallSummary: `Portfolio of ${tasks.length} tasks requiring attention.`,
+              upcomingDeadlines: getUpcomingTasks(tasks, 3).map(task => ({
+                task: task.title,
+                assignee: task.assignee || 'Unassigned',
+                dueDate: task.dueDate,
+                urgency: task.priority === 'high' ? 'high' : 'medium',
+                impact: `${task.phase} phase task`
+              })),
+              ownershipBreakdown: {},
+              suggestedActions: ['Review task priorities', 'Update progress status'],
+              riskFactors: []
+            };
+            setUpcomingTasks(fallbackSummary);
           } finally {
             setTaskSummariesLoading(false);
           }
         } else {
-          console.log('No API key or no upcoming tasks, skipping AI summaries');
+          console.log('No API key, using basic summary');
+          const basicSummary = {
+            overallSummary: `Portfolio of ${tasks.length} tasks requiring attention.`,
+            upcomingDeadlines: getUpcomingTasks(tasks, 3).map(task => ({
+              task: task.title,
+              assignee: task.assignee || 'Unassigned',
+              dueDate: task.dueDate,
+              urgency: task.priority === 'high' ? 'high' : 'medium',
+              impact: `${task.phase} phase task`
+            })),
+            ownershipBreakdown: {},
+            suggestedActions: ['Review task priorities', 'Update progress status'],
+            riskFactors: []
+          };
+          setUpcomingTasks(basicSummary);
           setTaskSummariesLoading(false);
         }
       } else if (tasks.length === 0 && !dataLoading) {
-        console.log('No tasks found, setting empty array');
-        setUpcomingTasks([]);
+        console.log('No tasks found, setting null summary');
+        setUpcomingTasks(null);
         setTaskSummariesLoading(false);
       }
     };
 
-    generateSummaries();
+    generateOverallSummary();
   }, [tasks, dataLoading]);
 
   // Fetch comprehensive application data for enhanced AI context
@@ -297,9 +480,6 @@ export default function Home() {
 
         setTasks(tasksList);
 
-        // Load sample news data (in a real app, this would be from an API or database)
-        setNewsArticles(sampleNews);
-
       } catch (error) {
         console.error('Error fetching context data:', error);
       } finally {
@@ -313,15 +493,26 @@ export default function Home() {
 
 
 
-  // Build comprehensive context for AI assistant with ALL application data
-  const buildContext = () => {
+  // Build comprehensive context for AI assistant with ALL application data (memoized for performance)
+  const contextData = useDeepMemo(() => {
+    // Ensure all data arrays exist before processing
+    const safeProducts = products || [];
+    const safeCoverages = coverages || [];
+    const safeForms = forms || [];
+    const safeRules = rules || [];
+    const safePricingSteps = pricingSteps || [];
+    const safeDataDictionary = dataDictionary || [];
+    const safeFormCoverages = formCoverages || [];
+    const safeTasks = tasks || [];
+    const safeNewsArticles = newsArticles || [];
+
     const context = {
       timestamp: new Date().toISOString(),
       company: "Insurance Product Management System",
       systemDescription: "Comprehensive P&C insurance product management platform with products, coverages, forms, pricing, rules, and regulatory data",
 
       // Products data with enhanced details
-      products: products.map(p => ({
+      products: safeProducts.map(p => ({
         id: p.id,
         name: p.name,
         formNumber: p.formNumber,
@@ -335,10 +526,10 @@ export default function Home() {
       })),
 
       // Coverages data with relationships
-      coverages: coverages.map(c => ({
+      coverages: safeCoverages.map(c => ({
         id: c.id,
         productId: c.productId,
-        productName: products.find(p => p.id === c.productId)?.name || 'Unknown Product',
+        productName: safeProducts.find(p => p.id === c.productId)?.name || 'Unknown Product',
         coverageCode: c.coverageCode,
         coverageName: c.coverageName,
         scopeOfCoverage: c.scopeOfCoverage,
@@ -353,7 +544,7 @@ export default function Home() {
       })),
 
       // Forms data with associations
-      forms: forms.map(f => ({
+      forms: safeForms.map(f => ({
         id: f.id,
         name: f.name || f.formName,
         formNumber: f.formNumber,
@@ -363,7 +554,7 @@ export default function Home() {
         productIds: f.productIds || [],
         coverageIds: f.coverageIds || [],
         associatedProducts: (f.productIds || []).map(pid =>
-          products.find(p => p.id === pid)?.name || 'Unknown Product'
+          safeProducts.find(p => p.id === pid)?.name || 'Unknown Product'
         ).filter(Boolean),
         hasDocument: !!f.downloadUrl || !!f.filePath,
         dynamic: f.dynamic,
@@ -371,7 +562,7 @@ export default function Home() {
       })),
 
       // Rules data
-      rules: rules.map(r => ({
+      rules: safeRules.map(r => ({
         id: r.id,
         name: r.name,
         ruleId: r.ruleId,
@@ -381,14 +572,14 @@ export default function Home() {
         proprietary: r.proprietary,
         reference: r.reference,
         productId: r.productId,
-        productName: r.productId ? products.find(p => p.id === r.productId)?.name : null
+        productName: r.productId ? safeProducts.find(p => p.id === r.productId)?.name : null
       })),
 
       // Pricing steps data
-      pricingSteps: pricingSteps.map(s => ({
+      pricingSteps: safePricingSteps.map(s => ({
         id: s.id,
         productId: s.productId,
-        productName: products.find(p => p.id === s.productId)?.name || 'Unknown Product',
+        productName: safeProducts.find(p => p.id === s.productId)?.name || 'Unknown Product',
         stepName: s.stepName,
         stepType: s.stepType,
         coverages: s.coverages || [],
@@ -402,7 +593,7 @@ export default function Home() {
       })),
 
       // Data dictionary
-      dataDictionary: dataDictionary.map(d => ({
+      dataDictionary: safeDataDictionary.map(d => ({
         id: d.id,
         fieldName: d.fieldName,
         description: d.description,
@@ -413,18 +604,18 @@ export default function Home() {
       })),
 
       // Form-coverage mappings
-      formCoverageMappings: formCoverages.map(fc => ({
+      formCoverageMappings: safeFormCoverages.map(fc => ({
         id: fc.id,
         productId: fc.productId,
         coverageId: fc.coverageId,
         formId: fc.formId,
-        productName: products.find(p => p.id === fc.productId)?.name,
-        coverageName: coverages.find(c => c.id === fc.coverageId)?.coverageName,
-        formNumber: forms.find(f => f.id === fc.formId)?.formNumber
+        productName: safeProducts.find(p => p.id === fc.productId)?.name,
+        coverageName: safeCoverages.find(c => c.id === fc.coverageId)?.coverageName,
+        formNumber: safeForms.find(f => f.id === fc.formId)?.formNumber
       })),
 
       // Tasks data
-      tasks: tasks.map(t => ({
+      tasks: safeTasks.map(t => ({
         id: t.id,
         title: t.title,
         description: t.description,
@@ -444,7 +635,7 @@ export default function Home() {
       })),
 
       // News articles data
-      newsArticles: newsArticles.map(n => ({
+      newsArticles: safeNewsArticles.map(n => ({
         id: n.id,
         title: n.title,
         excerpt: n.excerpt,
@@ -464,47 +655,47 @@ export default function Home() {
 
       // Enhanced summary statistics
       summary: {
-        totalProducts: products.length,
-        totalCoverages: coverages.length,
-        totalForms: forms.length,
-        totalRules: rules.length,
-        totalPricingSteps: pricingSteps.length,
-        totalDataDictionaryEntries: dataDictionary.length,
-        totalFormCoverageMappings: formCoverages.length,
-        totalTasks: tasks.length,
-        totalNewsArticles: newsArticles.length,
-        productsWithForms: products.filter(p => p.formDownloadUrl).length,
-        subCoverages: coverages.filter(c => c.parentCoverage).length,
-        proprietaryRules: rules.filter(r => r.proprietary).length,
-        statesRepresented: [...new Set(products.flatMap(p => p.availableStates || []))].length,
+        totalProducts: safeProducts.length,
+        totalCoverages: safeCoverages.length,
+        totalForms: safeForms.length,
+        totalRules: safeRules.length,
+        totalPricingSteps: safePricingSteps.length,
+        totalDataDictionaryEntries: safeDataDictionary.length,
+        totalFormCoverageMappings: safeFormCoverages.length,
+        totalTasks: safeTasks.length,
+        totalNewsArticles: safeNewsArticles.length,
+        productsWithForms: safeProducts.filter(p => p.formDownloadUrl).length,
+        subCoverages: safeCoverages.filter(c => c.parentCoverage).length,
+        proprietaryRules: safeRules.filter(r => r.proprietary).length,
+        statesRepresented: [...new Set(safeProducts.flatMap(p => p.availableStates || []))].length,
         tasksByPhase: {
-          research: tasks.filter(t => t.phase === 'research').length,
-          develop: tasks.filter(t => t.phase === 'develop').length,
-          compliance: tasks.filter(t => t.phase === 'compliance').length,
-          implementation: tasks.filter(t => t.phase === 'implementation').length
+          research: safeTasks.filter(t => t.phase === 'research').length,
+          develop: safeTasks.filter(t => t.phase === 'develop').length,
+          compliance: safeTasks.filter(t => t.phase === 'compliance').length,
+          implementation: safeTasks.filter(t => t.phase === 'implementation').length
         },
         tasksByPriority: {
-          high: tasks.filter(t => t.priority === 'high').length,
-          medium: tasks.filter(t => t.priority === 'medium').length,
-          low: tasks.filter(t => t.priority === 'low').length
+          high: safeTasks.filter(t => t.priority === 'high').length,
+          medium: safeTasks.filter(t => t.priority === 'medium').length,
+          low: safeTasks.filter(t => t.priority === 'low').length
         },
-        overdueTasks: tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date()).length,
-        tasksWithAssignees: tasks.filter(t => t.assignee).length,
+        overdueTasks: safeTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date()).length,
+        tasksWithAssignees: safeTasks.filter(t => t.assignee).length,
         newsByCategory: {
-          regulation: newsArticles.filter(n => n.category === 'regulation').length,
-          market: newsArticles.filter(n => n.category === 'market').length,
-          technology: newsArticles.filter(n => n.category === 'technology').length,
-          claims: newsArticles.filter(n => n.category === 'claims').length,
-          underwriting: newsArticles.filter(n => n.category === 'underwriting').length
+          regulation: safeNewsArticles.filter(n => n.category === 'regulation').length,
+          market: safeNewsArticles.filter(n => n.category === 'market').length,
+          technology: safeNewsArticles.filter(n => n.category === 'technology').length,
+          claims: safeNewsArticles.filter(n => n.category === 'claims').length,
+          underwriting: safeNewsArticles.filter(n => n.category === 'underwriting').length
         },
-        recentNews: newsArticles.filter(n =>
+        recentNews: safeNewsArticles.filter(n =>
           (new Date() - new Date(n.publishedAt)) / (1000 * 60 * 60 * 24) <= 7
         ).length
       }
     };
 
     return context;
-  };
+  }, [products, coverages, forms, rules, pricingSteps, dataDictionary, formCoverages, tasks, newsArticles]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -516,8 +707,8 @@ export default function Home() {
     setResponse('');
 
     try {
-      // Build comprehensive context
-      const context = buildContext();
+      // Use the memoized context data
+      const context = contextData;
 
       // Create enhanced system prompt with comprehensive domain expertise
       const systemPrompt = `You are an expert AI assistant for a comprehensive P&C insurance product management system. You have access to complete real-time data about the company's insurance products, coverages, forms, pricing models, business rules, regulatory compliance data, task management information, and current industry news.
@@ -579,14 +770,14 @@ ${JSON.stringify(context, null, 2)}
 - News impact on business strategy and product development
 - Regulatory news correlation with compliance requirements`;
 
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      const res = await fetch(AI_API_CONFIG.OPENAI_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
         },
         body: JSON.stringify({
-          model: 'gpt-4.1-mini',
+          model: AI_MODELS.HOME_CHAT,
           messages: [
             {
               role: 'system',
@@ -594,11 +785,11 @@ ${JSON.stringify(context, null, 2)}
             },
             { role: 'user', content: query }
           ],
-          max_tokens: 4000,  // Increased for comprehensive responses
-          temperature: 0.3,  // Lower temperature for more focused, analytical responses
-          top_p: 0.9,
-          frequency_penalty: 0.1,
-          presence_penalty: 0.1
+          max_tokens: AI_PARAMETERS.HOME_CHAT.max_tokens,
+          temperature: AI_PARAMETERS.HOME_CHAT.temperature,
+          top_p: AI_PARAMETERS.HOME_CHAT.top_p,
+          frequency_penalty: AI_PARAMETERS.HOME_CHAT.frequency_penalty,
+          presence_penalty: AI_PARAMETERS.HOME_CHAT.presence_penalty
         })
       });
 
@@ -639,10 +830,14 @@ ${JSON.stringify(context, null, 2)}
     }
   };
 
-  // Handle news article click
+  // Handle news article click - open article in new tab
   const handleArticleClick = (article) => {
-    // In a real implementation, this would navigate to the full article
-    console.log('Opening article:', article.title);
+    if (article.url && article.url !== '#') {
+      window.open(article.url, '_blank', 'noopener,noreferrer');
+      console.log('Opening article:', article.title, 'URL:', article.url);
+    } else {
+      console.log('No URL available for article:', article.title);
+    }
   };
 
   return (
@@ -688,35 +883,35 @@ ${JSON.stringify(context, null, 2)}
             }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <CubeIcon style={{ width: '14px', height: '14px' }} />
-                {products.length} Products
+                {(products || []).length} Products
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <ShieldCheckIcon style={{ width: '14px', height: '14px' }} />
-                {coverages.length} Coverages
+                {(coverages || []).length} Coverages
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <DocumentTextIcon style={{ width: '14px', height: '14px' }} />
-                {forms.length} Forms
+                {(forms || []).length} Forms
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Cog6ToothIcon style={{ width: '14px', height: '14px' }} />
-                {rules.length} Rules
+                {(rules || []).length} Rules
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <CurrencyDollarIcon style={{ width: '14px', height: '14px' }} />
-                {pricingSteps.length} Pricing Steps
+                {(pricingSteps || []).length} Pricing Steps
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <BookOpenIcon style={{ width: '14px', height: '14px' }} />
-                {dataDictionary.length} Data Definitions
+                {(dataDictionary || []).length} Data Definitions
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <ClipboardDocumentListIcon style={{ width: '14px', height: '14px' }} />
-                {tasks.length} Tasks
+                {(tasks || []).length} Tasks
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <NewspaperIcon style={{ width: '14px', height: '14px' }} />
-                {newsArticles.length} News Articles
+                {(newsArticles || []).length} News Articles
               </span>
             </div>
           )}
@@ -724,11 +919,17 @@ ${JSON.stringify(context, null, 2)}
 
         <ContentLayout>
           <SideColumn>
-            <TaskOverviewCard
-              tasks={upcomingTasks}
-              isLoading={taskSummariesLoading}
-              maxItems={5}
-            />
+            <ProgressiveLoader
+              loading={taskSummariesLoading}
+              skeleton="list"
+              skeletonProps={{ count: 3, showAvatar: false }}
+              minLoadTime={300}
+            >
+              <TaskOverviewCard
+                taskSummary={upcomingTasks}
+                isLoading={taskSummariesLoading}
+              />
+            </ProgressiveLoader>
           </SideColumn>
 
           <CenterColumn>
@@ -741,17 +942,35 @@ ${JSON.stringify(context, null, 2)}
 
             <ChatContainer>
               {response && (
-                <UnifiedAIResponse content={response} />
+                <ResponseCard>
+                  <ResponseHeader>
+                    <ResponseIcon>AI</ResponseIcon>
+                    <ResponseTitle>Product Hub Assistant</ResponseTitle>
+                    <ResponseTimestamp>
+                      {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </ResponseTimestamp>
+                  </ResponseHeader>
+                  <ResponseContent>
+                    <UnifiedAIResponse content={response} />
+                  </ResponseContent>
+                </ResponseCard>
               )}
             </ChatContainer>
           </CenterColumn>
 
           <SideColumn>
-            <NewsFeedCard
-              articles={newsArticles}
-              onArticleClick={handleArticleClick}
-              maxItems={4}
-            />
+            <ProgressiveLoader
+              loading={!newsArticles.length}
+              skeleton="list"
+              skeletonProps={{ count: 4, showAvatar: true }}
+              minLoadTime={200}
+            >
+              <NewsFeedCard
+                articles={newsArticles}
+                onArticleClick={handleArticleClick}
+                maxItems={4}
+              />
+            </ProgressiveLoader>
           </SideColumn>
         </ContentLayout>
 

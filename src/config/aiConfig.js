@@ -13,17 +13,17 @@
 
 export const AI_MODELS = {
   // Primary model used across the application
-  PRIMARY: 'gpt-4.1-mini',
-  
+  PRIMARY: 'gpt-4o-mini',
+
   // Fallback model (if needed in future)
-  FALLBACK: 'gpt-4.1-mini',
-  
+  FALLBACK: 'gpt-4o-mini',
+
   // Specific model overrides (if different models needed for specific features)
-  CLAIMS_ANALYSIS: 'gpt-4.1-mini',
-  PRODUCT_SUMMARY: 'gpt-4.1-mini',
-  HOME_CHAT: 'gpt-4.1-mini',
-  AGENT_WORKFLOW: 'gpt-4.1-mini',
-  PRODUCT_BUILDER: 'gpt-4.1-mini'
+  CLAIMS_ANALYSIS: 'gpt-4o',  // Keep GPT-4o for Claims Analysis as per user preference
+  PRODUCT_SUMMARY: 'gpt-4o-mini',
+  HOME_CHAT: 'gpt-4o-mini',
+  AGENT_WORKFLOW: 'gpt-4o-mini',
+  PRODUCT_BUILDER: 'gpt-4o-mini'
 };
 
 // ============================================================================
@@ -128,6 +128,16 @@ export const AI_PARAMETERS = {
     model: AI_MODELS.PRIMARY,
     max_tokens: 800,
     temperature: 0.3,
+    timeout: AI_API_CONFIG.TIMEOUTS.QUICK_RESPONSE
+  },
+
+  // News summarization - concise P&C intelligence summaries
+  NEWS_SUMMARY: {
+    model: AI_MODELS.PRIMARY,
+    max_tokens: 150, // Reduced for concise summaries (1-2 sentences max)
+    temperature: 0.1, // Very low for consistent, focused output
+    top_p: 0.8, // Reduced for more focused responses
+    frequency_penalty: 0.2, // Higher to reduce repetition
     timeout: AI_API_CONFIG.TIMEOUTS.QUICK_RESPONSE
   }
 };
@@ -251,6 +261,25 @@ Structure your response with clear headings and provide specific policy referenc
   PRODUCT_CHAT_SYSTEM: (productName, pdfText) => `You are an expert insurance assistant helping with questions about the product "${productName}". ${
     pdfText ? 'Use the following form text as context for your answers:\n\n' + pdfText.slice(0, 50000) : 'No form text is available for this product.'
   }`,
+
+  // News Summarization - Concise P&C insurance intelligence
+  NEWS_SUMMARY_SYSTEM: `You are a P&C insurance analyst. Create ultra-concise summaries for insurance product managers.
+
+**Requirements:**
+- Maximum 1-2 sentences only
+- Lead with the most critical P&C business impact
+- Focus on: property, casualty, commercial, or personal lines
+- Use precise insurance terms: combined ratios, loss costs, rate adequacy
+- Identify immediate actionable implications
+
+**Priority Topics:**
+- Regulatory changes affecting P&C rates or coverage
+- New P&C product opportunities or market gaps
+- Technology impacting P&C operations
+- Catastrophe trends affecting property coverage
+- Competitive P&C product launches
+
+**Format:** Provide only the concise summary - no labels, bullets, or extra formatting.`,
 
   // Rules Extraction - Business rule identification
   RULES_EXTRACTION_SYSTEM: `Extract all business rules, conditions, and logic from this insurance document. Format as a clear, structured list.`,

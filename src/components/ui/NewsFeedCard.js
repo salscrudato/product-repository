@@ -21,15 +21,49 @@ const Card = styled.article`
   transition: all 0.2s ease;
   cursor: pointer;
   margin-bottom: 12px;
+  position: relative;
+  text-decoration: none;
+  color: inherit;
 
   &:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     border-color: #6366f1;
+    background: ${({ theme }) => theme.isDarkMode ? theme.colours.cardHover || theme.colours.cardBackground : '#f8fafc'};
   }
 
   &:last-child {
     margin-bottom: 0;
+  }
+
+  /* Enhanced styling for clickable cards */
+  &[href] {
+    &:hover {
+      /* Add subtle glow effect for clickable cards */
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border-radius: 10px;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));
+        opacity: 1;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* Ensure content stays above the glow */
+      > * {
+        position: relative;
+        z-index: 1;
+      }
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
   }
 `;
 
@@ -245,22 +279,65 @@ const formatDate = (dateString) => {
 // ============================================================================
 
 const NewsCard = ({ article, onClick }) => {
-  const handleClick = () => {
+  const handleClick = (e) => {
+    // Prevent default if we have a custom onClick handler
     if (onClick) {
+      e.preventDefault();
       onClick(article);
+    } else if (article.url && article.url !== '#') {
+      // Default behavior: open article in new tab
+      e.preventDefault();
+      window.open(article.url, '_blank', 'noopener,noreferrer');
     }
   };
 
+  const hasValidUrl = article.url && article.url !== '#';
+
   return (
-    <Card onClick={handleClick}>
+    <Card
+      as={hasValidUrl ? 'a' : 'div'}
+      href={hasValidUrl ? article.url : undefined}
+      target={hasValidUrl ? '_blank' : undefined}
+      rel={hasValidUrl ? 'noopener noreferrer' : undefined}
+      onClick={handleClick}
+      style={{
+        cursor: hasValidUrl || onClick ? 'pointer' : 'default',
+        textDecoration: 'none',
+        color: 'inherit'
+      }}
+    >
       <NewsHeader>
         <CategoryBadge category={article.category}>
           {article.category}
         </CategoryBadge>
+        {hasValidUrl && (
+          <div style={{
+            fontSize: '12px',
+            color: '#6b7280',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            <ArrowTopRightOnSquareIcon style={{ width: '12px', height: '12px' }} />
+            Read More
+          </div>
+        )}
       </NewsHeader>
 
       <NewsTitle>{article.title}</NewsTitle>
-      <NewsExcerpt>{article.excerpt}</NewsExcerpt>
+      <NewsExcerpt>
+        {article.excerpt}
+        {article.aiEnhanced && (
+          <span style={{
+            fontSize: '11px',
+            color: '#6366f1',
+            fontWeight: '500',
+            marginLeft: '8px'
+          }}>
+            ✨ AI Enhanced
+          </span>
+        )}
+      </NewsExcerpt>
 
       <NewsFooter>
         <NewsSource>{article.source}</NewsSource>

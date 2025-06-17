@@ -1059,7 +1059,7 @@ const ProductHub = memo(() => {
           'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
         },
         body: JSON.stringify({
-          model: 'gpt-4.1-mini',
+          model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: SYSTEM_INSTRUCTIONS.trim() },
             { role: 'user', content: snippet }
@@ -1215,7 +1215,7 @@ const ProductHub = memo(() => {
           'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
         },
         body: JSON.stringify({
-          model: 'gpt-4.1-mini',
+          model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: systemPrompt },
             ...chatMessages.slice(-10), // Keep last 10 messages for context
@@ -1276,7 +1276,7 @@ const ProductHub = memo(() => {
           'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
         },
         body: JSON.stringify({
-          model: 'gpt-4.1-mini',
+          model: 'gpt-4o-mini',
           messages: [
             {
               role: 'system',

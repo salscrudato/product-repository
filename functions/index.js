@@ -257,7 +257,7 @@ exports.agent = functions.https.onCall(async (data, context) => {
 
     // Call OpenAI
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-4.1-mini',
+      model: 'gpt-4o-mini',
       messages,
       max_tokens: 1000,
       temperature: 0.3

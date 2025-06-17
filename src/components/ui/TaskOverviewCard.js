@@ -11,7 +11,10 @@ import {
   ShieldCheckIcon,
   RocketLaunchIcon,
   ArrowTopRightOnSquareIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  ChartBarIcon,
+  BellAlertIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/solid';
 
 // ============================================================================
@@ -237,6 +240,169 @@ const LoadingState = styled.div`
   font-size: 12px;
 `;
 
+// New styled components for summary view
+const SummarySection = styled.div`
+  margin-bottom: 20px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const SummaryTitle = styled.h4`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#1f2937'};
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    color: #6366f1;
+  }
+`;
+
+const SummaryText = styled.p`
+  font-size: 13px;
+  line-height: 1.5;
+  color: ${({ theme }) => theme.isDarkMode ? theme.colours.textSecondary : '#6b7280'};
+  margin: 0 0 12px 0;
+`;
+
+const DeadlinesList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const DeadlineItem = styled.div`
+  display: flex;
+  justify-content: between;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: ${({ theme }) => theme.isDarkMode ? 'rgba(99, 102, 241, 0.05)' : 'rgba(99, 102, 241, 0.03)'};
+  border: 1px solid ${({ theme }) => theme.isDarkMode ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.08)'};
+
+  &.high-urgency {
+    background: ${({ theme }) => theme.isDarkMode ? 'rgba(239, 68, 68, 0.05)' : 'rgba(239, 68, 68, 0.03)'};
+    border-color: ${({ theme }) => theme.isDarkMode ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.08)'};
+  }
+`;
+
+const DeadlineInfo = styled.div`
+  flex: 1;
+`;
+
+const DeadlineTask = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#1f2937'};
+  margin-bottom: 2px;
+`;
+
+const DeadlineDetails = styled.div`
+  font-size: 11px;
+  color: ${({ theme }) => theme.isDarkMode ? theme.colours.textSecondary : '#6b7280'};
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const UrgencyBadge = styled.div`
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+
+  &.high {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+  }
+
+  &.medium {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+  }
+
+  &.low {
+    background: rgba(34, 197, 94, 0.1);
+    color: #059669;
+  }
+`;
+
+const OwnershipGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+`;
+
+const OwnerCard = styled.div`
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: ${({ theme }) => theme.isDarkMode ? theme.colours.surface : '#f9fafb'};
+  border: 1px solid ${({ theme }) => theme.isDarkMode ? theme.colours.border : '#e5e7eb'};
+`;
+
+const OwnerName = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#1f2937'};
+  margin-bottom: 4px;
+`;
+
+const OwnerStats = styled.div`
+  font-size: 10px;
+  color: ${({ theme }) => theme.isDarkMode ? theme.colours.textSecondary : '#6b7280'};
+  line-height: 1.3;
+`;
+
+const ActionsList = styled.ul`
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  color: ${({ theme }) => theme.isDarkMode ? theme.colours.textSecondary : '#6b7280'};
+
+  li {
+    margin-bottom: 4px;
+    line-height: 1.4;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+`;
+
+const RisksList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const RiskItem = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.05);
+  border-left: 3px solid #f59e0b;
+  font-size: 11px;
+  color: ${({ theme }) => theme.isDarkMode ? theme.colours.textSecondary : '#6b7280'};
+  line-height: 1.4;
+
+  svg {
+    width: 12px;
+    height: 12px;
+    color: #f59e0b;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+`;
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -288,31 +454,51 @@ const formatDate = (dateString) => {
 // Main Component
 // ============================================================================
 
-const TaskOverviewCard = ({ tasks = [], isLoading = false, maxItems = 5 }) => {
+const TaskOverviewCard = ({ taskSummary = null, isLoading = false }) => {
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>
             <ClipboardDocumentListIcon />
-            Upcoming Tasks
+            Task Overview
           </CardTitle>
         </CardHeader>
         <LoadingState>
-          Loading task summaries...
+          Analyzing tasks and generating insights...
         </LoadingState>
       </Card>
     );
   }
 
-  const displayTasks = tasks.slice(0, maxItems);
+  if (!taskSummary) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <ClipboardDocumentListIcon />
+            Task Overview
+          </CardTitle>
+          <ViewAllLink to="/tasks">
+            View All
+            <ArrowTopRightOnSquareIcon />
+          </ViewAllLink>
+        </CardHeader>
+        <EmptyState>
+          <ClipboardDocumentListIcon />
+          <h4>No task data available</h4>
+          <p>Check the Tasks page to create and manage tasks.</p>
+        </EmptyState>
+      </Card>
+    );
+  }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>
           <ClipboardDocumentListIcon />
-          Upcoming Tasks
+          Task Overview
         </CardTitle>
         <ViewAllLink to="/tasks">
           View All
@@ -320,65 +506,97 @@ const TaskOverviewCard = ({ tasks = [], isLoading = false, maxItems = 5 }) => {
         </ViewAllLink>
       </CardHeader>
 
-      {displayTasks.length === 0 ? (
-        <EmptyState>
-          <ClipboardDocumentListIcon />
-          <h4>No upcoming tasks</h4>
-          <p>All caught up! Check the Tasks page to create new tasks.</p>
-        </EmptyState>
-      ) : (
-        <TasksList>
-          {displayTasks.map(task => {
-            const PhaseIconComponent = getPhaseIcon(task.phase);
-            const phaseColor = getPhaseColor(task.phase);
-            const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
-            const formattedDate = formatDate(task.dueDate);
+      {/* Overall Summary */}
+      <SummarySection>
+        <SummaryTitle>
+          <ChartBarIcon />
+          Portfolio Summary
+        </SummaryTitle>
+        <SummaryText>{taskSummary.overallSummary}</SummaryText>
+      </SummarySection>
 
-            return (
-              <TaskItem key={task.id} className={isOverdue ? 'overdue' : ''}>
-                <TaskHeader>
-                  <TaskTitle>{task.title}</TaskTitle>
-                  <PhaseIcon color={phaseColor}>
-                    <PhaseIconComponent />
-                  </PhaseIcon>
-                </TaskHeader>
+      {/* Upcoming Deadlines */}
+      {taskSummary.upcomingDeadlines && taskSummary.upcomingDeadlines.length > 0 && (
+        <SummarySection>
+          <SummaryTitle>
+            <BellAlertIcon />
+            Upcoming Deadlines
+          </SummaryTitle>
+          <DeadlinesList>
+            {taskSummary.upcomingDeadlines.slice(0, 3).map((deadline, index) => (
+              <DeadlineItem key={index} className={deadline.urgency === 'high' ? 'high-urgency' : ''}>
+                <DeadlineInfo>
+                  <DeadlineTask>{deadline.task}</DeadlineTask>
+                  <DeadlineDetails>
+                    <span>👤 {deadline.assignee}</span>
+                    <span>📅 {formatDate(deadline.dueDate)}</span>
+                  </DeadlineDetails>
+                </DeadlineInfo>
+                <UrgencyBadge className={deadline.urgency}>
+                  {deadline.urgency}
+                </UrgencyBadge>
+              </DeadlineItem>
+            ))}
+          </DeadlinesList>
+        </SummarySection>
+      )}
 
-                <TaskMeta>
-                  <MetaBadge className={`priority-${task.priority}`}>
-                    {task.priority}
-                  </MetaBadge>
-                  
-                  {task.assignee && (
-                    <MetaBadge>
-                      <UserIcon />
-                      {task.assignee}
-                    </MetaBadge>
+      {/* Ownership Breakdown */}
+      {taskSummary.ownershipBreakdown && Object.keys(taskSummary.ownershipBreakdown).length > 0 && (
+        <SummarySection>
+          <SummaryTitle>
+            <UserIcon />
+            Team Ownership
+          </SummaryTitle>
+          <OwnershipGrid>
+            {Object.entries(taskSummary.ownershipBreakdown).slice(0, 4).map(([assignee, data]) => (
+              <OwnerCard key={assignee}>
+                <OwnerName>{assignee}</OwnerName>
+                <OwnerStats>
+                  {data.taskCount} tasks • {data.highPriorityTasks} high priority
+                  {data.overdueTasks > 0 && (
+                    <div style={{ color: '#dc2626', fontWeight: '600' }}>
+                      {data.overdueTasks} overdue
+                    </div>
                   )}
-                  
-                  {formattedDate && (
-                    <MetaBadge className={isOverdue ? 'overdue' : ''}>
-                      <CalendarIcon />
-                      {formattedDate}
-                    </MetaBadge>
-                  )}
-                  
-                  {isOverdue && (
-                    <MetaBadge className="overdue">
-                      <ExclamationTriangleIcon />
-                      Overdue
-                    </MetaBadge>
-                  )}
-                </TaskMeta>
+                </OwnerStats>
+              </OwnerCard>
+            ))}
+          </OwnershipGrid>
+        </SummarySection>
+      )}
 
-                {task.aiSummary && (
-                  <AISummary>
-                    {task.aiSummary.summary}
-                  </AISummary>
-                )}
-              </TaskItem>
-            );
-          })}
-        </TasksList>
+      {/* Suggested Actions */}
+      {taskSummary.suggestedActions && taskSummary.suggestedActions.length > 0 && (
+        <SummarySection>
+          <SummaryTitle>
+            <CheckCircleIcon />
+            Suggested Next Steps
+          </SummaryTitle>
+          <ActionsList>
+            {taskSummary.suggestedActions.map((action, index) => (
+              <li key={index}>{action}</li>
+            ))}
+          </ActionsList>
+        </SummarySection>
+      )}
+
+      {/* Risk Factors */}
+      {taskSummary.riskFactors && taskSummary.riskFactors.length > 0 && (
+        <SummarySection>
+          <SummaryTitle>
+            <ExclamationTriangleIcon />
+            Risk Factors
+          </SummaryTitle>
+          <RisksList>
+            {taskSummary.riskFactors.map((risk, index) => (
+              <RiskItem key={index}>
+                <ExclamationTriangleIcon />
+                {risk}
+              </RiskItem>
+            ))}
+          </RisksList>
+        </SummarySection>
       )}
     </Card>
   );
