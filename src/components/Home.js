@@ -9,19 +9,22 @@ import {
   Cog6ToothIcon,
   BookOpenIcon,
   ClipboardDocumentListIcon,
-  NewspaperIcon
+  NewspaperIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/solid';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
 import { UnifiedAIResponse } from './ui/UnifiedAIResponse';
 import TaskOverviewCard from './ui/TaskOverviewCard';
 import NewsFeedCard from './ui/NewsFeedCard';
+import EarningsFeedCard from './ui/EarningsFeedCard';
 import useProducts from '../hooks/useProducts';
 import { useDeepMemo } from '../hooks/useAdvancedMemo';
 import { ProgressiveLoader } from '../components/ui/ProgressiveLoader';
 import { collection, getDocs, collectionGroup } from 'firebase/firestore';
 import { db } from '../firebase';
 import useNews from '../hooks/useNews';
+import useEarnings from '../hooks/useEarnings';
 import { generateTaskSummaries, getUpcomingTasks } from '../services/aiTaskSummaryService';
 import { seedTasks } from '../utils/taskSeeder';
 import { AI_MODELS, AI_PARAMETERS, AI_API_CONFIG } from '../config/aiConfig';
@@ -70,13 +73,18 @@ const MainContent = styled.main`
 
 const ContentLayout = styled.div`
   display: grid;
-  grid-template-columns: 300px 1fr 300px;
-  gap: 24px;
+  grid-template-columns: 280px 1fr 280px 280px;
+  gap: 20px;
   margin-top: 32px;
   align-items: start;
 
+  @media (max-width: 1600px) {
+    grid-template-columns: 260px 1fr 260px 260px;
+    gap: 16px;
+  }
+
   @media (max-width: 1400px) {
-    grid-template-columns: 280px 1fr 280px;
+    grid-template-columns: 300px 1fr 300px;
     gap: 20px;
   }
 
@@ -335,6 +343,13 @@ export default function Home() {
 
   // Load news data using the news hook
   const { articles: newsArticles } = useNews({
+    enableAI: false, // Disable AI for home page to improve performance
+    enableCache: true,
+    fallbackToSample: true
+  });
+
+  // Load earnings data using the earnings hook
+  const { earnings: earningsReports } = useEarnings({
     enableAI: false, // Disable AI for home page to improve performance
     enableCache: true,
     fallbackToSample: true
@@ -840,6 +855,16 @@ ${JSON.stringify(context, null, 2)}
     }
   };
 
+  // Handle earnings report click - open report in new tab
+  const handleEarningsClick = (earning) => {
+    if (earning.reportUrl) {
+      window.open(earning.reportUrl, '_blank', 'noopener,noreferrer');
+      console.log('Opening earnings report:', earning.companyName, 'URL:', earning.reportUrl);
+    } else {
+      console.log('No URL available for earnings report:', earning.companyName);
+    }
+  };
+
   return (
     <Page>
       <MainNavigation />
@@ -913,6 +938,10 @@ ${JSON.stringify(context, null, 2)}
                 <NewspaperIcon style={{ width: '14px', height: '14px' }} />
                 {(newsArticles || []).length} News Articles
               </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <ChartBarIcon style={{ width: '14px', height: '14px' }} />
+                {(earningsReports || []).length} Earnings Reports
+              </span>
             </div>
           )}
         </EnhancedHeader>
@@ -968,6 +997,21 @@ ${JSON.stringify(context, null, 2)}
               <NewsFeedCard
                 articles={newsArticles}
                 onArticleClick={handleArticleClick}
+                maxItems={4}
+              />
+            </ProgressiveLoader>
+          </SideColumn>
+
+          <SideColumn>
+            <ProgressiveLoader
+              loading={!earningsReports.length}
+              skeleton="list"
+              skeletonProps={{ count: 4, showAvatar: true }}
+              minLoadTime={200}
+            >
+              <EarningsFeedCard
+                earnings={earningsReports}
+                onEarningsClick={handleEarningsClick}
                 maxItems={4}
               />
             </ProgressiveLoader>

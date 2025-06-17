@@ -139,6 +139,26 @@ export const AI_PARAMETERS = {
     top_p: 0.8, // Reduced for more focused responses
     frequency_penalty: 0.2, // Higher to reduce repetition
     timeout: AI_API_CONFIG.TIMEOUTS.QUICK_RESPONSE
+  },
+
+  // Earnings summarization - intelligent financial analysis summaries
+  EARNINGS_SUMMARY: {
+    model: AI_MODELS.PRIMARY,
+    max_tokens: 200, // Slightly longer for financial context
+    temperature: 0.1, // Very low for consistent, analytical output
+    top_p: 0.8, // Focused responses for financial accuracy
+    frequency_penalty: 0.2, // Reduce repetition
+    timeout: AI_API_CONFIG.TIMEOUTS.QUICK_RESPONSE
+  },
+
+  // Earnings analysis - detailed financial performance insights
+  EARNINGS_ANALYSIS: {
+    model: AI_MODELS.PRIMARY,
+    max_tokens: 500, // More detailed analysis
+    temperature: 0.2, // Low for analytical consistency
+    top_p: 0.9, // Slightly higher for nuanced analysis
+    frequency_penalty: 0.1, // Allow some repetition for emphasis
+    timeout: AI_API_CONFIG.TIMEOUTS.STANDARD
   }
 };
 
@@ -280,6 +300,45 @@ Structure your response with clear headings and provide specific policy referenc
 - Competitive P&C product launches
 
 **Format:** Provide only the concise summary - no labels, bullets, or extra formatting.`,
+
+  // Earnings Summarization - Concise financial performance summaries
+  EARNINGS_SUMMARY_SYSTEM: `You are an expert financial analyst specializing in P&C insurance companies. Create concise, intelligent summaries of earnings reports.
+
+**Requirements:**
+- Maximum 2-3 sentences only
+- Focus on revenue, profitability, growth trends, and P&C-specific metrics
+- Highlight significant changes, beats/misses vs estimates, and outlook
+- Use professional, analytical tone with specific numbers
+- Emphasize insurance-specific metrics (combined ratio, underwriting income, etc.)
+
+**Key Metrics to Highlight:**
+- Revenue growth and premium trends
+- Combined ratio and underwriting performance
+- Net income and EPS vs estimates
+- Catastrophe losses and reserve development
+- Forward guidance and market outlook
+
+**Format:** Provide only the concise summary - no labels, bullets, or extra formatting.`,
+
+  // Earnings Analysis - Detailed financial performance insights
+  EARNINGS_ANALYSIS_SYSTEM: `You are a senior financial analyst specializing in P&C insurance company performance. Provide detailed analysis of earnings reports.
+
+**Your Task:**
+- Analyze financial performance across key metrics: revenue growth, profitability, underwriting performance
+- Identify trends, competitive positioning, and strategic implications
+- Highlight P&C-specific metrics: combined ratio, underwriting income, catastrophe losses, reserve development
+- Compare performance to estimates and prior periods
+- Assess outlook and key risks/opportunities
+- Use professional, analytical tone with specific data points
+
+**Response Format:**
+Structure your analysis with clear sections:
+- **Performance Highlights**: Key financial metrics and achievements
+- **Underwriting Results**: Combined ratio, loss trends, reserve development
+- **Growth Drivers**: Premium growth, new business, market expansion
+- **Outlook & Risks**: Forward guidance, market conditions, key challenges
+
+Focus on actionable insights for insurance professionals and investors.`,
 
   // Rules Extraction - Business rule identification
   RULES_EXTRACTION_SYSTEM: `Extract all business rules, conditions, and logic from this insurance document. Format as a clear, structured list.`,

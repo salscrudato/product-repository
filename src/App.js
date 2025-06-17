@@ -91,6 +91,10 @@ const News = createOptimizedLazyComponent(
   () => import('./components/News'),
   { chunkName: 'News', fallback: <LoadingSpinner /> }
 );
+const EarningsReports = createOptimizedLazyComponent(
+  () => import('./components/EarningsReports'),
+  { chunkName: 'EarningsReports', fallback: <LoadingSpinner /> }
+);
 const PCNewsTest = createOptimizedLazyComponent(
   () => import('./components/PCNewsTest'),
   { chunkName: 'PCNewsTest', fallback: <LoadingSpinner /> }
@@ -279,6 +283,16 @@ const HistoryWrapper = () => {
             <RequireAuth>
               <Suspense fallback={<LoadingSpinner />}>
                 <News />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/earnings"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <EarningsReports />
               </Suspense>
             </RequireAuth>
           }

@@ -487,6 +487,14 @@ export default function MainNavigation() {
           </NavItem>
           <NavItem>
             <NavLink
+              to="/earnings"
+              className={location.pathname === '/earnings' ? 'active' : ''}
+            >
+              Earnings
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
               to="/data-dictionary"
               className={location.pathname === '/data-dictionary' ? 'active' : ''}
             >
