@@ -46,6 +46,16 @@ import {
   ArrowLeftIcon
 } from '@heroicons/react/24/solid';
 import { makeCoverageSheet, sheetToCoverageObjects } from '../utils/xlsx';
+import ExportImportBar from './ui/ExportImportBar';
+import DataExportModal from './ui/DataExportModal';
+import DataImportModal from './ui/DataImportModal';
+import {
+  exportData,
+  importData,
+  generateImportTemplate,
+  DATA_TYPES,
+  OPERATION_STATUS
+} from '../utils/exportImport';
 
 /* ---------- styled components ---------- */
 
@@ -255,7 +265,9 @@ const ViewToggle = styled.div`
 `;
 
 // eslint-disable-next-line no-unused-vars
-const ViewToggleButton = styled.button`
+const ViewToggleButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => !['active'].includes(prop),
+})`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -545,7 +557,9 @@ const CardContent = styled.div`
   margin-bottom: 12px;
 `;
 
-const CardCategory = styled.div`
+const CardCategory = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['category', 'inline'].includes(prop),
+})`
   display: inline-block;
   background: ${({ category }) =>
     category === 'Base Coverage'
@@ -1050,6 +1064,16 @@ export default function CoverageScreen() {
   const [changeSummary, setChangeSummary] = useState('');
   const [formSearchQuery, setFormSearchQuery] = useState('');
 
+  // Export/Import states
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [exportImportStatus, setExportImportStatus] = useState('idle');
+  const [exportImportMessage, setExportImportMessage] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [validationResults, setValidationResults] = useState(null);
+
   /* ---------- effect: load meta (forms + names) ---------- */
   const loadMeta = useCallback(async () => {
     if (!productId) return;
@@ -1356,6 +1380,131 @@ export default function CoverageScreen() {
     }
   };
 
+  // Export/Import handlers
+  const handleExport = async (format = 'xlsx') => {
+    setIsExporting(true);
+    setExportImportStatus('processing');
+    setExportImportMessage('Preparing export...');
+
+    try {
+      const result = await exportData(DATA_TYPES.COVERAGES, {
+        format,
+        filename: `${productName}_coverages_export_${new Date().toISOString().split('T')[0]}`,
+        includeMetadata: true,
+        productId
+      }, coveragesWithSub);
+
+      if (result.status === OPERATION_STATUS.SUCCESS) {
+        setExportImportStatus('success');
+        setExportImportMessage(`Successfully exported ${coveragesWithSub.length} coverages`);
+      } else {
+        setExportImportStatus('warning');
+        setExportImportMessage(result.message);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      setExportImportStatus('error');
+      setExportImportMessage('Export failed. Please try again.');
+    } finally {
+      setIsExporting(false);
+      // Clear status after 3 seconds
+      setTimeout(() => {
+        setExportImportStatus('idle');
+        setExportImportMessage('');
+      }, 3000);
+    }
+  };
+
+  const handleImport = async (file, options = {}) => {
+    setIsImporting(true);
+    setImportProgress(0);
+    setExportImportStatus('processing');
+    setExportImportMessage('Importing coverages...');
+
+    try {
+      const result = await importData(file, DATA_TYPES.COVERAGES, {
+        ...options,
+        productId,
+        onProgress: (progress) => setImportProgress(progress)
+      });
+
+      if (result.status === OPERATION_STATUS.SUCCESS) {
+        setExportImportStatus('success');
+        setExportImportMessage(`Successfully imported ${result.successful} coverages`);
+        setImportModalOpen(false);
+        await reloadCoverages();
+      } else if (result.status === OPERATION_STATUS.WARNING) {
+        setExportImportStatus('warning');
+        setExportImportMessage(`Import completed with warnings: ${result.message}`);
+      } else {
+        setExportImportStatus('error');
+        setExportImportMessage(result.message);
+      }
+    } catch (error) {
+      console.error('Import failed:', error);
+      setExportImportStatus('error');
+      setExportImportMessage('Import failed. Please try again.');
+    } finally {
+      setIsImporting(false);
+      setImportProgress(0);
+      // Clear status after 5 seconds
+      setTimeout(() => {
+        setExportImportStatus('idle');
+        setExportImportMessage('');
+      }, 5000);
+    }
+  };
+
+  const handleValidateImport = async (file) => {
+    try {
+      setExportImportStatus('processing');
+      setExportImportMessage('Validating file...');
+
+      const result = await importData(file, DATA_TYPES.COVERAGES, {
+        validateOnly: true,
+        productId
+      });
+
+      setValidationResults({
+        errors: result.errors || [],
+        warnings: result.warnings || []
+      });
+
+      setExportImportStatus('idle');
+      setExportImportMessage('');
+    } catch (error) {
+      console.error('Validation failed:', error);
+      setValidationResults({
+        errors: ['File validation failed. Please check the file format.'],
+        warnings: []
+      });
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      await generateImportTemplate(DATA_TYPES.COVERAGES);
+    } catch (error) {
+      console.error('Template download failed:', error);
+      alert('Failed to download template. Please try again.');
+    }
+  };
+
+  // Available fields for export configuration
+  const availableFields = [
+    'Coverage ID',
+    'Coverage Name',
+    'Coverage Code',
+    'Category',
+    'Parent Coverage ID',
+    'Limits',
+    'Deductibles',
+    'States',
+    'Form IDs',
+    'Created At',
+    'Updated At'
+  ];
+
   /* ---------- render guards ---------- */
   if (coveragesLoading || metaLoading) {
     return (
@@ -1417,6 +1566,18 @@ export default function CoverageScreen() {
             onChange={e => setRawSearch(e.target.value)}
           />
         </SearchContainer>
+
+        {/* Export/Import Bar */}
+        <ExportImportBar
+          dataType={DATA_TYPES.COVERAGES}
+          onExport={handleExport}
+          onImport={() => setImportModalOpen(true)}
+          onDownloadTemplate={handleDownloadTemplate}
+          recordCount={coveragesWithSub.length}
+          status={exportImportStatus}
+          statusMessage={exportImportMessage}
+          disabled={coveragesLoading || metaLoading}
+        />
 
 
 
@@ -1791,6 +1952,31 @@ export default function CoverageScreen() {
           </Overlay>
         )}
 
+        {/* Export Modal */}
+        <DataExportModal
+          isOpen={exportModalOpen}
+          onClose={() => setExportModalOpen(false)}
+          onExport={handleExport}
+          dataType={DATA_TYPES.COVERAGES}
+          totalRecords={coveragesWithSub.length}
+          availableFields={availableFields}
+          isExporting={isExporting}
+        />
+
+        {/* Import Modal */}
+        <DataImportModal
+          isOpen={importModalOpen}
+          onClose={() => {
+            setImportModalOpen(false);
+            setValidationResults(null);
+          }}
+          onImport={handleImport}
+          onValidate={handleValidateImport}
+          dataType={DATA_TYPES.COVERAGES}
+          isImporting={isImporting}
+          validationResults={validationResults}
+          importProgress={importProgress}
+        />
 
       </MainContent>
     </Container>

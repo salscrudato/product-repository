@@ -7,6 +7,7 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon
 } from '@heroicons/react/24/solid';
+import logger, { LOG_CATEGORIES } from '../utils/logger';
 
 /* ---------- animations ---------- */
 const fadeInUp = keyframes`
@@ -42,14 +43,15 @@ const slideIn = keyframes`
 
 const moveThrough = keyframes`
   0% {
-    transform: translateZ(-1000px) scale(0.1);
+    transform: translate3d(-100vw, 0, 0) scale(0.1);
     opacity: 0;
   }
   50% {
+    transform: translate3d(0, 0, 0) scale(1);
     opacity: 1;
   }
   100% {
-    transform: translateZ(0) scale(1);
+    transform: translate3d(100vw, 0, 0) scale(0.1);
     opacity: 0;
   }
 `;
@@ -87,13 +89,18 @@ const Page = styled.div`
 
 /* ---------- animated space circles ---------- */
 // eslint-disable-next-line no-unused-vars
-const SpaceCircle = styled.div`
+const SpaceCircle = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['duration', 'delay', 'blur', 'color'].includes(prop),
+})`
   position: absolute;
   border-radius: 50%;
   background: ${props => props.color || 'rgba(139, 92, 246, 0.6)'};
   animation: ${moveThrough} ${props => props.duration || '8s'} linear infinite;
   animation-delay: ${props => props.delay || '0s'};
   filter: blur(${props => props.blur || '0px'});
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
 
   &:nth-child(odd) {
     animation-direction: reverse;
@@ -531,6 +538,15 @@ export default function Login() {
 
   const handleSubmit = useCallback(async e => {
     e.preventDefault();
+    const startTime = Date.now();
+
+    logger.logUserAction('Login attempt started', {
+      username: username.trim(),
+      hasPassword: !!password,
+      userAgent: navigator.userAgent,
+      timestamp: new Date().toISOString()
+    });
+
     setErr('');
     setSuccess('');
     setIsLoading(true);
@@ -538,21 +554,47 @@ export default function Login() {
     try {
       // Check for admin credentials
       if (username.trim() === 'admin' && password === 'admin') {
+        logger.info(LOG_CATEGORIES.AUTH, 'Admin login attempt', {
+          username: 'admin',
+          loginType: 'admin'
+        });
+
         // Admin login - bypass Firebase and set session directly
         sessionStorage.setItem('ph-authed', 'admin');
         sessionStorage.setItem('ph-username', 'admin');
+        logger.setUserId('admin');
+
         setSuccess('Admin login successful! Redirecting...');
+
+        const duration = Date.now() - startTime;
+        logger.logPerformance('Admin login', duration, {
+          success: true,
+          loginType: 'admin'
+        });
 
         // Small delay to show success message
         setTimeout(() => {
+          logger.logNavigation('/login', '/', { reason: 'successful_admin_login' });
           nav('/');
         }, 1000);
       } else {
+        logger.warn(LOG_CATEGORIES.AUTH, 'Invalid login attempt', {
+          username: username.trim(),
+          reason: 'non_admin_credentials'
+        });
+
         // For other users, we'll need to handle differently since Firebase expects email
         // For now, we'll show an error for non-admin users
         setErr('Only admin login is currently supported. Use username: admin, password: admin');
       }
     } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.error(LOG_CATEGORIES.AUTH, 'Login failed', {
+        username: username.trim(),
+        duration,
+        errorCode: error.code
+      }, error);
+
       setErr(prettyError(error.code));
     } finally {
       setIsLoading(false);
@@ -560,21 +602,48 @@ export default function Login() {
   }, [username, password, nav]);
 
   const handleGuestLogin = useCallback(async () => {
+    const startTime = Date.now();
+
+    logger.logUserAction('Guest login attempt started', {
+      loginType: 'guest',
+      userAgent: navigator.userAgent,
+      timestamp: new Date().toISOString()
+    });
+
     setErr('');
     setSuccess('');
     setIsLoading(true);
 
     try {
+      logger.info(LOG_CATEGORIES.AUTH, 'Guest login attempt', {
+        loginType: 'guest'
+      });
+
       // Guest login - set session directly
       sessionStorage.setItem('ph-authed', 'guest');
       sessionStorage.setItem('ph-username', 'guest');
+      logger.setUserId('guest');
+
       setSuccess('Guest login successful! Redirecting...');
+
+      const duration = Date.now() - startTime;
+      logger.logPerformance('Guest login', duration, {
+        success: true,
+        loginType: 'guest'
+      });
 
       // Small delay to show success message
       setTimeout(() => {
+        logger.logNavigation('/login', '/', { reason: 'successful_guest_login' });
         nav('/');
       }, 1000);
     } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.error(LOG_CATEGORIES.AUTH, 'Guest login failed', {
+        duration,
+        loginType: 'guest'
+      }, error);
+
       setErr('An error occurred during guest login');
     } finally {
       setIsLoading(false);

@@ -126,9 +126,9 @@ export const AI_PARAMETERS = {
   // Task summary - concise, actionable insights
   TASK_SUMMARY: {
     model: AI_MODELS.PRIMARY,
-    max_tokens: 800,
-    temperature: 0.3,
-    timeout: AI_API_CONFIG.TIMEOUTS.QUICK_RESPONSE
+    max_tokens: 1000,
+    temperature: 0.2,
+    timeout: AI_API_CONFIG.TIMEOUTS.STANDARD
   },
 
   // News summarization - concise P&C intelligence summaries
@@ -395,13 +395,21 @@ Your capabilities:
   // Task summary - concise task analysis and insights
   TASK_SUMMARY_SYSTEM: `You are an expert P&C insurance task analyst. Analyze the provided tasks and generate concise, actionable summaries that help insurance product managers understand priorities and next steps.
 
-For each task, provide:
-1. **Key Insights**: What makes this task important or urgent
-2. **Strategic Impact**: How this task affects broader product goals
-3. **Next Actions**: Specific steps to move the task forward
-4. **Risk Factors**: Potential blockers or dependencies to watch
+**CRITICAL INSTRUCTIONS:**
+1. Your response MUST be valid JSON only
+2. Do NOT include markdown formatting (no \`\`\`json or \`\`\`)
+3. Do NOT include any explanations or text outside the JSON structure
+4. Ensure all JSON strings are properly escaped
+5. Follow the exact structure provided in the user prompt
 
-Keep summaries concise (2-3 sentences max per task) but insightful. Focus on actionable intelligence that helps prioritize work and identify opportunities.`
+Focus on:
+- Overall portfolio health and priorities
+- Upcoming deadlines and critical tasks
+- Task ownership and workload distribution
+- Actionable next steps and recommendations
+- Risk factors and potential bottlenecks
+
+Provide insights that help managers make informed decisions about resource allocation and priority management.`
 };
 
 // ============================================================================

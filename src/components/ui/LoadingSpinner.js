@@ -32,7 +32,9 @@ const SpinnerContainer = styled.div`
 `;
 
 // Circular spinner
-const CircularSpinner = styled.div`
+const CircularSpinner = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['size', 'color', 'activeColor'].includes(prop),
+})`
   width: ${props => props.size || '16px'};
   height: ${props => props.size || '16px'};
   border: 2px solid ${props => props.color || '#e5e7eb'};
@@ -48,7 +50,9 @@ const DotsContainer = styled.div`
   gap: 2px;
 `;
 
-const Dot = styled.div`
+const Dot = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['color', 'delay'].includes(prop),
+})`
   width: 4px;
   height: 4px;
   background-color: ${props => props.color || '#6366f1'};
@@ -58,14 +62,18 @@ const Dot = styled.div`
 `;
 
 // Bars spinner
-const BarsContainer = styled.div`
+const BarsContainer = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['size'].includes(prop),
+})`
   display: inline-flex;
   align-items: center;
   gap: 2px;
   height: ${props => props.size || '16px'};
 `;
 
-const Bar = styled.div`
+const Bar = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['color', 'delay'].includes(prop),
+})`
   width: 2px;
   height: 100%;
   background-color: ${props => props.color || '#6366f1'};

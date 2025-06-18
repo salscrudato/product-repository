@@ -74,7 +74,9 @@ const NewsHeader = styled.div`
   margin-bottom: 12px;
 `;
 
-const CategoryBadge = styled.span`
+const CategoryBadge = styled.span.withConfig({
+  shouldForwardProp: (prop) => !['category'].includes(prop),
+})`
   display: inline-flex;
   align-items: center;
   padding: 4px 8px;
@@ -83,7 +85,7 @@ const CategoryBadge = styled.span`
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  
+
   ${props => {
     switch (props.category) {
       case 'regulation':

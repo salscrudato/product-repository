@@ -26,6 +26,16 @@ import {
 } from '@heroicons/react/24/solid';
 
 import MainNavigation from '../components/ui/Navigation';
+import ExportImportBar from './ui/ExportImportBar';
+import DataExportModal from './ui/DataExportModal';
+import DataImportModal from './ui/DataImportModal';
+import {
+  exportData,
+  importData,
+  generateImportTemplate,
+  DATA_TYPES,
+  OPERATION_STATUS
+} from '../utils/exportImport';
 
 /* ---------- Modern Styled Components ---------- */
 
@@ -227,7 +237,9 @@ const ViewModeToggle = styled.div`
   border: 1px solid rgba(226, 232, 240, 0.6);
 `;
 
-const ViewModeButton = styled.button`
+const ViewModeButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => !['active'].includes(prop),
+})`
   display: flex;
   align-items: center;
   gap: 6px;
@@ -764,6 +776,16 @@ export default function RulesScreen() {
   const [viewMode, setViewMode] = useState('cards'); // 'cards', 'table', 'hierarchy'
   const searchRef = useRef(null);
 
+  // Export/Import states
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [exportImportStatus, setExportImportStatus] = useState('idle');
+  const [exportImportMessage, setExportImportMessage] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [validationResults, setValidationResults] = useState(null);
+
   // Load data on mount
   useEffect(() => {
     const fetchData = async () => {
@@ -1091,6 +1113,131 @@ export default function RulesScreen() {
     }
   };
 
+  // Export/Import handlers
+  const handleExport = async (format = 'xlsx') => {
+    setIsExporting(true);
+    setExportImportStatus('processing');
+    setExportImportMessage('Preparing export...');
+
+    try {
+      const result = await exportData(DATA_TYPES.RULES, {
+        format,
+        filename: `rules_export_${new Date().toISOString().split('T')[0]}`,
+        includeMetadata: true
+      }, filteredRules);
+
+      if (result.status === OPERATION_STATUS.SUCCESS) {
+        setExportImportStatus('success');
+        setExportImportMessage(`Successfully exported ${filteredRules.length} rules`);
+      } else {
+        setExportImportStatus('warning');
+        setExportImportMessage(result.message);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      setExportImportStatus('error');
+      setExportImportMessage('Export failed. Please try again.');
+    } finally {
+      setIsExporting(false);
+      // Clear status after 3 seconds
+      setTimeout(() => {
+        setExportImportStatus('idle');
+        setExportImportMessage('');
+      }, 3000);
+    }
+  };
+
+  const handleImport = async (file, options = {}) => {
+    setIsImporting(true);
+    setImportProgress(0);
+    setExportImportStatus('processing');
+    setExportImportMessage('Importing rules...');
+
+    try {
+      const result = await importData(file, DATA_TYPES.RULES, {
+        ...options,
+        onProgress: (progress) => setImportProgress(progress)
+      });
+
+      if (result.status === OPERATION_STATUS.SUCCESS) {
+        setExportImportStatus('success');
+        setExportImportMessage(`Successfully imported ${result.successful} rules`);
+        setImportModalOpen(false);
+        // Refresh rules list
+        window.location.reload();
+      } else if (result.status === OPERATION_STATUS.WARNING) {
+        setExportImportStatus('warning');
+        setExportImportMessage(`Import completed with warnings: ${result.message}`);
+      } else {
+        setExportImportStatus('error');
+        setExportImportMessage(result.message);
+      }
+    } catch (error) {
+      console.error('Import failed:', error);
+      setExportImportStatus('error');
+      setExportImportMessage('Import failed. Please try again.');
+    } finally {
+      setIsImporting(false);
+      setImportProgress(0);
+      // Clear status after 5 seconds
+      setTimeout(() => {
+        setExportImportStatus('idle');
+        setExportImportMessage('');
+      }, 5000);
+    }
+  };
+
+  const handleValidateImport = async (file) => {
+    try {
+      setExportImportStatus('processing');
+      setExportImportMessage('Validating file...');
+
+      const result = await importData(file, DATA_TYPES.RULES, {
+        validateOnly: true
+      });
+
+      setValidationResults({
+        errors: result.errors || [],
+        warnings: result.warnings || []
+      });
+
+      setExportImportStatus('idle');
+      setExportImportMessage('');
+    } catch (error) {
+      console.error('Validation failed:', error);
+      setValidationResults({
+        errors: ['File validation failed. Please check the file format.'],
+        warnings: []
+      });
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      await generateImportTemplate(DATA_TYPES.RULES);
+    } catch (error) {
+      console.error('Template download failed:', error);
+      alert('Failed to download template. Please try again.');
+    }
+  };
+
+  // Available fields for export configuration
+  const availableFields = [
+    'Rule ID',
+    'Rule Name',
+    'Product ID',
+    'Rule Type',
+    'Rule Category',
+    'Target ID',
+    'Condition',
+    'Outcome',
+    'Reference',
+    'Proprietary',
+    'Status',
+    'Created At',
+    'Updated At'
+  ];
+
   return (
     <Container>
       <MainNavigation />
@@ -1231,6 +1378,18 @@ export default function RulesScreen() {
 
 
         </FilterContainer>
+
+        {/* Export/Import Bar */}
+        <ExportImportBar
+          dataType={DATA_TYPES.RULES}
+          onExport={handleExport}
+          onImport={() => setImportModalOpen(true)}
+          onDownloadTemplate={handleDownloadTemplate}
+          recordCount={filteredRules.length}
+          status={exportImportStatus}
+          statusMessage={exportImportMessage}
+          disabled={loading}
+        />
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: '#6b7280' }}>
@@ -1536,6 +1695,32 @@ export default function RulesScreen() {
             </ModalContainer>
           </ModalOverlay>
         )}
+
+        {/* Export Modal */}
+        <DataExportModal
+          isOpen={exportModalOpen}
+          onClose={() => setExportModalOpen(false)}
+          onExport={handleExport}
+          dataType={DATA_TYPES.RULES}
+          totalRecords={filteredRules.length}
+          availableFields={availableFields}
+          isExporting={isExporting}
+        />
+
+        {/* Import Modal */}
+        <DataImportModal
+          isOpen={importModalOpen}
+          onClose={() => {
+            setImportModalOpen(false);
+            setValidationResults(null);
+          }}
+          onImport={handleImport}
+          onValidate={handleValidateImport}
+          dataType={DATA_TYPES.RULES}
+          isImporting={isImporting}
+          validationResults={validationResults}
+          importProgress={importProgress}
+        />
       </MainContent>
     </Container>
   );

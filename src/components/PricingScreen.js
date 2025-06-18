@@ -36,6 +36,16 @@ import {
 import styled, { keyframes } from 'styled-components';
 import { TextInput } from '../components/ui/Input';
 import Select from 'react-select';
+import ExportImportBar from './ui/ExportImportBar';
+import DataExportModal from './ui/DataExportModal';
+import DataImportModal from './ui/DataImportModal';
+import {
+  exportData,
+  importData,
+  generateImportTemplate,
+  DATA_TYPES,
+  OPERATION_STATUS
+} from '../utils/exportImport';
 
 /* ========== MODERN STYLED COMPONENTS ========== */
 
@@ -996,6 +1006,17 @@ function PricingScreen() {
   }, []);
 
   const [covModalOpen, setCovModalOpen] = useState(false);
+
+  // Export/Import states
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [exportImportStatus, setExportImportStatus] = useState('idle');
+  const [exportImportMessage, setExportImportMessage] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [validationResults, setValidationResults] = useState(null);
+
   // eslint-disable-next-line no-unused-vars
   const [covModalList, setCovModalList] = useState([]);
   const [selectedCoveragesForStep, setSelectedCoveragesForStep] = useState([]);
@@ -1489,6 +1510,134 @@ function PricingScreen() {
     }
   };
 
+  // Export/Import handlers for new system
+  const handleExport = async (format = 'xlsx') => {
+    setIsExporting(true);
+    setExportImportStatus('processing');
+    setExportImportMessage('Preparing export...');
+
+    try {
+      const result = await exportData(DATA_TYPES.PRICING, {
+        format,
+        filename: `${productName}_pricing_export_${new Date().toISOString().split('T')[0]}`,
+        includeMetadata: true,
+        productId
+      }, steps);
+
+      if (result.status === OPERATION_STATUS.SUCCESS) {
+        setExportImportStatus('success');
+        setExportImportMessage(`Successfully exported ${steps.length} pricing steps`);
+      } else {
+        setExportImportStatus('warning');
+        setExportImportMessage(result.message);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      setExportImportStatus('error');
+      setExportImportMessage('Export failed. Please try again.');
+    } finally {
+      setIsExporting(false);
+      // Clear status after 3 seconds
+      setTimeout(() => {
+        setExportImportStatus('idle');
+        setExportImportMessage('');
+      }, 3000);
+    }
+  };
+
+  const handleImport = async (file, options = {}) => {
+    setIsImporting(true);
+    setImportProgress(0);
+    setExportImportStatus('processing');
+    setExportImportMessage('Importing pricing steps...');
+
+    try {
+      const result = await importData(file, DATA_TYPES.PRICING, {
+        ...options,
+        productId,
+        onProgress: (progress) => setImportProgress(progress)
+      });
+
+      if (result.status === OPERATION_STATUS.SUCCESS) {
+        setExportImportStatus('success');
+        setExportImportMessage(`Successfully imported ${result.successful} pricing steps`);
+        setImportModalOpen(false);
+        // Refresh steps
+        const updatedSteps = await getDocs(collection(db, `products/${productId}/steps`));
+        setSteps(updatedSteps.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      } else if (result.status === OPERATION_STATUS.WARNING) {
+        setExportImportStatus('warning');
+        setExportImportMessage(`Import completed with warnings: ${result.message}`);
+      } else {
+        setExportImportStatus('error');
+        setExportImportMessage(result.message);
+      }
+    } catch (error) {
+      console.error('Import failed:', error);
+      setExportImportStatus('error');
+      setExportImportMessage('Import failed. Please try again.');
+    } finally {
+      setIsImporting(false);
+      setImportProgress(0);
+      // Clear status after 5 seconds
+      setTimeout(() => {
+        setExportImportStatus('idle');
+        setExportImportMessage('');
+      }, 5000);
+    }
+  };
+
+  const handleValidateImport = async (file) => {
+    try {
+      setExportImportStatus('processing');
+      setExportImportMessage('Validating file...');
+
+      const result = await importData(file, DATA_TYPES.PRICING, {
+        validateOnly: true,
+        productId
+      });
+
+      setValidationResults({
+        errors: result.errors || [],
+        warnings: result.warnings || []
+      });
+
+      setExportImportStatus('idle');
+      setExportImportMessage('');
+    } catch (error) {
+      console.error('Validation failed:', error);
+      setValidationResults({
+        errors: ['File validation failed. Please check the file format.'],
+        warnings: []
+      });
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      await generateImportTemplate(DATA_TYPES.PRICING);
+    } catch (error) {
+      console.error('Template download failed:', error);
+      alert('Failed to download template. Please try again.');
+    }
+  };
+
+  // Available fields for export configuration
+  const availableFields = [
+    'Step ID',
+    'Step Name',
+    'Step Type',
+    'Coverages',
+    'States',
+    'Value',
+    'Rounding',
+    'Order',
+    'Operand',
+    'Table',
+    'Calculation',
+    'Created At',
+    'Updated At'
+  ];
 
 // Table row styling
 const FactorRow = styled(TableRow)`
@@ -1850,6 +1999,18 @@ function operandGlyph(op) {
             </FormGroup>
           </FiltersBar>
 
+          {/* Export/Import Bar */}
+          <ExportImportBar
+            dataType={DATA_TYPES.PRICING}
+            onExport={handleExport}
+            onImport={() => setImportModalOpen(true)}
+            onDownloadTemplate={handleDownloadTemplate}
+            recordCount={steps.length}
+            status={exportImportStatus}
+            statusMessage={exportImportMessage}
+            disabled={loading}
+          />
+
           {steps.length ? (
             <>
               {renderCalculationPreview()}
@@ -2034,6 +2195,32 @@ function operandGlyph(op) {
             </ModalBox>
           </OverlayFixed>
         )}
+
+        {/* Export Modal */}
+        <DataExportModal
+          isOpen={exportModalOpen}
+          onClose={() => setExportModalOpen(false)}
+          onExport={handleExport}
+          dataType={DATA_TYPES.PRICING}
+          totalRecords={steps.length}
+          availableFields={availableFields}
+          isExporting={isExporting}
+        />
+
+        {/* Import Modal */}
+        <DataImportModal
+          isOpen={importModalOpen}
+          onClose={() => {
+            setImportModalOpen(false);
+            setValidationResults(null);
+          }}
+          onImport={handleImport}
+          onValidate={handleValidateImport}
+          dataType={DATA_TYPES.PRICING}
+          isImporting={isImporting}
+          validationResults={validationResults}
+          importProgress={importProgress}
+        />
       </MainContent>
     </ModernContainer>
   );

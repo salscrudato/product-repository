@@ -93,12 +93,27 @@ Format as JSON with this structure:
 
     const response = await makeAIRequest('TASK_SUMMARY', messages, apiKey);
 
-    // Parse AI response
+    // Parse AI response with better error handling
     let taskSummary;
     try {
-      taskSummary = JSON.parse(response);
+      // Clean the response to handle potential markdown formatting
+      const cleanedResponse = response.replace(/```json\s*|\s*```/g, '').trim();
+
+      // Try to parse the cleaned response
+      taskSummary = JSON.parse(cleanedResponse);
+
+      // Validate the structure
+      if (!taskSummary.overallSummary || !Array.isArray(taskSummary.upcomingDeadlines)) {
+        throw new Error('Invalid response structure');
+      }
+
+      console.log('✅ Task summary generated successfully');
+
     } catch (parseError) {
       console.warn('Failed to parse AI response as JSON, using fallback format');
+      console.warn('Raw AI response:', response);
+      console.warn('Parse error:', parseError.message);
+
       // Fallback: create simple summary
       taskSummary = createFallbackSummary(tasks, taskAnalysis);
     }

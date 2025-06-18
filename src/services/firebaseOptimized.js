@@ -1,19 +1,20 @@
 // src/services/firebaseOptimized.js
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  onSnapshot, 
-  query, 
-  where, 
-  orderBy, 
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
   limit,
   writeBatch,
   enableNetwork,
   disableNetwork
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import logger, { LOG_CATEGORIES } from '../utils/logger';
 
 /**
  * Optimized Firebase service with caching, batching, and performance improvements
@@ -88,6 +89,7 @@ class FirebaseOptimizedService {
 
   // Optimized collection fetching with enhanced caching and query optimization
   async getCollection(collectionName, options = {}) {
+    const startTime = Date.now();
     const {
       useCache = true,
       orderByField = null,
@@ -99,11 +101,22 @@ class FirebaseOptimizedService {
 
     const cacheKey = `${collectionName}_${JSON.stringify(options)}`;
 
+    logger.logFirebaseOperation('getCollection', collectionName, null, {
+      options,
+      cacheKey,
+      useCache
+    });
+
     // Check cache first
     if (useCache) {
       const cached = this.getCachedData(cacheKey);
       if (cached) {
-        console.log(`📋 Cache hit for ${collectionName}`);
+        const duration = Date.now() - startTime;
+        logger.logPerformance(`Firebase getCollection (cached) - ${collectionName}`, duration, {
+          collectionName,
+          cacheHit: true,
+          resultCount: cached.length
+        });
         return cached;
       }
     }
@@ -232,11 +245,23 @@ class FirebaseOptimizedService {
 
   // Optimized document fetching
   async getDocument(collectionName, docId, useCache = true) {
+    const startTime = Date.now();
     const cacheKey = `${collectionName}_${docId}`;
-    
+
+    logger.logFirebaseOperation('getDocument', collectionName, docId, {
+      useCache,
+      cacheKey
+    });
+
     if (useCache) {
       const cached = this.getCachedData(cacheKey);
       if (cached) {
+        const duration = Date.now() - startTime;
+        logger.logPerformance(`Firebase getDocument (cached) - ${collectionName}/${docId}`, duration, {
+          collectionName,
+          docId,
+          cacheHit: true
+        });
         return cached;
       }
     }
@@ -244,20 +269,39 @@ class FirebaseOptimizedService {
     try {
       const docRef = doc(db, collectionName, docId);
       const docSnap = await getDoc(docRef);
-      
+
       if (!docSnap.exists()) {
+        const duration = Date.now() - startTime;
+        logger.warn(LOG_CATEGORIES.FIREBASE, `Document not found: ${collectionName}/${docId}`, {
+          collectionName,
+          docId,
+          duration
+        });
         return null;
       }
 
       const data = { id: docSnap.id, ...docSnap.data() };
-      
+
       if (useCache) {
         this.setCachedData(cacheKey, data);
       }
 
+      const duration = Date.now() - startTime;
+      logger.logPerformance(`Firebase getDocument - ${collectionName}/${docId}`, duration, {
+        collectionName,
+        docId,
+        cacheHit: false,
+        dataSize: JSON.stringify(data).length
+      });
+
       return data;
     } catch (error) {
-      console.error(`Error fetching document ${docId}:`, error);
+      const duration = Date.now() - startTime;
+      logger.error(LOG_CATEGORIES.FIREBASE, `Error fetching document ${docId}`, {
+        collectionName,
+        docId,
+        duration
+      }, error);
       throw error;
     }
   }

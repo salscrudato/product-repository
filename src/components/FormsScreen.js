@@ -22,6 +22,16 @@ import Select from 'react-select';
 import {
   Overlay, Modal, ModalHeader, ModalTitle, CloseBtn
 } from '../components/ui/Table';
+import ExportImportBar from './ui/ExportImportBar';
+import DataExportModal from './ui/DataExportModal';
+import DataImportModal from './ui/DataImportModal';
+import {
+  exportData,
+  importData,
+  generateImportTemplate,
+  DATA_TYPES,
+  OPERATION_STATUS
+} from '../utils/exportImport';
 
 import styled, { keyframes } from 'styled-components';
 
@@ -372,7 +382,9 @@ const CardContent = styled.div`
   margin-bottom: 12px;
 `;
 
-const CardCategory = styled.div`
+const CardCategory = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['category'].includes(prop),
+})`
   display: inline-block;
   background: ${({ category }) => {
     switch (category) {
@@ -526,6 +538,16 @@ export default function FormsScreen() {
   /* version sidebar */
   const [editingId, setEditingId] = useState(null);
   const [changeSummary, setChangeSummary] = useState('');
+
+  // Export/Import states
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [exportImportStatus, setExportImportStatus] = useState('idle');
+  const [exportImportMessage, setExportImportMessage] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [validationResults, setValidationResults] = useState(null);
 
 
 
@@ -922,7 +944,131 @@ export default function FormsScreen() {
     }
   };
 
+  // Export/Import handlers
+  const handleExport = async (format = 'xlsx') => {
+    setIsExporting(true);
+    setExportImportStatus('processing');
+    setExportImportMessage('Preparing export...');
 
+    try {
+      const result = await exportData(DATA_TYPES.FORMS, {
+        format,
+        filename: `forms_export_${new Date().toISOString().split('T')[0]}`,
+        includeMetadata: true
+      }, filteredForms);
+
+      if (result.status === OPERATION_STATUS.SUCCESS) {
+        setExportImportStatus('success');
+        setExportImportMessage(`Successfully exported ${filteredForms.length} forms`);
+      } else {
+        setExportImportStatus('warning');
+        setExportImportMessage(result.message);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      setExportImportStatus('error');
+      setExportImportMessage('Export failed. Please try again.');
+    } finally {
+      setIsExporting(false);
+      // Clear status after 3 seconds
+      setTimeout(() => {
+        setExportImportStatus('idle');
+        setExportImportMessage('');
+      }, 3000);
+    }
+  };
+
+  const handleImport = async (file, options = {}) => {
+    setIsImporting(true);
+    setImportProgress(0);
+    setExportImportStatus('processing');
+    setExportImportMessage('Importing forms...');
+
+    try {
+      const result = await importData(file, DATA_TYPES.FORMS, {
+        ...options,
+        onProgress: (progress) => setImportProgress(progress)
+      });
+
+      if (result.status === OPERATION_STATUS.SUCCESS) {
+        setExportImportStatus('success');
+        setExportImportMessage(`Successfully imported ${result.successful} forms`);
+        setImportModalOpen(false);
+        // Refresh forms list
+        window.location.reload();
+      } else if (result.status === OPERATION_STATUS.WARNING) {
+        setExportImportStatus('warning');
+        setExportImportMessage(`Import completed with warnings: ${result.message}`);
+      } else {
+        setExportImportStatus('error');
+        setExportImportMessage(result.message);
+      }
+    } catch (error) {
+      console.error('Import failed:', error);
+      setExportImportStatus('error');
+      setExportImportMessage('Import failed. Please try again.');
+    } finally {
+      setIsImporting(false);
+      setImportProgress(0);
+      // Clear status after 5 seconds
+      setTimeout(() => {
+        setExportImportStatus('idle');
+        setExportImportMessage('');
+      }, 5000);
+    }
+  };
+
+  const handleValidateImport = async (file) => {
+    try {
+      setExportImportStatus('processing');
+      setExportImportMessage('Validating file...');
+
+      const result = await importData(file, DATA_TYPES.FORMS, {
+        validateOnly: true
+      });
+
+      setValidationResults({
+        errors: result.errors || [],
+        warnings: result.warnings || []
+      });
+
+      setExportImportStatus('idle');
+      setExportImportMessage('');
+    } catch (error) {
+      console.error('Validation failed:', error);
+      setValidationResults({
+        errors: ['File validation failed. Please check the file format.'],
+        warnings: []
+      });
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      await generateImportTemplate(DATA_TYPES.FORMS);
+    } catch (error) {
+      console.error('Template download failed:', error);
+      alert('Failed to download template. Please try again.');
+    }
+  };
+
+  // Available fields for export configuration
+  const availableFields = [
+    'Form ID',
+    'Form Name',
+    'Form Number',
+    'Effective Date',
+    'Edition Date',
+    'Type',
+    'Category',
+    'Product IDs',
+    'Coverage IDs',
+    'States',
+    'Download URL',
+    'File Path',
+    'Created At',
+    'Updated At'
+  ];
 
   /* ---------- render ---------- */
   if (loading) {
@@ -1050,6 +1196,18 @@ export default function FormsScreen() {
             </FilterWrapper>
           </FormGroup>
         </FiltersBar>
+
+        {/* Export/Import Bar */}
+        <ExportImportBar
+          dataType={DATA_TYPES.FORMS}
+          onExport={handleExport}
+          onImport={() => setImportModalOpen(true)}
+          onDownloadTemplate={handleDownloadTemplate}
+          recordCount={filteredForms.length}
+          status={exportImportStatus}
+          statusMessage={exportImportMessage}
+          disabled={loading}
+        />
 
         {/* Forms Display */}
         {filteredForms.length ? (
@@ -1503,6 +1661,32 @@ export default function FormsScreen() {
             </Modal>
           </OverlayFixed>
         )}
+
+        {/* Export Modal */}
+        <DataExportModal
+          isOpen={exportModalOpen}
+          onClose={() => setExportModalOpen(false)}
+          onExport={handleExport}
+          dataType={DATA_TYPES.FORMS}
+          totalRecords={filteredForms.length}
+          availableFields={availableFields}
+          isExporting={isExporting}
+        />
+
+        {/* Import Modal */}
+        <DataImportModal
+          isOpen={importModalOpen}
+          onClose={() => {
+            setImportModalOpen(false);
+            setValidationResults(null);
+          }}
+          onImport={handleImport}
+          onValidate={handleValidateImport}
+          dataType={DATA_TYPES.FORMS}
+          isImporting={isImporting}
+          validationResults={validationResults}
+          importProgress={importProgress}
+        />
 
       </MainContent>
     </ModernContainer>

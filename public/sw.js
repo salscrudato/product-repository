@@ -71,12 +71,20 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  
+
   // Skip non-GET requests
   if (request.method !== 'GET') {
     return;
   }
-  
+
+  // Skip invalid or malformed URLs
+  if (!url.pathname || url.pathname === '/') {
+    if (url.hostname === 'fonts.googleapis.com' && !url.pathname.includes('/css')) {
+      // Skip invalid font URLs that don't have proper CSS paths
+      return;
+    }
+  }
+
   // Handle different types of requests with appropriate strategies
   if (isStaticAsset(request)) {
     event.respondWith(cacheFirstStrategy(request, STATIC_CACHE));
@@ -168,11 +176,12 @@ async function staleWhileRevalidateStrategy(request, cacheName) {
 // Helper functions
 function isStaticAsset(request) {
   const url = new URL(request.url);
-  return url.pathname.includes('/static/') || 
-         url.pathname.endsWith('.js') || 
+  return url.pathname.includes('/static/') ||
+         url.pathname.endsWith('.js') ||
          url.pathname.endsWith('.css') ||
          url.pathname.endsWith('.woff2') ||
-         url.pathname.endsWith('.woff');
+         url.pathname.endsWith('.woff') ||
+         isFontRequest(request);
 }
 
 function isAPIRequest(request) {
@@ -182,11 +191,17 @@ function isAPIRequest(request) {
 
 function isImageRequest(request) {
   const url = new URL(request.url);
-  return url.pathname.endsWith('.png') || 
-         url.pathname.endsWith('.jpg') || 
+  return url.pathname.endsWith('.png') ||
+         url.pathname.endsWith('.jpg') ||
          url.pathname.endsWith('.jpeg') ||
          url.pathname.endsWith('.svg') ||
          url.pathname.endsWith('.webp');
+}
+
+function isFontRequest(request) {
+  const url = new URL(request.url);
+  return url.hostname === 'fonts.googleapis.com' ||
+         url.hostname === 'fonts.gstatic.com';
 }
 
 // Background sync for offline actions

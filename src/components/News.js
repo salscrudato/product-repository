@@ -183,7 +183,9 @@ const NewsHeader = styled.div`
   margin-bottom: 16px;
 `;
 
-const CategoryBadge = styled.span`
+const CategoryBadge = styled.span.withConfig({
+  shouldForwardProp: (prop) => !['category'].includes(prop),
+})`
   background: ${props => {
     switch (props.category) {
       case 'regulation': return '#fef3c7';

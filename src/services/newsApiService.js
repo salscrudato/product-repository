@@ -1,6 +1,8 @@
 // src/services/newsApiService.js
 // NewsData.io API integration service for fetching insurance industry news
 
+import logger, { LOG_CATEGORIES } from '../utils/logger';
+
 const NEWS_API_CONFIG = {
   BASE_URL: 'https://newsdata.io/api/1/latest',
   API_KEY: process.env.REACT_APP_NEWSDATA_KEY || 'pub_7d848accaabc4b84953a4fcf9fc60d6f',
@@ -104,20 +106,9 @@ function buildQueryParams(options = {}) {
     size: maxSize.toString()
   });
 
-  // Add domain filtering for better insurance content (if supported)
-  // Focus on known insurance and business news sources
-  const insuranceDomains = [
-    'insurancejournal.com',
-    'propertycasualty360.com',
-    'insurancebusinessmag.com',
-    'businessinsurance.com',
-    'reuters.com',
-    'bloomberg.com',
-    'wsj.com'
-  ].join(',');
-
-  // Note: domain parameter might not be available in free tier
-  // params.set('domain', insuranceDomains);
+  // Note: Domain filtering would be ideal but may not be available in free tier
+  // Focus on known insurance and business news sources would include:
+  // insurancejournal.com, propertycasualty360.com, businessinsurance.com, etc.
 
   console.log(`🔍 Query: "${query}" | Size: ${maxSize} | Country: US | Category: business`);
 
@@ -166,15 +157,7 @@ function transformArticle(apiArticle, index) {
 export async function fetchNewsArticles(options = {}) {
   const {
     focusArea = 'commercial',
-    minRelevanceScore = 3,
-    minProductManagerRelevance = 0,
-    includeRegulatory = true,
-    includeTechnology = true,
-    includeMarketTrends = true,
-    includeClaims = true,
-    maxArticles = 15,
-    businessImpactFilter = 'all', // 'high', 'medium', 'low', 'all'
-    diversifyCategories = true
+    maxArticles = 15
   } = options;
 
   const queryParams = buildQueryParams({
@@ -195,14 +178,24 @@ export async function fetchNewsArticles(options = {}) {
 
   for (let attempt = 0; attempt < NEWS_API_CONFIG.MAX_RETRIES; attempt++) {
     try {
-      console.log(`🔄 Fetching P&C news articles (attempt ${attempt + 1}/${NEWS_API_CONFIG.MAX_RETRIES})`);
-      console.log(`🎯 Focus: ${focusArea}, Min Relevance: ${minRelevanceScore}, Business Impact: ${businessImpactFilter}`);
+      logger.info(LOG_CATEGORIES.NEWS, `Fetching P&C news articles (attempt ${attempt + 1}/${NEWS_API_CONFIG.MAX_RETRIES})`, {
+        attempt: attempt + 1,
+        maxRetries: NEWS_API_CONFIG.MAX_RETRIES,
+        focusArea,
+        url: url.toString()
+      });
 
       // Update last request time
       lastRequestTime = Date.now();
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), NEWS_API_CONFIG.TIMEOUT);
+
+      logger.logApiCall('GET', url.toString(), {
+        focusArea,
+        maxArticles,
+        timeout: NEWS_API_CONFIG.TIMEOUT
+      });
 
       const response = await fetch(url, {
         method: 'GET',
@@ -293,45 +286,7 @@ export async function fetchNewsArticles(options = {}) {
   throw new Error(`Failed to fetch news after ${NEWS_API_CONFIG.MAX_RETRIES} attempts: ${lastError?.message || 'Unknown error'}`);
 }
 
-/**
- * Diversify article selection to ensure category variety
- * @param {Array} articles - Sorted articles array
- * @param {number} maxArticles - Maximum number of articles to return
- * @returns {Array} Diversified article selection
- */
-function diversifyArticleSelection(articles, maxArticles) {
-  const categories = [...new Set(articles.map(a => a.category))];
-  const articlesPerCategory = Math.floor(maxArticles / categories.length);
-  const remainder = maxArticles % categories.length;
 
-  const diversified = [];
-  const categoryCount = {};
-
-  // Initialize category counts
-  categories.forEach(cat => categoryCount[cat] = 0);
-
-  // First pass: ensure each category gets at least one article
-  for (const article of articles) {
-    if (diversified.length >= maxArticles) break;
-
-    const targetCount = articlesPerCategory + (categoryCount[article.category] < remainder ? 1 : 0);
-
-    if (categoryCount[article.category] < targetCount) {
-      diversified.push(article);
-      categoryCount[article.category]++;
-    }
-  }
-
-  // Second pass: fill remaining slots with highest-scoring articles
-  for (const article of articles) {
-    if (diversified.length >= maxArticles) break;
-    if (!diversified.includes(article)) {
-      diversified.push(article);
-    }
-  }
-
-  return diversified.slice(0, maxArticles);
-}
 
 /**
  * Validate news article data structure
@@ -501,7 +456,7 @@ export function getPCFallbackNewsArticles() {
   ];
 }
 
-export default {
+const newsApiService = {
   fetchNewsArticles,
   fetchPropertyInsuranceNews,
   fetchCasualtyInsuranceNews,
@@ -511,3 +466,5 @@ export default {
   getFallbackNewsArticles,
   getPCFallbackNewsArticles
 };
+
+export default newsApiService;

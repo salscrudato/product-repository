@@ -31,6 +31,16 @@ import MarkdownRenderer from '../utils/markdownParser';
 import ProductCard from './ui/ProductCard';
 import VirtualizedGrid from './ui/VirtualizedGrid';
 import { usePerformanceMonitor, debounce } from '../utils/performance';
+import ExportImportBar from './ui/ExportImportBar';
+import DataExportModal from './ui/DataExportModal';
+import DataImportModal from './ui/DataImportModal';
+import {
+  exportData,
+  importData,
+  generateImportTemplate,
+  DATA_TYPES,
+  OPERATION_STATUS
+} from '../utils/exportImport';
 import { useMemoryManager } from '../utils/memoryManager';
 
 
@@ -168,7 +178,9 @@ const ViewToggle = styled.div`
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 `;
 
-const ViewToggleButton = styled.button`
+const ViewToggleButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => !['active'].includes(prop),
+})`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -882,6 +894,16 @@ const ProductHub = memo(() => {
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [xlsxImportModalOpen, setXlsxImportModalOpen] = useState(false);
 
+  // Export/Import states
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [exportImportStatus, setExportImportStatus] = useState('idle');
+  const [exportImportMessage, setExportImportMessage] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [validationResults, setValidationResults] = useState(null);
+
   // Form states
   const [name, setName] = useState('');
   const [formNumber, setFormNumber] = useState('');
@@ -935,6 +957,8 @@ const ProductHub = memo(() => {
         setChatModalOpen(false);
         setRulesModalOpen(false);
         setDictModalOpen(false);
+        setExportModalOpen(false);
+        setImportModalOpen(false);
       }
     };
 
@@ -945,7 +969,8 @@ const ProductHub = memo(() => {
   // Enhanced modal accessibility - prevent body scroll when modal is open
   useEffect(() => {
     const isAnyModalOpen = modalOpen || summaryModalOpen || detailsModalOpen ||
-                          chatModalOpen || rulesModalOpen || dictModalOpen;
+                          chatModalOpen || rulesModalOpen || dictModalOpen ||
+                          exportModalOpen || importModalOpen;
 
     if (isAnyModalOpen) {
       document.body.style.overflow = 'hidden';
@@ -956,7 +981,7 @@ const ProductHub = memo(() => {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [modalOpen, summaryModalOpen, detailsModalOpen, chatModalOpen, rulesModalOpen, dictModalOpen]);
+  }, [modalOpen, summaryModalOpen, detailsModalOpen, chatModalOpen, rulesModalOpen, dictModalOpen, exportModalOpen, importModalOpen]);
 
   // Memory management and performance monitoring
   useEffect(() => {
@@ -1306,6 +1331,124 @@ const ProductHub = memo(() => {
     }
   };
 
+  // Export/Import handlers
+  const handleExport = async (format = 'xlsx') => {
+    setIsExporting(true);
+    setExportImportStatus('processing');
+    setExportImportMessage('Preparing export...');
+
+    try {
+      const result = await exportData(DATA_TYPES.PRODUCTS, {
+        format,
+        filename: `products_export_${new Date().toISOString().split('T')[0]}`,
+        includeMetadata: true
+      }, filtered);
+
+      if (result.status === OPERATION_STATUS.SUCCESS) {
+        setExportImportStatus('success');
+        setExportImportMessage(`Successfully exported ${filtered.length} products`);
+      } else {
+        setExportImportStatus('warning');
+        setExportImportMessage(result.message);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      setExportImportStatus('error');
+      setExportImportMessage('Export failed. Please try again.');
+    } finally {
+      setIsExporting(false);
+      // Clear status after 3 seconds
+      setTimeout(() => {
+        setExportImportStatus('idle');
+        setExportImportMessage('');
+      }, 3000);
+    }
+  };
+
+  const handleImport = async (file, options = {}) => {
+    setIsImporting(true);
+    setImportProgress(0);
+    setExportImportStatus('processing');
+    setExportImportMessage('Importing products...');
+
+    try {
+      const result = await importData(file, DATA_TYPES.PRODUCTS, {
+        ...options,
+        onProgress: (progress) => setImportProgress(progress)
+      });
+
+      if (result.status === OPERATION_STATUS.SUCCESS) {
+        setExportImportStatus('success');
+        setExportImportMessage(`Successfully imported ${result.successful} products`);
+        setImportModalOpen(false);
+      } else if (result.status === OPERATION_STATUS.WARNING) {
+        setExportImportStatus('warning');
+        setExportImportMessage(`Import completed with warnings: ${result.message}`);
+      } else {
+        setExportImportStatus('error');
+        setExportImportMessage(result.message);
+      }
+    } catch (error) {
+      console.error('Import failed:', error);
+      setExportImportStatus('error');
+      setExportImportMessage('Import failed. Please try again.');
+    } finally {
+      setIsImporting(false);
+      setImportProgress(0);
+      // Clear status after 5 seconds
+      setTimeout(() => {
+        setExportImportStatus('idle');
+        setExportImportMessage('');
+      }, 5000);
+    }
+  };
+
+  const handleValidateImport = async (file) => {
+    try {
+      setExportImportStatus('processing');
+      setExportImportMessage('Validating file...');
+
+      const result = await importData(file, DATA_TYPES.PRODUCTS, {
+        validateOnly: true
+      });
+
+      setValidationResults({
+        errors: result.errors || [],
+        warnings: result.warnings || []
+      });
+
+      setExportImportStatus('idle');
+      setExportImportMessage('');
+    } catch (error) {
+      console.error('Validation failed:', error);
+      setValidationResults({
+        errors: ['File validation failed. Please check the file format.'],
+        warnings: []
+      });
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      await generateImportTemplate(DATA_TYPES.PRODUCTS);
+    } catch (error) {
+      console.error('Template download failed:', error);
+      alert('Failed to download template. Please try again.');
+    }
+  };
+
+  // Available fields for export configuration
+  const availableFields = [
+    'Product ID',
+    'Product Name',
+    'Form Number',
+    'Product Code',
+    'Effective Date',
+    'Form Download URL',
+    'Created At',
+    'Updated At'
+  ];
+
   if (loading) {
     return (
       <Page>
@@ -1347,6 +1490,18 @@ const ProductHub = memo(() => {
             value: rawSearch,
             onChange: (e) => setRawSearch(e.target.value)
           }}
+        />
+
+        {/* Export/Import Bar */}
+        <ExportImportBar
+          dataType={DATA_TYPES.PRODUCTS}
+          onExport={handleExport}
+          onImport={() => setImportModalOpen(true)}
+          onDownloadTemplate={handleDownloadTemplate}
+          recordCount={filtered.length}
+          status={exportImportStatus}
+          statusMessage={exportImportMessage}
+          disabled={loading}
         />
 
         {/* Action Bar with View Toggle and Add Product */}
@@ -1807,6 +1962,32 @@ const ProductHub = memo(() => {
         open={xlsxImportModalOpen}
         onClose={() => setXlsxImportModalOpen(false)}
         onSuccess={handleXlsxImportSuccess}
+      />
+
+      {/* Export Modal */}
+      <DataExportModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        onExport={handleExport}
+        dataType={DATA_TYPES.PRODUCTS}
+        totalRecords={filtered.length}
+        availableFields={availableFields}
+        isExporting={isExporting}
+      />
+
+      {/* Import Modal */}
+      <DataImportModal
+        isOpen={importModalOpen}
+        onClose={() => {
+          setImportModalOpen(false);
+          setValidationResults(null);
+        }}
+        onImport={handleImport}
+        onValidate={handleValidateImport}
+        dataType={DATA_TYPES.PRODUCTS}
+        isImporting={isImporting}
+        validationResults={validationResults}
+        importProgress={importProgress}
       />
     </Page>
   );

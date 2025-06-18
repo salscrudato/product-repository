@@ -5,6 +5,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { FaUser, FaCog, FaSignOutAlt, FaMoon, FaSun } from 'react-icons/fa';
 import { useDarkMode } from '../../contexts/DarkModeContext';
+import logger, { LOG_CATEGORIES } from '../../utils/logger';
 
 /* ---------- animations ---------- */
 const slideDown = keyframes`
@@ -398,22 +399,59 @@ export default function MainNavigation() {
   };
 
   const handleSignOut = async () => {
+    const startTime = Date.now();
+    const sessionStatus = sessionStorage.getItem('ph-authed');
+    const username = sessionStorage.getItem('ph-username');
+
+    logger.logUserAction('Logout attempt started', {
+      sessionType: sessionStatus,
+      username: username,
+      timestamp: new Date().toISOString()
+    });
+
     try {
       // Check if this is an admin or guest session
-      const sessionStatus = sessionStorage.getItem('ph-authed');
-
       if (sessionStatus === 'admin' || sessionStatus === 'guest') {
+        logger.info(LOG_CATEGORIES.AUTH, 'Session logout', {
+          sessionType: sessionStatus,
+          username: username
+        });
+
         // Admin/Guest logout - just clear session storage
         sessionStorage.removeItem('ph-authed');
         sessionStorage.removeItem('ph-username');
+
+        const duration = Date.now() - startTime;
+        logger.logPerformance('Session logout', duration, {
+          success: true,
+          sessionType: sessionStatus
+        });
+
+        logger.logNavigation(location.pathname, '/login', { reason: 'logout' });
         navigate('/login', { replace: true });
       } else {
+        logger.info(LOG_CATEGORIES.AUTH, 'Firebase logout', {
+          userEmail: auth.currentUser?.email
+        });
+
         // Firebase logout
         await signOut(auth);
+
+        const duration = Date.now() - startTime;
+        logger.logPerformance('Firebase logout', duration, {
+          success: true,
+          sessionType: 'firebase'
+        });
+
+        logger.logNavigation(location.pathname, '/login', { reason: 'firebase_logout' });
         navigate('/login', { replace: true });
       }
     } catch (error) {
-      console.error('Sign out failed:', error);
+      const duration = Date.now() - startTime;
+      logger.error(LOG_CATEGORIES.AUTH, 'Logout failed', {
+        sessionType: sessionStatus,
+        duration
+      }, error);
     }
   };
 
@@ -485,17 +523,16 @@ export default function MainNavigation() {
               Data Dictionary
             </NavLink>
           </NavItem>
-          {/* Temporarily disabled tabs - moved to end */}
-          {/* <NavItem>
+          <NavItem>
             <NavLink
               to="/claims-analysis"
               className={location.pathname === '/claims-analysis' ? 'active' : ''}
-              style={{ opacity: 0.5, pointerEvents: 'none' }}
             >
               Claims Analysis
             </NavLink>
           </NavItem>
-          <NavItem>
+          {/* Temporarily disabled tabs - moved to end */}
+          {/* <NavItem>
             <NavLink
               to="/earnings"
               className={location.pathname === '/earnings' ? 'active' : ''}

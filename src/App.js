@@ -7,9 +7,10 @@ import { createTheme } from './styles/theme';
 import ErrorBoundary from './components/ErrorBoundary';
 import { DarkModeProvider, useDarkMode } from './contexts/DarkModeContext';
 import { initBundleOptimizations, createOptimizedLazyComponent } from './utils/bundleOptimization';
-import PerformanceDashboard from './components/ui/PerformanceDashboard';
+
 import dataPrefetchingService from './services/dataPrefetchingService';
 import imageOptimizationService from './services/imageOptimizationService';
+import logger, { LOG_CATEGORIES } from './utils/logger';
 // import AgentAssistant from './components/AgentAssistant';
 
 /* public */
@@ -353,19 +354,37 @@ const ThemedApp = () => {
 function App() {
   // Initialize bundle optimizations and performance services
   useEffect(() => {
-    initBundleOptimizations();
+    const startTime = Date.now();
+    logger.info(LOG_CATEGORIES.PERFORMANCE, 'App initialization started');
 
-    // Initialize advanced performance services
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🚀 Initializing advanced performance optimizations...');
+    try {
+      initBundleOptimizations();
+      logger.info(LOG_CATEGORIES.PERFORMANCE, 'Bundle optimizations initialized');
 
-      // Initialize data prefetching service
-      dataPrefetchingService.reset(); // Start fresh
+      // Initialize advanced performance services
+      if (process.env.NODE_ENV === 'development') {
+        logger.info(LOG_CATEGORIES.PERFORMANCE, 'Initializing advanced performance optimizations...');
 
-      // Initialize image optimization
-      imageOptimizationService.initializeLazyLoading();
+        // Initialize data prefetching service
+        dataPrefetchingService.reset(); // Start fresh
+        logger.info(LOG_CATEGORIES.PERFORMANCE, 'Data prefetching service reset');
 
-      console.log('✅ Advanced performance optimizations initialized');
+        // Initialize image optimization
+        imageOptimizationService.initializeLazyLoading();
+        logger.info(LOG_CATEGORIES.PERFORMANCE, 'Image optimization service initialized');
+
+        const duration = Date.now() - startTime;
+        logger.logPerformance('App initialization', duration, {
+          environment: 'development',
+          bundleOptimizations: true,
+          dataPrefetching: true,
+          imageOptimization: true
+        });
+      }
+    } catch (error) {
+      logger.error(LOG_CATEGORIES.ERROR, 'App initialization failed', {
+        environment: process.env.NODE_ENV
+      }, error);
     }
   }, []);
 
@@ -373,7 +392,6 @@ function App() {
     <ErrorBoundary>
       <DarkModeProvider>
         <ThemedApp />
-        <PerformanceDashboard />
       </DarkModeProvider>
     </ErrorBoundary>
   );

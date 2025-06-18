@@ -19,6 +19,7 @@ import NewsFeedCard from './ui/NewsFeedCard';
 import useProducts from '../hooks/useProducts';
 import { useDeepMemo } from '../hooks/useAdvancedMemo';
 import { ProgressiveLoader } from '../components/ui/ProgressiveLoader';
+import logger, { LOG_CATEGORIES } from '../utils/logger';
 import { collection, getDocs, collectionGroup } from 'firebase/firestore';
 import { db } from '../firebase';
 import useNews from '../hooks/useNews';
@@ -111,49 +112,7 @@ const CenterColumn = styled.div`
   min-height: 400px;
 `;
 
-const WelcomeContainer = styled.div`
-  background: ${({ theme }) => theme.isDarkMode ? theme.colours.cardBackground : 'white'};
-  border-radius: 16px;
-  padding: 32px 24px;
-  border: 1px solid ${({ theme }) => theme.isDarkMode ? theme.colours.border : '#e5e7eb'};
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  margin-bottom: 24px;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
 
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
-  }
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  }
-
-  h2 {
-    font-size: 24px;
-    font-weight: 700;
-    color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#1f2937'};
-    margin: 0 0 12px 0;
-  }
-
-  p {
-    font-size: 16px;
-    color: ${({ theme }) => theme.isDarkMode ? theme.colours.textSecondary : '#6b7280'};
-    margin: 0;
-    line-height: 1.6;
-    max-width: 600px;
-    margin: 0 auto;
-  }
-`;
 
 const ChatContainer = styled.div`
   width: 100%;
@@ -713,7 +672,19 @@ export default function Home() {
     e.preventDefault();
     if (!searchQuery.trim() || isLoading) return;
 
+    const startTime = Date.now();
     const query = searchQuery.trim();
+
+    logger.logUserAction('Home chat query submitted', {
+      queryLength: query.length,
+      hasProducts: products.length > 0,
+      hasCoverages: coverages.length > 0,
+      hasForms: forms.length > 0,
+      hasRules: rules.length > 0,
+      hasNews: newsArticles.length > 0,
+      timestamp: new Date().toISOString()
+    });
+
     setSearchQuery(''); // Clear the input immediately
     setIsLoading(true);
     setResponse('');
@@ -782,6 +753,8 @@ ${JSON.stringify(context, null, 2)}
 - News impact on business strategy and product development
 - Regulatory news correlation with compliance requirements`;
 
+      logger.logAIOperation('Home chat query', AI_MODELS.HOME_CHAT, query.substring(0, 100), '', 0);
+
       const res = await fetch(AI_API_CONFIG.OPENAI_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -806,11 +779,26 @@ ${JSON.stringify(context, null, 2)}
       });
 
       if (!res.ok) {
+        logger.error(LOG_CATEGORIES.AI, 'OpenAI API error', {
+          status: res.status,
+          statusText: res.statusText,
+          model: AI_MODELS.HOME_CHAT,
+          query: query.substring(0, 100)
+        });
         throw new Error(`OpenAI API error: ${res.status}`);
       }
 
       const data = await res.json();
       const aiResponse = data.choices?.[0]?.message?.content?.trim();
+
+      const duration = Date.now() - startTime;
+      logger.logAIOperation('Home chat response', AI_MODELS.HOME_CHAT, query.substring(0, 100), aiResponse?.substring(0, 100), duration);
+      logger.logPerformance('Home chat query', duration, {
+        queryLength: query.length,
+        responseLength: aiResponse?.length || 0,
+        model: AI_MODELS.HOME_CHAT,
+        tokensUsed: data.usage?.total_tokens || 0
+      });
 
       if (aiResponse) {
         setResponse(aiResponse);
@@ -818,15 +806,26 @@ ${JSON.stringify(context, null, 2)}
         throw new Error('No response from AI');
       }
     } catch (error) {
-      console.error('AI request failed:', error);
+      const duration = Date.now() - startTime;
+      logger.error(LOG_CATEGORIES.AI, 'AI request failed', {
+        query: query.substring(0, 100),
+        duration,
+        model: AI_MODELS.HOME_CHAT,
+        errorType: error.name,
+        errorMessage: error.message
+      }, error);
+
       let errorMessage = 'Sorry, I encountered an error while processing your request. Please try again.';
 
       if (error.message.includes('429')) {
         errorMessage = 'I\'m currently experiencing high demand. Please wait a moment and try again.';
+        logger.warn(LOG_CATEGORIES.AI, 'Rate limit hit for home chat', { query: query.substring(0, 100) });
       } else if (error.message.includes('401')) {
         errorMessage = 'Authentication error. Please check the API configuration.';
+        logger.error(LOG_CATEGORIES.AI, 'Authentication error for home chat', { query: query.substring(0, 100) });
       } else if (error.message.includes('timeout')) {
         errorMessage = 'Request timed out. Please try a simpler question or try again later.';
+        logger.warn(LOG_CATEGORIES.AI, 'Timeout error for home chat', { query: query.substring(0, 100), duration });
       }
 
       setResponse(errorMessage);

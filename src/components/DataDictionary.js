@@ -71,7 +71,9 @@ const ViewToggle = styled.div`
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 `;
 
-const ViewToggleButton = styled.button`
+const ViewToggleButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => !['active'].includes(prop),
+})`
   display: flex;
   align-items: center;
   gap: 8px;

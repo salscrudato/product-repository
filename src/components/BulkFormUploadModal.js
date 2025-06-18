@@ -8,6 +8,7 @@ import { Button } from './ui/Button';
 import styled from 'styled-components';
 import { ArrowUpTrayIcon, TrashIcon } from '@heroicons/react/24/solid';
 import { TextInput } from './ui/Input';
+import logger, { LOG_CATEGORIES } from '../utils/logger';
 
 /* ---------- styled ---------- */
 const OverlayFixed = styled(Overlay)`
@@ -121,22 +122,62 @@ export default function BulkFormUploadModal({ open, onClose, productId, products
 
   const handleFiles = (e) => {
     const picked = Array.from(e.target.files || []).filter(f => f.type === 'application/pdf');
-    if (!picked.length) return;
+
+    logger.logUserAction('Bulk form files selected', {
+      totalFiles: e.target.files?.length || 0,
+      pdfFiles: picked.length,
+      fileNames: picked.map(f => f.name),
+      fileSizes: picked.map(f => f.size),
+      productId: productId || 'none'
+    });
+
+    if (!picked.length) {
+      logger.warn(LOG_CATEGORIES.UPLOAD, 'No PDF files selected for bulk upload', {
+        totalFiles: e.target.files?.length || 0
+      });
+      return;
+    }
+
     // optimistic UI
     setFiles(prev => [...prev, ...picked]);
     setMetas(prev => [
       ...prev,
       ...picked.map(f => ({ ...inferMeta(f.name), product: productId || '' }))
     ]);
+
     // async AI refinement
     picked.forEach(async (file, idx) => {
-      const txt = await pdfToText(file);
-      const ai = await extractMetaAI(txt);
-      setMetas(prev => {
-        const clone = [...prev];
-        clone[prev.length - picked.length + idx] = { ...clone[prev.length - picked.length + idx], ...ai };
-        return clone;
-      });
+      const startTime = Date.now();
+      try {
+        logger.info(LOG_CATEGORIES.AI, `Processing PDF for metadata extraction: ${file.name}`, {
+          fileName: file.name,
+          fileSize: file.size
+        });
+
+        const txt = await pdfToText(file);
+        const ai = await extractMetaAI(txt);
+
+        const duration = Date.now() - startTime;
+        logger.logPerformance(`PDF metadata extraction - ${file.name}`, duration, {
+          fileName: file.name,
+          fileSize: file.size,
+          textLength: txt?.length || 0,
+          extractedFields: Object.keys(ai || {}).length
+        });
+
+        setMetas(prev => {
+          const clone = [...prev];
+          clone[prev.length - picked.length + idx] = { ...clone[prev.length - picked.length + idx], ...ai };
+          return clone;
+        });
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        logger.error(LOG_CATEGORIES.AI, `PDF metadata extraction failed: ${file.name}`, {
+          fileName: file.name,
+          fileSize: file.size,
+          duration
+        }, error);
+      }
     });
   };
 
@@ -147,29 +188,107 @@ export default function BulkFormUploadModal({ open, onClose, productId, products
 
   const handleSubmit = async () => {
     if (!files.length) return;
+
+    const startTime = Date.now();
+    const uploadSession = `upload_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    logger.logFormSubmission('Bulk form upload', {
+      fileCount: files.length,
+      fileNames: files.map(f => f.name),
+      fileSizes: files.map(f => f.size),
+      totalSize: files.reduce((sum, f) => sum + f.size, 0),
+      productId: productId || 'various',
+      uploadSession
+    });
+
     setUploading(true);
+    let successCount = 0;
+    let failureCount = 0;
+
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const storageRef = ref(storage, `forms/bulk/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        const downloadUrl = await getDownloadURL(storageRef);
-        const meta = metas[i] || inferMeta(file.name);
-        if (!meta.product) { alert('Please select a product for every form.'); setUploading(false); return; }
-        await addDoc(collection(db, 'forms'), {
-          ...meta,
-          productIds: [meta.product],
-          productId: meta.product,
-          coverageIds: [],
-          filePath: storageRef.fullPath,
-          downloadUrl,
-          uploadedBy: auth.currentUser?.email || 'unknown',
-          ts: serverTimestamp()
-        });
+        const fileStartTime = Date.now();
+
+        try {
+          logger.info(LOG_CATEGORIES.UPLOAD, `Starting upload: ${file.name}`, {
+            fileName: file.name,
+            fileSize: file.size,
+            fileIndex: i + 1,
+            totalFiles: files.length,
+            uploadSession
+          });
+
+          const storageRef = ref(storage, `forms/bulk/${Date.now()}_${file.name}`);
+          await uploadBytes(storageRef, file);
+          const downloadUrl = await getDownloadURL(storageRef);
+          const meta = metas[i] || inferMeta(file.name);
+
+          if (!meta.product) {
+            logger.error(LOG_CATEGORIES.UPLOAD, `No product selected for form: ${file.name}`, {
+              fileName: file.name,
+              uploadSession
+            });
+            alert('Please select a product for every form.');
+            setUploading(false);
+            return;
+          }
+
+          await addDoc(collection(db, 'forms'), {
+            ...meta,
+            productIds: [meta.product],
+            productId: meta.product,
+            coverageIds: [],
+            filePath: storageRef.fullPath,
+            downloadUrl,
+            uploadedBy: auth.currentUser?.email || 'unknown',
+            ts: serverTimestamp()
+          });
+
+          const fileDuration = Date.now() - fileStartTime;
+          logger.logPerformance(`Form upload - ${file.name}`, fileDuration, {
+            fileName: file.name,
+            fileSize: file.size,
+            productId: meta.product,
+            uploadSession
+          });
+
+          successCount++;
+        } catch (fileError) {
+          const fileDuration = Date.now() - fileStartTime;
+          logger.error(LOG_CATEGORIES.UPLOAD, `Form upload failed: ${file.name}`, {
+            fileName: file.name,
+            fileSize: file.size,
+            duration: fileDuration,
+            uploadSession
+          }, fileError);
+
+          failureCount++;
+        }
       }
-      onClose();
+
+      const totalDuration = Date.now() - startTime;
+      logger.logPerformance('Bulk form upload completed', totalDuration, {
+        totalFiles: files.length,
+        successCount,
+        failureCount,
+        uploadSession
+      });
+
+      if (successCount > 0) {
+        alert(`Uploaded ${successCount} forms successfully!${failureCount > 0 ? ` (${failureCount} failed)` : ''}`);
+        onClose();
+      }
     } catch (err) {
-      console.error('Bulk upload error', err);
+      const totalDuration = Date.now() - startTime;
+      logger.error(LOG_CATEGORIES.UPLOAD, 'Bulk form upload failed', {
+        totalFiles: files.length,
+        successCount,
+        failureCount,
+        duration: totalDuration,
+        uploadSession
+      }, err);
+
       alert('Bulk upload failed. Please try again.');
     } finally {
       setUploading(false);

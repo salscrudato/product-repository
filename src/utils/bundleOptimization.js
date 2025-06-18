@@ -5,6 +5,7 @@
  */
 
 import { lazy, Suspense } from 'react';
+import logger, { LOG_CATEGORIES } from './logger';
 
 // Enhanced lazy loading with error boundaries and retry logic
 export const createOptimizedLazyComponent = (importFn, options = {}) => {
@@ -76,35 +77,51 @@ export const preloadCriticalChunks = () => {
 // Resource hints for better loading performance
 export const addResourceHints = () => {
   const head = document.head;
-  
-  // DNS prefetch for external resources
-  const dnsPrefetchUrls = [
-    'https://fonts.googleapis.com',
-    'https://firestore.googleapis.com',
-    'https://firebase.googleapis.com',
-    'https://api.openai.com'
-  ];
-  
-  dnsPrefetchUrls.forEach(url => {
-    const link = document.createElement('link');
-    link.rel = 'dns-prefetch';
-    link.href = url;
-    head.appendChild(link);
-  });
-  
-  // Preconnect to critical origins
-  const preconnectUrls = [
-    'https://fonts.gstatic.com',
-    'https://firestore.googleapis.com'
-  ];
-  
-  preconnectUrls.forEach(url => {
-    const link = document.createElement('link');
-    link.rel = 'preconnect';
-    link.href = url;
-    link.crossOrigin = 'anonymous';
-    head.appendChild(link);
-  });
+
+  // Helper function to check if a resource hint already exists
+  const resourceHintExists = (rel, href) => {
+    return document.querySelector(`link[rel="${rel}"][href="${href}"]`) !== null;
+  };
+
+  try {
+    // DNS prefetch for external resources - only add if not already present
+    const dnsPrefetchUrls = [
+      'https://fonts.googleapis.com',
+      'https://fonts.gstatic.com',
+      'https://firestore.googleapis.com',
+      'https://firebase.googleapis.com',
+      'https://api.openai.com'
+    ];
+
+    dnsPrefetchUrls.forEach(url => {
+      if (!resourceHintExists('dns-prefetch', url)) {
+        const link = document.createElement('link');
+        link.rel = 'dns-prefetch';
+        link.href = url;
+        head.appendChild(link);
+      }
+    });
+
+    // Preconnect to critical origins - only for resources we'll actually use
+    const preconnectUrls = [
+      { url: 'https://fonts.gstatic.com', crossOrigin: true },
+      { url: 'https://firestore.googleapis.com', crossOrigin: true }
+    ];
+
+    preconnectUrls.forEach(({ url, crossOrigin }) => {
+      if (!resourceHintExists('preconnect', url)) {
+        const link = document.createElement('link');
+        link.rel = 'preconnect';
+        link.href = url;
+        if (crossOrigin) {
+          link.crossOrigin = 'anonymous';
+        }
+        head.appendChild(link);
+      }
+    });
+  } catch (error) {
+    console.error('Failed to add resource hints:', error);
+  }
 };
 
 // Module federation for micro-frontends (future enhancement)
@@ -168,30 +185,43 @@ export const optimizeImports = () => {
 
 // Bundle analysis utilities
 export const analyzeBundleComposition = () => {
-  if (process.env.NODE_ENV !== 'development') return;
-  
-  const scripts = Array.from(document.querySelectorAll('script[src]'));
-  const chunks = scripts
-    .filter(script => script.src.includes('/static/js/'))
-    .map(script => {
-      const url = new URL(script.src);
-      const filename = url.pathname.split('/').pop();
-      const match = filename.match(/(\d+)\.([a-f0-9]+)\.chunk\.js/);
-      
-      return {
-        filename,
-        chunkId: match ? match[1] : 'main',
-        hash: match ? match[2] : 'unknown',
-        url: script.src
-      };
-    });
-  
-  console.group('📊 Bundle Composition Analysis');
-  console.log(`Total chunks: ${chunks.length}`);
-  console.table(chunks);
-  console.groupEnd();
-  
-  return chunks;
+  if (process.env.NODE_ENV !== 'development') return [];
+
+  try {
+    const scripts = Array.from(document.querySelectorAll('script[src]'));
+    const chunks = scripts
+      .filter(script => script.src && script.src.includes('/static/js/'))
+      .map(script => {
+        try {
+          const url = new URL(script.src);
+          const filename = url.pathname.split('/').pop();
+          const match = filename.match(/(\d+)\.([a-f0-9]+)\.chunk\.js/);
+
+          return {
+            filename,
+            chunkId: match ? match[1] : 'main',
+            hash: match ? match[2] : 'unknown',
+            url: script.src
+          };
+        } catch (error) {
+          console.warn('Failed to analyze script:', script.src, error);
+          return null;
+        }
+      })
+      .filter(chunk => chunk !== null);
+
+    console.group('📊 Bundle Composition Analysis');
+    console.log(`Total chunks: ${chunks.length}`);
+    if (chunks.length > 0) {
+      console.table(chunks);
+    }
+    console.groupEnd();
+
+    return chunks;
+  } catch (error) {
+    console.error('Bundle composition analysis failed:', error);
+    return [];
+  }
 };
 
 // Performance budget monitoring
@@ -202,19 +232,23 @@ export const monitorPerformanceBudget = () => {
     maxTotalSize: 2 * 1024 * 1024, // 2MB
     maxLoadTime: 3000 // 3 seconds
   };
-  
-  const chunks = analyzeBundleComposition();
-  
-  if (chunks.length > budget.maxChunks) {
-    console.warn(`⚠️ Performance Budget: Too many chunks (${chunks.length}/${budget.maxChunks})`);
-  }
-  
-  // Monitor load time
-  if (performance.timing) {
-    const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
-    if (loadTime > budget.maxLoadTime) {
-      console.warn(`⚠️ Performance Budget: Slow load time (${loadTime}ms/${budget.maxLoadTime}ms)`);
+
+  try {
+    const chunks = analyzeBundleComposition();
+
+    if (chunks && Array.isArray(chunks) && chunks.length > budget.maxChunks) {
+      console.warn(`⚠️ Performance Budget: Too many chunks (${chunks.length}/${budget.maxChunks})`);
     }
+
+    // Monitor load time
+    if (performance.timing) {
+      const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+      if (loadTime > budget.maxLoadTime) {
+        console.warn(`⚠️ Performance Budget: Slow load time (${loadTime}ms/${budget.maxLoadTime}ms)`);
+      }
+    }
+  } catch (error) {
+    console.error('Performance budget monitoring failed:', error);
   }
 };
 
@@ -224,36 +258,105 @@ export const optimizeCriticalResources = () => {
   if (process.env.NODE_ENV === 'development') {
     console.log('💡 Consider inlining critical CSS for faster rendering');
   }
-  
-  // Optimize font loading
-  const fontLinks = document.querySelectorAll('link[href*="fonts.googleapis.com"]');
-  fontLinks.forEach(link => {
-    link.setAttribute('rel', 'preload');
-    link.setAttribute('as', 'style');
-    link.setAttribute('onload', "this.onload=null;this.rel='stylesheet'");
+
+  // Optimize font loading - improve existing Google Fonts links
+  try {
+    const fontLinks = document.querySelectorAll('link[href*="fonts.googleapis.com"]');
+    if (fontLinks.length > 0) {
+      // Optimize existing font links for better loading
+      fontLinks.forEach(link => {
+        // Only modify if it's a stylesheet link and has a valid href
+        if (link.rel === 'stylesheet' && link.href && link.href.includes('fonts.googleapis.com/css')) {
+          // Add font-display: swap for better performance
+          const href = link.href;
+          if (!href.includes('display=swap')) {
+            const separator = href.includes('?') ? '&' : '?';
+            link.href = `${href}${separator}display=swap`;
+          }
+
+          // Use async loading instead of media print/all trick to avoid preload warnings
+          if (!link.hasAttribute('media')) {
+            // Set loading priority to low to avoid blocking render
+            link.setAttribute('importance', 'low');
+          }
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Failed to optimize font loading:', error);
+  }
+
+  // Preload critical images if any
+  const criticalImages = document.querySelectorAll('img[data-critical="true"]');
+  criticalImages.forEach(img => {
+    if (img.src && !document.querySelector(`link[rel="preload"][href="${img.src}"]`)) {
+      const preloadLink = document.createElement('link');
+      preloadLink.rel = 'preload';
+      preloadLink.as = 'image';
+      preloadLink.href = img.src;
+      document.head.appendChild(preloadLink);
+    }
+  });
+
+  // Preload critical CSS files
+  const criticalCSSLinks = document.querySelectorAll('link[rel="stylesheet"][data-critical="true"]');
+  criticalCSSLinks.forEach(link => {
+    if (link.href && !document.querySelector(`link[rel="preload"][href="${link.href}"]`)) {
+      const preloadLink = document.createElement('link');
+      preloadLink.rel = 'preload';
+      preloadLink.as = 'style';
+      preloadLink.href = link.href;
+      document.head.appendChild(preloadLink);
+    }
   });
 };
 
 // Initialize bundle optimizations
 export const initBundleOptimizations = () => {
-  if (typeof window === 'undefined') return;
-  
-  // Add resource hints
-  addResourceHints();
-  
-  // Optimize critical resources
-  optimizeCriticalResources();
-  
-  // Preload critical chunks
-  preloadCriticalChunks();
-  
-  // Monitor performance budget
-  setTimeout(() => {
-    monitorPerformanceBudget();
-    optimizeImports();
-  }, 3000);
-  
-  console.log('🚀 Bundle optimizations initialized');
+  if (typeof window === 'undefined') {
+    logger.warn(LOG_CATEGORIES.PERFORMANCE, 'Bundle optimizations skipped - no window object');
+    return;
+  }
+
+  const startTime = Date.now();
+  logger.info(LOG_CATEGORIES.PERFORMANCE, 'Initializing bundle optimizations');
+
+  try {
+    // Add resource hints
+    addResourceHints();
+    logger.debug(LOG_CATEGORIES.PERFORMANCE, 'Resource hints added');
+
+    // Optimize critical resources
+    optimizeCriticalResources();
+    logger.debug(LOG_CATEGORIES.PERFORMANCE, 'Critical resources optimized');
+
+    // Preload critical chunks
+    preloadCriticalChunks();
+    logger.debug(LOG_CATEGORIES.PERFORMANCE, 'Critical chunks preload initiated');
+
+    // Monitor performance budget
+    setTimeout(() => {
+      try {
+        monitorPerformanceBudget();
+        optimizeImports();
+        logger.debug(LOG_CATEGORIES.PERFORMANCE, 'Performance monitoring and import optimization completed');
+      } catch (error) {
+        logger.error(LOG_CATEGORIES.PERFORMANCE, 'Error in delayed performance monitoring', {}, error);
+      }
+    }, 3000);
+
+    const duration = Date.now() - startTime;
+    logger.logPerformance('Bundle optimizations initialization', duration, {
+      hasWindow: true,
+      userAgent: navigator.userAgent
+    });
+
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    logger.error(LOG_CATEGORIES.PERFORMANCE, 'Bundle optimizations initialization failed', {
+      duration
+    }, error);
+  }
 };
 
 // Webpack chunk loading optimization
