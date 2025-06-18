@@ -3,32 +3,32 @@
 
 export const sampleEarnings = [
   {
-    id: 'TRV-2024-Q3',
+    id: 'TRV-2024Q3',
     symbol: 'TRV',
     companyName: 'The Travelers Companies Inc.',
     sector: 'Property & Casualty',
     date: '2024-10-17',
     quarter: 'Q3 2024',
-    
+
     // Financial metrics (in millions except EPS)
     revenue: 9200,
     netIncome: 1100,
     eps: 4.85,
     epsEstimated: 4.20,
-    
+
     // Performance indicators
     revenueGrowth: 8.2,
     netIncomeGrowth: 15.3,
     epsGrowth: 18.5,
-    
+
     // P&C specific metrics
     combinedRatio: 94.2,
     underwritingIncome: 534,
     catastropheLosses: 245,
     priorYearDevelopment: 89,
-    
+
     // Metadata
-    reportUrl: 'https://investor.travelers.com/news-releases/news-release-details/travelers-reports-third-quarter-2024-results',
+    reportUrl: 'https://seekingalpha.com/symbol/TRV/earnings',
     filingDate: '2024-10-17',
     period: 'Q',
     
@@ -290,7 +290,7 @@ export const sampleEarnings = [
 // Earnings calendar data (upcoming earnings announcements)
 export const sampleEarningsCalendar = [
   {
-    symbol: 'BRK-A',
+    symbol: 'BRK.A',
     companyName: 'Berkshire Hathaway Inc.',
     date: '2024-11-02',
     time: 'AMC',

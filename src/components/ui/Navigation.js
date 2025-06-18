@@ -531,16 +531,14 @@ export default function MainNavigation() {
               Claims Analysis
             </NavLink>
           </NavItem>
-          {/* Temporarily disabled tabs - moved to end */}
-          {/* <NavItem>
+          <NavItem>
             <NavLink
               to="/earnings"
               className={location.pathname === '/earnings' ? 'active' : ''}
-              style={{ opacity: 0.5, pointerEvents: 'none' }}
             >
               Earnings
             </NavLink>
-          </NavItem> */}
+          </NavItem>
           {/* <NavItem>
             <NavLink
               to="/agent-demo"
