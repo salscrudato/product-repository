@@ -113,11 +113,21 @@ export default function MyPage() {
 
 | Layer | What We Use | Purpose |
 |-------|-------------|---------|
-| Front-end | React 18 (Create-React-App) + React-Router v6 + styled-components | SPA that admins live in all day |
-| Back-end | Firebase ★ Firestore (NoSQL) ★ Storage ★ Auth  | Zero-ops data & file layer |
+| Front-end | React 18.3.1 (Create-React-App) + React-Router v6 + styled-components 6.1.18 | SPA that admins live in all day |
+| Back-end | Firebase 12.4.0 ★ Firestore (NoSQL) ★ Storage ★ Auth  | Zero-ops data & file layer |
 | AI | OpenAI GPT-4.1-mini (via `chat/completions`) | Summaries, chat, rules extraction, coverage diff |
 | Parsing | pdf.js in-browser worker | Turns PDFs → raw text |
 | Bundling | CRA + Webpack code-split | Instant dev boot, automatic chunking |
+
+### Recent Modernization (2025-10-14)
+- ✅ **React 18.3.1**: Updated from 18.0.0 to latest stable version
+- ✅ **Firebase 12.4.0**: Updated from 11.6.1 to latest version
+- ✅ **Dependencies Optimized**: Removed 81 packages (Chakra UI cleanup), updated critical dependencies
+- ✅ **Bundle Size**: ~827KB gzipped (497KB main bundle + 21 lazy-loaded chunks)
+- ✅ **Security Enhanced**: Added security headers, input sanitization, rate limiting
+- ✅ **Performance Baseline**: Documented metrics and optimization targets
+- ✅ **Test Infrastructure**: Jest + React Testing Library configured with Firebase mocking
+- 📊 **See**: `MODERNIZATION.md`, `PERFORMANCE_BASELINE.md`, `CHANGELOG.md` for details
 
 ---
 
@@ -129,16 +139,29 @@ git clone git@github.com:<org>/product-hub-app.git
 cd product-hub-app
 
 # 2. Install deps
-npm i
+npm install                        # Installs 1,615 packages
 
 # 3. Create local env
-cp .env.sample .env.local          # fill in the blanks ✍︎
+cp .env.example .env.local         # fill in the blanks ✍︎
 #   REACT_APP_FIREBASE_API_KEY=...
+#   REACT_APP_FIREBASE_AUTH_DOMAIN=...
+#   REACT_APP_FIREBASE_PROJECT_ID=insurance-product-hub
 #   REACT_APP_OPENAI_KEY=...
 
-# 4. Run
-npm start                          # http://localhost:3000
+# 4. Run development server
+npm run dev                        # http://localhost:3000 (or 3001 if 3000 is occupied)
+
+# 5. Run tests
+npm test                           # Runs Jest + React Testing Library
+
+# 6. Build for production
+npm run build                      # Creates optimized production build
 ```
+
+**Current Environment:**
+- Node.js: 22.19.0
+- npm: 10.9.3
+- Firebase Project: `insurance-product-hub`
 
 *Need the Firebase dev project keys? → ping @Sal.*
 
@@ -847,6 +870,7 @@ CI is GitHub Actions → Firebase Hosting.  See `.github/workflows/deploy.yml`.
 
 | Version | Date (YYYY‑MM‑DD) | Author | Highlights |
 |---------|------------------|--------|------------|
+| **0.6.0** | 2025‑10‑14 | AI Assistant | **Comprehensive Modernization (Phase 1-2)**: React 18.3.1, Firebase 12.4.0, removed 81 packages (Chakra UI), updated critical dependencies (uuid, web-vitals, axios), enhanced security (CSP, input sanitization, rate limiting), performance baseline established (827KB bundle), test infrastructure (Jest + RTL), ESLint configuration, comprehensive documentation (MODERNIZATION.md, PERFORMANCE_BASELINE.md) |
 | **0.5.0** | 2024‑12‑19 | AI Assistant | Advanced Claims Analysis System: AI-powered claim coverage determination with multi-form support, intelligent PDF chunking, conversational interface |
 | **0.4.0** | 2024‑12‑19 | AI Assistant | Production-grade UI/UX: dynamic counts, relocated actions, status badges, enhanced metadata, improved interactions |
 | **0.3.0** | 2024‑12‑19 | AI Assistant | Performance optimization: error boundaries, data caching, monitoring utilities |
