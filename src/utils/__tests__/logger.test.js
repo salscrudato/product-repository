@@ -1,29 +1,29 @@
-import { logger, LOG_CATEGORIES } from '../logger';
+import logger, { LOG_CATEGORIES } from '../logger';
 
 describe('Logger Utility', () => {
-  let consoleLogSpy;
+  let consoleInfoSpy;
   let consoleWarnSpy;
   let consoleErrorSpy;
 
   beforeEach(() => {
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+    consoleInfoSpy = jest.spyOn(console, 'info').mockImplementation();
     consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
   });
 
   afterEach(() => {
-    consoleLogSpy.mockRestore();
+    consoleInfoSpy.mockRestore();
     consoleWarnSpy.mockRestore();
     consoleErrorSpy.mockRestore();
   });
 
   test('should log info messages', () => {
-    logger.info(LOG_CATEGORIES.GENERAL, 'Test message');
-    expect(consoleLogSpy).toHaveBeenCalled();
+    logger.info(LOG_CATEGORIES.DATA, 'Test message');
+    expect(consoleInfoSpy).toHaveBeenCalled();
   });
 
   test('should log warning messages', () => {
-    logger.warn(LOG_CATEGORIES.GENERAL, 'Test warning');
+    logger.warn(LOG_CATEGORIES.DATA, 'Test warning');
     expect(consoleWarnSpy).toHaveBeenCalled();
   });
 
@@ -34,8 +34,8 @@ describe('Logger Utility', () => {
 
   test('should handle metadata', () => {
     const metadata = { userId: '123', action: 'test' };
-    logger.info(LOG_CATEGORIES.GENERAL, 'Test with metadata', metadata);
-    expect(consoleLogSpy).toHaveBeenCalled();
+    logger.info(LOG_CATEGORIES.DATA, 'Test with metadata', metadata);
+    expect(consoleInfoSpy).toHaveBeenCalled();
   });
 });
 
