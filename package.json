@@ -43,7 +43,10 @@
     "start": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "build:analyze": "ANALYZE=true vite build"
+    "build:analyze": "ANALYZE=true vite build",
+    "seed:commercial-property": "tsx scripts/seedCommercialProperty.ts",
+    "seed:commercial-property-fixed": "tsx scripts/seedCommercialPropertyFixed.ts",
+    "verify:data": "tsx scripts/verifyData.ts"
   },
   "browserslist": {
     "production": [

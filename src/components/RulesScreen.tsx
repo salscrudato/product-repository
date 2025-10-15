@@ -724,7 +724,7 @@ const EmptyStateText = styled.p`
 
 export default function RulesScreen() {
   const navigate = useNavigate();
-  const { productId: preselectedProductId } = useParams();
+  const { productId: preselectedProductId, coverageId: preselectedCoverageId } = useParams();
 
   // State management
   const [rules, setRules] = useState([]);
@@ -732,6 +732,7 @@ export default function RulesScreen() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
+  const [selectedCoverageName, setSelectedCoverageName] = useState('');
 
   // Enhanced form state with comprehensive rule structure
   const [formData, setFormData] = useState({
@@ -793,8 +794,18 @@ export default function RulesScreen() {
 
         // If we have a preselected product, load its coverages and pricing steps
         if (preselectedProductId) {
-          loadCoveragesForProduct(preselectedProductId);
+          await loadCoveragesForProduct(preselectedProductId);
           loadPricingStepsForProduct(preselectedProductId);
+        }
+
+        // If we have a preselected coverage, load its name
+        if (preselectedProductId && preselectedCoverageId) {
+          const coverageDoc = await doc(db, `products/${preselectedProductId}/coverages`, preselectedCoverageId);
+          const coverageSnap = await getDocs(collection(db, `products/${preselectedProductId}/coverages`));
+          const coverage = coverageSnap.docs.find(d => d.id === preselectedCoverageId);
+          if (coverage) {
+            setSelectedCoverageName(coverage.data().name || 'Unknown Coverage');
+          }
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -803,7 +814,7 @@ export default function RulesScreen() {
       }
     };
     fetchData();
-  }, [preselectedProductId]);
+  }, [preselectedProductId, preselectedCoverageId]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -821,6 +832,20 @@ export default function RulesScreen() {
   const filteredRules = useMemo(() => {
     let filtered = rules;
 
+    // Coverage filter (from URL parameter) - highest priority
+    if (preselectedCoverageId) {
+      filtered = filtered.filter(rule =>
+        rule.ruleType === 'Coverage' && rule.targetId === preselectedCoverageId
+      );
+    }
+
+    // Product filter (from URL parameter or dropdown)
+    if (preselectedProductId) {
+      filtered = filtered.filter(rule => rule.productId === preselectedProductId);
+    } else if (selectedProductFilter) {
+      filtered = filtered.filter(rule => rule.productId === selectedProductFilter);
+    }
+
     // Text search across multiple fields
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
@@ -832,11 +857,6 @@ export default function RulesScreen() {
         (rule.ruleType || '').toLowerCase().includes(search) ||
         (rule.ruleCategory || '').toLowerCase().includes(search)
       );
-    }
-
-    // Product filter
-    if (selectedProductFilter) {
-      filtered = filtered.filter(rule => rule.productId === selectedProductFilter);
     }
 
     // Rule category filter
@@ -875,7 +895,7 @@ export default function RulesScreen() {
 
     return filtered;
   }, [rules, searchTerm, selectedProductFilter, selectedCategoryFilter, selectedStatusFilter,
-      selectedTypeFilter, sortBy, sortOrder]);
+      selectedTypeFilter, sortBy, sortOrder, preselectedProductId, preselectedCoverageId]);
 
   // Get unique products for filter
   const uniqueProducts = products.filter(p => p.name).sort((a, b) => a.name.localeCompare(b.name));
@@ -1106,7 +1126,9 @@ export default function RulesScreen() {
               <Cog6ToothIcon />
             </TitleIcon>
             <PageTitle>
-              {preselectedProductId
+              {preselectedCoverageId && selectedCoverageName
+                ? `${selectedCoverageName} Rules`
+                : preselectedProductId
                 ? `${getProductName(preselectedProductId)} Rules`
                 : 'Rules Repository'
               }
@@ -1120,7 +1142,9 @@ export default function RulesScreen() {
           </SearchIcon>
           <SearchInput
             ref={searchRef}
-            placeholder={preselectedProductId
+            placeholder={preselectedCoverageId
+              ? "Search rules for this coverage..."
+              : preselectedProductId
               ? "Search coverage and form rules..."
               : "Search rules by name, category, condition, or outcome..."
             }

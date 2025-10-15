@@ -1,32 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import styled from 'styled-components';
 import {
-  HomeIcon,
-  CubeIcon,
-  ShieldCheckIcon,
-  DocumentTextIcon,
-  CurrencyDollarIcon,
-  Cog6ToothIcon,
-  BookOpenIcon,
-  ClipboardDocumentListIcon,
-  NewspaperIcon
+  SparklesIcon,
+  TrashIcon,
+  PaperAirplaneIcon,
+  UserCircleIcon
 } from '@heroicons/react/24/solid';
 import MainNavigation from './ui/Navigation';
-import EnhancedHeader from './ui/EnhancedHeader';
-import { UnifiedAIResponse } from './ui/UnifiedAIResponse';
+import { EnhancedChatMessage } from './ui/EnhancedChatMessage';
 import useProducts from '../hooks/useProducts';
 import { useDeepMemo } from '../hooks/useAdvancedMemo';
-import { ProgressiveLoader } from '../components/ui/ProgressiveLoader';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
 import { collection, getDocs, collectionGroup } from 'firebase/firestore';
 import { db, functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { AI_MODELS, AI_PARAMETERS } from '../config/aiConfig';
 
+// Types for chat messages
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  metadata?: {
+    queryType?: string;
+    confidence?: number;
+    tokensUsed?: number;
+    processingTime?: number;
+    sources?: string[];
+  };
+}
+
+// Query classification types
+type QueryType =
+  | 'product_analysis'
+  | 'coverage_analysis'
+  | 'pricing_analysis'
+  | 'compliance_check'
+  | 'task_management'
+  | 'strategic_insight'
+  | 'data_query'
+  | 'general';
+
 /* ---------- styled components ---------- */
 const Page = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  background: ${({ theme }) => theme.isDarkMode
+    ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)'
+    : 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%)'};
   display: flex;
   flex-direction: column;
   position: relative;
@@ -39,184 +60,427 @@ const Page = styled.div`
     right: 0;
     height: 300px;
     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-    opacity: 0.08;
+    opacity: ${({ theme }) => theme.isDarkMode ? '0.05' : '0.08'};
     z-index: 0;
+    pointer-events: none;
   }
 `;
 
-const MainContent = styled.main`
+const MainContent = styled.main<{ $isEmpty: boolean }>`
   flex: 1;
-  padding: 32px 32px 80px;
-  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  max-width: 900px;
   margin: 0 auto;
   width: 100%;
+  padding: 0;
+  height: calc(100vh - 64px);
   position: relative;
   z-index: 1;
 
+  /* Center content when empty */
+  ${({ $isEmpty }) => $isEmpty && `
+    justify-content: center;
+    align-items: center;
+  `}
+
   @media (max-width: 768px) {
-    padding: 24px 20px 60px;
+    height: calc(100vh - 56px);
   }
 `;
 
 const ChatContainer = styled.div`
-  width: 100%;
-  max-width: 1200px;
-  margin: 32px auto 0;
-  min-height: 400px;
-`;
-
-const ResponseCard = styled.div`
-  background: ${({ theme }) => theme.isDarkMode ? theme.colours.cardBackground : 'white'};
-  border-radius: 16px;
+  flex: 1;
+  overflow-y: auto;
   padding: 24px;
-  border: 1px solid ${({ theme }) => theme.isDarkMode ? theme.colours.border : '#e5e7eb'};
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  margin-bottom: 24px;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
-  }
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  }
-`;
-
-const ResponseHeader = styled.div`
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid ${({ theme }) => theme.isDarkMode ? theme.colours.border : '#f3f4f6'};
+  flex-direction: column;
+  gap: 24px;
+
+  /* Custom scrollbar */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.isDarkMode ? '#334155' : '#e2e8f0'};
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
+  }
+
+  @media (max-width: 768px) {
+    padding: 16px;
+    gap: 16px;
+  }
 `;
 
-const ResponseIcon = styled.div`
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+const EmptyState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px 32px;
+  text-align: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 700px;
+
+  svg {
+    width: 64px;
+    height: 64px;
+    color: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
+    margin-bottom: 8px;
+  }
+
+  h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: ${({ theme }) => theme.isDarkMode ? '#e2e8f0' : '#1e293b'};
+    margin: 0;
+  }
+
+  p {
+    font-size: 15px;
+    color: ${({ theme }) => theme.isDarkMode ? '#94a3b8' : '#64748b'};
+    margin: 0;
+    max-width: 500px;
+  }
+
+  @media (max-width: 768px) {
+    padding: 32px 16px 24px;
+
+    svg {
+      width: 48px;
+      height: 48px;
+    }
+
+    h2 {
+      font-size: 20px;
+    }
+
+    p {
+      font-size: 14px;
+    }
+  }
+`;
+
+const CenteredContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  width: 100%;
+  max-width: 700px;
+  padding: 0 24px;
+
+  @media (max-width: 768px) {
+    padding: 0 16px;
+    gap: 24px;
+  }
+`;
+
+const MessageGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: fadeIn 0.3s ease-in;
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+
+const UserMessage = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: flex-end;
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: ${({ theme }) => theme.isDarkMode ? '#475569' : '#e2e8f0'};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    order: 2;
+
+    svg {
+      width: 20px;
+      height: 20px;
+      color: ${({ theme }) => theme.isDarkMode ? '#94a3b8' : '#64748b'};
+    }
+  }
+
+  .content {
+    background: ${({ theme }) => theme.isDarkMode ? '#1e293b' : '#f1f5f9'};
+    color: ${({ theme }) => theme.isDarkMode ? '#e2e8f0' : '#1e293b'};
+    padding: 12px 16px;
+    border-radius: 18px;
+    max-width: 70%;
+    font-size: 15px;
+    line-height: 1.5;
+    word-wrap: break-word;
+    order: 1;
+  }
+
+  @media (max-width: 768px) {
+    .content {
+      max-width: 85%;
+      font-size: 14px;
+    }
+  }
+`;
+
+const AssistantMessage = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    svg {
+      width: 18px;
+      height: 18px;
+      color: white;
+    }
+  }
+
+  .content {
+    flex: 1;
+    max-width: 85%;
+    color: ${({ theme }) => theme.isDarkMode ? '#e2e8f0' : '#1e293b'};
+  }
+
+  @media (max-width: 768px) {
+    .content {
+      max-width: 90%;
+    }
+  }
+`;
+
+const InputContainer = styled.div<{ $isCentered: boolean }>`
+  ${({ $isCentered }) => !$isCentered && `
+    border-top: 1px solid ${({ theme }: any) => theme.isDarkMode ? '#1e293b' : '#e2e8f0'};
+  `}
+  padding: 16px 24px;
+  background: ${({ $isCentered, theme }) =>
+    $isCentered ? 'transparent' : (theme.isDarkMode ? '#0f172a' : '#ffffff')};
+
+  /* Center the input when no chat history */
+  ${({ $isCentered }) => $isCentered && `
+    width: 100%;
+    max-width: 700px;
+  `}
+
+  @media (max-width: 768px) {
+    padding: 12px 16px;
+  }
+`;
+
+const InputWrapper = styled.div`
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+`;
+
+const InputField = styled.textarea`
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid ${({ theme }) => theme.isDarkMode ? '#334155' : '#e2e8f0'};
+  border-radius: 12px;
+  font-size: 15px;
+  font-family: inherit;
+  resize: none;
+  min-height: 48px;
+  max-height: 200px;
+  background: ${({ theme }) => theme.isDarkMode ? '#1e293b' : '#ffffff'};
+  color: ${({ theme }) => theme.isDarkMode ? '#e2e8f0' : '#1e293b'};
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+
+  &::placeholder {
+    color: ${({ theme }) => theme.isDarkMode ? '#64748b' : '#94a3b8'};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+    padding: 10px 14px;
+  }
+`;
+
+const SendButton = styled.button`
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none;
+  color: white;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 16px;
-  font-weight: 600;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #5b5bf6, #7c3aed);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  @media (max-width: 768px) {
+    width: 44px;
+    height: 44px;
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
 `;
 
-const ResponseTitle = styled.h3`
-  font-size: 16px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#1f2937'};
-  margin: 0;
-  flex: 1;
+const ClearButton = styled.button`
+  position: fixed;
+  bottom: 100px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: ${({ theme }) => theme.isDarkMode ? '#1e293b' : '#ffffff'};
+  border: 1px solid ${({ theme }) => theme.isDarkMode ? '#334155' : '#e2e8f0'};
+  color: ${({ theme }) => theme.isDarkMode ? '#e2e8f0' : '#64748b'};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  &:hover {
+    background: ${({ theme }) => theme.isDarkMode ? '#334155' : '#f8fafc'};
+    transform: scale(1.05);
+  }
+
+  @media (max-width: 768px) {
+    bottom: 80px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
 `;
 
-const ResponseTimestamp = styled.span`
-  font-size: 12px;
-  color: ${({ theme }) => theme.isDarkMode ? theme.colours.textSecondary : '#9ca3af'};
-  font-weight: 500;
-`;
+const LoadingIndicator = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
 
-const ResponseContent = styled.div`
-  color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#374151'};
-  line-height: 1.6;
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 
-  /* Enhanced markdown styling */
-  h1, h2, h3, h4, h5, h6 {
-    color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#1f2937'};
-    margin: 16px 0 8px 0;
-    font-weight: 600;
-  }
-
-  h1 { font-size: 20px; }
-  h2 { font-size: 18px; }
-  h3 { font-size: 16px; }
-
-  p {
-    margin: 12px 0;
-  }
-
-  ul, ol {
-    margin: 12px 0;
-    padding-left: 20px;
-  }
-
-  li {
-    margin: 4px 0;
-  }
-
-  code {
-    background: ${({ theme }) => theme.isDarkMode ? 'rgba(139, 92, 246, 0.1)' : '#f3f4f6'};
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: 'Monaco', 'Menlo', monospace;
-    font-size: 13px;
-    color: ${({ theme }) => theme.isDarkMode ? '#a855f7' : '#7c3aed'};
-  }
-
-  pre {
-    background: ${({ theme }) => theme.isDarkMode ? 'rgba(139, 92, 246, 0.05)' : '#f9fafb'};
-    padding: 16px;
-    border-radius: 8px;
-    overflow-x: auto;
-    border: 1px solid ${({ theme }) => theme.isDarkMode ? theme.colours.border : '#e5e7eb'};
-
-    code {
-      background: none;
-      padding: 0;
-      color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#374151'};
+    svg {
+      width: 18px;
+      height: 18px;
+      color: white;
     }
   }
 
-  blockquote {
-    border-left: 3px solid #6366f1;
-    padding-left: 16px;
-    margin: 16px 0;
-    color: ${({ theme }) => theme.isDarkMode ? theme.colours.textSecondary : '#6b7280'};
-    font-style: italic;
-  }
+  .dots {
+    display: flex;
+    gap: 6px;
+    padding: 12px 16px;
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 16px 0;
+    span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
+      animation: bounce 1.4s infinite ease-in-out both;
 
-    th, td {
-      padding: 8px 12px;
-      text-align: left;
-      border-bottom: 1px solid ${({ theme }) => theme.isDarkMode ? theme.colours.border : '#e5e7eb'};
-    }
+      &:nth-child(1) {
+        animation-delay: -0.32s;
+      }
 
-    th {
-      font-weight: 600;
-      background: ${({ theme }) => theme.isDarkMode ? 'rgba(139, 92, 246, 0.05)' : '#f9fafb'};
+      &:nth-child(2) {
+        animation-delay: -0.16s;
+      }
     }
   }
 
-  strong {
-    font-weight: 600;
-    color: ${({ theme }) => theme.isDarkMode ? theme.colours.text : '#1f2937'};
-  }
-
-  em {
-    font-style: italic;
-    color: ${({ theme }) => theme.isDarkMode ? theme.colours.textSecondary : '#6b7280'};
+  @keyframes bounce {
+    0%, 80%, 100% {
+      transform: scale(0);
+    }
+    40% {
+      transform: scale(1);
+    }
   }
 `;
-
-
-
 
 
 
@@ -227,9 +491,11 @@ const ResponseContent = styled.div`
 
 /* ---------- component ---------- */
 export default function Home() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState('');
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Data for context - comprehensive application data
   const { products, loading: productsLoading } = useProducts();
@@ -320,8 +586,30 @@ export default function Home() {
 
 
 
-  // Build comprehensive context for AI assistant with ALL application data (memoized for performance)
-  const contextData = useDeepMemo(() => {
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      const scrollToBottom = () => {
+        chatContainerRef.current?.scrollTo({
+          top: chatContainerRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      };
+      // Small delay to ensure DOM is updated
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [chatHistory]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 200)}px`;
+    }
+  }, [inputValue]);
+
+  // Build comprehensive context summary for AI (optimized to avoid token limits)
+  const contextSummary = useDeepMemo(() => {
     // Ensure all data arrays exist before processing
     const safeProducts = products || [];
     const safeCoverages = coverages || [];
@@ -332,176 +620,354 @@ export default function Home() {
     const safeFormCoverages = formCoverages || [];
     const safeTasks = tasks || [];
 
-    const context = {
+    // Create a concise summary instead of full data dump
+    const summary = {
       timestamp: new Date().toISOString(),
-      company: "Insurance Product Management System",
-      systemDescription: "Comprehensive P&C insurance product management platform with products, coverages, forms, pricing, rules, and regulatory data",
+      systemOverview: {
+        description: "Comprehensive P&C insurance product management platform",
+        dataAvailable: "products, coverages, forms, pricing, rules, tasks, compliance data"
+      },
 
-      // Products data with enhanced details
-      products: safeProducts.map(p => ({
-        id: p.id,
-        name: p.name,
-        formNumber: p.formNumber,
-        productCode: p.productCode,
-        effectiveDate: p.effectiveDate,
-        hasForm: !!p.formDownloadUrl,
-        availableStates: p.availableStates || [],
-        stateCount: (p.availableStates || []).length,
-        status: p.status,
-        bureau: p.bureau
-      })),
-
-      // Coverages data with relationships
-      coverages: safeCoverages.map(c => ({
-        id: c.id,
-        productId: c.productId,
-        productName: safeProducts.find(p => p.id === c.productId)?.name || 'Unknown Product',
-        coverageCode: c.coverageCode,
-        coverageName: c.coverageName,
-        scopeOfCoverage: c.scopeOfCoverage,
-        limits: c.limits,
-        deductibles: c.deductibles,
-        perilsCovered: c.perilsCovered,
-        parentCoverage: c.parentCoverage,
-        isSubCoverage: !!c.parentCoverage,
-        states: c.states || [],
-        category: c.category,
-        formIds: c.formIds || []
-      })),
-
-      // Forms data with associations
-      forms: safeForms.map(f => ({
-        id: f.id,
-        name: f.name || f.formName,
-        formNumber: f.formNumber,
-        category: f.category,
-        type: f.type,
-        effectiveDate: f.effectiveDate,
-        productIds: f.productIds || [],
-        coverageIds: f.coverageIds || [],
-        associatedProducts: (f.productIds || []).map(pid =>
-          safeProducts.find(p => p.id === pid)?.name || 'Unknown Product'
-        ).filter(Boolean),
-        hasDocument: !!f.downloadUrl || !!f.filePath,
-        dynamic: f.dynamic,
-        attachmentConditions: f.attachmentConditions
-      })),
-
-      // Rules data
-      rules: safeRules.map(r => ({
-        id: r.id,
-        name: r.name,
-        ruleId: r.ruleId,
-        condition: r.condition,
-        outcome: r.outcome,
-        ruleText: r.ruleText,
-        proprietary: r.proprietary,
-        reference: r.reference,
-        productId: r.productId,
-        productName: r.productId ? safeProducts.find(p => p.id === r.productId)?.name : null
-      })),
-
-      // Pricing steps data
-      pricingSteps: safePricingSteps.map(s => ({
-        id: s.id,
-        productId: s.productId,
-        productName: safeProducts.find(p => p.id === s.productId)?.name || 'Unknown Product',
-        stepName: s.stepName,
-        stepType: s.stepType,
-        coverages: s.coverages || [],
-        states: s.states || [],
-        value: s.value,
-        rounding: s.rounding,
-        order: s.order,
-        operand: s.operand,
-        table: s.table,
-        calculation: s.calculation
-      })),
-
-      // Data dictionary
-      dataDictionary: safeDataDictionary.map(d => ({
-        id: d.id,
-        fieldName: d.fieldName,
-        description: d.description,
-        dataType: d.dataType,
-        allowedValues: d.allowedValues,
-        required: d.required,
-        category: d.category
-      })),
-
-      // Form-coverage mappings
-      formCoverageMappings: safeFormCoverages.map(fc => ({
-        id: fc.id,
-        productId: fc.productId,
-        coverageId: fc.coverageId,
-        formId: fc.formId,
-        productName: safeProducts.find(p => p.id === fc.productId)?.name,
-        coverageName: safeCoverages.find(c => c.id === fc.coverageId)?.coverageName,
-        formNumber: safeForms.find(f => f.id === fc.formId)?.formNumber
-      })),
-
-      // Tasks data
-      tasks: safeTasks.map(t => ({
-        id: t.id,
-        title: t.title,
-        description: t.description,
-        phase: t.phase,
-        priority: t.priority,
-        assignee: t.assignee,
-        dueDate: t.dueDate,
-        createdAt: t.createdAt,
-        updatedAt: t.updatedAt,
-        isOverdue: t.dueDate ? new Date(t.dueDate) < new Date() : false,
-        phaseDescription: {
-          'research': 'Market Research & Ideation',
-          'develop': 'Product Development',
-          'compliance': 'Compliance & Filings',
-          'implementation': 'Implementation & Launch'
-        }[t.phase] || t.phase
-      })),
-
-      // Enhanced summary statistics
-      summary: {
-        totalProducts: safeProducts.length,
-        totalCoverages: safeCoverages.length,
-        totalForms: safeForms.length,
-        totalRules: safeRules.length,
-        totalPricingSteps: safePricingSteps.length,
-        totalDataDictionaryEntries: safeDataDictionary.length,
-        totalFormCoverageMappings: safeFormCoverages.length,
-        totalTasks: safeTasks.length,
-        productsWithForms: safeProducts.filter(p => p.formDownloadUrl).length,
-        subCoverages: safeCoverages.filter(c => c.parentCoverage).length,
-        proprietaryRules: safeRules.filter(r => r.proprietary).length,
-        statesRepresented: [...new Set(safeProducts.flatMap(p => p.availableStates || []))].length,
-        tasksByPhase: {
-          research: safeTasks.filter(t => t.phase === 'research').length,
-          develop: safeTasks.filter(t => t.phase === 'develop').length,
-          compliance: safeTasks.filter(t => t.phase === 'compliance').length,
-          implementation: safeTasks.filter(t => t.phase === 'implementation').length
+      statistics: {
+        products: {
+          total: safeProducts.length,
+          withForms: safeProducts.filter(p => p.formDownloadUrl).length,
+          statesRepresented: [...new Set(safeProducts.flatMap(p => p.availableStates || []))].length,
+          topProducts: safeProducts.slice(0, 5).map(p => ({
+            name: p.name,
+            code: p.productCode,
+            states: (p.availableStates || []).length
+          }))
         },
-        tasksByPriority: {
-          high: safeTasks.filter(t => t.priority === 'high').length,
-          medium: safeTasks.filter(t => t.priority === 'medium').length,
-          low: safeTasks.filter(t => t.priority === 'low').length
+        coverages: {
+          total: safeCoverages.length,
+          subCoverages: safeCoverages.filter(c => c.parentCoverage).length,
+          categories: [...new Set(safeCoverages.map(c => c.category).filter(Boolean))]
         },
-        overdueTasks: safeTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date()).length,
-        tasksWithAssignees: safeTasks.filter(t => t.assignee).length
+        forms: {
+          total: safeForms.length,
+          categories: [...new Set(safeForms.map(f => f.category).filter(Boolean))],
+          withDocuments: safeForms.filter(f => f.downloadUrl || f.filePath).length
+        },
+        rules: {
+          total: safeRules.length,
+          proprietary: safeRules.filter(r => r.proprietary).length
+        },
+        pricing: {
+          totalSteps: safePricingSteps.length,
+          stepTypes: [...new Set(safePricingSteps.map(s => s.stepType).filter(Boolean))]
+        },
+        tasks: {
+          total: safeTasks.length,
+          byPhase: {
+            research: safeTasks.filter(t => t.phase === 'research').length,
+            develop: safeTasks.filter(t => t.phase === 'develop').length,
+            compliance: safeTasks.filter(t => t.phase === 'compliance').length,
+            implementation: safeTasks.filter(t => t.phase === 'implementation').length
+          },
+          byPriority: {
+            high: safeTasks.filter(t => t.priority === 'high').length,
+            medium: safeTasks.filter(t => t.priority === 'medium').length,
+            low: safeTasks.filter(t => t.priority === 'low').length
+          },
+          overdue: safeTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date()).length
+        },
+        dataDictionary: {
+          total: safeDataDictionary.length
+        },
+        formCoverageMappings: {
+          total: safeFormCoverages.length
+        }
+      },
+
+      // Sample data for context (limited to avoid token overflow)
+      sampleData: {
+        products: safeProducts.slice(0, 3).map(p => ({
+          name: p.name,
+          code: p.productCode,
+          states: p.availableStates?.length || 0
+        })),
+        coverages: safeCoverages.slice(0, 3).map(c => ({
+          name: c.coverageName,
+          code: c.coverageCode,
+          category: c.category
+        })),
+        tasks: safeTasks.slice(0, 3).map(t => ({
+          title: t.title,
+          phase: t.phase,
+          priority: t.priority
+        }))
       }
     };
 
-    return context;
+    return summary;
   }, [products, coverages, forms, rules, pricingSteps, dataDictionary, formCoverages, tasks]);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchQuery.trim() || isLoading) return;
+  // Store full context data for detailed queries (not sent in every request)
+  const fullContextData = useDeepMemo(() => {
+    const safeProducts = products || [];
+    const safeCoverages = coverages || [];
+    const safeForms = forms || [];
+    const safeRules = rules || [];
+    const safePricingSteps = pricingSteps || [];
+    const safeDataDictionary = dataDictionary || [];
+    const safeFormCoverages = formCoverages || [];
+    const safeTasks = tasks || [];
+
+    return {
+      products: safeProducts,
+      coverages: safeCoverages,
+      forms: safeForms,
+      rules: safeRules,
+      pricingSteps: safePricingSteps,
+      dataDictionary: safeDataDictionary,
+      formCoverages: safeFormCoverages,
+      tasks: safeTasks
+    };
+  }, [products, coverages, forms, rules, pricingSteps, dataDictionary, formCoverages, tasks]);
+
+  // Query classification function
+  const classifyQuery = useCallback((query: string): QueryType => {
+    const lowerQuery = query.toLowerCase();
+
+    // Product-related queries
+    if (lowerQuery.match(/product|portfolio|offering/i)) {
+      return 'product_analysis';
+    }
+
+    // Coverage-related queries
+    if (lowerQuery.match(/coverage|limit|deductible|peril|exclusion/i)) {
+      return 'coverage_analysis';
+    }
+
+    // Pricing-related queries
+    if (lowerQuery.match(/pric(e|ing)|rate|premium|cost|factor/i)) {
+      return 'pricing_analysis';
+    }
+
+    // Compliance-related queries
+    if (lowerQuery.match(/complian(ce|t)|regulat(ion|ory)|state|filing|approval/i)) {
+      return 'compliance_check';
+    }
+
+    // Task management queries
+    if (lowerQuery.match(/task|project|deadline|milestone|progress|team/i)) {
+      return 'task_management';
+    }
+
+    // Strategic queries
+    if (lowerQuery.match(/strateg(y|ic)|opportunit(y|ies)|recommend|suggest|improve|optimize/i)) {
+      return 'strategic_insight';
+    }
+
+    // Data queries
+    if (lowerQuery.match(/how many|count|list|show|what are|which/i)) {
+      return 'data_query';
+    }
+
+    return 'general';
+  }, []);
+
+  // Build context-aware prompt based on query type
+  const buildEnhancedPrompt = useCallback((query: string, queryType: QueryType) => {
+    const baseContext = `You are an elite AI assistant for a comprehensive P&C insurance product management system with real-time access to all company data.
+
+# YOUR IDENTITY & EXPERTISE
+You are a composite expert combining:
+- **Senior Insurance Product Manager** (15+ years P&C experience)
+- **Business Intelligence Analyst** (Advanced analytics & data science)
+- **Regulatory Compliance Officer** (Multi-state insurance regulations)
+- **Strategic Business Consultant** (Portfolio optimization & market analysis)
+- **Data Scientist** (Predictive modeling & statistical analysis)
+
+# CURRENT SYSTEM STATE
+${JSON.stringify(contextSummary, null, 2)}
+
+# QUERY CLASSIFICATION
+This query has been classified as: **${queryType.replace('_', ' ').toUpperCase()}**
+
+`;
+
+    // Add query-type-specific instructions
+    const typeSpecificInstructions: Record<QueryType, string> = {
+      product_analysis: `
+# PRODUCT ANALYSIS PROTOCOL
+1. **Identify** relevant products from the data
+2. **Analyze** key metrics (states, forms, coverages, pricing)
+3. **Compare** against portfolio benchmarks
+4. **Highlight** strengths, weaknesses, opportunities, threats
+5. **Recommend** specific actionable improvements
+
+**Focus Areas:**
+- Product positioning and differentiation
+- Market coverage and geographic distribution
+- Form completeness and documentation quality
+- Coverage breadth and competitiveness
+- Cross-sell and upsell opportunities`,
+
+      coverage_analysis: `
+# COVERAGE ANALYSIS PROTOCOL
+1. **Map** coverage hierarchy (primary → sub-coverages)
+2. **Evaluate** limits, deductibles, and conditions
+3. **Identify** gaps, overlaps, or inconsistencies
+4. **Assess** competitive positioning
+5. **Recommend** coverage enhancements or modifications
+
+**Focus Areas:**
+- Coverage adequacy and market competitiveness
+- Sub-coverage relationships and dependencies
+- Exclusions and limitations analysis
+- Pricing implications of coverage changes`,
+
+      pricing_analysis: `
+# PRICING ANALYSIS PROTOCOL
+1. **Review** current pricing structure and factors
+2. **Analyze** rate adequacy and competitiveness
+3. **Identify** pricing optimization opportunities
+4. **Model** impact of potential rate changes
+5. **Recommend** data-driven pricing strategies
+
+**Focus Areas:**
+- Rate structure and rating variables
+- Loss ratio analysis and profitability
+- Competitive rate positioning
+- Geographic and demographic pricing variations`,
+
+      compliance_check: `
+# COMPLIANCE ANALYSIS PROTOCOL
+1. **Verify** regulatory requirements by state
+2. **Check** form filing status and approvals
+3. **Identify** compliance gaps or risks
+4. **Assess** regulatory change impacts
+5. **Recommend** compliance action items
+
+**Focus Areas:**
+- State-specific regulatory requirements
+- Form filing and approval status
+- Regulatory deadline tracking
+- Multi-state compliance coordination`,
+
+      task_management: `
+# TASK MANAGEMENT PROTOCOL
+1. **Summarize** current task status and distribution
+2. **Identify** bottlenecks and resource constraints
+3. **Analyze** timeline risks and dependencies
+4. **Prioritize** critical path items
+5. **Recommend** workflow optimizations
+
+**Focus Areas:**
+- Task completion rates and velocity
+- Resource allocation and workload balance
+- Deadline adherence and risk mitigation
+- Cross-functional dependencies`,
+
+      strategic_insight: `
+# STRATEGIC ANALYSIS PROTOCOL
+1. **Synthesize** data across all domains
+2. **Identify** patterns, trends, and correlations
+3. **Evaluate** strategic opportunities and threats
+4. **Model** potential scenarios and outcomes
+5. **Recommend** high-impact strategic initiatives
+
+**Focus Areas:**
+- Portfolio optimization and rationalization
+- Market expansion opportunities
+- Competitive positioning and differentiation
+- Innovation and product development priorities`,
+
+      data_query: `
+# DATA QUERY PROTOCOL
+1. **Parse** the specific data request
+2. **Extract** relevant data points accurately
+3. **Format** data in clear, structured format
+4. **Provide** context and interpretation
+5. **Suggest** related insights or follow-up queries
+
+**Focus Areas:**
+- Accurate data retrieval and presentation
+- Clear formatting (tables, lists, charts)
+- Contextual interpretation
+- Data quality and completeness notes`,
+
+      general: `
+# GENERAL INQUIRY PROTOCOL
+1. **Understand** the user's intent and context
+2. **Determine** which data domains are relevant
+3. **Synthesize** information across domains
+4. **Provide** comprehensive, actionable response
+5. **Suggest** related topics or deeper analysis
+
+**Focus Areas:**
+- Holistic system understanding
+- Cross-functional insights
+- Educational and explanatory content
+- Proactive recommendations`
+    };
+
+    const responseFormat = `
+# RESPONSE FORMAT REQUIREMENTS
+
+**Structure your response as follows:**
+
+1. **Executive Summary** (2-3 sentences)
+   - Key finding or direct answer
+   - Most critical insight
+
+2. **Detailed Analysis** (organized with headers)
+   - Use markdown headers (##, ###)
+   - Bullet points for lists
+   - Tables for comparative data
+   - Bold for emphasis on key metrics
+
+3. **Data Evidence** (when applicable)
+   - Specific numbers, percentages, counts
+   - Reference actual product names, codes, IDs
+   - Include relevant statistics from context
+
+4. **Actionable Recommendations** (if applicable)
+   - Numbered list of specific actions
+   - Priority indicators (High/Medium/Low)
+   - Expected impact or benefit
+
+5. **Next Steps or Follow-up Questions** (optional)
+   - Suggested deeper analysis
+   - Related areas to explore
+
+**Tone & Style:**
+- Professional yet conversational
+- Data-driven and specific
+- Confident but acknowledge limitations
+- Proactive in offering insights
+- Use insurance industry terminology appropriately
+
+**Quality Standards:**
+- Accuracy: Only use data from provided context
+- Relevance: Stay focused on the query
+- Clarity: Use clear, concise language
+- Actionability: Provide practical recommendations
+- Completeness: Address all aspects of the query
+
+---
+
+**User Query:** ${query}
+
+**Your Response:**`;
+
+    return baseContext + typeSpecificInstructions[queryType] + responseFormat;
+  }, [contextSummary]);
+
+  const handleSendMessage = useCallback(async () => {
+    const query = inputValue.trim();
+    if (!query || isLoading || dataLoading) return;
 
     const startTime = Date.now();
-    const query = searchQuery.trim();
+
+    // Classify the query
+    const queryType = classifyQuery(query);
 
     logger.logUserAction('Home chat query submitted', {
       queryLength: query.length,
+      queryType,
       hasProducts: products.length > 0,
       hasCoverages: coverages.length > 0,
       hasForms: forms.length > 0,
@@ -509,78 +975,35 @@ export default function Home() {
       timestamp: new Date().toISOString()
     });
 
-    setSearchQuery(''); // Clear the input immediately
+    // Add user message to chat history
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: query,
+      timestamp: new Date(),
+      metadata: {
+        queryType
+      }
+    };
+    setChatHistory(prev => [...prev, userMessage]);
+
+    setInputValue(''); // Clear the input immediately
     setIsLoading(true);
-    setResponse('');
 
     try {
-      // Use the memoized context data
-      const context = contextData;
-
-      // Create enhanced system prompt with comprehensive domain expertise
-      const systemPrompt = `You are an expert AI assistant for a comprehensive P&C insurance product management system. You have access to complete real-time data about the company's insurance products, coverages, forms, pricing models, business rules, regulatory compliance data, task management information, and current industry news.
-
-**Your Role & Expertise:**
-- Senior Insurance Product Management Expert and Business Intelligence Analyst
-- P&C Insurance Domain Expert with deep knowledge of coverages, forms, pricing, and regulations
-- Strategic Business Advisor for product portfolio optimization
-- Regulatory Compliance and Risk Assessment Specialist
-- Data Analytics Expert for insurance product performance
-- Project Management and Task Coordination Specialist
-- Industry News Analyst and Market Intelligence Expert
-
-**Your Capabilities:**
-- Analyze product portfolios and coverage hierarchies
-- Evaluate pricing models and rate structures
-- Assess regulatory compliance and form requirements
-- Identify business opportunities and risks
-- Provide strategic recommendations for product development
-- Perform competitive analysis and market positioning
-- Analyze state availability and geographic distribution
-- Review business rules and underwriting guidelines
-- Track project progress and task management across product development lifecycle
-- Analyze team workload and task distribution
-- Identify bottlenecks and resource allocation issues
-- Provide insights on project timelines and deliverables
-- Monitor industry news and regulatory developments
-- Analyze market trends and competitive intelligence
-- Correlate news events with business impact and opportunities
-- Provide strategic insights based on industry developments
-
-**Current System Context (Complete Dataset):**
-${JSON.stringify(context, null, 2)}
-
-**Response Guidelines:**
-- Provide expert-level insights with specific data references
-- Use actual product names, coverage codes, form numbers, and pricing details
-- Offer strategic recommendations based on comprehensive data analysis
-- Identify patterns, trends, and opportunities in the data
-- Highlight potential risks or compliance issues
-- Format responses with clear structure using headers, bullet points, and sections
-- Include relevant metrics and statistics to support your analysis
-- Consider cross-functional impacts (pricing, underwriting, compliance, distribution)
-- Provide actionable next steps when appropriate
-
-**Data Relationships to Consider:**
-- Product-to-coverage hierarchies and dependencies
-- Form-to-coverage mappings and regulatory requirements
-- Pricing step sequences and calculation logic
-- State availability and geographic distribution patterns
-- Business rules and their impact on underwriting
-- Data dictionary constraints and validation rules
-- Task management and project workflow phases
-- Team assignments and workload distribution
-- Project timelines and milestone tracking
-- Cross-functional dependencies between tasks and product components
-- Industry news trends and regulatory developments
-- Market intelligence and competitive landscape analysis
-- News impact on business strategy and product development
-- Regulatory news correlation with compliance requirements`;
+      // Build enhanced, context-aware system prompt
+      const systemPrompt = buildEnhancedPrompt(query, queryType);
 
       logger.logAIOperation('Home chat query', AI_MODELS.HOME_CHAT, query.substring(0, 100), '', 0);
 
       // Call Cloud Function (secure proxy to OpenAI)
       const generateChat = httpsCallable(functions, 'generateChatResponse');
+
+      // Build conversation history for context (last 5 messages)
+      const recentHistory = chatHistory.slice(-5).map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
 
       // Ensure we're sending a plain object with proper types
       const payload = {
@@ -589,6 +1012,7 @@ ${JSON.stringify(context, null, 2)}
             role: 'system',
             content: String(systemPrompt)
           },
+          ...recentHistory,
           { role: 'user', content: String(query) }
         ],
         model: String(AI_MODELS.HOME_CHAT),
@@ -600,7 +1024,8 @@ ${JSON.stringify(context, null, 2)}
         messagesCount: payload.messages.length,
         model: payload.model,
         maxTokens: payload.maxTokens,
-        temperature: payload.temperature
+        temperature: payload.temperature,
+        contextSize: JSON.stringify(contextSummary).length
       });
 
       const result = await generateChat(payload);
@@ -614,15 +1039,29 @@ ${JSON.stringify(context, null, 2)}
       }
 
       const aiResponse = result.data.content?.trim();
+      const processingTime = Date.now() - startTime;
 
-      logger.logAIOperation('Home chat response', AI_MODELS.HOME_CHAT, query.substring(0, 100), aiResponse?.substring(0, 100), Date.now() - startTime);
+      logger.logAIOperation('Home chat response', AI_MODELS.HOME_CHAT, query.substring(0, 100), aiResponse?.substring(0, 100), processingTime);
 
       if (aiResponse) {
-        setResponse(aiResponse);
+        // Add AI response to chat history with metadata
+        const assistantMessage: ChatMessage = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: aiResponse,
+          timestamp: new Date(),
+          metadata: {
+            queryType,
+            tokensUsed: result.data.usage?.total_tokens,
+            processingTime,
+            confidence: 0.95 // Could be enhanced with actual confidence scoring
+          }
+        };
+        setChatHistory(prev => [...prev, assistantMessage]);
       } else {
         throw new Error('No response from AI');
       }
-    } catch (error) {
+    } catch (error: any) {
       const duration = Date.now() - startTime;
       logger.error(LOG_CATEGORIES.AI, 'AI request failed', {
         query: query.substring(0, 100),
@@ -645,121 +1084,159 @@ ${JSON.stringify(context, null, 2)}
         logger.warn(LOG_CATEGORIES.AI, 'Timeout error for home chat', { query: query.substring(0, 100), duration });
       }
 
-      setResponse(errorMessage);
+      // Add error message to chat history
+      const errorMsg: ChatMessage = {
+        id: `error-${Date.now()}`,
+        role: 'assistant',
+        content: errorMessage,
+        timestamp: new Date()
+      };
+      setChatHistory(prev => [...prev, errorMsg]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [inputValue, isLoading, dataLoading, products, coverages, forms, rules, contextSummary, chatHistory, classifyQuery, buildEnhancedPrompt]);
 
-  const handleKeyPress = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSearch(e);
+      handleSendMessage();
     }
   };
 
-  // Handle news article click - open article in new tab
-  const handleArticleClick = (article) => {
-    if (article.url && article.url !== '#') {
-      window.open(article.url, '_blank', 'noopener,noreferrer');
-      console.log('Opening article:', article.title, 'URL:', article.url);
-    } else {
-      console.log('No URL available for article:', article.title);
-    }
+  const handleClearChat = () => {
+    setChatHistory([]);
+    setInputValue('');
   };
 
-
+  // Compute loading state
+  const isSystemReady = !dataLoading && !productsLoading;
+  const isEmpty = chatHistory.length === 0;
 
   return (
     <Page>
       <MainNavigation />
 
-      <MainContent>
-        <EnhancedHeader
-          title="How can I help you?"
-          subtitle={"I have access to uploaded products, coverages, forms, pricing, rules, tasks and industry news"}
-          icon={HomeIcon}
-          searchProps={{
-            placeholder: "Ask about products, pricing models, coverage analysis, regulatory compliance, task management, industry news, or strategic insights...",
-            value: searchQuery,
-            onChange: (e) => setSearchQuery(e.target.value),
-            onKeyPress: handleKeyPress,
-            onSearch: handleSearch,
-            disabled: dataLoading || productsLoading,
-            isLoading: isLoading
-          }}
-        >
-          {(dataLoading || productsLoading) && (
-            <div style={{
-              fontSize: '14px',
-              color: '#64748b',
-              marginTop: '16px',
-              textAlign: 'center'
-            }}>
-              Loading comprehensive system data (products, coverages, forms, pricing, rules, tasks, news, compliance data)...
-            </div>
-          )}
-          {!dataLoading && !productsLoading && (
-            <div style={{
-              fontSize: '12px',
-              color: '#475569',
-              marginTop: '12px',
-              textAlign: 'center',
-              display: 'flex',
-              justifyContent: 'center',
-              gap: '16px',
-              flexWrap: 'wrap',
-              alignItems: 'center'
-            }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CubeIcon style={{ width: '14px', height: '14px' }} />
-                {(products || []).length} Products
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <ShieldCheckIcon style={{ width: '14px', height: '14px' }} />
-                {(coverages || []).length} Coverages
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <DocumentTextIcon style={{ width: '14px', height: '14px' }} />
-                {(forms || []).length} Forms
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Cog6ToothIcon style={{ width: '14px', height: '14px' }} />
-                {(rules || []).length} Rules
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CurrencyDollarIcon style={{ width: '14px', height: '14px' }} />
-                {(pricingSteps || []).length} Pricing Steps
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <BookOpenIcon style={{ width: '14px', height: '14px' }} />
-                {(dataDictionary || []).length} Data Definitions
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <ClipboardDocumentListIcon style={{ width: '14px', height: '14px' }} />
-                {(tasks || []).length} Tasks
-              </span>
-            </div>
-          )}
-        </EnhancedHeader>
+      <MainContent $isEmpty={isEmpty}>
+        {isEmpty ? (
+          /* Centered Empty State with Input */
+          <CenteredContainer>
+            <EmptyState>
+              <SparklesIcon />
+              <h2>Product Hub Assistant</h2>
+              <p>
+                Ask me anything about your insurance products, coverages, forms, pricing, rules, and tasks.
+                I have access to all your data and can provide comprehensive insights.
+              </p>
+              {!isSystemReady && (
+                <p style={{ fontSize: '13px', marginTop: '8px' }}>
+                  Loading system data...
+                </p>
+              )}
+            </EmptyState>
 
-        <ChatContainer>
-          {response && (
-            <ResponseCard>
-              <ResponseHeader>
-                <ResponseIcon>AI</ResponseIcon>
-                <ResponseTitle>Product Hub Assistant</ResponseTitle>
-                <ResponseTimestamp>
-                  {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </ResponseTimestamp>
-              </ResponseHeader>
-              <ResponseContent>
-                <UnifiedAIResponse content={response} />
-              </ResponseContent>
-            </ResponseCard>
-          )}
-        </ChatContainer>
+            {/* Centered Input */}
+            <InputContainer $isCentered={true}>
+              <InputWrapper>
+                <InputField
+                  ref={inputRef}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    isSystemReady
+                      ? "Ask about products, coverages, pricing, compliance, or anything else..."
+                      : "Loading system data..."
+                  }
+                  disabled={!isSystemReady || isLoading}
+                  rows={1}
+                />
+                <SendButton
+                  onClick={handleSendMessage}
+                  disabled={!isSystemReady || isLoading || !inputValue.trim()}
+                  title="Send message"
+                >
+                  <PaperAirplaneIcon />
+                </SendButton>
+              </InputWrapper>
+            </InputContainer>
+          </CenteredContainer>
+        ) : (
+          /* Chat Mode with Messages */
+          <>
+            <ChatContainer ref={chatContainerRef}>
+              {chatHistory.map((message) => (
+                <MessageGroup key={message.id}>
+                  {message.role === 'user' ? (
+                    <UserMessage>
+                      <div className="avatar">
+                        <UserCircleIcon />
+                      </div>
+                      <div className="content">{message.content}</div>
+                    </UserMessage>
+                  ) : (
+                    <AssistantMessage>
+                      <div className="avatar">
+                        <SparklesIcon />
+                      </div>
+                      <div className="content">
+                        <EnhancedChatMessage
+                          content={message.content}
+                          metadata={message.metadata}
+                          showMetadata={true}
+                        />
+                      </div>
+                    </AssistantMessage>
+                  )}
+                </MessageGroup>
+              ))}
 
+              {isLoading && (
+                <LoadingIndicator>
+                  <div className="avatar">
+                    <SparklesIcon />
+                  </div>
+                  <div className="dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                </LoadingIndicator>
+              )}
+            </ChatContainer>
+
+            {/* Bottom Input Area */}
+            <InputContainer $isCentered={false}>
+              <InputWrapper>
+                <InputField
+                  ref={inputRef}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    isSystemReady
+                      ? "Ask about products, coverages, pricing, compliance, or anything else..."
+                      : "Loading system data..."
+                  }
+                  disabled={!isSystemReady || isLoading}
+                  rows={1}
+                />
+                <SendButton
+                  onClick={handleSendMessage}
+                  disabled={!isSystemReady || isLoading || !inputValue.trim()}
+                  title="Send message"
+                >
+                  <PaperAirplaneIcon />
+                </SendButton>
+              </InputWrapper>
+            </InputContainer>
+
+            {/* Clear Chat Button */}
+            <ClearButton onClick={handleClearChat} title="Clear conversation">
+              <TrashIcon />
+            </ClearButton>
+          </>
+        )}
       </MainContent>
     </Page>
   );

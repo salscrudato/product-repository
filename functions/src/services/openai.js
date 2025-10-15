@@ -137,10 +137,15 @@ const generateProductSummary = async (pdfText, systemPrompt) => {
  * Generate chat response
  * @param {Array} messages - Chat message history
  * @param {string} systemPrompt - System prompt for AI
+ * @param {Object} options - Additional options (model, maxTokens, temperature)
  * @returns {Promise<Object>} Chat response
  */
-const generateChatResponse = async (messages, systemPrompt) => {
-  const fullMessages = [
+const generateChatResponse = async (messages, systemPrompt, options = {}) => {
+  // System prompt is already included in messages from frontend
+  // Only add if not present
+  const hasSystemPrompt = messages.some(msg => msg.role === 'system');
+
+  const fullMessages = hasSystemPrompt ? messages : [
     {
       role: 'system',
       content: systemPrompt || 'You are a helpful insurance product assistant.'
@@ -150,8 +155,9 @@ const generateChatResponse = async (messages, systemPrompt) => {
 
   return chatCompletion({
     messages: fullMessages,
-    maxTokens: 1500,
-    temperature: 0.7
+    model: options.model || 'gpt-4o-mini',
+    maxTokens: options.maxTokens || 1500,
+    temperature: options.temperature !== undefined ? options.temperature : 0.7
   });
 };
 

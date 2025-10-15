@@ -43,7 +43,8 @@ import {
   CurrencyDollarIcon,
   MapIcon,
   Squares2X2Icon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/solid';
 
 /* ---------- styled components ---------- */
@@ -950,6 +951,7 @@ export default function CoverageScreen() {
   /* ---------------- UI/Meta state ---------------- */
   const [metaLoading, setMetaLoading] = useState(true);
   const [forms, setForms] = useState([]);
+  const [rules, setRules] = useState([]);
   const [productName, setProductName] = useState('');
   const [parentCoverageName, setParentCoverageName] = useState('');
 
@@ -1053,7 +1055,7 @@ export default function CoverageScreen() {
   const [changeSummary, setChangeSummary] = useState('');
   const [formSearchQuery, setFormSearchQuery] = useState('');
 
-  /* ---------- effect: load meta (forms + names) ---------- */
+  /* ---------- effect: load meta (forms + names + rules) ---------- */
   const loadMeta = useCallback(async () => {
     if (!productId) return;
     setMetaLoading(true);
@@ -1073,6 +1075,13 @@ export default function CoverageScreen() {
         })
       );
       setForms(list);
+
+      // rules - fetch all rules for this product
+      const rulesSnap = await getDocs(
+        query(collection(db, 'rules'), where('productId', '==', productId))
+      );
+      const rulesList = rulesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setRules(rulesList);
 
       // product / parent names
       const prodDoc = await getDoc(doc(db, 'products', productId));
@@ -1094,6 +1103,13 @@ export default function CoverageScreen() {
   useEffect(() => { loadMeta(); }, [loadMeta]);
 
   /* ---------- helpers ---------- */
+  // Get rule count for a specific coverage
+  const getRuleCount = useCallback((coverageId) => {
+    return rules.filter(rule =>
+      rule.ruleType === 'Coverage' && rule.targetId === coverageId
+    ).length;
+  }, [rules]);
+
   const resetForm = () => {
     setFormState({ name:'', coverageCode:'', formIds:[], limits:[], deductibles:[], states:[], category:'' });
     setEditingId(null); setChangeSummary('');
@@ -1411,6 +1427,10 @@ export default function CoverageScreen() {
                               <CurrencyDollarIcon />
                               Pricing
                             </MetricItem>
+                            <MetricItem onClick={() => navigate(`/rules/${productId}/${parent.id}`)}>
+                              <Cog6ToothIcon />
+                              Rules ({getRuleCount(parent.id)})
+                            </MetricItem>
                           </CardMetrics>
                         </CardContent>
                       </ParentCoverageCard>
@@ -1463,6 +1483,10 @@ export default function CoverageScreen() {
                                 <MetricItem onClick={() => navigate(`/pricing/${productId}?coverage=${encodeURIComponent(child.name)}`)}>
                                   <CurrencyDollarIcon />
                                   Pricing
+                                </MetricItem>
+                                <MetricItem onClick={() => navigate(`/rules/${productId}/${child.id}`)}>
+                                  <Cog6ToothIcon />
+                                  Rules ({getRuleCount(child.id)})
                                 </MetricItem>
                               </CardMetrics>
                             </CardContent>

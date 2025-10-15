@@ -75,25 +75,33 @@ const generateChatResponse = functions.https.onCall(
     requireAuth(context);
     rateLimitAI(context);
 
-    const { messages, systemPrompt } = data;
+    const { messages, systemPrompt, model, maxTokens, temperature } = data;
 
     // Validation
     validateAIRequest({ messages });
 
     logger.info('Chat response requested', {
       userId: context.auth.uid,
-      messageCount: messages.length
+      messageCount: messages.length,
+      model: model || 'default',
+      maxTokens: maxTokens || 'default'
     });
 
-    // Generate response using OpenAI
+    // Generate response using OpenAI with custom parameters
     const result = await openaiService.generateChatResponse(
       messages,
-      systemPrompt
+      systemPrompt,
+      {
+        model,
+        maxTokens,
+        temperature
+      }
     );
 
     logger.info('Chat response generated successfully', {
       userId: context.auth.uid,
-      tokensUsed: result.usage?.total_tokens
+      tokensUsed: result.usage?.total_tokens,
+      model: result.model
     });
 
     return result;

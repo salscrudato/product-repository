@@ -194,6 +194,16 @@ const HistoryWrapper: React.FC = () => {
           }
         />
         <Route
+          path="/rules/:productId/:coverageId"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <RulesScreen />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
           path="/product-explorer"
           element={
             <RequireAuth>
