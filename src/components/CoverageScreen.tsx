@@ -331,7 +331,7 @@ const CoverageGroup = styled.div`
 `;
 
 // Sub-coverage Container with professional visual connector
-const SubCoverageContainer = styled.div`
+const SubCoverageContainer = styled.div<{ $isExpanded: boolean }>`
   position: relative;
   margin-left: 24px;
   display: grid;
@@ -365,7 +365,7 @@ const SubCoverageContainer = styled.div`
     background: #e2e8f0;
   }
 
-  ${({ isExpanded }) => isExpanded ? `
+  ${({ $isExpanded }) => $isExpanded ? `
     opacity: 1;
     transform: translateY(0);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -407,7 +407,7 @@ const ParentCoverageCard = styled.div`
 `;
 
 // Coverage Card - Simple clean design for sub-coverages
-const CoverageCard = styled.div`
+const CoverageCard = styled.div<{ $isSubCoverage?: boolean }>`
   background: white;
   border-radius: 12px;
   padding: 14px;
@@ -422,7 +422,7 @@ const CoverageCard = styled.div`
     border-color: #6366f1;
   }
 
-  ${({ isSubCoverage }) => isSubCoverage && `
+  ${({ $isSubCoverage }) => $isSubCoverage && `
     background: #f8fafc;
     border-left: 3px solid #6366f1;
     margin-left: 0;
@@ -1399,9 +1399,9 @@ export default function CoverageScreen() {
                       </ParentCoverageCard>
                     {/* Sub-Coverages */}
                     {filteredTreeStructure.childrenMap[parent.id] && isExpanded && (
-                      <SubCoverageContainer isExpanded={isExpanded}>
+                      <SubCoverageContainer $isExpanded={isExpanded}>
                         {filteredTreeStructure.childrenMap[parent.id].map(child => (
-                          <CoverageCard key={child.id} isSubCoverage>
+                          <CoverageCard key={child.id} $isSubCoverage>
                             <CardHeader>
                               <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
                                 <CardTitle>

@@ -22,10 +22,6 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@testing-library/dom": "^10.4.1",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^14.6.1",
     "@types/file-saver": "^2.0.7",
     "@types/node": "^24.7.2",
     "@types/react": "^19.2.2",
@@ -43,12 +39,7 @@
     "start": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "build:analyze": "ANALYZE=true vite build",
-    "seed:comprehensive": "tsx scripts/seedComprehensiveData.ts",
-    "seed:commercial-property": "tsx scripts/seedCommercialProperty.ts",
-    "seed:commercial-property-fixed": "tsx scripts/seedCommercialPropertyFixed.ts",
-    "verify:data": "tsx scripts/verifyData.ts",
-    "reset:pricing": "tsx scripts/resetPricingSteps.ts"
+    "build:analyze": "ANALYZE=true vite build"
   },
   "browserslist": {
     "production": [

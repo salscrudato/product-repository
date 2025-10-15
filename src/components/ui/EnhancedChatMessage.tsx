@@ -14,6 +14,7 @@ interface MessageMetadata {
   tokensUsed?: number;
   processingTime?: number;
   sources?: string[];
+  isStructured?: boolean;
 }
 
 interface EnhancedChatMessageProps {
@@ -92,7 +93,7 @@ const QueryTypeBadge = styled.span<{ type: string }>`
   }
 `;
 
-const ConfidenceIndicator = styled.div<{ confidence: number }>`
+const ConfidenceIndicator = styled.div<{ $confidence: number }>`
   display: flex;
   align-items: center;
   gap: 6px;
@@ -110,10 +111,10 @@ const ConfidenceIndicator = styled.div<{ confidence: number }>`
       left: 0;
       top: 0;
       bottom: 0;
-      width: ${({ confidence }) => confidence * 100}%;
-      background: ${({ confidence }) => 
-        confidence >= 0.9 ? '#10b981' : 
-        confidence >= 0.7 ? '#f59e0b' : 
+      width: ${({ $confidence }) => $confidence * 100}%;
+      background: ${({ $confidence }) =>
+        $confidence >= 0.9 ? '#10b981' :
+        $confidence >= 0.7 ? '#f59e0b' :
         '#ef4444'
       };
       transition: width 0.3s ease;
@@ -123,11 +124,36 @@ const ConfidenceIndicator = styled.div<{ confidence: number }>`
   .percentage {
     font-size: 11px;
     font-weight: 600;
-    color: ${({ confidence, theme }) => 
-      confidence >= 0.9 ? '#10b981' : 
-      confidence >= 0.7 ? '#f59e0b' : 
+    color: ${({ $confidence, theme }) =>
+      $confidence >= 0.9 ? '#10b981' :
+      $confidence >= 0.7 ? '#f59e0b' :
       '#ef4444'
     };
+  }
+`;
+
+const SourcesList = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+
+  .label {
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0.8;
+  }
+
+  .source-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    background: ${({ theme }) => theme.isDarkMode ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.1)'};
+    color: #6366f1;
+    text-transform: capitalize;
   }
 `;
 
@@ -170,7 +196,7 @@ export const EnhancedChatMessage = memo<EnhancedChatMessageProps>(({
           {metadata.confidence !== undefined && (
             <MetadataItem>
               <CheckCircleIcon />
-              <ConfidenceIndicator confidence={metadata.confidence}>
+              <ConfidenceIndicator $confidence={metadata.confidence}>
                 <div className="bar">
                   <div className="fill" />
                 </div>
@@ -193,6 +219,24 @@ export const EnhancedChatMessage = memo<EnhancedChatMessageProps>(({
               <CpuChipIcon />
               <span className="label">Tokens:</span>
               <span className="value">{formatTokens(metadata.tokensUsed)}</span>
+            </MetadataItem>
+          )}
+
+          {metadata.sources && metadata.sources.length > 0 && (
+            <SourcesList>
+              <span className="label">Sources:</span>
+              {metadata.sources.map((source) => (
+                <span key={source} className="source-badge">
+                  {source}
+                </span>
+              ))}
+            </SourcesList>
+          )}
+
+          {metadata.isStructured && (
+            <MetadataItem>
+              <SparklesIcon />
+              <span className="label">Structured Response</span>
             </MetadataItem>
           )}
         </MetadataBar>

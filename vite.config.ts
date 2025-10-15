@@ -97,7 +97,7 @@ export default defineConfig({
               return 'pdfjs';
             }
             if (id.includes('axios') || id.includes('uuid') || id.includes('file-saver')) {
-              return 'utils';
+              return 'data-vendor';
             }
             if (id.includes('xlsx') || id.includes('react-markdown') || id.includes('remark-gfm')) {
               return 'data-vendor';

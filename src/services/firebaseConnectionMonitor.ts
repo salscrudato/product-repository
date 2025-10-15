@@ -56,11 +56,14 @@ class FirebaseConnectionMonitor {
         (error) => {
           // Snapshot error might indicate connection issues
           // But don't treat all errors as disconnection
-          logger.warn(
-            LOG_CATEGORIES.FIREBASE,
-            'Firestore snapshot listener error (may indicate connection issue)',
-            { error: error.message }
-          );
+          // Suppress permission errors - they're expected for guest users
+          if (error.code !== 'permission-denied') {
+            logger.warn(
+              LOG_CATEGORIES.FIREBASE,
+              'Firestore snapshot listener error (may indicate connection issue)',
+              { error: error.message }
+            );
+          }
         }
       );
     } catch (error) {

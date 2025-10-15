@@ -22,79 +22,69 @@ service cloud.firestore {
       return request.resource.data[field] is timestamp;
     }
 
-    // Products - Read: All authenticated, Write: Product Managers+
+    // Products - Read/Write: All users (including anonymous)
     match /products/{productId} {
-      allow read: if isAuthenticated();
-      allow create: if isProductManager() &&
-                       request.resource.data.name is string &&
-                       request.resource.data.name.size() > 0;
-      allow update: if isProductManager();
+      allow read, create, update: if true;
       allow delete: if isAdmin();
 
       // Coverages subcollection
       match /coverages/{coverageId} {
-        allow read: if isAuthenticated();
-        allow write: if isProductManager();
+        allow read, create, update: if true;
+        allow delete: if isAdmin();
 
         // Limits subcollection
         match /limits/{limitId} {
-          allow read: if isAuthenticated();
-          allow write: if isProductManager();
+          allow read, create, update: if true;
+          allow delete: if isAdmin();
         }
 
         // Deductibles subcollection
         match /deductibles/{deductibleId} {
-          allow read: if isAuthenticated();
-          allow write: if isProductManager();
+          allow read, create, update: if true;
+          allow delete: if isAdmin();
         }
       }
 
       // Pricing steps subcollection
       match /steps/{stepId} {
-        allow read: if isAuthenticated();
-        allow write: if isProductManager();
+        allow read, create, update: if true;
+        allow delete: if isAdmin();
       }
     }
 
-    // Forms - Read: All authenticated, Write: Product Managers+
+    // Forms - Read/Write: All users (including anonymous)
     match /forms/{formId} {
-      allow read: if isAuthenticated();
-      allow create: if isProductManager();
-      allow update: if isProductManager();
+      allow read, create, update: if true;
       allow delete: if isAdmin();
     }
 
     // Form-Coverage mappings
     match /formCoverages/{mappingId} {
-      allow read: if isAuthenticated();
-      allow write: if isProductManager();
+      allow read, create, update: if true;
+      allow delete: if isAdmin();
     }
 
     // Business Rules
     match /rules/{ruleId} {
-      allow read: if isAuthenticated();
-      allow write: if isProductManager();
+      allow read, create, update: if true;
+      allow delete: if isAdmin();
     }
 
-    // Tasks - All authenticated users can read/write their tasks
+    // Tasks - All users can read/write
     match /tasks/{taskId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() &&
-                       (request.auth.uid == resource.data.createdBy || isProductManager());
-      allow delete: if isAuthenticated() &&
-                       (request.auth.uid == resource.data.createdBy || isAdmin());
+      allow read, create, update: if true;
+      allow delete: if isAdmin();
     }
 
     // Data Dictionary - Read: All, Write: Admins only
     match /dataDictionary/{entryId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     // News - Read: All, Write: Admins only
     match /news/{newsId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -108,8 +98,32 @@ service cloud.firestore {
 
     // User profiles
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Collection group queries for coverages (allows collectionGroup queries)
+    match /{path=**}/coverages/{coverageId} {
+      allow read, create, update: if true;
+      allow delete: if isAdmin();
+
+      // Limits subcollection
+      match /limits/{limitId} {
+        allow read, create, update: if true;
+        allow delete: if isAdmin();
+      }
+
+      // Deductibles subcollection
+      match /deductibles/{deductibleId} {
+        allow read, create, update: if true;
+        allow delete: if isAdmin();
+      }
+    }
+
+    // Collection group queries for pricing steps
+    match /{path=**}/steps/{stepId} {
+      allow read, create, update: if true;
+      allow delete: if isAdmin();
     }
   }
 }

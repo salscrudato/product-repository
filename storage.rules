@@ -18,16 +18,14 @@ service firebase.storage {
               request.auth.token.role == 'product_manager');
     }
 
-    // Product forms and documents - Read: All authenticated, Write: Product Managers+
+    // Product forms and documents - Read/Write: All users (including anonymous)
     match /products/{productId}/{allPaths=**} {
-      allow read: if isAuthenticated();
-      allow write: if isProductManager();
+      allow read, write: if true;
     }
 
-    // Form documents - Read: All authenticated, Write: Product Managers+
+    // Form documents - Read/Write: All users (including anonymous)
     match /forms/{formId}/{allPaths=**} {
-      allow read: if isAuthenticated();
-      allow write: if isProductManager();
+      allow read, write: if true;
     }
 
     // User uploads - Read/Write: Owner only

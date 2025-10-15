@@ -130,6 +130,7 @@ class FirebaseOptimizedService {
 
     const queryFn = async () => {
       try {
+        const queryStartTime = Date.now();
         let q = collection(db, collectionName);
 
         // Optimize query order for better performance
@@ -160,6 +161,8 @@ class FirebaseOptimizedService {
           id: doc.id,
           ...doc.data()
         }));
+
+        const queryTime = Date.now() - queryStartTime;
 
         // Cache the result
         if (useCache) {

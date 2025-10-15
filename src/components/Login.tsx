@@ -150,6 +150,36 @@ const nodeGlow = keyframes`
   }
 `;
 
+/* Smooth card entrance with subtle scale */
+const cardEnter = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+`;
+
+/* Subtle glow pulse for card border */
+const borderGlow = keyframes`
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgba(255,255,255,.15),
+                0 40px 100px rgba(0,0,0,.7),
+                0 0 180px rgba(99,102,241,.3),
+                inset 0 2px 0 rgba(255,255,255,.1),
+                inset 0 -1px 0 rgba(0,0,0,.3);
+  }
+  50% {
+    box-shadow: 0 0 0 1px rgba(255,255,255,.2),
+                0 40px 100px rgba(0,0,0,.7),
+                0 0 220px rgba(99,102,241,.4),
+                inset 0 2px 0 rgba(255,255,255,.15),
+                inset 0 -1px 0 rgba(0,0,0,.3);
+  }
+`;
+
 
 /* ============================== Layout =============================== */
 const Page = styled.div`
@@ -181,6 +211,7 @@ const Page = styled.div`
     mask-image: radial-gradient(70vmin 70vmin at 50% 50%, #000 45%, transparent 100%);
     opacity: .75;
     pointer-events: none;
+    z-index: 0;
   }
 
   /* Enhanced spotlight that follows the cursor - more vibrant */
@@ -195,6 +226,8 @@ const Page = styled.div`
     );
     mix-blend-mode: soft-light;
     pointer-events: none;
+    z-index: 0;
+    transition: background 0.1s ease-out;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -496,7 +529,7 @@ const Card = styled.div`
   -webkit-backdrop-filter: blur(80px) saturate(240%);
   border-radius: 32px;
   position: relative; z-index: 10; text-align: center;
-  animation: ${fadeInUp} .8s cubic-bezier(0.16, 1, 0.3, 1), ${float} 6s ease-in-out infinite;
+  animation: ${cardEnter} 0.9s cubic-bezier(0.16, 1, 0.3, 1), ${float} 6s ease-in-out infinite;
   animation-delay: 0s, 1s;
   box-shadow:
     0 0 0 1px rgba(255,255,255,.15),
@@ -507,6 +540,7 @@ const Card = styled.div`
   transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
   transform-style: preserve-3d;
   perspective: 1000px;
+  will-change: transform;
 
   /* Animated gradient border - more vibrant and refined */
   &::before{
@@ -544,7 +578,7 @@ const Card = styled.div`
   }
 
   @media (prefers-reduced-motion: reduce) {
-    animation: ${fadeInUp} .8s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: ${cardEnter} 0.9s cubic-bezier(0.16, 1, 0.3, 1);
   }
 `;
 
@@ -566,6 +600,7 @@ const AILogo = styled.div`
   align-items: center;
   justify-content: center;
   animation: ${breathe} 4s ease-in-out infinite;
+  will-change: transform;
 
   /* Outer glow ring - enhanced with multiple layers and more vibrant */
   &::before {
@@ -583,6 +618,7 @@ const AILogo = styled.div`
     );
     animation: ${glowPulse} 3s ease-in-out infinite;
     filter: blur(8px);
+    will-change: opacity, transform;
   }
 
   /* Core orb - larger and more vibrant with holographic effect */
@@ -601,10 +637,19 @@ const AILogo = styled.div`
       0 0 180px rgba(14,165,233,.5),
       inset 0 4px 12px rgba(255,255,255,.6),
       inset 0 -4px 12px rgba(0,0,0,.4);
+    will-change: background-position;
   }
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
+
+    &::before {
+      animation: none;
+    }
+
+    &::after {
+      animation: none;
+    }
   }
 `;
 
@@ -635,13 +680,13 @@ const Title = styled.h1`
     #a5b4fc 100%
   );
   background-size: 200% 200%;
-  animation: ${gradientFlow} 8s ease infinite;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   opacity: 0;
   animation: ${fadeInUp} 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards,
              ${gradientFlow} 8s ease infinite;
+  will-change: opacity, transform;
 
   @media (max-width: 480px){
     font-size: 2.4rem;
@@ -649,6 +694,10 @@ const Title = styled.h1`
 
   @media (prefers-reduced-motion: reduce) {
     animation: ${fadeInUp} 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
+    background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 `;
 
@@ -663,6 +712,7 @@ const Subtitle = styled.p`
   opacity: 0;
   position: relative;
   animation: ${fadeInUp} 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.6s forwards;
+  will-change: opacity, transform;
 
   /* Enhanced glow effect */
   text-shadow:
@@ -695,6 +745,15 @@ const Subtitle = styled.p`
   @keyframes scaleIn {
     from { transform: translateX(-50%) scaleX(0); }
     to { transform: translateX(-50%) scaleX(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: ${fadeInUp} 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.6s forwards;
+
+    &::after {
+      animation: none;
+      transform: translateX(-50%) scaleX(1);
+    }
   }
 `;
 
@@ -794,6 +853,7 @@ const GuestButton = styled.button`
     0 0 80px rgba(99,102,241,.4),
     inset 0 2px 0 rgba(255,255,255,.3),
     inset 0 -1px 0 rgba(0,0,0,.2);
+  will-change: transform, box-shadow;
 
   /* Shimmer effect overlay - always visible */
   &::before {
@@ -810,6 +870,7 @@ const GuestButton = styled.button`
     animation: ${shimmer} 3.5s linear infinite;
     opacity: 0.75;
     transition: opacity .4s ease;
+    pointer-events: none;
   }
 
   /* Glow effect on hover */
@@ -858,6 +919,18 @@ const GuestButton = styled.button`
     cursor: not-allowed;
     transform: none;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: ${fadeInUp} 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.8s forwards;
+
+    &::before {
+      animation: none;
+    }
+
+    &::after {
+      animation: none;
+    }
+  }
 `;
 
 /* Ripple effect container */
@@ -892,6 +965,7 @@ const Message = styled.div<MessageProps>`
   backdrop-filter: blur(16px);
   position: relative;
   overflow: hidden;
+  will-change: opacity, transform;
 
   ${(p)=>p.$type==='error' && css`
     background: rgba(239,68,68,.15);
@@ -925,6 +999,18 @@ const Message = styled.div<MessageProps>`
     margin-right: 12px;
     flex-shrink: 0;
     animation: ${(p) => p.$type === 'success' ? successPulse : 'none'} 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: ${slideIn} .4s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &::before {
+      animation: none;
+    }
+
+    svg {
+      animation: none;
+    }
   }
 `;
 
@@ -1010,16 +1096,25 @@ const Login: React.FC = () => {
     const card = cardRef.current;
     if (!el || prefersReduced.current) return;
 
+    let lastX = 0;
+    let lastY = 0;
+
     const onMove = (e: MouseEvent) => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => {
         const rect = el.getBoundingClientRect();
         const x = ((e.clientX - rect.left) / rect.width) * 100;
         const y = ((e.clientY - rect.top) / rect.height) * 100;
-        el.style.setProperty('--mouseX', `${x}%`);
-        el.style.setProperty('--mouseY', `${y}%`);
 
-        // 3D card tilt effect
+        // Only update if movement is significant (debounce)
+        if (Math.abs(x - lastX) > 0.5 || Math.abs(y - lastY) > 0.5) {
+          lastX = x;
+          lastY = y;
+          el.style.setProperty('--mouseX', `${x}%`);
+          el.style.setProperty('--mouseY', `${y}%`);
+        }
+
+        // 3D card tilt effect with smooth interpolation
         if (card) {
           const cardRect = card.getBoundingClientRect();
           const cardCenterX = cardRect.left + cardRect.width / 2;

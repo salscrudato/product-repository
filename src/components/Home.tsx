@@ -4,7 +4,9 @@ import {
   SparklesIcon,
   TrashIcon,
   PaperAirplaneIcon,
-  UserCircleIcon
+  UserCircleIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/solid';
 import MainNavigation from './ui/Navigation';
 import { EnhancedChatMessage } from './ui/EnhancedChatMessage';
@@ -15,6 +17,9 @@ import { collection, getDocs, collectionGroup } from 'firebase/firestore';
 import { db, functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { AI_MODELS, AI_PARAMETERS } from '../config/aiConfig';
+import firebaseOptimized from '../services/firebaseOptimized';
+import aiPromptOptimizer from '../services/aiPromptOptimizer';
+import responseFormatter from '../services/responseFormatter';
 
 // Types for chat messages
 interface ChatMessage {
@@ -428,6 +433,39 @@ const ClearButton = styled.button`
   }
 `;
 
+const SystemStatus = styled.div<{ $isReady: boolean }>`
+  position: absolute;
+  top: 16px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: ${({ $isReady, theme }) =>
+    $isReady
+      ? 'rgba(34, 197, 94, 0.1)'
+      : 'rgba(249, 115, 22, 0.1)'};
+  border: 1px solid ${({ $isReady }) =>
+    $isReady ? 'rgba(34, 197, 94, 0.3)' : 'rgba(249, 115, 22, 0.3)'};
+  font-size: 12px;
+  font-weight: 600;
+  color: ${({ $isReady }) => ($isReady ? '#22c55e' : '#f97316')};
+  z-index: 5;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  @media (max-width: 768px) {
+    top: 12px;
+    right: 16px;
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+`;
+
 const LoadingIndicator = styled.div`
   display: flex;
   gap: 12px;
@@ -508,73 +546,40 @@ export default function Home() {
   const [tasks, setTasks] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
-  // Fetch comprehensive application data for enhanced AI context
+  // Fetch comprehensive application data for enhanced AI context (optimized with caching)
   useEffect(() => {
     const fetchContextData = async () => {
       try {
         setDataLoading(true);
 
-        // Fetch all coverages across all products
-        const coveragesSnap = await getDocs(collectionGroup(db, 'coverages'));
-        const coverageList = coveragesSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          productId: doc.ref.parent.parent.id,
-        }));
-        setCoverages(coverageList);
+        // Use optimized Firebase service with caching
+        const [coverageList, formList, rulesList, pricingList, dictList, formCoverageList, taskList] = await Promise.all([
+          firebaseOptimized.getCollection('coverages', { useCache: true }),
+          firebaseOptimized.getCollection('forms', { useCache: true }),
+          firebaseOptimized.getCollection('rules', { useCache: true }),
+          firebaseOptimized.getCollection('pricingSteps', { useCache: true }),
+          firebaseOptimized.getCollection('dataDictionary', { useCache: true }),
+          firebaseOptimized.getCollection('formCoverages', { useCache: true }),
+          firebaseOptimized.getCollection('tasks', { useCache: true })
+        ]);
 
-        // Fetch all forms
-        const formsSnap = await getDocs(collection(db, 'forms'));
-        const formList = formsSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setForms(formList);
+        setCoverages(coverageList || []);
+        setForms(formList || []);
+        setRules(rulesList || []);
+        setPricingSteps(pricingList || []);
+        setDataDictionary(dictList || []);
+        setFormCoverages(formCoverageList || []);
+        setTasks(taskList || []);
 
-        // Fetch all rules
-        const rulesSnap = await getDocs(collection(db, 'rules'));
-        const rulesList = rulesSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setRules(rulesList);
-
-        // Fetch all pricing steps across all products
-        const stepsSnap = await getDocs(collectionGroup(db, 'steps'));
-        const stepsList = stepsSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          productId: doc.ref.parent.parent.id,
-        }));
-        setPricingSteps(stepsList);
-
-        // Fetch data dictionary
-        const dataDictSnap = await getDocs(collection(db, 'dataDictionary'));
-        const dataDictList = dataDictSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setDataDictionary(dataDictList);
-
-        // Fetch form-coverage mappings
-        const formCovSnap = await getDocs(collection(db, 'formCoverages'));
-        const formCovList = formCovSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setFormCoverages(formCovList);
-
-        // Fetch tasks
-        const tasksSnap = await getDocs(collection(db, 'tasks'));
-        const tasksList = tasksSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-
-        setTasks(tasksList);
+        logger.debug(LOG_CATEGORIES.CACHE, 'Context data loaded', {
+          coverages: coverageList?.length || 0,
+          forms: formList?.length || 0,
+          rules: rulesList?.length || 0,
+          tasks: taskList?.length || 0
+        });
 
       } catch (error) {
-        console.error('Error fetching context data:', error);
+        logger.error(LOG_CATEGORIES.CACHE, 'Error fetching context data', { error });
       } finally {
         setDataLoading(false);
       }
@@ -726,234 +731,15 @@ export default function Home() {
     };
   }, [products, coverages, forms, rules, pricingSteps, dataDictionary, formCoverages, tasks]);
 
-  // Query classification function
+  // Use optimized query classification from service
   const classifyQuery = useCallback((query: string): QueryType => {
-    const lowerQuery = query.toLowerCase();
-
-    // Product-related queries
-    if (lowerQuery.match(/product|portfolio|offering/i)) {
-      return 'product_analysis';
-    }
-
-    // Coverage-related queries
-    if (lowerQuery.match(/coverage|limit|deductible|peril|exclusion/i)) {
-      return 'coverage_analysis';
-    }
-
-    // Pricing-related queries
-    if (lowerQuery.match(/pric(e|ing)|rate|premium|cost|factor/i)) {
-      return 'pricing_analysis';
-    }
-
-    // Compliance-related queries
-    if (lowerQuery.match(/complian(ce|t)|regulat(ion|ory)|state|filing|approval/i)) {
-      return 'compliance_check';
-    }
-
-    // Task management queries
-    if (lowerQuery.match(/task|project|deadline|milestone|progress|team/i)) {
-      return 'task_management';
-    }
-
-    // Strategic queries
-    if (lowerQuery.match(/strateg(y|ic)|opportunit(y|ies)|recommend|suggest|improve|optimize/i)) {
-      return 'strategic_insight';
-    }
-
-    // Data queries
-    if (lowerQuery.match(/how many|count|list|show|what are|which/i)) {
-      return 'data_query';
-    }
-
-    return 'general';
+    return aiPromptOptimizer.classifyQuery(query);
   }, []);
 
-  // Build context-aware prompt based on query type
+  // Build optimized prompt using AI Prompt Optimizer service
   const buildEnhancedPrompt = useCallback((query: string, queryType: QueryType) => {
-    const baseContext = `You are an elite AI assistant for a comprehensive P&C insurance product management system with real-time access to all company data.
-
-# YOUR IDENTITY & EXPERTISE
-You are a composite expert combining:
-- **Senior Insurance Product Manager** (15+ years P&C experience)
-- **Business Intelligence Analyst** (Advanced analytics & data science)
-- **Regulatory Compliance Officer** (Multi-state insurance regulations)
-- **Strategic Business Consultant** (Portfolio optimization & market analysis)
-- **Data Scientist** (Predictive modeling & statistical analysis)
-
-# CURRENT SYSTEM STATE
-${JSON.stringify(contextSummary, null, 2)}
-
-# QUERY CLASSIFICATION
-This query has been classified as: **${queryType.replace('_', ' ').toUpperCase()}**
-
-`;
-
-    // Add query-type-specific instructions
-    const typeSpecificInstructions: Record<QueryType, string> = {
-      product_analysis: `
-# PRODUCT ANALYSIS PROTOCOL
-1. **Identify** relevant products from the data
-2. **Analyze** key metrics (states, forms, coverages, pricing)
-3. **Compare** against portfolio benchmarks
-4. **Highlight** strengths, weaknesses, opportunities, threats
-5. **Recommend** specific actionable improvements
-
-**Focus Areas:**
-- Product positioning and differentiation
-- Market coverage and geographic distribution
-- Form completeness and documentation quality
-- Coverage breadth and competitiveness
-- Cross-sell and upsell opportunities`,
-
-      coverage_analysis: `
-# COVERAGE ANALYSIS PROTOCOL
-1. **Map** coverage hierarchy (primary → sub-coverages)
-2. **Evaluate** limits, deductibles, and conditions
-3. **Identify** gaps, overlaps, or inconsistencies
-4. **Assess** competitive positioning
-5. **Recommend** coverage enhancements or modifications
-
-**Focus Areas:**
-- Coverage adequacy and market competitiveness
-- Sub-coverage relationships and dependencies
-- Exclusions and limitations analysis
-- Pricing implications of coverage changes`,
-
-      pricing_analysis: `
-# PRICING ANALYSIS PROTOCOL
-1. **Review** current pricing structure and factors
-2. **Analyze** rate adequacy and competitiveness
-3. **Identify** pricing optimization opportunities
-4. **Model** impact of potential rate changes
-5. **Recommend** data-driven pricing strategies
-
-**Focus Areas:**
-- Rate structure and rating variables
-- Loss ratio analysis and profitability
-- Competitive rate positioning
-- Geographic and demographic pricing variations`,
-
-      compliance_check: `
-# COMPLIANCE ANALYSIS PROTOCOL
-1. **Verify** regulatory requirements by state
-2. **Check** form filing status and approvals
-3. **Identify** compliance gaps or risks
-4. **Assess** regulatory change impacts
-5. **Recommend** compliance action items
-
-**Focus Areas:**
-- State-specific regulatory requirements
-- Form filing and approval status
-- Regulatory deadline tracking
-- Multi-state compliance coordination`,
-
-      task_management: `
-# TASK MANAGEMENT PROTOCOL
-1. **Summarize** current task status and distribution
-2. **Identify** bottlenecks and resource constraints
-3. **Analyze** timeline risks and dependencies
-4. **Prioritize** critical path items
-5. **Recommend** workflow optimizations
-
-**Focus Areas:**
-- Task completion rates and velocity
-- Resource allocation and workload balance
-- Deadline adherence and risk mitigation
-- Cross-functional dependencies`,
-
-      strategic_insight: `
-# STRATEGIC ANALYSIS PROTOCOL
-1. **Synthesize** data across all domains
-2. **Identify** patterns, trends, and correlations
-3. **Evaluate** strategic opportunities and threats
-4. **Model** potential scenarios and outcomes
-5. **Recommend** high-impact strategic initiatives
-
-**Focus Areas:**
-- Portfolio optimization and rationalization
-- Market expansion opportunities
-- Competitive positioning and differentiation
-- Innovation and product development priorities`,
-
-      data_query: `
-# DATA QUERY PROTOCOL
-1. **Parse** the specific data request
-2. **Extract** relevant data points accurately
-3. **Format** data in clear, structured format
-4. **Provide** context and interpretation
-5. **Suggest** related insights or follow-up queries
-
-**Focus Areas:**
-- Accurate data retrieval and presentation
-- Clear formatting (tables, lists, charts)
-- Contextual interpretation
-- Data quality and completeness notes`,
-
-      general: `
-# GENERAL INQUIRY PROTOCOL
-1. **Understand** the user's intent and context
-2. **Determine** which data domains are relevant
-3. **Synthesize** information across domains
-4. **Provide** comprehensive, actionable response
-5. **Suggest** related topics or deeper analysis
-
-**Focus Areas:**
-- Holistic system understanding
-- Cross-functional insights
-- Educational and explanatory content
-- Proactive recommendations`
-    };
-
-    const responseFormat = `
-# RESPONSE FORMAT REQUIREMENTS
-
-**Structure your response as follows:**
-
-1. **Executive Summary** (2-3 sentences)
-   - Key finding or direct answer
-   - Most critical insight
-
-2. **Detailed Analysis** (organized with headers)
-   - Use markdown headers (##, ###)
-   - Bullet points for lists
-   - Tables for comparative data
-   - Bold for emphasis on key metrics
-
-3. **Data Evidence** (when applicable)
-   - Specific numbers, percentages, counts
-   - Reference actual product names, codes, IDs
-   - Include relevant statistics from context
-
-4. **Actionable Recommendations** (if applicable)
-   - Numbered list of specific actions
-   - Priority indicators (High/Medium/Low)
-   - Expected impact or benefit
-
-5. **Next Steps or Follow-up Questions** (optional)
-   - Suggested deeper analysis
-   - Related areas to explore
-
-**Tone & Style:**
-- Professional yet conversational
-- Data-driven and specific
-- Confident but acknowledge limitations
-- Proactive in offering insights
-- Use insurance industry terminology appropriately
-
-**Quality Standards:**
-- Accuracy: Only use data from provided context
-- Relevance: Stay focused on the query
-- Clarity: Use clear, concise language
-- Actionability: Provide practical recommendations
-- Completeness: Address all aspects of the query
-
----
-
-**User Query:** ${query}
-
-**Your Response:**`;
-
-    return baseContext + typeSpecificInstructions[queryType] + responseFormat;
+    const optimizedPrompt = aiPromptOptimizer.buildOptimizedPrompt(query, contextSummary);
+    return aiPromptOptimizer.formatForAPI(optimizedPrompt);
   }, [contextSummary]);
 
   const handleSendMessage = useCallback(async () => {
@@ -1044,17 +830,28 @@ This query has been classified as: **${queryType.replace('_', ' ').toUpperCase()
       logger.logAIOperation('Home chat response', AI_MODELS.HOME_CHAT, query.substring(0, 100), aiResponse?.substring(0, 100), processingTime);
 
       if (aiResponse) {
-        // Add AI response to chat history with metadata
+        // Format response for optimal display
+        const formattedResponse = responseFormatter.formatWithMetadata(aiResponse, {
+          queryType,
+          tokensUsed: result.data.usage?.total_tokens,
+          processingTime,
+          confidence: 0.95,
+          sources: ['products', 'coverages', 'forms', 'rules', 'tasks']
+        });
+
+        // Add AI response to chat history with enhanced metadata
         const assistantMessage: ChatMessage = {
           id: `assistant-${Date.now()}`,
           role: 'assistant',
-          content: aiResponse,
+          content: formattedResponse.content,
           timestamp: new Date(),
           metadata: {
             queryType,
             tokensUsed: result.data.usage?.total_tokens,
             processingTime,
-            confidence: 0.95 // Could be enhanced with actual confidence scoring
+            confidence: formattedResponse.metadata.confidence,
+            sources: formattedResponse.metadata.sources,
+            isStructured: formattedResponse.isStructured
           }
         };
         setChatHistory(prev => [...prev, assistantMessage]);
@@ -1116,6 +913,21 @@ This query has been classified as: **${queryType.replace('_', ' ').toUpperCase()
   return (
     <Page>
       <MainNavigation />
+
+      {/* System Status Indicator */}
+      <SystemStatus $isReady={isSystemReady}>
+        {isSystemReady ? (
+          <>
+            <CheckCircleIcon />
+            <span>System Ready</span>
+          </>
+        ) : (
+          <>
+            <ExclamationTriangleIcon />
+            <span>Loading...</span>
+          </>
+        )}
+      </SystemStatus>
 
       <MainContent $isEmpty={isEmpty}>
         {isEmpty ? (

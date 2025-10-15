@@ -100,6 +100,33 @@ const HeaderActionButton = styled.button.withConfig({
   }
 `;
 
+// Header Container
+const HeaderContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+  position: relative;
+  width: 100%;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+
+    > div:last-child {
+      position: static !important;
+      display: flex;
+      gap: 12px;
+      width: 100%;
+
+      button {
+        flex: 1;
+      }
+    }
+  }
+`;
+
 // Action Bar
 const ActionBar = styled.div`
   display: flex;
@@ -117,6 +144,380 @@ const ActionBar = styled.div`
   max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
+`;
+
+// Filter Bar
+const FilterBar = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 16px 24px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  margin-bottom: 24px;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+`;
+
+const FilterSelect = styled.select`
+  padding: 8px 12px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 8px;
+  background: white;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: #6366f1;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+`;
+
+const ClearFiltersButton = styled.button`
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+`;
+
+// Keyboard shortcuts hint
+const KeyboardHint = styled.div`
+  display: flex;
+  gap: 16px;
+  padding: 12px 16px;
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 16px;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+`;
+
+const KeyboardShortcut = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  kbd {
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #374151;
+  }
+`;
+
+// Stats Bar
+const StatsBar = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  margin-bottom: 24px;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 12px 16px;
+  }
+`;
+
+const StatBox = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+`;
+
+const StatBoxValue = styled.div`
+  font-size: 18px;
+  font-weight: 700;
+  color: #6366f1;
+`;
+
+const StatBoxLabel = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+// Bulk Actions Toolbar
+const BulkActionsToolbar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  margin-bottom: 16px;
+  animation: slideDown 0.2s ease;
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+
+const BulkActionCount = styled.span`
+  font-size: 13px;
+  font-weight: 600;
+  color: #6366f1;
+`;
+
+const BulkActionButton = styled.button`
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+// Quick Tips
+const QuickTips = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+  padding: 24px;
+  background: rgba(248, 250, 252, 0.8);
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+`;
+
+const TipCard = styled.div`
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.4);
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.6;
+
+  strong {
+    display: block;
+    color: #6366f1;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+`;
+
+// Templates Section
+const TemplatesSection = styled.div`
+  margin-top: 32px;
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+`;
+
+const TemplatesTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const TemplatesGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+`;
+
+const TemplateCard = styled.button`
+  padding: 16px;
+  background: white;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+
+  &:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+    transform: translateY(-1px);
+  }
+
+  strong {
+    display: block;
+    color: #6366f1;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  small {
+    display: block;
+    color: #9ca3af;
+    font-size: 12px;
+  }
+`;
+
+// AI Suggestions Banner
+const SuggestionsBanner = styled.div`
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%);
+  border-radius: 8px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  margin-bottom: 16px;
+`;
+
+const SuggestionsTitle = styled.div`
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e40af;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`;
+
+const SuggestionsList = styled.ul`
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  li {
+    font-size: 12px;
+    color: #1e40af;
+    padding-left: 20px;
+    position: relative;
+
+    &::before {
+      content: '💡';
+      position: absolute;
+      left: 0;
+    }
+  }
+`;
+
+// Toast notification
+const ToastContainer = styled.div`
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 400px;
+
+  @media (max-width: 640px) {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    max-width: none;
+  }
+`;
+
+const Toast = styled.div<{ $type?: 'success' | 'error' | 'info' }>`
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: ${props => {
+    switch (props.$type) {
+      case 'success': return '#dcfce7';
+      case 'error': return '#fee2e2';
+      case 'info': return '#dbeafe';
+      default: return '#f3f4f6';
+    }
+  }};
+  border: 1px solid ${props => {
+    switch (props.$type) {
+      case 'success': return '#86efac';
+      case 'error': return '#fca5a5';
+      case 'info': return '#93c5fd';
+      default: return '#e5e7eb';
+    }
+  }};
+  color: ${props => {
+    switch (props.$type) {
+      case 'success': return '#166534';
+      case 'error': return '#991b1b';
+      case 'info': return '#1e40af';
+      default: return '#374151';
+    }
+  }};
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideIn 0.3s ease-out;
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(400px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
 `;
 
 const ActionGroup = styled.div`
@@ -156,6 +557,39 @@ const ViewToggleButton = styled.button.withConfig({
   }
 `;
 
+// View Toggle Bar
+const ViewToggleBar = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  padding: 16px 24px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+`;
+
+const ViewToggleGroup = styled.div`
+  display: flex;
+  gap: 8px;
+  background: rgba(226, 232, 240, 0.3);
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.5);
+`;
+
 const ProductsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -165,10 +599,19 @@ const ProductsGrid = styled.div`
   margin-left: auto;
   margin-right: auto;
 
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
     gap: 20px;
     margin-bottom: 40px;
+  }
+
+  @media (max-width: 480px) {
+    gap: 16px;
   }
 `;
 
@@ -272,8 +715,36 @@ const IconButton = styled.button`
   }
 `;
 
-// AddButton removed - unused styled component
-// LoadingSpinner and EmptyState now imported from ui components
+// AddButton styled component for action buttons
+const AddButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  @media (max-width: 768px) {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+`;
 
 /* ---------- modal components ---------- */
 const Modal = styled.div`
@@ -518,16 +989,32 @@ const renderAIContent = (content) => {
 };
 
 const FormField = styled.div`
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   padding: 0 24px;
+
+  &:last-of-type {
+    margin-bottom: 0;
+  }
 `;
 
 const FormLabel = styled.label`
   display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
-  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const FormLabelHint = styled.span`
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: #6b7280;
+  text-transform: none;
+  letter-spacing: normal;
+  margin-top: 4px;
 `;
 
 const FormInput = styled.input`
@@ -538,7 +1025,7 @@ const FormInput = styled.input`
   font-size: 14px;
   color: #111827;
   background: #ffffff;
-  transition: border-color 0.2s ease;
+  transition: all 0.2s ease;
 
   &:focus {
     outline: none;
@@ -548,6 +1035,12 @@ const FormInput = styled.input`
 
   &::placeholder {
     color: #9ca3af;
+  }
+
+  &:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
   }
 `;
 
@@ -580,8 +1073,10 @@ const FileName = styled.div`
 const ModalActions = styled.div`
   display: flex;
   gap: 12px;
-  padding: 0 24px 24px;
+  padding: 24px;
   justify-content: flex-end;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
 `;
 
 const SaveButton = styled.button`
@@ -595,13 +1090,18 @@ const SaveButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
   }
 
-  &:active {
+  &:active:not(:disabled) {
     transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
 
@@ -619,7 +1119,19 @@ const CancelButton = styled.button`
   &:hover {
     background: #f9fafb;
     color: #374151;
+    border-color: #d1d5db;
   }
+`;
+
+const FormError = styled.div`
+  padding: 12px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 20px;
 `;
 
 /* ---------- summary modal components ---------- */
@@ -790,6 +1302,8 @@ const ProductHub = memo(() => {
   const [productCode, setProductCode] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
   const [file, setFile] = useState(null);
+  const [formErrors, setFormErrors] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
 
   // AI states
   const [loadingSummary, setLoadingSummary] = useState({});
@@ -805,6 +1319,62 @@ const ProductHub = memo(() => {
   // View mode state - Default to card view
   const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
 
+  // Filter states
+  const [sortBy, setSortBy] = useState('name'); // 'name', 'date', 'coverage-count'
+  const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'active', 'inactive'
+
+  // Multi-select state
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+
+  // Toast notification state
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info' }>>([]);
+
+  // Helper function to show toast
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  };
+
+  // Product templates
+  const templates = [
+    { name: 'Commercial Property', code: 'CP', description: 'Standard commercial property insurance' },
+    { name: 'General Liability', code: 'GL', description: 'General liability coverage' },
+    { name: 'Workers Compensation', code: 'WC', description: 'Workers compensation insurance' },
+    { name: 'Professional Liability', code: 'PL', description: 'Professional liability coverage' },
+  ];
+
+  const handleUseTemplate = (template: typeof templates[0]) => {
+    setName(template.name);
+    setProductCode(template.code);
+    setFormNumber(`${template.code}0010`);
+    setModalOpen(true);
+    showToast(`Template "${template.name}" loaded`, 'info');
+  };
+
+  // Get AI suggestions for products
+  const getAISuggestions = useCallback(() => {
+    const suggestions = [];
+
+    if (products.length === 0) {
+      suggestions.push('Start by creating your first product using a template');
+    }
+
+    const productsWithoutCoverages = products.filter(p => !p.coverageCount || p.coverageCount === 0);
+    if (productsWithoutCoverages.length > 0) {
+      suggestions.push(`${productsWithoutCoverages.length} product(s) need coverages added`);
+    }
+
+    const productsWithoutForms = products.filter(p => !p.formDownloadUrl);
+    if (productsWithoutForms.length > 0) {
+      suggestions.push(`${productsWithoutForms.length} product(s) are missing form documents`);
+    }
+
+    return suggestions;
+  }, [products]);
+
   // Optimized debounced search
   const debouncedSetSearchTerm = useCallback(
     debounce((term) => {
@@ -817,9 +1387,10 @@ const ProductHub = memo(() => {
     debouncedSetSearchTerm(rawSearch);
   }, [rawSearch, debouncedSetSearchTerm]);
 
-  // Handle escape key for modals
+  // Handle keyboard shortcuts
   useEffect(() => {
-    const handleEscape = (e) => {
+    const handleKeyDown = (e) => {
+      // Escape key - close modals
       if (e.key === 'Escape') {
         setModalOpen(false);
         setSummaryModalOpen(false);
@@ -827,10 +1398,21 @@ const ProductHub = memo(() => {
         setChatModalOpen(false);
         setDictModalOpen(false);
       }
+      // Ctrl/Cmd + N - new product
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        setModalOpen(true);
+      }
+      // Ctrl/Cmd + K - focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
+        if (searchInput) searchInput.focus();
+      }
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // Enhanced modal accessibility - prevent body scroll when modal is open
@@ -849,19 +1431,60 @@ const ProductHub = memo(() => {
     };
   }, [modalOpen, summaryModalOpen, detailsModalOpen, chatModalOpen, dictModalOpen]);
 
-  // Optimized product filtering with enhanced search
+  // Optimized product filtering with enhanced search, status, and sorting
   const filtered = useMemo(() => {
-    if (!searchTerm) {
-      return products;
+    let result = products;
+
+    // Apply search filter
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      result = result.filter(p =>
+        p.name?.toLowerCase().includes(q) ||
+        p.formNumber?.toLowerCase().includes(q) ||
+        p.productCode?.toLowerCase().includes(q)
+      );
     }
 
-    const q = searchTerm.toLowerCase();
-    return products.filter(p =>
-      p.name?.toLowerCase().includes(q) ||
-      p.formNumber?.toLowerCase().includes(q) ||
-      p.productCode?.toLowerCase().includes(q)
-    );
-  }, [products, searchTerm]);
+    // Apply status filter
+    if (filterStatus !== 'all') {
+      result = result.filter(p => (p.status || 'active') === filterStatus);
+    }
+
+    // Apply sorting
+    result = [...result].sort((a, b) => {
+      switch (sortBy) {
+        case 'date':
+          return (b.updatedAt?.getTime?.() || 0) - (a.updatedAt?.getTime?.() || 0);
+        case 'coverage-count':
+          return (b.coverageCount || 0) - (a.coverageCount || 0);
+        case 'name':
+        default:
+          return (a.name || '').localeCompare(b.name || '');
+      }
+    });
+
+    return result;
+  }, [products, searchTerm, filterStatus, sortBy]);
+
+  // Export products as JSON
+  const handleExport = useCallback(() => {
+    const dataToExport = selectedProducts.size > 0
+      ? filtered.filter(p => selectedProducts.has(p.id))
+      : filtered;
+
+    const jsonString = JSON.stringify(dataToExport, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `products-export-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showToast(`Exported ${dataToExport.length} product(s) successfully`, 'success');
+  }, [filtered, selectedProducts, showToast]);
 
   // Memoized helper functions to prevent unnecessary re-renders
   const handleOpenDetails = useCallback((product) => {
@@ -889,11 +1512,13 @@ const ProductHub = memo(() => {
         entityName: product?.name,
         reason: 'User-initiated deletion'
       });
+
+      showToast(`Product "${product?.name}" deleted successfully`, 'success');
     } catch (error) {
       console.error('Delete failed:', error);
-      alert('Failed to delete product');
+      showToast('Failed to delete product. Please try again.', 'error');
     }
-  }, [products]);
+  }, [products, showToast]);
 
   const handleSummary = async (id, url) => {
     if (!url) {
@@ -1040,11 +1665,25 @@ const ProductHub = memo(() => {
     return digits.slice(0, 2) + '/' + digits.slice(2);
   };
 
+  const validateForm = () => {
+    const errors = {};
+    if (!name?.trim()) errors.name = 'Product name is required';
+    if (!formNumber?.trim()) errors.formNumber = 'Form number is required';
+    if (!effectiveDate?.trim()) errors.effectiveDate = 'Effective date is required';
+    if (effectiveDate && !/^\d{2}\/\d{2}$/.test(effectiveDate)) {
+      errors.effectiveDate = 'Please use MM/YY format';
+    }
+    return errors;
+  };
+
   const handleSave = async () => {
-    if (!name || !formNumber || !effectiveDate) {
-      alert('Name, Form # and Effective Date are required');
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
+
+    setIsSaving(true);
     try {
       let downloadUrl = '';
       if (file) {
@@ -1055,25 +1694,35 @@ const ProductHub = memo(() => {
 
       if (editingId) {
         await updateDoc(doc(db, 'products', editingId), {
-          name,
-          formNumber,
-          productCode,
-          formDownloadUrl: downloadUrl || undefined
+          name: name.trim(),
+          formNumber: formNumber.trim(),
+          productCode: productCode.trim(),
+          formDownloadUrl: downloadUrl || undefined,
+          updatedAt: new Date()
         });
+        showToast(`Product "${name.trim()}" updated successfully`, 'success');
       } else {
         await addDoc(collection(db, 'products'), {
-          name,
-          formNumber,
-          productCode,
-          effectiveDate,
-          formDownloadUrl: downloadUrl
+          name: name.trim(),
+          formNumber: formNumber.trim(),
+          productCode: productCode.trim(),
+          effectiveDate: effectiveDate.trim(),
+          formDownloadUrl: downloadUrl,
+          status: 'active',
+          createdAt: new Date(),
+          updatedAt: new Date()
         });
+        showToast(`Product "${name.trim()}" created successfully`, 'success');
       }
       setModalOpen(false);
       resetForm();
+      setFormErrors({});
     } catch (error) {
       console.error('Save failed:', error);
-      alert('Save failed');
+      setFormErrors({ submit: 'Failed to save product. Please try again.' });
+      showToast('Failed to save product. Please try again.', 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1132,7 +1781,10 @@ const ProductHub = memo(() => {
       <PageContainer withOverlay={true}>
         <MainNavigation />
         <PageContent>
-          <LoadingSpinner type="circular" size="40px" />
+          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+            <LoadingSpinner type="circular" size="40px" />
+            <p style={{ marginTop: '16px', color: '#6b7280', fontSize: '14px' }}>Loading products...</p>
+          </div>
         </PageContent>
       </PageContainer>
     );
@@ -1159,51 +1811,59 @@ const ProductHub = memo(() => {
       <MainNavigation />
 
       <PageContent>
-        <Breadcrumb
-          items={[
-            { label: 'Home', path: '/' },
-            { label: 'Products' }
-          ]}
-        />
+        <HeaderContainer>
+          <EnhancedHeader
+            title="Product Hub"
+            subtitle={`Explore and manage ${filtered.length} active product line${filtered.length !== 1 ? 's' : ''}`}
+            icon={CubeIcon}
+            searchProps={{
+              placeholder: "Search by product name, form number, or code...",
+              value: rawSearch,
+              onChange: (e) => setRawSearch(e.target.value)
+            }}
+          />
+        </HeaderContainer>
 
-        <EnhancedHeader
-          title="Product Hub"
-          subtitle={`Explore and manage ${filtered.length} active product line${filtered.length !== 1 ? 's' : ''}`}
-          icon={CubeIcon}
-          searchProps={{
-            placeholder: "Search by product name, form number, or code...",
-            value: rawSearch,
-            onChange: (e) => setRawSearch(e.target.value)
-          }}
-        />
+        {/* Bulk Actions Toolbar */}
+        {selectedProducts.size > 0 && (
+          <BulkActionsToolbar role="toolbar" aria-label="Bulk actions">
+            <BulkActionCount>{selectedProducts.size} selected</BulkActionCount>
+            <BulkActionButton onClick={handleExport} title="Export selected products as JSON">
+              📥 Export
+            </BulkActionButton>
+            <BulkActionButton onClick={() => setSelectedProducts(new Set())}>
+              Clear Selection
+            </BulkActionButton>
+          </BulkActionsToolbar>
+        )}
 
-        {/* Action Bar with View Toggle and Add Product */}
-        <ActionBar>
-          <ActionGroup>
-            <ViewToggle>
-              <ViewToggleButton
-                active={viewMode === 'cards'}
-                onClick={() => setViewMode('cards')}
-              >
-                <Squares2X2Icon width={16} height={16} />
-                Cards
-              </ViewToggleButton>
-              <ViewToggleButton
-                active={viewMode === 'table'}
-                onClick={() => setViewMode('table')}
-              >
-                <TableCellsIcon width={16} height={16} />
-                Table
-              </ViewToggleButton>
-            </ViewToggle>
-          </ActionGroup>
-          <ActionGroup>
-            <HeaderActionButton onClick={() => setModalOpen(true)}>
-              <PlusIcon width={16} height={16} />
-              Add Product
-            </HeaderActionButton>
-          </ActionGroup>
-        </ActionBar>
+        {/* View Toggle Bar */}
+        <ViewToggleBar>
+          <ViewToggleGroup>
+            <ViewToggleButton
+              active={viewMode === 'cards'}
+              onClick={() => setViewMode('cards')}
+              title="Card view"
+              aria-label="Switch to card view"
+            >
+              <Squares2X2Icon />
+              Cards
+            </ViewToggleButton>
+            <ViewToggleButton
+              active={viewMode === 'table'}
+              onClick={() => setViewMode('table')}
+              title="Table view"
+              aria-label="Switch to table view"
+            >
+              <TableCellsIcon />
+              Table
+            </ViewToggleButton>
+          </ViewToggleGroup>
+          <HeaderActionButton onClick={() => setModalOpen(true)}>
+            <PlusIcon />
+            Add Product
+          </HeaderActionButton>
+        </ViewToggleBar>
 
         {filtered.length > 0 ? (
           viewMode === 'cards' ? (
@@ -1297,78 +1957,151 @@ const ProductHub = memo(() => {
             </TableContainer>
           )
         ) : (
-          <EmptyState
-            icon={<CubeIcon style={{ width: '48px', height: '48px' }} />}
-            title="No products found"
-            description={searchTerm ? 'Try adjusting your search terms or use the "Add Product" button above' : 'Get started by clicking "Add Product" above'}
-            variant="default"
-          />
+          <div>
+            <EmptyState
+              icon={<CubeIcon style={{ width: '48px', height: '48px' }} />}
+              title={searchTerm ? 'No products match your search' : 'No products yet'}
+              description={
+                searchTerm
+                  ? `No products found for "${searchTerm}". Try adjusting your search terms, filters, or create a new product.`
+                  : 'Get started by creating your first insurance product. Click "Add Product" above or use Cmd+N.'
+              }
+              variant="default"
+            />
+            {!searchTerm && products.length === 0 && (
+              <>
+                <QuickTips>
+                  <TipCard>
+                    <strong>📋 Create Product</strong>
+                    Click "Add Product" to create a new insurance product with forms and coverages.
+                  </TipCard>
+                  <TipCard>
+                    <strong>⚡ Quick Shortcut</strong>
+                    Press Cmd+N to quickly create a new product from anywhere.
+                  </TipCard>
+                  <TipCard>
+                    <strong>🔍 Search & Filter</strong>
+                    Use search and filters to find products by name, form number, or code.
+                  </TipCard>
+                  <TipCard>
+                    <strong>💬 AI Assistant</strong>
+                    Use the Summary and Chat features to analyze product forms with AI.
+                  </TipCard>
+                </QuickTips>
+
+                <TemplatesSection>
+                  <TemplatesTitle>⚡ Quick Start with Templates</TemplatesTitle>
+                  <TemplatesGrid>
+                    {templates.map(template => (
+                      <TemplateCard
+                        key={template.code}
+                        onClick={() => handleUseTemplate(template)}
+                        title={`Create product from ${template.name} template`}
+                      >
+                        <strong>{template.name}</strong>
+                        <small>{template.description}</small>
+                      </TemplateCard>
+                    ))}
+                  </TemplatesGrid>
+                </TemplatesSection>
+              </>
+            )}
+          </div>
         )}
       </PageContent>
 
       {/* Add/Edit Modal */}
       {modalOpen && (
-        <Modal onClick={() => { setModalOpen(false); resetForm(); }}>
+        <Modal
+          onClick={() => { setModalOpen(false); resetForm(); }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="product-modal-title"
+        >
           <ModalContent onClick={e => e.stopPropagation()}>
             <ModalHeader>
-              <ModalTitle>{editingId ? 'Edit' : 'Add'} Product</ModalTitle>
-              <CloseButton onClick={() => { setModalOpen(false); resetForm(); }}>
-                ✕
+              <ModalTitle id="product-modal-title">{editingId ? 'Edit' : 'Add'} Product</ModalTitle>
+              <CloseButton
+                onClick={() => { setModalOpen(false); resetForm(); }}
+                aria-label="Close modal"
+                title="Close (Esc)"
+              >
+                <XMarkIcon width={16} height={16} />
               </CloseButton>
             </ModalHeader>
-            <FormField>
-              <FormLabel>Product Name</FormLabel>
-              <FormInput
-                placeholder="Enter product name"
-                value={name}
-                onChange={e => setName(e.target.value)}
-              />
-            </FormField>
+            <div style={{ padding: '24px', overflowY: 'auto', maxHeight: 'calc(90vh - 180px)' }}>
+              {formErrors.submit && <FormError>{formErrors.submit}</FormError>}
 
-            <FormField>
-              <FormLabel>Form Number</FormLabel>
-              <FormInput
-                placeholder="Enter form number"
-                value={formNumber}
-                onChange={e => setFormNumber(e.target.value)}
-              />
-            </FormField>
+              <FormField>
+                <FormLabel htmlFor="product-name">
+                  Product Name
+                  {formErrors.name && <FormLabelHint style={{ color: '#dc2626' }}>✕ {formErrors.name}</FormLabelHint>}
+                </FormLabel>
+                <FormInput
+                  id="product-name"
+                  placeholder="e.g., Commercial Property"
+                  value={name}
+                  onChange={e => { setName(e.target.value); if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' })); }}
+                  style={{ borderColor: formErrors.name ? '#dc2626' : undefined }}
+                  aria-invalid={!!formErrors.name}
+                  aria-describedby={formErrors.name ? 'product-name-error' : undefined}
+                />
+                {formErrors.name && <div id="product-name-error" style={{ display: 'none' }}>{formErrors.name}</div>}
+              </FormField>
 
-            <FormField>
-              <FormLabel>Product Code</FormLabel>
-              <FormInput
-                placeholder="Enter product code"
-                value={productCode}
-                onChange={e => setProductCode(e.target.value)}
-              />
-            </FormField>
+              <FormField>
+                <FormLabel>
+                  Form Number
+                  {formErrors.formNumber && <FormLabelHint style={{ color: '#dc2626' }}>✕ {formErrors.formNumber}</FormLabelHint>}
+                </FormLabel>
+                <FormInput
+                  placeholder="e.g., CP 00 10"
+                  value={formNumber}
+                  onChange={e => { setFormNumber(e.target.value); if (formErrors.formNumber) setFormErrors(prev => ({ ...prev, formNumber: '' })); }}
+                  style={{ borderColor: formErrors.formNumber ? '#dc2626' : undefined }}
+                />
+              </FormField>
 
-            <FormField>
-              <FormLabel>Effective Date (MM/YY)</FormLabel>
-              <FormInput
-                placeholder="MM/YY"
-                value={effectiveDate}
-                onChange={e => setEffectiveDate(formatMMYY(e.target.value))}
-              />
-            </FormField>
+              <FormField>
+                <FormLabel>Product Code</FormLabel>
+                <FormInput
+                  placeholder="e.g., CPP"
+                  value={productCode}
+                  onChange={e => setProductCode(e.target.value)}
+                />
+              </FormField>
 
-            <FormField>
-              <FormLabel>Upload Form (PDF)</FormLabel>
-              <FileInput
-                type="file"
-                accept=".pdf"
-                onChange={e => setFile(e.target.files[0])}
-              />
-              {file && <FileName>{file.name}</FileName>}
-            </FormField>
+              <FormField>
+                <FormLabel>
+                  Effective Date
+                  {formErrors.effectiveDate && <FormLabelHint style={{ color: '#dc2626' }}>✕ {formErrors.effectiveDate}</FormLabelHint>}
+                </FormLabel>
+                <FormInput
+                  placeholder="MM/YY"
+                  value={effectiveDate}
+                  onChange={e => { setEffectiveDate(formatMMYY(e.target.value)); if (formErrors.effectiveDate) setFormErrors(prev => ({ ...prev, effectiveDate: '' })); }}
+                  style={{ borderColor: formErrors.effectiveDate ? '#dc2626' : undefined }}
+                />
+              </FormField>
+
+              <FormField>
+                <FormLabel>Upload Form (PDF)</FormLabel>
+                <FileInput
+                  type="file"
+                  accept=".pdf"
+                  onChange={e => setFile(e.target.files[0])}
+                />
+                {file && <FileName>{file.name}</FileName>}
+              </FormField>
+            </div>
 
             <ModalActions>
-              <SaveButton onClick={handleSave}>
-                {editingId ? 'Update' : 'Create'}
-              </SaveButton>
               <CancelButton onClick={() => { setModalOpen(false); resetForm(); }}>
                 Cancel
               </CancelButton>
+              <SaveButton onClick={handleSave} disabled={isSaving}>
+                {isSaving ? 'Saving...' : (editingId ? 'Update' : 'Create')}
+              </SaveButton>
             </ModalActions>
           </ModalContent>
         </Modal>
@@ -1581,6 +2314,15 @@ const ProductHub = memo(() => {
         open={dictModalOpen}
         onClose={() => setDictModalOpen(false)}
       />
+
+      {/* Toast Notifications */}
+      <ToastContainer>
+        {toasts.map(toast => (
+          <Toast key={toast.id} $type={toast.type}>
+            {toast.message}
+          </Toast>
+        ))}
+      </ToastContainer>
     </PageContainer>
   );
 });

@@ -92,14 +92,22 @@ export default function ProductExplorer() {
   /* fetch everything once */
   useEffect(()=>{
     (async()=>{
-      setLoading(true);
-      const proSnap = await getDocs(collection(db,'products'));
-      const covSnap = await getDocs(collectionGroup(db,'coverages'));
-      setProducts(proSnap.docs.map(d=>({id:d.id,...d.data()})));
-      setCoverages(covSnap.docs.map(d=>({
-        id:d.id,...d.data(),productId:d.ref.parent.parent.id
-      })));
-      setLoading(false);
+      try {
+        setLoading(true);
+        const proSnap = await getDocs(collection(db,'products'));
+        const covSnap = await getDocs(collectionGroup(db,'coverages'));
+        setProducts(proSnap.docs.map(d=>({id:d.id,...d.data()})));
+        setCoverages(covSnap.docs.map(d=>({
+          id:d.id,...d.data(),productId:d.ref.parent.parent.id
+        })));
+      } catch (error) {
+        console.error('Error fetching products and coverages:', error);
+        // Continue with empty data if fetch fails
+        setProducts([]);
+        setCoverages([]);
+      } finally {
+        setLoading(false);
+      }
     })();
   },[]);
 

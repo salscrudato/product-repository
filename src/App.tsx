@@ -16,10 +16,9 @@ import Login from './components/Login';
 
 /* protected - Core components loaded immediately */
 import Home from './components/Home';
-import ProductHub from './components/ProductHub';
 import RequireAuth from './components/RequireAuth';
 
-// Loading component for lazy-loaded routes
+// Loading component for lazy-loaded routes (must be defined before use)
 const LoadingSpinner: React.FC = () => (
   <div style={{
     display: 'flex',
@@ -31,6 +30,12 @@ const LoadingSpinner: React.FC = () => (
   }}>
     Loading...
   </div>
+);
+
+// ProductHub is lazy-loaded to avoid import conflict with bundleOptimization preloading
+const ProductHub = createOptimizedLazyComponent(
+  () => import('./components/ProductHub'),
+  { chunkName: 'ProductHub', fallback: <LoadingSpinner /> }
 );
 
 /* protected - Heavy components lazy loaded with optimization */
