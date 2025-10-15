@@ -27,6 +27,7 @@ import { LimitsModal } from '../components/modals/LimitsModal';
 import { DeductiblesModal } from '../components/modals/DeductiblesModal';
 import { ExclusionsModal } from '../components/modals/ExclusionsModal';
 import { ConditionsModal } from '../components/modals/ConditionsModal';
+import { CoverageFormModal } from '../components/modals/CoverageFormModal';
 
 import styled, { keyframes } from 'styled-components';
 import {
@@ -1125,6 +1126,7 @@ export default function CoverageScreen() {
     setEditingId(null); setChangeSummary('');
   };
   const openEditModal = c => {
+    setCurrentCoverage(c);
     setFormState({
       name: c.name || '', coverageCode: c.coverageCode || '',
       formIds: c.formIds || [], limits: c.limits || [],
@@ -1697,52 +1699,59 @@ export default function CoverageScreen() {
           />
         )}
 
-        {/* ----- Add / Edit Coverage Modal ----- */}
+        {/* ----- Add / Edit Coverage Modal (Enhanced) ----- */}
         {addModalOpen && (
-          <Overlay onClick={() => setAddModalOpen(false)}>
-            <WideModal onClick={e => e.stopPropagation()}>
-              <ModalHeader>
-                <ModalTitle>{editingId ? 'Edit Coverage' : 'Add Coverage'}</ModalTitle>
-                <CloseBtn onClick={() => setAddModalOpen(false)}>
-                  <XMarkIcon width={20} height={20}/>
-                </CloseBtn>
-              </ModalHeader>
+          <CoverageFormModal
+            isOpen={addModalOpen}
+            onClose={() => {
+              setAddModalOpen(false);
+              resetForm();
+            }}
+            coverage={editingId ? {
+              id: editingId,
+              ...formState,
+              // Map existing coverage data if editing
+              ...(currentCoverage || {})
+            } : {
+              name: formState.name,
+              coverageCode: formState.coverageCode,
+              category: formState.category,
+              parentCoverageId: addingParentId
+            }}
+            onSave={async (coverageData) => {
+              setMetaLoading(true);
+              try {
+                const data = {
+                  ...coverageData,
+                  productId,
+                  parentCoverageId: addingParentId || null,
+                };
 
-              <div style={{ display:'flex', flexDirection:'column', gap:14, marginTop:8 }}>
-                <TextInput
-                  placeholder="Coverage Name"
-                  value={formState.name}
-                  onChange={e => setFormState({ ...formState, name: e.target.value })}
-                />
-                <TextInput
-                  placeholder="Coverage Code"
-                  value={formState.coverageCode}
-                  onChange={e => setFormState({ ...formState, coverageCode: e.target.value })}
-                />
-                <select
-                  value={formState.category}
-                  onChange={e => setFormState({ ...formState, category: e.target.value })}
-                  style={{ padding:10, borderRadius:6, border:'1px solid #e5e7eb', fontSize:14 }}
-                >
-                  <option value="Base Coverage">Base Coverage</option>
-                  <option value="Endorsement Coverage">Endorsement Coverage</option>
-                </select>
-                {editingId && (
-                  <textarea
-                    rows="3"
-                    placeholder="Reason for changes (required)"
-                    value={changeSummary}
-                    onChange={e => setChangeSummary(e.target.value)}
-                    style={{ width:'100%', padding:10, borderRadius:6, border:'1px solid #e5e7eb', fontSize:14 }}
-                  />
-                )}
-                <Actions>
-                  <Button onClick={handleAddOrUpdate}>{editingId ? 'Update' : 'Add'}</Button>
-                  <Button variant="ghost" onClick={() => setAddModalOpen(false)}>Cancel</Button>
-                </Actions>
-              </div>
-            </WideModal>
-          </Overlay>
+                if (editingId) {
+                  // Update existing coverage
+                  await updateDoc(
+                    doc(db, `products/${productId}/coverages`, editingId),
+                    { ...data, updatedAt: serverTimestamp() }
+                  );
+                } else {
+                  // Add new coverage
+                  await addDoc(
+                    collection(db, `products/${productId}/coverages`),
+                    { ...data, createdAt: serverTimestamp() }
+                  );
+                }
+                await reloadCoverages();
+                resetForm();
+                setAddModalOpen(false);
+              } catch (err) {
+                console.error(err);
+                throw new Error('Save failed: ' + err.message);
+              } finally {
+                setMetaLoading(false);
+              }
+            }}
+            title={editingId ? 'Edit Coverage' : 'Add Coverage'}
+          />
         )}
 
       </MainContent>
