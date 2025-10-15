@@ -17,10 +17,16 @@ import {
 import { ref, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import useCoverages from '../hooks/useCoverages';
+import { useCoverageLimits } from '../hooks/useCoverageLimits';
+import { useCoverageDeductibles } from '../hooks/useCoverageDeductibles';
 
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
 import MainNavigation from '../components/ui/Navigation';
+import { LimitsModal } from '../components/modals/LimitsModal';
+import { DeductiblesModal } from '../components/modals/DeductiblesModal';
+import { ExclusionsModal } from '../components/modals/ExclusionsModal';
+import { ConditionsModal } from '../components/modals/ConditionsModal';
 
 import styled, { keyframes } from 'styled-components';
 import {
@@ -44,7 +50,9 @@ import {
   MapIcon,
   Squares2X2Icon,
   ArrowLeftIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  ExclamationTriangleIcon,
+  ClipboardDocumentListIcon
 } from '@heroicons/react/24/solid';
 
 /* ---------- styled components ---------- */
@@ -1042,6 +1050,8 @@ export default function CoverageScreen() {
 
   const [limitModalOpen, setLimitModalOpen] = useState(false);
   const [deductibleModalOpen, setDeductibleModalOpen] = useState(false);
+  const [exclusionsModalOpen, setExclusionsModalOpen] = useState(false);
+  const [conditionsModalOpen, setConditionsModalOpen] = useState(false);
   const [currentCoverage, setCurrentCoverage] = useState(null);
   const [limitData, setLimitData] = useState([]);
   const [deductibleData, setDeductibleData] = useState([]);
@@ -1155,6 +1165,16 @@ export default function CoverageScreen() {
     setLinkFormsModalOpen(true);
   };
 
+  const openExclusionsModal = c => {
+    setCurrentCoverage(c);
+    setExclusionsModalOpen(true);
+  };
+
+  const openConditionsModal = c => {
+    setCurrentCoverage(c);
+    setConditionsModalOpen(true);
+  };
+
   // Filter forms based on search query
   const filteredForms = useMemo(() => {
     if (!formSearchQuery.trim()) return forms;
@@ -1248,6 +1268,38 @@ export default function CoverageScreen() {
     );
     await reloadCoverages();
     setDeductibleModalOpen(false);
+  };
+
+  // Save exclusions
+  const saveExclusions = async (exclusions) => {
+    if (!currentCoverage) return;
+    try {
+      await updateDoc(
+        doc(db, `products/${productId}/coverages`, currentCoverage.id),
+        { exclusions }
+      );
+      await reloadCoverages();
+      setExclusionsModalOpen(false);
+    } catch (error) {
+      console.error('Error saving exclusions:', error);
+      alert('Failed to save exclusions: ' + error.message);
+    }
+  };
+
+  // Save conditions
+  const saveConditions = async (conditions) => {
+    if (!currentCoverage) return;
+    try {
+      await updateDoc(
+        doc(db, `products/${productId}/coverages`, currentCoverage.id),
+        { conditions }
+      );
+      await reloadCoverages();
+      setConditionsModalOpen(false);
+    } catch (error) {
+      console.error('Error saving conditions:', error);
+      alert('Failed to save conditions: ' + error.message);
+    }
   };
 
   // Add or update coverage
@@ -1415,6 +1467,14 @@ export default function CoverageScreen() {
                               <CurrencyDollarIcon />
                               Deductibles {parent.deductibles?.length ? `(${parent.deductibles.length})` : '(0)'}
                             </MetricItem>
+                            <MetricItem onClick={() => openExclusionsModal(parent)}>
+                              <ExclamationTriangleIcon />
+                              Exclusions {parent.exclusions?.length ? `(${parent.exclusions.length})` : '(0)'}
+                            </MetricItem>
+                            <MetricItem onClick={() => openConditionsModal(parent)}>
+                              <ClipboardDocumentListIcon />
+                              Conditions {parent.conditions?.length ? `(${parent.conditions.length})` : '(0)'}
+                            </MetricItem>
                             <MetricItem as={RouterLink} to={`/coverage-states/${productId}/${parent.id}`}>
                               <MapIcon />
                               States {parent.states?.length ? `(${parent.states.length})` : '(0)'}
@@ -1471,6 +1531,14 @@ export default function CoverageScreen() {
                                 <MetricItem onClick={() => openDeductibleModal(child)}>
                                   <CurrencyDollarIcon />
                                   Deductibles {child.deductibles?.length ? `(${child.deductibles.length})` : '(0)'}
+                                </MetricItem>
+                                <MetricItem onClick={() => openExclusionsModal(child)}>
+                                  <ExclamationTriangleIcon />
+                                  Exclusions {child.exclusions?.length ? `(${child.exclusions.length})` : '(0)'}
+                                </MetricItem>
+                                <MetricItem onClick={() => openConditionsModal(child)}>
+                                  <ClipboardDocumentListIcon />
+                                  Conditions {child.conditions?.length ? `(${child.conditions.length})` : '(0)'}
                                 </MetricItem>
                                 <MetricItem as={RouterLink} to={`/coverage-states/${productId}/${child.id}`}>
                                   <MapIcon />
@@ -1585,104 +1653,48 @@ export default function CoverageScreen() {
         )}
 
 
-        {/* ----- Limits Modal ----- */}
-        {limitModalOpen && (
-          <Overlay onClick={() => setLimitModalOpen(false)}>
-            <WideModal onClick={e => e.stopPropagation()}>
-              <ModalHeader>
-                <ModalTitle>Manage Limits for {currentCoverage?.name}</ModalTitle>
-                <CloseBtn onClick={() => setLimitModalOpen(false)}>
-                  <XMarkIcon width={20} height={20} />
-                </CloseBtn>
-              </ModalHeader>
-
-              <EntryContainer>
-                {limitData.map((lim, idx) => (
-                  <EntryRow key={idx}>
-                    <EntryInput
-                      placeholder="Enter limit amount"
-                      value={lim ? `$${lim}` : ''}
-                      onChange={e => {
-                        const raw = e.target.value.replace(/[^0-9]/g, '');
-                        setLimitData(d => d.map((row,i) => i===idx ? raw : row));
-                      }}
-                      onBlur={() => {
-                        setLimitData(d => d.map((row,i) => i===idx ? fmtMoney(row) : row));
-                      }}
-                    />
-                    <RemoveButton
-                      onClick={()=> setLimitData(d => d.filter((_,i)=> i!==idx))}
-                      title="Remove limit"
-                    >
-                      <TrashIcon />
-                    </RemoveButton>
-                  </EntryRow>
-                ))}
-
-                <AddEntryButton onClick={() => setLimitData(d => [...d, ''])}>
-                  <PlusIcon />
-                  Add New Limit
-                </AddEntryButton>
-              </EntryContainer>
-
-              <Actions>
-                <Button onClick={saveLimits}>Save Changes</Button>
-                <Button variant="ghost" onClick={() => setLimitModalOpen(false)}>
-                  Cancel
-                </Button>
-              </Actions>
-            </WideModal>
-          </Overlay>
+        {/* ----- Limits Modal (Enhanced) ----- */}
+        {limitModalOpen && currentCoverage && (
+          <LimitsModal
+            isOpen={limitModalOpen}
+            onClose={() => setLimitModalOpen(false)}
+            productId={productId}
+            coverageId={currentCoverage.id}
+            coverageName={currentCoverage.name}
+            onSave={reloadCoverages}
+          />
         )}
 
-        {/* ----- Deductibles Modal ----- */}
-        {deductibleModalOpen && (
-          <Overlay onClick={() => setDeductibleModalOpen(false)}>
-            <WideModal onClick={e => e.stopPropagation()}>
-              <ModalHeader>
-                <ModalTitle>Manage Deductibles for {currentCoverage?.name}</ModalTitle>
-                <CloseBtn onClick={() => setDeductibleModalOpen(false)}>
-                  <XMarkIcon width={20} height={20} />
-                </CloseBtn>
-              </ModalHeader>
+        {/* ----- Deductibles Modal (Enhanced) ----- */}
+        {deductibleModalOpen && currentCoverage && (
+          <DeductiblesModal
+            isOpen={deductibleModalOpen}
+            onClose={() => setDeductibleModalOpen(false)}
+            productId={productId}
+            coverageId={currentCoverage.id}
+            coverageName={currentCoverage.name}
+            onSave={reloadCoverages}
+          />
+        )}
 
-              <EntryContainer>
-                {deductibleData.map((ded, idx) => (
-                  <EntryRow key={idx}>
-                    <EntryInput
-                      placeholder="Enter deductible amount"
-                      value={ded ? `$${ded}` : ''}
-                      onChange={e => {
-                        const raw = e.target.value.replace(/[^0-9]/g, '');
-                        setDeductibleData(d => d.map((row,i) => i===idx ? raw : row));
-                      }}
-                      onBlur={() => {
-                        setDeductibleData(d => d.map((row,i) => i===idx ? fmtMoney(row) : row));
-                      }}
-                    />
-                    <RemoveButton
-                      onClick={()=> setDeductibleData(d => d.filter((_,i)=> i!==idx))}
-                      title="Remove deductible"
-                    >
-                      <TrashIcon />
-                    </RemoveButton>
-                  </EntryRow>
-                ))}
+        {/* ----- Exclusions Modal ----- */}
+        {exclusionsModalOpen && currentCoverage && (
+          <ExclusionsModal
+            isOpen={exclusionsModalOpen}
+            onClose={() => setExclusionsModalOpen(false)}
+            exclusions={currentCoverage.exclusions || []}
+            onSave={saveExclusions}
+          />
+        )}
 
-                <AddEntryButton onClick={() => setDeductibleData(d => [...d, ''])}>
-                  <PlusIcon />
-                  Add New Deductible
-                </AddEntryButton>
-              </EntryContainer>
-
-              <Actions>
-                <Button onClick={saveDeductibles}>Save Changes</Button>
-                <Button variant="ghost" onClick={() => setDeductibleModalOpen(false)}>
-                  Cancel
-                </Button>
-              </Actions>
-            </WideModal>
-          </Overlay>
+        {/* ----- Conditions Modal ----- */}
+        {conditionsModalOpen && currentCoverage && (
+          <ConditionsModal
+            isOpen={conditionsModalOpen}
+            onClose={() => setConditionsModalOpen(false)}
+            conditions={currentCoverage.conditions || []}
+            onSave={saveConditions}
+          />
         )}
 
         {/* ----- Add / Edit Coverage Modal ----- */}
