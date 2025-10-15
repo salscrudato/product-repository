@@ -409,6 +409,77 @@ const CardCategory = styled.div.withConfig({
   letter-spacing: 0.025em;
 `;
 
+const ExclusionsSection = styled.div`
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+`;
+
+const ExclusionsSectionTitle = styled.div`
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const ExclusionsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+`;
+
+const ExclusionItem = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+`;
+
+const ExclusionType = styled.span`
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+  flex-shrink: 0;
+`;
+
+const ExclusionDetails = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const ExclusionName = styled.div`
+  font-weight: 500;
+  color: #111827;
+`;
+
+const ExclusionCoverage = styled.div`
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+`;
+
+const NoExclusions = styled.div`
+  font-size: 13px;
+  color: #9ca3af;
+  font-style: italic;
+  padding: 8px 0;
+`;
+
 const CardMetrics = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -481,6 +552,7 @@ export default function FormsScreen() {
   const [forms, setForms] = useState([]);
   const [products, setProducts] = useState([]);
   const [coverages, setCoverages] = useState([]);
+  const [coverageExclusions, setCoverageExclusions] = useState({}); // Map of coverageId -> exclusions array
 
   // --- filter/search state for modals
   const [coverageSearch, setCoverageSearch] = useState('');
@@ -594,6 +666,15 @@ export default function FormsScreen() {
         coverageList.sort((a, b) => a.name.localeCompare(b.name));
         setCoverages(coverageList);
 
+        /* Load exclusions for each coverage */
+        const exclusionsMap = {};
+        for (const coverage of coverageList) {
+          if (coverage.exclusions && coverage.exclusions.length > 0) {
+            exclusionsMap[coverage.id] = coverage.exclusions;
+          }
+        }
+        setCoverageExclusions(exclusionsMap);
+
         /* forms */
         const fSnap = await getDocs(collection(db, 'forms'));
         const formList = await Promise.all(
@@ -628,6 +709,28 @@ export default function FormsScreen() {
 
   const coverageMap = useMemo(() =>
     Object.fromEntries(coverages.map(c => [c.id, c.name])), [coverages]);
+
+  /* Get exclusions for a form based on its linked coverages */
+  const getFormExclusions = useMemo(() => {
+    const formExclusionsMap = {};
+    forms.forEach(form => {
+      const exclusions = [];
+      if (form.coverageIds && form.coverageIds.length > 0) {
+        form.coverageIds.forEach(covId => {
+          if (coverageExclusions[covId]) {
+            coverageExclusions[covId].forEach(exclusion => {
+              exclusions.push({
+                ...exclusion,
+                coverageName: coverageMap[covId] || 'Unknown Coverage'
+              });
+            });
+          }
+        });
+      }
+      formExclusionsMap[form.id] = exclusions;
+    });
+    return formExclusionsMap;
+  }, [forms, coverageExclusions, coverageMap]);
 
   /* filtered forms – memoised */
   const filteredForms = useMemo(() => {
@@ -1107,6 +1210,31 @@ export default function FormsScreen() {
                         States {f.states?.length ? `(${f.states.length})` : '(0)'}
                       </MetricItem>
                     </CardMetrics>
+
+                    {/* Coverage Exclusions Section */}
+                    {getFormExclusions[f.id] && getFormExclusions[f.id].length > 0 && (
+                      <ExclusionsSection>
+                        <ExclusionsSectionTitle>
+                          Coverage Exclusions ({getFormExclusions[f.id].length})
+                        </ExclusionsSectionTitle>
+                        <ExclusionsList>
+                          {getFormExclusions[f.id].map((exclusion, idx) => (
+                            <ExclusionItem key={idx}>
+                              <ExclusionType>{exclusion.type || 'general'}</ExclusionType>
+                              <ExclusionDetails>
+                                <ExclusionName>{exclusion.name}</ExclusionName>
+                                <ExclusionCoverage>From: {exclusion.coverageName}</ExclusionCoverage>
+                                {exclusion.description && (
+                                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                                    {exclusion.description}
+                                  </div>
+                                )}
+                              </ExclusionDetails>
+                            </ExclusionItem>
+                          ))}
+                        </ExclusionsList>
+                      </ExclusionsSection>
+                    )}
                   </CardContent>
                 </FormCard>
               ))}
