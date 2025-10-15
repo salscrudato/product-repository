@@ -1,3 +1,8 @@
+/**
+ * Firebase Cloud Functions - Main Entry Point
+ * Modernized architecture with modular structure
+ */
+
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const axios = require('axios');
@@ -5,6 +10,20 @@ const axios = require('axios');
 // Initialize Firebase Admin
 admin.initializeApp();
 const db = admin.firestore();
+
+// Import modular API functions
+const aiAPI = require('./src/api/ai');
+
+// Get OpenAI API key from environment
+const getOpenAIKey = () => {
+  if (process.env.OPENAI_KEY) {
+    return process.env.OPENAI_KEY;
+  }
+  if (functions.config().openai && functions.config().openai.key) {
+    return functions.config().openai.key;
+  }
+  throw new Error('OpenAI API key not configured');
+};
 
 // Agent system prompt
 const AGENT_SYSTEM_PROMPT = `
@@ -299,3 +318,189 @@ exports.agent = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('internal', error.message);
   }
 });
+
+// ============================================================================
+// OpenAI Proxy Functions (Secure API calls from frontend)
+// ============================================================================
+
+/**
+ * Generate product summary from PDF text
+ */
+exports.generateProductSummary = functions.https.onCall(async (data, context) => {
+  try {
+    const { pdfText, systemPrompt } = data;
+
+    if (!pdfText) {
+      throw new functions.https.HttpsError('invalid-argument', 'PDF text is required');
+    }
+
+    const apiKey = getOpenAIKey();
+
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt || 'You are an expert insurance analyst.' },
+        { role: 'user', content: pdfText }
+      ],
+      max_tokens: 2000,
+      temperature: 0.2
+    }, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 45000
+    });
+
+    return {
+      success: true,
+      content: response.data.choices[0].message.content,
+      usage: response.data.usage
+    };
+
+  } catch (error) {
+    console.error('Product summary error:', error.response?.data || error.message);
+    throw new functions.https.HttpsError(
+      'internal',
+      error.response?.data?.error?.message || error.message
+    );
+  }
+});
+
+/**
+ * Generate chat response
+ */
+exports.generateChatResponse = functions.https.onCall(async (data, context) => {
+  try {
+    const { messages, model = 'gpt-4o-mini', maxTokens = 1000, temperature = 0.7 } = data;
+
+    if (!messages || !Array.isArray(messages)) {
+      throw new functions.https.HttpsError('invalid-argument', 'Messages array is required');
+    }
+
+    const apiKey = getOpenAIKey();
+
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model,
+      messages,
+      max_tokens: maxTokens,
+      temperature
+    }, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    return {
+      success: true,
+      content: response.data.choices[0].message.content,
+      usage: response.data.usage
+    };
+
+  } catch (error) {
+    console.error('Chat response error:', error.response?.data || error.message);
+    throw new functions.https.HttpsError(
+      'internal',
+      error.response?.data?.error?.message || error.message
+    );
+  }
+});
+
+/**
+ * Extract rules from PDF text
+ */
+exports.extractRules = functions.https.onCall(async (data, context) => {
+  try {
+    const { pdfText, systemPrompt } = data;
+
+    if (!pdfText) {
+      throw new functions.https.HttpsError('invalid-argument', 'PDF text is required');
+    }
+
+    const apiKey = getOpenAIKey();
+
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt || 'Extract all business rules, conditions, and logic from this insurance document. Format as a clear, structured list.'
+        },
+        { role: 'user', content: pdfText }
+      ],
+      max_tokens: 2000,
+      temperature: 0.3
+    }, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    return {
+      success: true,
+      content: response.data.choices[0].message.content,
+      usage: response.data.usage
+    };
+
+  } catch (error) {
+    console.error('Rules extraction error:', error.response?.data || error.message);
+    throw new functions.https.HttpsError(
+      'internal',
+      error.response?.data?.error?.message || error.message
+    );
+  }
+});
+
+/**
+ * Claims analysis
+ */
+exports.analyzeClaim = functions.https.onCall(async (data, context) => {
+  try {
+    const { messages, model = 'gpt-4o', maxTokens = 2000, temperature = 0.2 } = data;
+
+    if (!messages || !Array.isArray(messages)) {
+      throw new functions.https.HttpsError('invalid-argument', 'Messages array is required');
+    }
+
+    const apiKey = getOpenAIKey();
+
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model,
+      messages,
+      max_tokens: maxTokens,
+      temperature
+    }, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 60000
+    });
+
+    return {
+      success: true,
+      content: response.data.choices[0].message.content,
+      usage: response.data.usage
+    };
+
+  } catch (error) {
+    console.error('Claims analysis error:', error.response?.data || error.message);
+    throw new functions.https.HttpsError(
+      'internal',
+      error.response?.data?.error?.message || error.message
+    );
+  }
+});
+
+// ============================================================================
+// MODERNIZED API EXPORTS
+// ============================================================================
+
+// AI-powered features (using new modular architecture)
+exports.generateProductSummaryV2 = aiAPI.generateProductSummary;
+exports.generateChatResponseV2 = aiAPI.generateChatResponse;
+exports.analyzeClaimV2 = aiAPI.analyzeClaim;
