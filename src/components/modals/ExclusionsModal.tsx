@@ -239,7 +239,7 @@ export const ExclusionsModal: React.FC<ExclusionsModalProps> = ({
                         </DeleteButton>
                       </ExclusionActions>
                     </ExclusionHeader>
-                    <ExclusionType>{EXCLUSION_TYPES.find(t => t.value === exclusion.type)?.label}</ExclusionType>
+                    <ExclusionTypeLabel>{EXCLUSION_TYPES.find(t => t.value === exclusion.type)?.label}</ExclusionTypeLabel>
                     <ExclusionDescription>{exclusion.description}</ExclusionDescription>
                     {exclusion.reference && (
                       <ExclusionReference>Reference: {exclusion.reference}</ExclusionReference>
@@ -509,7 +509,7 @@ const DeleteButton = styled.button`
   }
 `;
 
-const ExclusionType = styled.div`
+const ExclusionTypeLabel = styled.div`
   font-size: 13px;
   color: #6b7280;
   margin-bottom: 8px;

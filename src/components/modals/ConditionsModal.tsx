@@ -240,7 +240,7 @@ export const ConditionsModal: React.FC<ConditionsModalProps> = ({
                         </DeleteButton>
                       </ConditionActions>
                     </ConditionHeader>
-                    <ConditionType>{CONDITION_TYPES.find(t => t.value === condition.type)?.label}</ConditionType>
+                    <ConditionTypeLabel>{CONDITION_TYPES.find(t => t.value === condition.type)?.label}</ConditionTypeLabel>
                     <ConditionDescription>{condition.description}</ConditionDescription>
                     {condition.reference && (
                       <ConditionReference>Reference: {condition.reference}</ConditionReference>
@@ -510,7 +510,7 @@ const DeleteButton = styled.button`
   }
 `;
 
-const ConditionType = styled.div`
+const ConditionTypeLabel = styled.div`
   font-size: 13px;
   color: #6b7280;
   margin-bottom: 8px;
