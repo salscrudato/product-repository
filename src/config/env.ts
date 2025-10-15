@@ -107,5 +107,39 @@ export const isProduction = (): boolean => env.PROD;
  */
 export const getEnvironmentVariable = (key: string): string | undefined => getEnv(key);
 
+/**
+ * Validate required environment variables
+ * Throws error if critical variables are missing in production
+ */
+export const validateEnvironment = (): void => {
+  const requiredVars = [
+    'FIREBASE_API_KEY',
+    'FIREBASE_PROJECT_ID',
+    'FIREBASE_APP_ID'
+  ];
+
+  const missing: string[] = [];
+
+  requiredVars.forEach(varName => {
+    if (!env[varName as keyof EnvConfig]) {
+      missing.push(varName);
+    }
+  });
+
+  if (missing.length > 0 && env.PROD) {
+    throw new Error(
+      `Missing required environment variables in production: ${missing.join(', ')}\n` +
+      `Please ensure all required variables are set with VITE_ prefix.`
+    );
+  }
+
+  if (missing.length > 0 && env.DEV) {
+    console.warn(
+      `⚠️ Missing environment variables: ${missing.join(', ')}\n` +
+      `Some features may not work correctly.`
+    );
+  }
+};
+
 export default env;
 

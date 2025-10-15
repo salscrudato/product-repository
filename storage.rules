@@ -1,10 +1,54 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow read and write access for MVP development
-    // TODO: Secure these rules for specific paths (e.g., user-specific folders)
+    // Helper function to check authentication
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+
+    // Helper function to check if user is product manager
+    function isProductManager() {
+      return isAuthenticated() &&
+             (request.auth.token.role == 'admin' ||
+              request.auth.token.role == 'product_manager');
+    }
+
+    // Product forms and documents - Read: All authenticated, Write: Product Managers+
+    match /products/{productId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isProductManager();
+    }
+
+    // Form documents - Read: All authenticated, Write: Product Managers+
+    match /forms/{formId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isProductManager();
+    }
+
+    // User uploads - Read/Write: Owner only
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Temporary uploads - Read/Write: Authenticated users
+    match /temp/{userId}/{allPaths=**} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Public assets - Read: All, Write: Admins only
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Deny all other paths by default
     match /{allPaths=**} {
-      allow read, write: if request.auth != null || true; // Permissive for now
+      allow read, write: if false;
     }
   }
 }

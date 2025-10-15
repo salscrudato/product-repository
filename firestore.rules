@@ -1,10 +1,115 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read, write access for MVP development
-    // TODO: Secure these rules before any production deployment
-    match /{document=**} {
-      allow read, write: if true;
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+             request.auth.token.role == 'admin';
+    }
+
+    function isProductManager() {
+      return isAuthenticated() &&
+             (request.auth.token.role == 'admin' ||
+              request.auth.token.role == 'product_manager');
+    }
+
+    function isValidTimestamp(field) {
+      return request.resource.data[field] is timestamp;
+    }
+
+    // Products - Read: All authenticated, Write: Product Managers+
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow create: if isProductManager() &&
+                       request.resource.data.name is string &&
+                       request.resource.data.name.size() > 0;
+      allow update: if isProductManager();
+      allow delete: if isAdmin();
+
+      // Coverages subcollection
+      match /coverages/{coverageId} {
+        allow read: if isAuthenticated();
+        allow write: if isProductManager();
+
+        // Limits subcollection
+        match /limits/{limitId} {
+          allow read: if isAuthenticated();
+          allow write: if isProductManager();
+        }
+
+        // Deductibles subcollection
+        match /deductibles/{deductibleId} {
+          allow read: if isAuthenticated();
+          allow write: if isProductManager();
+        }
+      }
+
+      // Pricing steps subcollection
+      match /steps/{stepId} {
+        allow read: if isAuthenticated();
+        allow write: if isProductManager();
+      }
+    }
+
+    // Forms - Read: All authenticated, Write: Product Managers+
+    match /forms/{formId} {
+      allow read: if isAuthenticated();
+      allow create: if isProductManager();
+      allow update: if isProductManager();
+      allow delete: if isAdmin();
+    }
+
+    // Form-Coverage mappings
+    match /formCoverages/{mappingId} {
+      allow read: if isAuthenticated();
+      allow write: if isProductManager();
+    }
+
+    // Business Rules
+    match /rules/{ruleId} {
+      allow read: if isAuthenticated();
+      allow write: if isProductManager();
+    }
+
+    // Tasks - All authenticated users can read/write their tasks
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() &&
+                       (request.auth.uid == resource.data.createdBy || isProductManager());
+      allow delete: if isAuthenticated() &&
+                       (request.auth.uid == resource.data.createdBy || isAdmin());
+    }
+
+    // Data Dictionary - Read: All, Write: Admins only
+    match /dataDictionary/{entryId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // News - Read: All, Write: Admins only
+    match /news/{newsId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Audit logs - Read: Product Managers+, Write: Authenticated users
+    match /auditLogs/{logId} {
+      allow read: if isProductManager();
+      allow create: if isAuthenticated() &&
+                       request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false; // Audit logs are immutable
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
     }
   }
 }

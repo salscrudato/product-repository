@@ -9,6 +9,7 @@ import { ConnectionStatus } from './components/ui/ConnectionStatus';
 
 import logger, { LOG_CATEGORIES } from './utils/logger';
 import env from './config/env';
+import performanceMonitor from './utils/performanceMonitor';
 
 /* public */
 import Login from './components/Login';
@@ -84,6 +85,10 @@ const ClaimsAnalysis = createOptimizedLazyComponent(
 const TaskManagement = createOptimizedLazyComponent(
   () => import('./components/TaskManagement'),
   { chunkName: 'TaskManagement', fallback: <LoadingSpinner /> }
+);
+const InsuranceNews = createOptimizedLazyComponent(
+  () => import('./components/InsuranceNews'),
+  { chunkName: 'InsuranceNews', fallback: <LoadingSpinner /> }
 );
 
 // ──────────────────────────────────────────────────────────────
@@ -258,6 +263,16 @@ const HistoryWrapper: React.FC = () => {
           }
         />
         <Route
+          path="/news"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <InsuranceNews />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
           path="/products/:productId/packages"
           element={
             <RequireAuth>
@@ -276,13 +291,16 @@ const HistoryWrapper: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  // Initialize bundle optimizations
+  // Initialize bundle optimizations and performance monitoring
   useEffect(() => {
     logger.info(LOG_CATEGORIES.DATA, 'App initialization started');
 
     try {
       initBundleOptimizations();
       logger.info(LOG_CATEGORIES.DATA, 'Bundle optimizations initialized');
+
+      // Performance monitor is automatically initialized on import
+      logger.info(LOG_CATEGORIES.PERFORMANCE, 'Performance monitoring active');
     } catch (error) {
       logger.error(LOG_CATEGORIES.ERROR, 'App initialization failed', {
         environment: env.NODE_ENV

@@ -51,22 +51,7 @@ export type DeductibleType =
   | 'aggregate'          // Annual aggregate deductible
   | 'waiting';           // Waiting period (time deductible)
 
-// Exclusion Types
-export type ExclusionType =
-  | 'named'              // Named peril or situation excluded
-  | 'general'            // Broad category exclusion
-  | 'conditional'        // Excluded unless conditions met
-  | 'absolute'           // Cannot be bought back
-  | 'buyback';           // Can be bought back via endorsement
 
-// Condition Types
-export type ConditionType =
-  | 'eligibility'        // Who/what is eligible for coverage
-  | 'claims'             // Claims handling requirements
-  | 'duties'             // Insured's duties after loss
-  | 'general'            // General policy conditions
-  | 'suspension'         // Conditions that suspend coverage
-  | 'cancellation';      // Cancellation conditions
 
 // Coverage Trigger Types
 export type CoverageTrigger = 'occurrence' | 'claimsMade' | 'hybrid';
@@ -158,51 +143,7 @@ export interface CoverageDeductible {
   updatedAt?: Timestamp | Date;
 }
 
-/**
- * CoverageExclusion represents an exclusion for a coverage
- */
-export interface CoverageExclusion {
-  id: string;
-  name: string;
-  description: string;
-  type: ExclusionType;
 
-  // Reference
-  reference?: string;         // Form number or section reference
-  formId?: string;            // Link to form document
-
-  // Classification
-  isStandard?: boolean;       // ISO standard vs. proprietary
-  isAbsolute?: boolean;       // Cannot be bought back
-  buybackEndorsementId?: string;  // Endorsement that removes this exclusion
-
-  // Applicability
-  appliesTo?: string[];       // Specific situations or perils
-
-  // Metadata
-  createdAt?: Timestamp | Date;
-}
-
-/**
- * CoverageCondition represents a condition for a coverage
- */
-export interface CoverageCondition {
-  id: string;
-  name: string;
-  description: string;
-  type: ConditionType;
-
-  // Behavior
-  isRequired?: boolean;       // Must be met for coverage
-  isSuspending?: boolean;     // Suspends coverage if not met
-
-  // Reference
-  reference?: string;         // Form number or section reference
-  formId?: string;            // Link to form document
-
-  // Metadata
-  createdAt?: Timestamp | Date;
-}
 
 /**
  * Coverage represents an insurance coverage that can be part of a product.
@@ -277,10 +218,6 @@ export interface Coverage {
   excludedTerritories?: string[];
   includedTerritories?: string[];
 
-  // ========== Exclusions & Conditions ==========
-  exclusions?: CoverageExclusion[];
-  conditions?: CoverageCondition[];
-
   // ========== Endorsement Metadata ==========
   modifiesCoverageId?: string;      // Which coverage this endorsement modifies
   endorsementType?: EndorsementType;
@@ -298,6 +235,10 @@ export interface Coverage {
   proofOfLossDeadline?: number;     // Days to submit proof
   hasSubrogationRights?: boolean;
   hasSalvageRights?: boolean;
+
+  // ========== Relationships & Counts ==========
+  formIds?: string[];  // Linked form IDs (denormalized for quick access)
+  ruleCount?: number;  // Cached count of rules for this coverage (computed)
 
   // ========== Metadata ==========
   createdAt?: Timestamp | Date;
@@ -539,6 +480,64 @@ export interface StateAvailability {
 // Rules Types
 // ============================================================================
 
+/**
+ * Rule Type - defines what the rule applies to
+ */
+export type RuleType = 'Product' | 'Coverage' | 'Forms' | 'Pricing';
+
+/**
+ * Rule Category - defines the functional category of the rule
+ */
+export type RuleCategory = 'Eligibility' | 'Pricing' | 'Compliance' | 'Coverage' | 'Forms';
+
+/**
+ * Rule Status - defines the current state of the rule
+ */
+export type RuleStatus = 'Active' | 'Inactive' | 'Draft' | 'Under Review' | 'Archived';
+
+/**
+ * Rule represents a business rule in the insurance product system.
+ * Rules can apply to products, coverages, forms, or pricing.
+ *
+ * Database Structure:
+ * - Stored in: rules/{ruleId}
+ * - Linked to products via productId
+ * - Linked to specific entities via targetId (when ruleType is not 'Product')
+ */
+export interface Rule {
+  id: string;
+  productId: string;
+
+  // Rule Classification
+  ruleType: RuleType;
+  ruleCategory: RuleCategory;
+
+  // Target Entity (optional - only for Coverage, Forms, Pricing rules)
+  targetId?: string;  // coverageId, formId, or pricingStepId depending on ruleType
+
+  // Rule Content
+  name: string;
+  condition: string;      // The condition that triggers the rule
+  outcome: string;        // The result when the condition is met
+  reference?: string;     // Reference to policy language, form section, etc.
+
+  // Rule Properties
+  proprietary?: boolean;  // Is this a proprietary/custom rule?
+  status: RuleStatus;
+  priority?: number;      // For rule execution order
+
+  // Metadata
+  createdAt?: Timestamp | Date;
+  updatedAt?: Timestamp | Date;
+  createdBy?: string;
+  updatedBy?: string;
+}
+
+/**
+ * @deprecated BusinessRule is being replaced by the simpler Rule interface.
+ * This interface represents a more complex rule structure with conditions/actions arrays.
+ * Kept for backward compatibility only.
+ */
 export interface BusinessRule {
   id: string;
   productId: string;
@@ -553,6 +552,9 @@ export interface BusinessRule {
   updatedAt?: Timestamp | Date;
 }
 
+/**
+ * @deprecated Part of deprecated BusinessRule interface
+ */
 export interface RuleCondition {
   field: string;
   operator: 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'contains' | 'in' | 'between';
@@ -560,11 +562,38 @@ export interface RuleCondition {
   logicalOperator?: 'AND' | 'OR';
 }
 
+/**
+ * @deprecated Part of deprecated BusinessRule interface
+ */
 export interface RuleAction {
   type: 'set' | 'calculate' | 'validate' | 'reject' | 'approve';
   target: string;
   value?: unknown;
   message?: string;
+}
+
+/**
+ * Rule Template for quick rule creation
+ */
+export interface RuleTemplate {
+  id: string;
+  name: string;
+  description: string;
+  ruleType: RuleType;
+  ruleCategory: RuleCategory;
+  conditionTemplate: string;
+  outcomeTemplate: string;
+  isBuiltIn?: boolean;
+  createdAt?: Timestamp | Date;
+}
+
+/**
+ * Rule Validation Result
+ */
+export interface RuleValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings?: string[];
 }
 
 // ============================================================================

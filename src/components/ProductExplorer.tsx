@@ -3,49 +3,13 @@ import { collection, collectionGroup, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
+import { PageContainer, PageContent } from './ui/PageContainer';
+import { Breadcrumb } from './ui/Breadcrumb';
 
 import styled, { keyframes } from 'styled-components';
 import { MapIcon } from '@heroicons/react/24/solid';
 
-/* ------------------- Page Layout Components ------------------- */
-// Page - Clean gradient background with overlay
-const Page = styled.div`
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
-  display: flex;
-  flex-direction: column;
-  position: relative;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 300px;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-    opacity: 0.08;
-    z-index: 0;
-  }
-`;
-
-
-
-const MainContent = styled.main`
-  flex: 1;
-  padding: 32px 32px 80px;
-  max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
-  position: relative;
-  z-index: 1;
-
-  @media (max-width: 768px) {
-    padding: 24px 20px 60px;
-  }
-`;
-
-// Unused styled components removed to fix ESLint warnings
+/* ------------------- Styled Components ------------------- */
 
 /* ------------------- tiny spinner ------------------- */
 const spin = keyframes`0%{transform:rotate(0)}100%{transform:rotate(360deg)}`;
@@ -244,19 +208,27 @@ export default function ProductExplorer() {
   const subCoverages = getDisplaySubCoverages();
 
   if (loading) return(
-    <Page>
+    <PageContainer withOverlay={true}>
       <MainNavigation />
-      <MainContent><Spinner/></MainContent>
-    </Page>
+      <PageContent><Spinner/></PageContent>
+    </PageContainer>
   );
 
   return (
-    <Page>
+    <PageContainer withOverlay={true}>
       <MainNavigation />
 
-      <MainContent>
+      <PageContent>
+        <Breadcrumb
+          items={[
+            { label: 'Home', path: '/' },
+            { label: 'Products', path: '/products' },
+            { label: 'Explorer' }
+          ]}
+        />
+
         <EnhancedHeader
-          title="Explorer"
+          title="Product Explorer"
           subtitle={searchQuery
             ? `Found ${filteredProducts.length} products, ${topCoverages.length} coverages, ${subCoverages.length} sub-coverages matching "${searchQuery}"`
             : `Navigate through ${products.length} products, ${allTopCoverages.length} coverages, ${allSubCoverages.length} sub-coverages`
@@ -374,7 +346,7 @@ export default function ProductExplorer() {
             )}
           </Column>
         </Grid>
-      </MainContent>
-    </Page>
+      </PageContent>
+    </PageContainer>
   );
 }

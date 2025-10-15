@@ -14,7 +14,7 @@ interface LazyComponentOptions {
 }
 
 // Enhanced lazy loading with error boundaries and retry logic
-export const createOptimizedLazyComponent = <P extends object = any>(
+export const createOptimizedLazyComponent = <P extends object = Record<string, never>>(
   importFn: () => Promise<{ default: ComponentType<P> }>,
   options: LazyComponentOptions = {}
 ): React.FC<P> => {
@@ -25,29 +25,30 @@ export const createOptimizedLazyComponent = <P extends object = any>(
     chunkName = 'unknown'
   } = options;
 
-  let retries = 0;
-  
-  const LazyComponent = lazy(async () => {
+  // Create a wrapper function that handles retries
+  const importWithRetry = async (attempt = 0): Promise<{ default: ComponentType<P> }> => {
     try {
       const module = await importFn();
       return module;
     } catch (error) {
-      logger.error(LOG_CATEGORIES.ERROR, `Failed to load chunk: ${chunkName}`, {}, error);
+      logger.error(LOG_CATEGORIES.ERROR, `Failed to load chunk: ${chunkName}`, { attempt: `${attempt + 1}/${retryCount}` }, error as Error);
 
-      if (retries < retryCount) {
-        retries++;
-        logger.debug(LOG_CATEGORIES.DATA, `Retrying chunk load: ${chunkName}`, { attempt: `${retries}/${retryCount}` });
+      if (attempt < retryCount) {
+        logger.debug(LOG_CATEGORIES.DATA, `Retrying chunk load: ${chunkName}`, { attempt: `${attempt + 1}/${retryCount}` });
 
-        // Wait before retry
-        await new Promise(resolve => setTimeout(resolve, retryDelay * retries));
+        // Wait before retry with exponential backoff
+        await new Promise(resolve => setTimeout(resolve, retryDelay * (attempt + 1)));
 
-        // Recursive retry
-        return createOptimizedLazyComponent(importFn, options);
+        // Retry the import
+        return importWithRetry(attempt + 1);
       }
 
+      // All retries exhausted
       throw error;
     }
-  });
+  };
+
+  const LazyComponent = lazy(() => importWithRetry());
 
   return (props: P) => (
     <Suspense fallback={fallback}>

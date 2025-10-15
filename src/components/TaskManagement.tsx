@@ -12,33 +12,24 @@ import {
   UserIcon,
   ClipboardDocumentListIcon
 } from '@heroicons/react/24/solid';
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
   onSnapshot,
-  serverTimestamp 
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
+import { PageContainer, PageContent } from './ui/PageContainer';
+import { Breadcrumb } from './ui/Breadcrumb';
 
 // ============================================================================
 // Styled Components
 // ============================================================================
-
-const Container = styled.div`
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
-`;
-
-const MainContent = styled.div`
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 24px 32px;
-`;
 
 const ActionBar = styled.div`
   display: flex;
@@ -676,9 +667,16 @@ export default function TaskManagement() {
   };
 
   return (
-    <Container>
+    <PageContainer withOverlay={true}>
       <MainNavigation />
-      <MainContent>
+      <PageContent>
+        <Breadcrumb
+          items={[
+            { label: 'Home', path: '/' },
+            { label: 'Tasks' }
+          ]}
+        />
+
         <EnhancedHeader
           title="Product Task Management"
           subtitle={`Manage ${filteredTasks.length} task${filteredTasks.length !== 1 ? 's' : ''} across the complete product development lifecycle`}
@@ -893,7 +891,7 @@ export default function TaskManagement() {
             </Modal>
           </Overlay>
         )}
-      </MainContent>
-    </Container>
+      </PageContent>
+    </PageContainer>
   );
 }

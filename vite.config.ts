@@ -77,7 +77,7 @@ export default defineConfig({
   // Build configuration
   build: {
     outDir: 'build',
-    sourcemap: true,
+    sourcemap: 'hidden', // Generate source maps but don't reference them in production bundles
     // Optimize chunk splitting
     rollupOptions: {
       output: {

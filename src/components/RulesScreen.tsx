@@ -26,6 +26,8 @@ import {
 } from '@heroicons/react/24/solid';
 
 import MainNavigation from '../components/ui/Navigation';
+import { PageContainer, PageContent } from '../components/ui/PageContainer';
+import EnhancedHeader from '../components/ui/EnhancedHeader';
 
 /* ---------- Modern Styled Components ---------- */
 
@@ -1113,45 +1115,34 @@ export default function RulesScreen() {
     }
   };
 
-  return (
-    <Container>
-      <MainNavigation />
-      <MainContent>
-        <HeaderSection>
-          <BackButton onClick={() => navigate(-1)}>
-            <ArrowLeftIcon />
-          </BackButton>
-          <TitleContainer>
-            <TitleIcon>
-              <Cog6ToothIcon />
-            </TitleIcon>
-            <PageTitle>
-              {preselectedCoverageId && selectedCoverageName
-                ? `${selectedCoverageName} Rules`
-                : preselectedProductId
-                ? `${getProductName(preselectedProductId)} Rules`
-                : 'Rules Repository'
-              }
-            </PageTitle>
-          </TitleContainer>
-        </HeaderSection>
+  const pageTitle = preselectedCoverageId && selectedCoverageName
+    ? `${selectedCoverageName} Rules`
+    : preselectedProductId
+    ? `${getProductName(preselectedProductId)} Rules`
+    : 'Rules Repository';
 
-        <SearchContainer>
-          <SearchIcon>
-            <MagnifyingGlassIcon />
-          </SearchIcon>
-          <SearchInput
-            ref={searchRef}
-            placeholder={preselectedCoverageId
+  const productName = preselectedProductId ? getProductName(preselectedProductId) : 'Products';
+
+  return (
+    <PageContainer>
+      <MainNavigation />
+      <PageContent>
+        <EnhancedHeader
+          title={pageTitle}
+          subtitle={`Manage ${filteredRules.length} rule${filteredRules.length !== 1 ? 's' : ''}`}
+          icon={Cog6ToothIcon}
+          showBackButton={!!preselectedProductId || !!preselectedCoverageId}
+          onBackClick={() => navigate(-1)}
+          searchProps={{
+            placeholder: preselectedCoverageId
               ? "Search rules for this coverage..."
               : preselectedProductId
               ? "Search coverage and form rules..."
-              : "Search rules by name, category, condition, or outcome..."
-            }
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </SearchContainer>
+              : "Search rules by name, category, condition, or outcome...",
+            value: searchTerm,
+            onChange: (e) => setSearchTerm(e.target.value)
+          }}
+        />
 
         <FilterContainer>
           <FilterRow>
@@ -1563,7 +1554,7 @@ export default function RulesScreen() {
           </ModalOverlay>
         )}
 
-      </MainContent>
-    </Container>
+      </PageContent>
+    </PageContainer>
   );
 }

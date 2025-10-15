@@ -22,6 +22,8 @@ import { ArrowDownTrayIcon as DownloadIcon20, ArrowUpTrayIcon as UploadIcon20 } 
 
 import { Button } from '../components/ui/Button';
 import MainNavigation from '../components/ui/Navigation';
+import { PageContainer, PageContent } from '../components/ui/PageContainer';
+import EnhancedHeader from '../components/ui/EnhancedHeader';
 import {
   Table,
   THead as TableHead,
@@ -36,6 +38,7 @@ import {
 import styled, { keyframes } from 'styled-components';
 import { TextInput } from '../components/ui/Input';
 import Select from 'react-select';
+import PremiumCalculator from './pricing/PremiumCalculator';
 
 /* ========== MODERN STYLED COMPONENTS ========== */
 
@@ -950,12 +953,12 @@ function PricingScreen() {
 
   if (loading) {
     return (
-      <ModernContainer>
+      <PageContainer>
         <MainNavigation />
-        <MainContent>
+        <PageContent>
           <Spinner />
-        </MainContent>
-      </ModernContainer>
+        </PageContent>
+      </PageContainer>
     );
   }
 
@@ -1480,22 +1483,16 @@ function operandGlyph(op) {
   };
 
   return (
-    <ModernContainer>
+    <PageContainer>
       <MainNavigation />
-      <MainContent>
-        <CoveragePageHeaderSection>
-          <BackButton onClick={() => window.history.back()}>
-            <ArrowLeftIcon />
-          </BackButton>
-          <TitleContainer>
-            <TitleIcon>
-              <CurrencyDollarIcon />
-            </TitleIcon>
-            <CoveragePageTitle>
-              {productName} Pricing
-            </CoveragePageTitle>
-          </TitleContainer>
-        </CoveragePageHeaderSection>
+      <PageContent>
+        <EnhancedHeader
+          title={`${productName} - Pricing`}
+          subtitle={`Manage pricing steps and calculations`}
+          icon={CurrencyDollarIcon}
+          showBackButton
+          onBackClick={() => navigate(-1)}
+        />
         <Card>
           <FiltersBar>
             <FormGroup>
@@ -1573,34 +1570,17 @@ function operandGlyph(op) {
               </FilterWrapper>
             </FormGroup>
 
-            {/* Export/Import Controls moved to same row */}
-            <FormGroup>
-              <label style={{ opacity: 0 }}>Actions</label> {/* Invisible label for alignment */}
-              <div style={{display:'flex',gap:12,alignItems:'center'}}>
-                <ExportBtn onClick={handleExportXLSX}>
-                  <DownloadIcon20 width={16} style={{marginRight:4}}/>Export&nbsp;XLSX
-                </ExportBtn>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xls,.xlsx"
-                  style={{display:'none'}}
-                  onChange={handleImportXLSX}
-                />
-                <Button variant="ghost" onClick={()=>fileInputRef.current?.click()}>
-                  <UploadIcon20 width={16} style={{marginRight:4}}/>Import&nbsp;XLSX
-                </Button>
-              </div>
-            </FormGroup>
+
           </FiltersBar>
 
           {steps.length ? (
             <>
+              <PremiumCalculator
+                steps={filteredSteps}
+                selectedCoverage={selectedCoverage}
+                selectedStates={selectedStates}
+              />
               {renderCalculationPreview()}
-              <PriceBar>
-                <span>Price:</span>
-                <span>${price}</span>
-              </PriceBar>
             </>
           ) : (
             <p style={{ color: '#6B7280' }}>Start by adding a step to build your pricing model.</p>
@@ -1779,8 +1759,8 @@ function operandGlyph(op) {
           </OverlayFixed>
         )}
 
-      </MainContent>
-    </ModernContainer>
+      </PageContent>
+    </PageContainer>
   );
 }
 

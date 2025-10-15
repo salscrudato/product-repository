@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo, useCallback, memo } from 'react'; 
 import styled from 'styled-components';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
+import { PageContainer, PageContent } from './ui/PageContainer';
+import { Breadcrumb } from './ui/Breadcrumb';
 import {
   collection,
   addDoc,
@@ -31,51 +33,16 @@ import ProductCard from './ui/ProductCard';
 import VirtualizedGrid from './ui/VirtualizedGrid';
 import { debounce } from '../utils/performance';
 import { extractPdfText } from '../utils/pdfChunking';
+import LoadingSpinner from './ui/LoadingSpinner';
+import { EmptyState } from './ui/EmptyState';
+import { logAuditEvent } from '../services/auditService';
 
 
-/* ---------- Animations ---------- */
-// float animation removed - unused
+/* ---------- Styled Components ---------- */
 
-/* ---------- Enhanced Desktop-First Styled Components ---------- */
-const Page = styled.div`
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
-  display: flex;
-  flex-direction: column;
-  position: relative;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 300px;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-    opacity: 0.08;
-    z-index: 0;
-  }
-`;
-
-
-
-const MainContent = styled.main`
-  flex: 1;
-  padding: 32px 32px 80px;
-  max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
-  position: relative;
-  z-index: 1;
-
-  @media (max-width: 768px) {
-    padding: 24px 20px 60px;
-  }
-`;
-
-// Unused styled components removed to fix ESLint warnings
-
-const HeaderActionButton = styled.button`
+const HeaderActionButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => !['variant'].includes(prop),
+})<{ variant?: 'primary' | 'secondary' }>`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -169,7 +136,7 @@ const ViewToggle = styled.div`
 
 const ViewToggleButton = styled.button.withConfig({
   shouldForwardProp: (prop) => !['active'].includes(prop),
-})`
+})<{ active?: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -306,59 +273,7 @@ const IconButton = styled.button`
 `;
 
 // AddButton removed - unused styled component
-
-const LoadingSpinner = styled.div`
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(226, 232, 240, 0.3);
-  border-radius: 50%;
-  border-top-color: #6366f1;
-  animation: spin 1s ease-in-out infinite;
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-`;
-
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 80px 20px;
-  color: #64748b;
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  max-width: 600px;
-  margin: 0 auto;
-
-  @media (max-width: 768px) {
-    padding: 60px 20px;
-  }
-`;
-
-const EmptyStateTitle = styled.h3`
-  font-size: 24px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0 0 12px 0;
-  letter-spacing: -0.01em;
-
-  @media (max-width: 768px) {
-    font-size: 20px;
-  }
-`;
-
-const EmptyStateText = styled.p`
-  font-size: 16px;
-  margin: 0;
-  color: #64748b;
-  font-weight: 500;
-
-  @media (max-width: 768px) {
-    font-size: 14px;
-  }
-`;
+// LoadingSpinner and EmptyState now imported from ui components
 
 /* ---------- modal components ---------- */
 const Modal = styled.div`
@@ -964,14 +879,21 @@ const ProductHub = memo(() => {
   }, []);
 
   const handleDelete = useCallback(async (id) => {
-    if (!window.confirm('Delete product?')) return;
+    const product = products.find(p => p.id === id);
+    if (!window.confirm(`Delete product "${product?.name}"? This action cannot be undone.`)) return;
     try {
       await deleteDoc(doc(db, 'products', id));
+
+      // Log audit event
+      await logAuditEvent('DELETE', 'PRODUCT', id, {
+        entityName: product?.name,
+        reason: 'User-initiated deletion'
+      });
     } catch (error) {
       console.error('Delete failed:', error);
       alert('Failed to delete product');
     }
-  }, []);
+  }, [products]);
 
   const handleSummary = async (id, url) => {
     if (!url) {
@@ -1207,36 +1129,43 @@ const ProductHub = memo(() => {
 
   if (loading) {
     return (
-      <Page>
+      <PageContainer withOverlay={true}>
         <MainNavigation />
-        <MainContent>
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
-            <LoadingSpinner style={{ width: '40px', height: '40px' }} />
-          </div>
-        </MainContent>
-      </Page>
+        <PageContent>
+          <LoadingSpinner type="circular" size="40px" />
+        </PageContent>
+      </PageContainer>
     );
   }
 
   if (error) {
     return (
-      <Page>
+      <PageContainer withOverlay={true}>
         <MainNavigation />
-        <MainContent>
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#dc2626' }}>
-            <h3>Error loading products</h3>
-            <p>Please try refreshing the page.</p>
-          </div>
-        </MainContent>
-      </Page>
+        <PageContent>
+          <EmptyState
+            icon={<InformationCircleIcon style={{ width: '48px', height: '48px' }} />}
+            title="Error loading products"
+            description="Please try refreshing the page."
+            variant="default"
+          />
+        </PageContent>
+      </PageContainer>
     );
   }
 
   return (
-    <Page>
+    <PageContainer withOverlay={true}>
       <MainNavigation />
 
-      <MainContent>
+      <PageContent>
+        <Breadcrumb
+          items={[
+            { label: 'Home', path: '/' },
+            { label: 'Products' }
+          ]}
+        />
+
         <EnhancedHeader
           title="Product Hub"
           subtitle={`Explore and manage ${filtered.length} active product line${filtered.length !== 1 ? 's' : ''}`}
@@ -1368,14 +1297,14 @@ const ProductHub = memo(() => {
             </TableContainer>
           )
         ) : (
-          <EmptyState>
-            <EmptyStateTitle>No products found</EmptyStateTitle>
-            <EmptyStateText>
-              {searchTerm ? 'Try adjusting your search terms or use the "Add Product" button above' : 'Get started by clicking "Add Product" above'}
-            </EmptyStateText>
-          </EmptyState>
+          <EmptyState
+            icon={<CubeIcon style={{ width: '48px', height: '48px' }} />}
+            title="No products found"
+            description={searchTerm ? 'Try adjusting your search terms or use the "Add Product" button above' : 'Get started by clicking "Add Product" above'}
+            variant="default"
+          />
         )}
-      </MainContent>
+      </PageContent>
 
       {/* Add/Edit Modal */}
       {modalOpen && (
@@ -1652,7 +1581,7 @@ const ProductHub = memo(() => {
         open={dictModalOpen}
         onClose={() => setDictModalOpen(false)}
       />
-    </Page>
+    </PageContainer>
   );
 });
 

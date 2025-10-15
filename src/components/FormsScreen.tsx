@@ -17,6 +17,8 @@ import {
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
 import MainNavigation from '../components/ui/Navigation';
+import { PageContainer, PageContent } from '../components/ui/PageContainer';
+import EnhancedHeader from '../components/ui/EnhancedHeader';
 import Select from 'react-select';
 
 import {
@@ -1028,18 +1030,18 @@ export default function FormsScreen() {
   /* ---------- render ---------- */
   if (loading) {
     return (
-      <ModernContainer>
+      <PageContainer>
         <MainNavigation />
-        <MainContent><Spinner /></MainContent>
-      </ModernContainer>
+        <PageContent><Spinner /></PageContent>
+      </PageContainer>
     );
   }
   if (error) {
     return (
-      <ModernContainer>
+      <PageContainer>
         <MainNavigation />
-        <MainContent>{error}</MainContent>
-      </ModernContainer>
+        <PageContent>{error}</PageContent>
+      </PageContainer>
     );
   }
 
@@ -1050,28 +1052,24 @@ export default function FormsScreen() {
         ? `Forms for ${productMap[productId]}`
         : 'Forms';
 
-  return (
-    <ModernContainer>
-      <MainNavigation />
-      <MainContent>
-        <HeaderSection>
-          <BackButton onClick={() => window.history.back()}>
-            <ArrowLeftIcon />
-          </BackButton>
-          <TitleContainer>
-            <PageTitle>{title}</PageTitle>
-          </TitleContainer>
-        </HeaderSection>
+  const productName = productId && productMap[productId] ? productMap[productId] : 'Product';
 
-        <SearchContainer>
-          <SearchIcon />
-          <SearchInput
-            placeholder="Search forms by name, number, or category..."
-            ref={searchRef}
-            value={rawSearch}
-            onChange={e => setRawSearch(e.target.value)}
-          />
-        </SearchContainer>
+  return (
+    <PageContainer>
+      <MainNavigation />
+      <PageContent>
+        <EnhancedHeader
+          title={title}
+          subtitle={`Manage ${filteredForms.length} form${filteredForms.length !== 1 ? 's' : ''}`}
+          icon={DocumentTextIcon}
+          showBackButton
+          onBackClick={() => window.history.back()}
+          searchProps={{
+            placeholder: "Search forms by name, number, or category...",
+            value: rawSearch,
+            onChange: (e) => setRawSearch(e.target.value)
+          }}
+        />
 
         {/* Filters Bar */}
         <FiltersBar>
@@ -1630,8 +1628,8 @@ export default function FormsScreen() {
           </OverlayFixed>
         )}
 
-      </MainContent>
-    </ModernContainer>
+      </PageContent>
+    </PageContainer>
   );
 }
 

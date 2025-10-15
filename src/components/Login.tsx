@@ -283,7 +283,6 @@ const MorphingBlob = styled.div<{ $variant: 1 | 2 | 3 }>`
   opacity: 0.8;
   animation: ${({$variant}) => $variant === 1 ? morphBlob1 : $variant === 2 ? morphBlob2 : morphBlob3}
              ${({$variant}) => $variant === 1 ? 20 : $variant === 2 ? 25 : 22}s ease-in-out infinite;
-  will-change: transform, border-radius;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -433,7 +432,6 @@ const MistCloud = styled.div<{ $variant: 1 | 2 | 3 }>`
   animation: ${({$variant}) => $variant === 1 ? mistPulse : $variant === 2 ? mistPulse2 : mistPulse3}
              ${({$variant}) => $variant === 1 ? 8 : $variant === 2 ? 10 : 9}s ease-in-out infinite;
   animation-delay: ${({$variant}) => $variant === 1 ? 0 : $variant === 2 ? 2 : 4}s;
-  will-change: transform, opacity;
   mix-blend-mode: screen;
 
   @media (prefers-reduced-motion: reduce) {
@@ -492,11 +490,11 @@ const NeuralConnection = styled.line<{ $delay: number }>`
 /* ============================== Card ==================================== */
 
 const Card = styled.div`
-  width: 100%; max-width: 480px; padding: 64px 56px 56px;
+  width: 100%; max-width: 420px; padding: 40px 44px 40px;
   background: rgba(4,4,12,.92);
   backdrop-filter: blur(80px) saturate(240%);
   -webkit-backdrop-filter: blur(80px) saturate(240%);
-  border-radius: 40px;
+  border-radius: 32px;
   position: relative; z-index: 10; text-align: center;
   animation: ${fadeInUp} .8s cubic-bezier(0.16, 1, 0.3, 1), ${float} 6s ease-in-out infinite;
   animation-delay: 0s, 1s;
@@ -512,7 +510,7 @@ const Card = styled.div`
 
   /* Animated gradient border - more vibrant and refined */
   &::before{
-    content:''; position:absolute; inset:-2px; border-radius:42px; padding:2px;
+    content:''; position:absolute; inset:-2px; border-radius:34px; padding:2px;
     background: linear-gradient(
       135deg,
       rgba(99,102,241,.9),
@@ -533,7 +531,7 @@ const Card = styled.div`
 
   /* Inner glow effect - enhanced with holographic feel */
   &::after{
-    content:''; position:absolute; inset:0; border-radius:40px;
+    content:''; position:absolute; inset:0; border-radius:32px;
     box-shadow:
       inset 0 3px 0 rgba(255,255,255,.18),
       inset 0 -2px 0 rgba(0,0,0,.6);
@@ -541,8 +539,8 @@ const Card = styled.div`
   }
 
   @media (max-width: 480px){
-    padding: 52px 40px 44px;
-    max-width: 400px;
+    padding: 36px 32px 36px;
+    max-width: 360px;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -554,15 +552,15 @@ const LogoContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 44px;
+  margin-bottom: 28px;
   position: relative;
   opacity: 0;
   animation: ${fadeInUp} 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
 `;
 
 const AILogo = styled.div`
-  width: 96px;
-  height: 96px;
+  width: 72px;
+  height: 72px;
   position: relative;
   display: flex;
   align-items: center;
@@ -573,7 +571,7 @@ const AILogo = styled.div`
   &::before {
     content: '';
     position: absolute;
-    inset: -18px;
+    inset: -14px;
     border-radius: 50%;
     background: radial-gradient(
       circle,
@@ -591,8 +589,8 @@ const AILogo = styled.div`
   &::after {
     content: '';
     position: absolute;
-    width: 76px;
-    height: 76px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
     background: linear-gradient(135deg, #6366f1, #a855f7, #0ea5e9, #6366f1);
     background-size: 300% 300%;
@@ -611,17 +609,17 @@ const AILogo = styled.div`
 `;
 
 const AIIcon = styled.svg`
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   position: relative;
   z-index: 1;
   filter: drop-shadow(0 4px 12px rgba(0,0,0,.6));
 `;
 
 const Title = styled.h1`
-  font-size: 3.6rem;
+  font-size: 2.8rem;
   font-weight: 800;
-  margin: 0 0 16px;
+  margin: 0 0 12px;
   color: #ffffff;
   letter-spacing: -0.04em;
   line-height: 1;
@@ -646,7 +644,7 @@ const Title = styled.h1`
              ${gradientFlow} 8s ease infinite;
 
   @media (max-width: 480px){
-    font-size: 2.8rem;
+    font-size: 2.4rem;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -655,9 +653,9 @@ const Title = styled.h1`
 `;
 
 const Subtitle = styled.p`
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: rgba(255,255,255,.7);
-  margin: 0 0 48px;
+  margin: 0 0 32px;
   font-weight: 600;
   letter-spacing: 0.12em;
   line-height: 1.5;
@@ -703,7 +701,7 @@ const Subtitle = styled.p`
 const Divider = styled.div`
   height: 2px;
   width: 100%;
-  margin: 32px 0;
+  margin: 24px 0;
   position: relative;
 
   &::before {
@@ -754,13 +752,13 @@ const spinGlow = keyframes`
 `;
 
 const LoadingSpinner = styled.div`
-  width: 22px;
-  height: 22px;
-  border: 3px solid rgba(255,255,255,.15);
-  border-top: 3px solid #fff;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255,255,255,.15);
+  border-top: 2.5px solid #fff;
   border-radius: 50%;
   animation: ${spin} 0.8s linear infinite, ${spinGlow} 1.6s ease-in-out infinite;
-  margin-right: 12px;
+  margin-right: 10px;
 
   @media (prefers-reduced-motion: reduce){
     animation: none;
@@ -770,16 +768,16 @@ const LoadingSpinner = styled.div`
 
 const GuestButton = styled.button`
   width: 100%;
-  height: 64px;
-  padding: 0 48px;
+  height: 52px;
+  padding: 0 36px;
   border: none;
-  border-radius: 20px;
+  border-radius: 16px;
   background: linear-gradient(135deg, #6366f1, #8b5cf6, #0ea5e9, #6366f1);
   background-size: 300% 300%;
   color: #ffffff;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  font-size: 0.95rem;
   text-transform: uppercase;
   cursor: pointer;
   transition: all .4s cubic-bezier(0.16, 1, 0.3, 1), letter-spacing .3s ease;
@@ -819,7 +817,7 @@ const GuestButton = styled.button`
     content: '';
     position: absolute;
     inset: -6px;
-    border-radius: 26px;
+    border-radius: 22px;
     background: linear-gradient(135deg, #6366f1, #8b5cf6, #0ea5e9, #6366f1);
     background-size: 300% 300%;
     z-index: -1;
@@ -830,9 +828,9 @@ const GuestButton = styled.button`
   }
 
   &:hover:not(:disabled) {
-    transform: translateY(-5px) scale(1.02);
+    transform: translateY(-4px) scale(1.02);
     background-position: 100% 50%;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.12em;
     box-shadow:
       0 0 0 1px rgba(255,255,255,.35),
       0 20px 50px rgba(99,102,241,.6),
@@ -867,7 +865,7 @@ const RippleContainer = styled.span`
   position: absolute;
   inset: 0;
   overflow: hidden;
-  border-radius: 20px;
+  border-radius: 16px;
   pointer-events: none;
 `;
 
@@ -884,12 +882,12 @@ const Message = styled.div<MessageProps>`
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px 20px;
-  border-radius: 16px;
-  font-size: .95rem;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: .875rem;
   font-weight: 600;
-  margin-top: 24px;
-  min-height: 54px;
+  margin-top: 20px;
+  min-height: 48px;
   animation: ${slideIn} .4s cubic-bezier(0.16, 1, 0.3, 1);
   backdrop-filter: blur(16px);
   position: relative;
@@ -952,10 +950,10 @@ const Particle = styled.div<{ $angle: number; $distance: number; $delay: number 
 `;
 
 const VersionBadge = styled.div`
-  margin-top: 32px;
-  padding-top: 24px;
+  margin-top: 24px;
+  padding-top: 20px;
   border-top: 1px solid rgba(99,102,241,.15);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1117,7 +1115,6 @@ const Login: React.FC = () => {
       <OrganicBackground aria-hidden="true">
         <MorphingBlob $variant={1} />
         <MorphingBlob $variant={2} />
-        <MorphingBlob $variant={3} />
       </OrganicBackground>
 
       {/* Gradient mesh layer */}
@@ -1132,62 +1129,38 @@ const Login: React.FC = () => {
         <Orb $x={85} $y={30} $size={6} $delay={1} $duration={15} />
         <Orb $x={25} $y={70} $size={10} $delay={2} $duration={13} />
         <Orb $x={75} $y={75} $size={7} $delay={3} $duration={14} />
-        <Orb $x={10} $y={50} $size={9} $delay={1.5} $duration={16} />
-        <Orb $x={90} $y={55} $size={8} $delay={2.5} $duration={11} />
         <Orb $x={40} $y={15} $size={6} $delay={0.5} $duration={17} />
-        <Orb $x={60} $y={85} $size={11} $delay={3.5} $duration={12} />
-        <Orb $x={50} $y={10} $size={7} $delay={1.2} $duration={14} />
-        <Orb $x={50} $y={90} $size={9} $delay={2.8} $duration={15} />
-        <Orb $x={20} $y={40} $size={8} $delay={0.8} $duration={13} />
-        <Orb $x={80} $y={60} $size={10} $delay={3.2} $duration={16} />
+        <Orb $x={60} $y={85} $size={9} $delay={2.8} $duration={15} />
       </FloatingOrbs>
 
       {/* Neural Network Layer - Subtle animated network in background */}
       <NeuralNetworkLayer aria-hidden="true">
         <NeuralSVG viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
           {/* Neural connections - lines between nodes */}
-          <NeuralConnection x1="200" y1="150" x2="400" y2="300" $delay={0} />
-          <NeuralConnection x1="400" y1="300" x2="600" y2="200" $delay={0.5} />
-          <NeuralConnection x1="600" y1="200" x2="800" y2="400" $delay={1} />
-          <NeuralConnection x1="800" y1="400" x2="1000" y2="250" $delay={1.5} />
-          <NeuralConnection x1="1000" y1="250" x2="1200" y2="450" $delay={2} />
-          <NeuralConnection x1="1200" y1="450" x2="1400" y2="300" $delay={2.5} />
-          <NeuralConnection x1="1400" y1="300" x2="1600" y2="500" $delay={3} />
-          <NeuralConnection x1="1600" y1="500" x2="1720" y2="350" $delay={3.5} />
+          <NeuralConnection x1="200" y1="150" x2="600" y2="200" $delay={0} />
+          <NeuralConnection x1="600" y1="200" x2="1000" y2="250" $delay={0.5} />
+          <NeuralConnection x1="1000" y1="250" x2="1400" y2="300" $delay={1} />
+          <NeuralConnection x1="1400" y1="300" x2="1720" y2="350" $delay={1.5} />
 
-          <NeuralConnection x1="300" y1="600" x2="500" y2="750" $delay={0.3} />
-          <NeuralConnection x1="500" y1="750" x2="700" y2="650" $delay={0.8} />
-          <NeuralConnection x1="700" y1="650" x2="900" y2="850" $delay={1.3} />
-          <NeuralConnection x1="900" y1="850" x2="1100" y2="700" $delay={1.8} />
-          <NeuralConnection x1="1100" y1="700" x2="1300" y2="900" $delay={2.3} />
-          <NeuralConnection x1="1300" y1="900" x2="1500" y2="750" $delay={2.8} />
-          <NeuralConnection x1="1500" y1="750" x2="1650" y2="850" $delay={3.3} />
+          <NeuralConnection x1="300" y1="600" x2="700" y2="650" $delay={0.3} />
+          <NeuralConnection x1="700" y1="650" x2="1100" y2="700" $delay={0.8} />
+          <NeuralConnection x1="1100" y1="700" x2="1500" y2="750" $delay={1.3} />
 
           {/* Cross connections for network effect */}
           <NeuralConnection x1="200" y1="150" x2="300" y2="600" $delay={0.2} />
-          <NeuralConnection x1="600" y1="200" x2="700" y2="650" $delay={1.2} />
-          <NeuralConnection x1="1000" y1="250" x2="1100" y2="700" $delay={2.2} />
-          <NeuralConnection x1="1400" y1="300" x2="1500" y2="750" $delay={3.2} />
+          <NeuralConnection x1="1000" y1="250" x2="1100" y2="700" $delay={1.2} />
 
           {/* Neural nodes - glowing circles at connection points */}
           <NeuralNode cx="200" cy="150" r="4" $delay={0} />
-          <NeuralNode cx="400" cy="300" r="5" $delay={0.2} />
-          <NeuralNode cx="600" cy="200" r="4" $delay={0.4} />
-          <NeuralNode cx="800" cy="400" r="6" $delay={0.6} />
+          <NeuralNode cx="600" cy="200" r="5" $delay={0.4} />
           <NeuralNode cx="1000" cy="250" r="5" $delay={0.8} />
-          <NeuralNode cx="1200" cy="450" r="4" $delay={1} />
           <NeuralNode cx="1400" cy="300" r="5" $delay={1.2} />
-          <NeuralNode cx="1600" cy="500" r="6" $delay={1.4} />
           <NeuralNode cx="1720" cy="350" r="4" $delay={1.6} />
 
           <NeuralNode cx="300" cy="600" r="5" $delay={0.3} />
-          <NeuralNode cx="500" cy="750" r="4" $delay={0.5} />
-          <NeuralNode cx="700" cy="650" r="6" $delay={0.7} />
-          <NeuralNode cx="900" cy="850" r="5" $delay={0.9} />
+          <NeuralNode cx="700" cy="650" r="5" $delay={0.7} />
           <NeuralNode cx="1100" cy="700" r="4" $delay={1.1} />
-          <NeuralNode cx="1300" cy="900" r="5" $delay={1.3} />
-          <NeuralNode cx="1500" cy="750" r="6" $delay={1.5} />
-          <NeuralNode cx="1650" cy="850" r="4" $delay={1.7} />
+          <NeuralNode cx="1500" cy="750" r="5" $delay={1.5} />
         </NeuralSVG>
       </NeuralNetworkLayer>
 
@@ -1195,7 +1168,6 @@ const Login: React.FC = () => {
       <MistingLayer aria-hidden="true">
         <MistCloud $variant={1} />
         <MistCloud $variant={2} />
-        <MistCloud $variant={3} />
       </MistingLayer>
 
       <Card ref={cardRef} role="region" aria-labelledby="login-title" aria-describedby="login-desc">

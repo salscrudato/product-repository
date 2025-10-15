@@ -6,13 +6,11 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Coverage } from '../../types';
-import { 
-  ClockIcon, 
-  CurrencyDollarIcon, 
+import {
+  ClockIcon,
+  CurrencyDollarIcon,
   ShieldCheckIcon,
-  DocumentTextIcon,
-  ExclamationTriangleIcon,
-  ClipboardDocumentListIcon
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 
 interface CoverageDetailViewProps {
@@ -207,55 +205,7 @@ export const CoverageDetailView: React.FC<CoverageDetailViewProps> = ({ coverage
         </Section>
       )}
 
-      {/* Exclusions */}
-      {coverage.exclusions && coverage.exclusions.length > 0 && (
-        <Section>
-          <SectionTitle>
-            <ExclamationTriangleIcon style={{ width: 20, height: 20 }} />
-            Exclusions ({coverage.exclusions.length})
-          </SectionTitle>
-          <List>
-            {coverage.exclusions.map((exclusion, index) => (
-              <ExclusionItem key={index}>
-                <ExclusionHeader>
-                  <ExclusionName>{exclusion.name}</ExclusionName>
-                  <ExclusionType>{exclusion.type}</ExclusionType>
-                </ExclusionHeader>
-                {exclusion.description && (
-                  <ExclusionDescription>{exclusion.description}</ExclusionDescription>
-                )}
-              </ExclusionItem>
-            ))}
-          </List>
-        </Section>
-      )}
 
-      {/* Conditions */}
-      {coverage.conditions && coverage.conditions.length > 0 && (
-        <Section>
-          <SectionTitle>
-            <ClipboardDocumentListIcon style={{ width: 20, height: 20 }} />
-            Conditions ({coverage.conditions.length})
-          </SectionTitle>
-          <List>
-            {coverage.conditions.map((condition, index) => (
-              <ConditionItem key={index}>
-                <ConditionHeader>
-                  <ConditionName>{condition.name}</ConditionName>
-                  <ConditionBadges>
-                    <ConditionType>{condition.type}</ConditionType>
-                    {condition.isRequired && <RequiredBadge>Required</RequiredBadge>}
-                    {condition.isSuspending && <SuspendingBadge>Suspending</SuspendingBadge>}
-                  </ConditionBadges>
-                </ConditionHeader>
-                {condition.description && (
-                  <ConditionDescription>{condition.description}</ConditionDescription>
-                )}
-              </ConditionItem>
-            ))}
-          </List>
-        </Section>
-      )}
     </Container>
   );
 };
@@ -372,98 +322,5 @@ const WarningBox = styled.div`
   font-weight: 500;
 `;
 
-const ExclusionItem = styled.li`
-  padding: 12px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 6px;
-`;
 
-const ExclusionHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-`;
-
-const ExclusionName = styled.div`
-  font-size: 14px;
-  font-weight: 600;
-  color: #991b1b;
-`;
-
-const ExclusionType = styled.span`
-  padding: 2px 8px;
-  background: #fee2e2;
-  color: #dc2626;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: capitalize;
-`;
-
-const ExclusionDescription = styled.div`
-  font-size: 13px;
-  color: #7f1d1d;
-  margin-top: 4px;
-`;
-
-const ConditionItem = styled.li`
-  padding: 12px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 6px;
-`;
-
-const ConditionHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-`;
-
-const ConditionName = styled.div`
-  font-size: 14px;
-  font-weight: 600;
-  color: #1e40af;
-`;
-
-const ConditionBadges = styled.div`
-  display: flex;
-  gap: 6px;
-`;
-
-const ConditionType = styled.span`
-  padding: 2px 8px;
-  background: #dbeafe;
-  color: #1e40af;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: capitalize;
-`;
-
-const RequiredBadge = styled.span`
-  padding: 2px 8px;
-  background: #fef3c7;
-  color: #d97706;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-`;
-
-const SuspendingBadge = styled.span`
-  padding: 2px 8px;
-  background: #fee2e2;
-  color: #dc2626;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-`;
-
-const ConditionDescription = styled.div`
-  font-size: 13px;
-  color: #1e3a8a;
-  margin-top: 4px;
-`;
 

@@ -13,9 +13,13 @@ import { Button } from './ui/Button';
 import { TextInput } from './ui/Input';
 import { UnifiedAIResponse } from './ui/UnifiedAIResponse';
 import EnhancedHeader from './ui/EnhancedHeader';
+import { PageContainer, PageContent } from './ui/PageContainer';
+import { Breadcrumb } from './ui/Breadcrumb';
 import { processFormsForAnalysis } from '../utils/pdfChunking';
 import { analyzeClaimWithChunking } from '../services/claimsAnalysisService';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
+import LoadingSpinner from './ui/LoadingSpinner';
+import { EmptyState } from './ui/EmptyState';
 
 // Error boundary component for message content
 class MessageErrorBoundary extends React.Component {
@@ -140,17 +144,6 @@ const fadeIn = keyframes`
 `;
 
 /* ---------- Styled Components ---------- */
-const Container = styled.div`
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
-`;
-
-const MainContent = styled.div`
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 32px 24px;
-`;
-
 const ContentGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -476,49 +469,15 @@ const SendButton = styled(Button)`
   }
 `;
 
-const LoadingSpinner = styled.div`
+// LoadingSpinner and EmptyState now imported from ui components
+
+const InlineLoadingSpinner = styled.div`
   border: 3px solid rgba(99, 102, 241, 0.1);
   border-top: 3px solid #6366f1;
   border-radius: 50%;
   width: 20px;
   height: 20px;
   animation: ${spin} 1s linear infinite;
-`;
-
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 40px 20px;
-  color: #64748b;
-`;
-
-const EmptyStateIcon = styled.div`
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 16px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  svg {
-    width: 32px;
-    height: 32px;
-    color: #6366f1;
-  }
-`;
-
-const EmptyStateTitle = styled.h3`
-  font-size: 18px;
-  font-weight: 600;
-  color: #475569;
-  margin: 0 0 8px 0;
-`;
-
-const EmptyStateText = styled.p`
-  font-size: 14px;
-  color: #64748b;
-  margin: 0;
 `;
 
 
@@ -732,21 +691,26 @@ function ClaimsAnalysisComponent() {
 
   if (loading) {
     return (
-      <Container>
+      <PageContainer withOverlay={true}>
         <MainNavigation />
-        <MainContent>
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
-            <LoadingSpinner />
-          </div>
-        </MainContent>
-      </Container>
+        <PageContent>
+          <LoadingSpinner type="circular" size="40px" />
+        </PageContent>
+      </PageContainer>
     );
   }
 
   return (
-    <Container>
+    <PageContainer withOverlay={true}>
       <MainNavigation />
-      <MainContent>
+      <PageContent>
+        <Breadcrumb
+          items={[
+            { label: 'Home', path: '/' },
+            { label: 'Claims Analysis' }
+          ]}
+        />
+
         <EnhancedHeader
           title="Claims Analysis"
           subtitle="AI-powered claim coverage determination with form analysis"
@@ -816,15 +780,12 @@ function ClaimsAnalysisComponent() {
               <ChatContainer>
                 <MessagesArea>
                   {messages.length === 0 ? (
-                    <EmptyState>
-                      <EmptyStateIcon>
-                        <ChatBubbleLeftRightIcon />
-                      </EmptyStateIcon>
-                      <EmptyStateTitle>Ready to Analyze Claims</EmptyStateTitle>
-                      <EmptyStateText>
-                        Select a form and describe a claim scenario to get started.
-                      </EmptyStateText>
-                    </EmptyState>
+                    <EmptyState
+                      icon={<ChatBubbleLeftRightIcon style={{ width: '48px', height: '48px' }} />}
+                      title="Ready to Analyze Claims"
+                      description="Select a form and describe a claim scenario to get started."
+                      variant="compact"
+                    />
                   ) : (
                     Array.isArray(messages) && messages.map((message, index) => {
                       if (!message || typeof message !== 'object') return null;
@@ -853,7 +814,7 @@ function ClaimsAnalysisComponent() {
                       <MessageHeader>Claims Analyst AI</MessageHeader>
                       <MessageContent>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <LoadingSpinner />
+                          <InlineLoadingSpinner />
                           Analyzing claim against selected form...
                         </div>
                       </MessageContent>
@@ -878,15 +839,15 @@ function ClaimsAnalysisComponent() {
                     onClick={handleSendMessage}
                     disabled={!inputValue.trim() || !selectedForm || isAnalyzing}
                   >
-                    {isAnalyzing ? <LoadingSpinner /> : <PaperAirplaneIcon />}
+                    {isAnalyzing ? <InlineLoadingSpinner /> : <PaperAirplaneIcon />}
                   </SendButton>
                 </InputArea>
               </ChatContainer>
             </PanelContent>
           </Panel>
         </ContentGrid>
-      </MainContent>
-    </Container>
+      </PageContent>
+    </PageContainer>
   );
 }
 

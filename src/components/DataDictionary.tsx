@@ -12,6 +12,8 @@ import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
+import { PageContainer, PageContent } from './ui/PageContainer';
+import { Breadcrumb } from './ui/Breadcrumb';
 import {
   Squares2X2Icon,
   TableCellsIcon,
@@ -21,25 +23,6 @@ import {
 import styled from 'styled-components';
 
 /* ---------- styled components ---------- */
-// Container - Clean gradient background matching other pages
-const Container = styled.div`
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
-  position: relative;
-`;
-
-// Main Content - Modern layout
-const MainContent = styled.div`
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 32px 24px;
-  position: relative;
-  z-index: 1;
-`;
-
-
-
-// Unused styled components removed to fix ESLint warnings
 
 // Action Bar
 const ActionBar = styled.div`
@@ -336,9 +319,16 @@ export default function DataDictionary() {
   }, [rows, searchQuery]);
 
   return (
-    <Container>
+    <PageContainer withOverlay={true}>
       <MainNavigation />
-      <MainContent>
+      <PageContent>
+        <Breadcrumb
+          items={[
+            { label: 'Home', path: '/' },
+            { label: 'Data Dictionary' }
+          ]}
+        />
+
         <EnhancedHeader
           title="Data Dictionary"
           subtitle={`Manage and organize ${rows.length} data definitions and mappings`}
@@ -488,7 +478,7 @@ export default function DataDictionary() {
             {searchQuery ? 'No entries match your search.' : 'No data dictionary entries yet.'}
           </div>
         )}
-      </MainContent>
-    </Container>
+      </PageContent>
+    </PageContainer>
   );
 }

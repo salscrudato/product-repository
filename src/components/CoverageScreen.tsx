@@ -23,10 +23,10 @@ import { useCoverageDeductibles } from '../hooks/useCoverageDeductibles';
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
 import MainNavigation from '../components/ui/Navigation';
+import { PageContainer, PageContent } from '../components/ui/PageContainer';
+import EnhancedHeader from '../components/ui/EnhancedHeader';
 import { LimitsModal } from '../components/modals/LimitsModal';
 import { DeductiblesModal } from '../components/modals/DeductiblesModal';
-import { ExclusionsModal } from '../components/modals/ExclusionsModal';
-import { ConditionsModal } from '../components/modals/ConditionsModal';
 import { CoverageFormModal } from '../components/modals/CoverageFormModal';
 
 import styled, { keyframes } from 'styled-components';
@@ -51,9 +51,7 @@ import {
   MapIcon,
   Squares2X2Icon,
   ArrowLeftIcon,
-  Cog6ToothIcon,
-  ExclamationTriangleIcon,
-  ClipboardDocumentListIcon
+  Cog6ToothIcon
 } from '@heroicons/react/24/solid';
 
 /* ---------- styled components ---------- */
@@ -147,40 +145,6 @@ const TitleIcon = styled.div`
   svg {
     width: 16px;
     height: 16px;
-  }
-`;
-
-// Breadcrumb navigation - Modern design (unused)
-// eslint-disable-next-line no-unused-vars
-const Breadcrumb = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #64748b;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  padding: 12px 20px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  width: fit-content;
-
-  a {
-    color: #6366f1;
-    text-decoration: none;
-    font-weight: 500;
-    transition: all 0.2s ease;
-
-    &:hover {
-      color: #4f46e5;
-      text-decoration: underline;
-    }
-  }
-
-  span {
-    color: #94a3b8;
-    font-weight: 400;
   }
 `;
 
@@ -1051,8 +1015,6 @@ export default function CoverageScreen() {
 
   const [limitModalOpen, setLimitModalOpen] = useState(false);
   const [deductibleModalOpen, setDeductibleModalOpen] = useState(false);
-  const [exclusionsModalOpen, setExclusionsModalOpen] = useState(false);
-  const [conditionsModalOpen, setConditionsModalOpen] = useState(false);
   const [currentCoverage, setCurrentCoverage] = useState(null);
   const [limitData, setLimitData] = useState([]);
   const [deductibleData, setDeductibleData] = useState([]);
@@ -1167,15 +1129,7 @@ export default function CoverageScreen() {
     setLinkFormsModalOpen(true);
   };
 
-  const openExclusionsModal = c => {
-    setCurrentCoverage(c);
-    setExclusionsModalOpen(true);
-  };
 
-  const openConditionsModal = c => {
-    setCurrentCoverage(c);
-    setConditionsModalOpen(true);
-  };
 
   // Filter forms based on search query
   const filteredForms = useMemo(() => {
@@ -1272,37 +1226,7 @@ export default function CoverageScreen() {
     setDeductibleModalOpen(false);
   };
 
-  // Save exclusions
-  const saveExclusions = async (exclusions) => {
-    if (!currentCoverage) return;
-    try {
-      await updateDoc(
-        doc(db, `products/${productId}/coverages`, currentCoverage.id),
-        { exclusions }
-      );
-      await reloadCoverages();
-      setExclusionsModalOpen(false);
-    } catch (error) {
-      console.error('Error saving exclusions:', error);
-      alert('Failed to save exclusions: ' + error.message);
-    }
-  };
 
-  // Save conditions
-  const saveConditions = async (conditions) => {
-    if (!currentCoverage) return;
-    try {
-      await updateDoc(
-        doc(db, `products/${productId}/coverages`, currentCoverage.id),
-        { conditions }
-      );
-      await reloadCoverages();
-      setConditionsModalOpen(false);
-    } catch (error) {
-      console.error('Error saving conditions:', error);
-      alert('Failed to save conditions: ' + error.message);
-    }
-  };
 
   // Add or update coverage
   const handleAddOrUpdate = async () => {
@@ -1349,64 +1273,49 @@ export default function CoverageScreen() {
   /* ---------- render guards ---------- */
   if (coveragesLoading || metaLoading) {
     return (
-      <Container>
+      <PageContainer>
         <MainNavigation />
-        <MainContent>
+        <PageContent>
           <LoadingContainer>
             <Spinner />
           </LoadingContainer>
-        </MainContent>
-      </Container>
+        </PageContent>
+      </PageContainer>
     );
   }
 
   if (coveragesError) {
     return (
-      <Container>
+      <PageContainer>
         <MainNavigation />
-        <MainContent>
+        <PageContent>
           <EmptyState>
             <EmptyStateTitle>Error Loading Coverages</EmptyStateTitle>
             <EmptyStateText>There was an error loading the coverage data. Please try refreshing the page.</EmptyStateText>
             <Button onClick={() => window.location.reload()}>Refresh Page</Button>
           </EmptyState>
-        </MainContent>
-      </Container>
+        </PageContent>
+      </PageContainer>
     );
   }
 
   /* ---------- UI ---------- */
   return (
-    <Container>
+    <PageContainer>
       <MainNavigation />
-      <MainContent>
-        <HeaderSection>
-          <BackButton onClick={() => window.history.back()}>
-            <ArrowLeftIcon />
-          </BackButton>
-          <TitleContainer>
-            <TitleIcon>
-              <ShieldCheckIcon />
-            </TitleIcon>
-            <PageTitle>
-              {parentCoverageId ? (
-                <>
-                  {parentCoverageName} Coverages
-                </>
-              ) : `${productName} Coverages`}
-            </PageTitle>
-          </TitleContainer>
-        </HeaderSection>
-
-        <SearchContainer>
-          <SearchIcon />
-          <SearchInput
-            placeholder="Search coverages by name, code, or category..."
-            ref={searchRef}
-            value={rawSearch}
-            onChange={e => setRawSearch(e.target.value)}
-          />
-        </SearchContainer>
+      <PageContent>
+        <EnhancedHeader
+          title={parentCoverageId ? `${parentCoverageName} Coverages` : `${productName} - Coverages`}
+          subtitle={`Manage ${filteredTreeStructure.parentCoverages.length} coverage option${filteredTreeStructure.parentCoverages.length !== 1 ? 's' : ''}`}
+          icon={ShieldCheckIcon}
+          showBackButton
+          onBackClick={() => navigate(-1)}
+          searchProps={{
+            placeholder: "Search coverages...",
+            value: searchQuery,
+            onChange: (e) => setSearchQuery(e.target.value)
+          }}
+        />
 
         {/* Coverages Display */}
         {filteredTreeStructure.parentCoverages.length > 0 ? (
@@ -1469,14 +1378,6 @@ export default function CoverageScreen() {
                               <CurrencyDollarIcon />
                               Deductibles {parent.deductibles?.length ? `(${parent.deductibles.length})` : '(0)'}
                             </MetricItem>
-                            <MetricItem onClick={() => openExclusionsModal(parent)}>
-                              <ExclamationTriangleIcon />
-                              Exclusions {parent.exclusions?.length ? `(${parent.exclusions.length})` : '(0)'}
-                            </MetricItem>
-                            <MetricItem onClick={() => openConditionsModal(parent)}>
-                              <ClipboardDocumentListIcon />
-                              Conditions {parent.conditions?.length ? `(${parent.conditions.length})` : '(0)'}
-                            </MetricItem>
                             <MetricItem as={RouterLink} to={`/coverage-states/${productId}/${parent.id}`}>
                               <MapIcon />
                               States {parent.states?.length ? `(${parent.states.length})` : '(0)'}
@@ -1533,14 +1434,6 @@ export default function CoverageScreen() {
                                 <MetricItem onClick={() => openDeductibleModal(child)}>
                                   <CurrencyDollarIcon />
                                   Deductibles {child.deductibles?.length ? `(${child.deductibles.length})` : '(0)'}
-                                </MetricItem>
-                                <MetricItem onClick={() => openExclusionsModal(child)}>
-                                  <ExclamationTriangleIcon />
-                                  Exclusions {child.exclusions?.length ? `(${child.exclusions.length})` : '(0)'}
-                                </MetricItem>
-                                <MetricItem onClick={() => openConditionsModal(child)}>
-                                  <ClipboardDocumentListIcon />
-                                  Conditions {child.conditions?.length ? `(${child.conditions.length})` : '(0)'}
                                 </MetricItem>
                                 <MetricItem as={RouterLink} to={`/coverage-states/${productId}/${child.id}`}>
                                   <MapIcon />
@@ -1679,26 +1572,6 @@ export default function CoverageScreen() {
           />
         )}
 
-        {/* ----- Exclusions Modal ----- */}
-        {exclusionsModalOpen && currentCoverage && (
-          <ExclusionsModal
-            isOpen={exclusionsModalOpen}
-            onClose={() => setExclusionsModalOpen(false)}
-            exclusions={currentCoverage.exclusions || []}
-            onSave={saveExclusions}
-          />
-        )}
-
-        {/* ----- Conditions Modal ----- */}
-        {conditionsModalOpen && currentCoverage && (
-          <ConditionsModal
-            isOpen={conditionsModalOpen}
-            onClose={() => setConditionsModalOpen(false)}
-            conditions={currentCoverage.conditions || []}
-            onSave={saveConditions}
-          />
-        )}
-
         {/* ----- Add / Edit Coverage Modal (Enhanced) ----- */}
         {addModalOpen && (
           <CoverageFormModal
@@ -1754,8 +1627,8 @@ export default function CoverageScreen() {
           />
         )}
 
-      </MainContent>
-    </Container>
+      </PageContent>
+    </PageContainer>
   );
 }
 

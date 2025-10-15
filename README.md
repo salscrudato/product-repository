@@ -41,11 +41,11 @@ src/
 │   ├── TaskManagement.tsx
 │   ├── ClaimsAnalysis.tsx
 │   ├── DataDictionary.tsx
+│   ├── InsuranceNews.tsx  # Real-time P&C news feed
 │   └── ...
 ├── hooks/              # Custom React hooks
 │   ├── useProducts.ts
 │   ├── useCoverages.ts
-│   ├── useNews.ts
 │   └── ...
 ├── services/           # Business logic & API services
 │   ├── firebaseOptimized.ts
@@ -80,7 +80,7 @@ src/
 
 ### AI-Powered Features
 - Intelligent product assistant on home page
-- AI-enhanced news analysis
+- Real-time P&C insurance industry news feed
 - Task summarization and insights
 - Natural language queries across all data
 

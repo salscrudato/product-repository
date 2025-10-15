@@ -5,6 +5,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { FaUser, FaCog, FaSignOutAlt } from 'react-icons/fa';
 import logger, { LOG_CATEGORIES } from '../../utils/logger';
+import { Tooltip } from './Tooltip';
 
 /* ---------- animations ---------- */
 const slideDown = keyframes`
@@ -412,85 +413,85 @@ export default function MainNavigation() {
       <Navigation>
         <NavList>
           <NavItem>
-            <NavLink
-              to="/"
-              className={location.pathname === '/' ? 'active' : ''}
-            >
-              Home
-            </NavLink>
+            <Tooltip content="AI-powered product assistant and insights dashboard" position="bottom">
+              <NavLink
+                to="/"
+                className={location.pathname === '/' ? 'active' : ''}
+              >
+                Home
+              </NavLink>
+            </Tooltip>
           </NavItem>
           <NavItem>
-            <NavLink
-              to="/products"
-              className={location.pathname === '/products' ? 'active' : ''}
-            >
-              Products
-            </NavLink>
+            <Tooltip content="Manage insurance products, coverages, and forms" position="bottom">
+              <NavLink
+                to="/products"
+                className={location.pathname === '/products' ? 'active' : ''}
+              >
+                Products
+              </NavLink>
+            </Tooltip>
           </NavItem>
           <NavItem>
-            <NavLink
-              to="/product-builder"
-              className={location.pathname.startsWith('/product-builder') ? 'active' : ''}
-            >
-              Builder
-            </NavLink>
+            <Tooltip content="Build new insurance products with AI assistance" position="bottom">
+              <NavLink
+                to="/product-builder"
+                className={location.pathname.startsWith('/product-builder') ? 'active' : ''}
+              >
+                Builder
+              </NavLink>
+            </Tooltip>
           </NavItem>
           <NavItem>
-            <NavLink
-              to="/product-explorer"
-              className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}
-            >
-              Explorer
-            </NavLink>
-          </NavItem>
-          {/* <NavItem>
-            <NavLink
-              to="/rules"
-              className={location.pathname === '/rules' ? 'active' : ''}
-            >
-              Rules
-            </NavLink>
-          </NavItem> */}
-          <NavItem>
-            <NavLink
-              to="/tasks"
-              className={location.pathname === '/tasks' ? 'active' : ''}
-            >
-              Tasks
-            </NavLink>
+            <Tooltip content="Explore product hierarchies and relationships" position="bottom">
+              <NavLink
+                to="/product-explorer"
+                className={location.pathname.startsWith('/product-explorer') ? 'active' : ''}
+              >
+                Explorer
+              </NavLink>
+            </Tooltip>
           </NavItem>
           <NavItem>
-            <NavLink
-              to="/news"
-              className={location.pathname === '/news' ? 'active' : ''}
-            >
-              News
-            </NavLink>
+            <Tooltip content="Manage workflow tasks and assignments" position="bottom">
+              <NavLink
+                to="/tasks"
+                className={location.pathname === '/tasks' ? 'active' : ''}
+              >
+                Tasks
+              </NavLink>
+            </Tooltip>
           </NavItem>
           <NavItem>
-            <NavLink
-              to="/data-dictionary"
-              className={location.pathname === '/data-dictionary' ? 'active' : ''}
-            >
-              Data Dictionary
-            </NavLink>
+            <Tooltip content="Real-time P&C insurance industry news and updates" position="bottom">
+              <NavLink
+                to="/news"
+                className={location.pathname === '/news' ? 'active' : ''}
+              >
+                News
+              </NavLink>
+            </Tooltip>
           </NavItem>
           <NavItem>
-            <NavLink
-              to="/claims-analysis"
-              className={location.pathname === '/claims-analysis' ? 'active' : ''}
-            >
-              Claims Analysis
-            </NavLink>
+            <Tooltip content="Browse insurance terminology and definitions" position="bottom">
+              <NavLink
+                to="/data-dictionary"
+                className={location.pathname === '/data-dictionary' ? 'active' : ''}
+              >
+                Data Dictionary
+              </NavLink>
+            </Tooltip>
           </NavItem>
-          {/* <NavItem>
-            <NavLink
-              to="/agent-demo"
-              className={location.pathname === '/agent-demo' ? 'active' : ''}
-            >
-              🤖 Agent Demo
-            </NavLink>
-          </NavItem> */}
+          <NavItem>
+            <Tooltip content="Analyze claims data and policy coverage" position="bottom">
+              <NavLink
+                to="/claims-analysis"
+                className={location.pathname === '/claims-analysis' ? 'active' : ''}
+              >
+                Claims Analysis
+              </NavLink>
+            </Tooltip>
+          </NavItem>
         </NavList>
 
         <ProfileSection data-profile-menu>

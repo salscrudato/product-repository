@@ -14,7 +14,10 @@ import {
 } from 'firebase/firestore';
 import { Functions, getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { FirebaseStorage, getStorage, connectStorageEmulator } from 'firebase/storage';
-import env from './config/env';
+import env, { validateEnvironment } from './config/env';
+
+// Validate environment variables before initialization
+validateEnvironment();
 
 // Firebase configuration
 interface FirebaseConfig {

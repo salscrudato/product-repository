@@ -1,6 +1,6 @@
 import React from 'react';
 import styled, { keyframes } from 'styled-components';
-import { MagnifyingGlassIcon, ArrowUpIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, ArrowUpIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 /* ---------- Animations ---------- */
 const spin = keyframes`
@@ -10,6 +10,38 @@ const spin = keyframes`
 `;
 
 /* ---------- Enhanced Header Components ---------- */
+const BackButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  margin-bottom: 16px;
+  align-self: flex-start;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.2);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
 const HeaderSection = styled.section`
   width: 100%;
   padding: 24px 32px;
@@ -260,17 +292,47 @@ const LoadingSpinner = styled.div`
 `;
 
 /* ---------- Main Component ---------- */
-const EnhancedHeader = ({
+interface EnhancedHeaderProps {
+  title: string;
+  subtitle?: string;
+  icon?: React.ComponentType;
+  contextInfo?: Array<{type: 'badge' | 'count', text: string, icon?: React.ComponentType}>;
+  searchProps?: {
+    placeholder: string;
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onKeyPress?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+    onSearch?: () => void;
+    disabled?: boolean;
+    isLoading?: boolean;
+  } | null;
+  showBackButton?: boolean;
+  onBackClick?: () => void;
+  backButtonLabel?: string;
+  children?: React.ReactNode;
+}
+
+const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
   title,
   subtitle,
   icon: Icon,
   contextInfo = [],
   searchProps = null,
+  showBackButton = false,
+  onBackClick,
+  backButtonLabel = 'Back',
   children
 }) => {
   return (
     <HeaderSection>
       <HeaderContent>
+        {showBackButton && onBackClick && (
+          <BackButton onClick={onBackClick}>
+            <ArrowLeftIcon />
+            {backButtonLabel}
+          </BackButton>
+        )}
+
         <TitleGroup>
           {Icon && (
             <IconTitleGroup>
