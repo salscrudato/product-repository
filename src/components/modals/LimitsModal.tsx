@@ -9,6 +9,7 @@ import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { CoverageLimit } from '../../types';
 import { useCoverageLimits } from '../../hooks/useCoverageLimits';
 import { LimitTypeSelector } from '../selectors/LimitTypeSelector';
+import { validateCoverageLimit, formatValidationErrors } from '../../utils/coverageValidation';
 
 interface LimitsModalProps {
   isOpen: boolean;
@@ -37,6 +38,23 @@ export const LimitsModal: React.FC<LimitsModalProps> = ({
     if (!editingLimit || !editingLimit.limitType || !editingLimit.amount) {
       alert('Please select a limit type and enter an amount');
       return;
+    }
+
+    // Validate the limit
+    const validationResult = validateCoverageLimit(editingLimit);
+    if (!validationResult.isValid) {
+      alert('Validation errors:\n\n' + formatValidationErrors(validationResult));
+      return;
+    }
+
+    // Show warnings but allow save
+    if (validationResult.warnings.length > 0) {
+      const proceed = window.confirm(
+        'Warnings:\n\n' +
+        validationResult.warnings.map(w => `• ${w.message}`).join('\n') +
+        '\n\nDo you want to proceed anyway?'
+      );
+      if (!proceed) return;
     }
 
     try {

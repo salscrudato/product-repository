@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Coverage } from '../../types';
+import { validateCoverage, formatValidationErrors } from '../../utils/coverageValidation';
 import { CoverageTriggerSelector } from '../selectors/CoverageTriggerSelector';
 import { WaitingPeriodInput } from '../inputs/WaitingPeriodInput';
 import { ValuationMethodSelector } from '../selectors/ValuationMethodSelector';
@@ -35,6 +36,8 @@ export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
   const [formData, setFormData] = useState<Partial<Coverage>>(coverage || {});
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'basic' | 'triggers' | 'valuation' | 'underwriting' | 'claims' | 'territory'>('basic');
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     if (coverage) {
@@ -45,6 +48,27 @@ export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
   if (!isOpen) return null;
 
   const handleSave = async () => {
+    // Validate before saving
+    const validationResult = validateCoverage(formData);
+
+    if (!validationResult.isValid) {
+      setValidationErrors(validationResult.errors.map(e => e.message));
+      setValidationWarnings(validationResult.warnings.map(w => w.message));
+      alert('Please fix validation errors before saving:\n\n' + formatValidationErrors(validationResult));
+      return;
+    }
+
+    // Show warnings but allow save
+    if (validationResult.warnings.length > 0) {
+      setValidationWarnings(validationResult.warnings.map(w => w.message));
+      const proceed = window.confirm(
+        'There are warnings about this coverage:\n\n' +
+        validationResult.warnings.map(w => `• ${w.message}`).join('\n') +
+        '\n\nDo you want to proceed anyway?'
+      );
+      if (!proceed) return;
+    }
+
     setSaving(true);
     try {
       await onSave(formData);
@@ -58,6 +82,9 @@ export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
 
   const updateField = (field: keyof Coverage, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear validation errors when user makes changes
+    setValidationErrors([]);
+    setValidationWarnings([]);
   };
 
   return (
@@ -90,6 +117,26 @@ export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
             Territory & Endorsements
           </Tab>
         </TabBar>
+
+        {/* Validation Errors */}
+        {validationErrors.length > 0 && (
+          <ValidationErrorBox>
+            <ValidationErrorTitle>⚠️ Validation Errors</ValidationErrorTitle>
+            {validationErrors.map((error, index) => (
+              <ValidationErrorItem key={index}>• {error}</ValidationErrorItem>
+            ))}
+          </ValidationErrorBox>
+        )}
+
+        {/* Validation Warnings */}
+        {validationWarnings.length > 0 && validationErrors.length === 0 && (
+          <ValidationWarningBox>
+            <ValidationWarningTitle>ℹ️ Warnings</ValidationWarningTitle>
+            {validationWarnings.map((warning, index) => (
+              <ValidationWarningItem key={index}>• {warning}</ValidationWarningItem>
+            ))}
+          </ValidationWarningBox>
+        )}
 
         <Content>
           {activeTab === 'basic' && (
@@ -496,6 +543,48 @@ const InfoText = styled.div`
   font-size: 13px;
   color: #1e3a8a;
   line-height: 1.5;
+`;
+
+const ValidationErrorBox = styled.div`
+  background: #fef2f2;
+  border: 2px solid #dc2626;
+  border-radius: 6px;
+  padding: 16px;
+  margin: 0 24px;
+`;
+
+const ValidationErrorTitle = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #991b1b;
+  margin-bottom: 8px;
+`;
+
+const ValidationErrorItem = styled.div`
+  font-size: 13px;
+  color: #7f1d1d;
+  margin-bottom: 4px;
+`;
+
+const ValidationWarningBox = styled.div`
+  background: #fef3c7;
+  border: 2px solid #f59e0b;
+  border-radius: 6px;
+  padding: 16px;
+  margin: 0 24px;
+`;
+
+const ValidationWarningTitle = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 8px;
+`;
+
+const ValidationWarningItem = styled.div`
+  font-size: 13px;
+  color: #78350f;
+  margin-bottom: 4px;
 `;
 
 const Footer = styled.div`

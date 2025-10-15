@@ -9,6 +9,7 @@ import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { CoverageDeductible } from '../../types';
 import { useCoverageDeductibles } from '../../hooks/useCoverageDeductibles';
 import { DeductibleTypeSelector } from '../selectors/DeductibleTypeSelector';
+import { validateCoverageDeductible, formatValidationErrors } from '../../utils/coverageValidation';
 
 interface DeductiblesModalProps {
   isOpen: boolean;
@@ -47,6 +48,23 @@ export const DeductiblesModal: React.FC<DeductiblesModalProps> = ({
     if (editingDeductible.deductibleType !== 'percentage' && !editingDeductible.amount) {
       alert('Please enter an amount');
       return;
+    }
+
+    // Validate the deductible
+    const validationResult = validateCoverageDeductible(editingDeductible);
+    if (!validationResult.isValid) {
+      alert('Validation errors:\n\n' + formatValidationErrors(validationResult));
+      return;
+    }
+
+    // Show warnings but allow save
+    if (validationResult.warnings.length > 0) {
+      const proceed = window.confirm(
+        'Warnings:\n\n' +
+        validationResult.warnings.map(w => `• ${w.message}`).join('\n') +
+        '\n\nDo you want to proceed anyway?'
+      );
+      if (!proceed) return;
     }
 
     try {
