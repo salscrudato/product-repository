@@ -1,12 +1,12 @@
 # Coverage Data Model Enhancement - Implementation Status
 
-**Last Updated:** 2025-10-15  
-**Commit:** `c3edd98`  
-**Overall Progress:** 40% Complete (43/107 tasks)
+**Last Updated:** 2025-10-15
+**Commit:** `4a3f251`
+**Overall Progress:** 44% Complete (47/107 tasks)
 
 ---
 
-## ✅ Completed Tasks (43 tasks)
+## ✅ Completed Tasks (47 tasks)
 
 ### Phase 1: Critical Fixes - Type Definitions & Infrastructure
 
@@ -45,6 +45,14 @@
 - [x] Create useCoverageLimits hook
 - [x] Create useCoverageDeductibles hook
 
+#### UI Components - Modals (2 tasks) ✅ COMPLETE
+- [x] Create ExclusionsModal component
+- [x] Create ConditionsModal component
+
+#### UI Components - Selectors (2 tasks) ✅ COMPLETE
+- [x] Create LimitTypeSelector component
+- [x] Create DeductibleTypeSelector component
+
 #### Migration Scripts (7 tasks) ✅ COMPLETE
 - [x] Create migration script file
 - [x] Implement limits migration logic
@@ -63,20 +71,16 @@
 
 ---
 
-## 🚧 In Progress / Remaining Tasks (64 tasks)
+## 🚧 In Progress / Remaining Tasks (60 tasks)
 
-### Phase 1: Critical Fixes - UI Components (17 tasks remaining)
+### Phase 1: Critical Fixes - UI Components (13 tasks remaining)
 
-#### Limits & Deductibles UI (5 tasks)
+#### Limits & Deductibles UI (3 tasks)
 - [ ] Update CoverageScreen limits modal
 - [ ] Update CoverageScreen deductibles modal
-- [ ] Add limit type selector UI component
-- [ ] Add deductible type selector UI component
 - [ ] Update coverage card metrics display
 
-#### Exclusions & Conditions UI (6 tasks)
-- [ ] Create ExclusionsModal component
-- [ ] Create ConditionsModal component
+#### Exclusions & Conditions UI (4 tasks)
 - [ ] Add Exclusions MetricItem to coverage cards
 - [ ] Add Conditions MetricItem to coverage cards
 - [ ] Create exclusions display component
@@ -169,6 +173,10 @@
 3. ✅ `src/hooks/useCoverageDeductibles.ts` - Custom hook for deductibles management
 4. ✅ `scripts/migrateLimitsDeductibles.ts` - Migration script with dry-run
 5. ✅ `scripts/rollbackLimitsDeductibles.ts` - Rollback script with safety
+6. ✅ `src/components/modals/ExclusionsModal.tsx` - Full CRUD modal for exclusions
+7. ✅ `src/components/modals/ConditionsModal.tsx` - Full CRUD modal for conditions
+8. ✅ `src/components/selectors/LimitTypeSelector.tsx` - Limit type selector with auto-formatting
+9. ✅ `src/components/selectors/DeductibleTypeSelector.tsx` - Deductible type selector with conditional fields
 
 ### Documentation Files
 1. ✅ `COVERAGE_DATA_MODEL_ANALYSIS.md` - Complete analysis (753 lines)
@@ -222,11 +230,11 @@
 
 | Phase | Total Tasks | Completed | Remaining | Progress |
 |-------|-------------|-----------|-----------|----------|
-| **Phase 1** | 34 | 26 | 8 | 76% |
+| **Phase 1** | 34 | 30 | 4 | 88% |
 | **Phase 2** | 33 | 0 | 33 | 0% |
 | **Phase 3** | 24 | 0 | 24 | 0% |
 | **Phase 4** | 16 | 0 | 16 | 0% |
-| **TOTAL** | **107** | **43** | **64** | **40%** |
+| **TOTAL** | **107** | **47** | **60** | **44%** |
 
 ---
 
