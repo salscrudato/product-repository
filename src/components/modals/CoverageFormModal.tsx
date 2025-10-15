@@ -12,6 +12,10 @@ import { WaitingPeriodInput } from '../inputs/WaitingPeriodInput';
 import { ValuationMethodSelector } from '../selectors/ValuationMethodSelector';
 import { CoinsuranceInput } from '../inputs/CoinsuranceInput';
 import { DepreciationMethodSelector } from '../selectors/DepreciationMethodSelector';
+import { UnderwritingSection } from '../sections/UnderwritingSection';
+import { ClaimsSection } from '../sections/ClaimsSection';
+import { TerritorySelector } from '../selectors/TerritorySelector';
+import { EndorsementMetadataSection } from '../sections/EndorsementMetadataSection';
 
 interface CoverageFormModalProps {
   isOpen: boolean;
@@ -30,7 +34,7 @@ export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<Partial<Coverage>>(coverage || {});
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'basic' | 'triggers' | 'valuation'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'triggers' | 'valuation' | 'underwriting' | 'claims' | 'territory'>('basic');
 
   useEffect(() => {
     if (coverage) {
@@ -75,6 +79,15 @@ export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
           </Tab>
           <Tab active={activeTab === 'valuation'} onClick={() => setActiveTab('valuation')}>
             Valuation & Coinsurance
+          </Tab>
+          <Tab active={activeTab === 'underwriting'} onClick={() => setActiveTab('underwriting')}>
+            Underwriting
+          </Tab>
+          <Tab active={activeTab === 'claims'} onClick={() => setActiveTab('claims')}>
+            Claims
+          </Tab>
+          <Tab active={activeTab === 'territory'} onClick={() => setActiveTab('territory')}>
+            Territory & Endorsements
           </Tab>
         </TabBar>
 
@@ -221,6 +234,73 @@ export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
                   Allows insurer to pursue recovery from third parties responsible for the loss
                 </HelpText>
               </FormGroup>
+            </Section>
+          )}
+
+          {activeTab === 'underwriting' && (
+            <Section>
+              <UnderwritingSection
+                requiresUnderwriterApproval={formData.requiresUnderwriterApproval}
+                eligibilityCriteria={formData.eligibilityCriteria}
+                requiredCoverages={formData.requiredCoverages}
+                incompatibleCoverages={formData.incompatibleCoverages}
+                onChange={(data) => {
+                  setFormData(prev => ({ ...prev, ...data }));
+                }}
+              />
+            </Section>
+          )}
+
+          {activeTab === 'claims' && (
+            <Section>
+              <ClaimsSection
+                claimsReportingPeriod={formData.claimsReportingPeriod}
+                hasSubrogationRights={formData.hasSubrogationRights}
+                onChange={(data) => {
+                  setFormData(prev => ({ ...prev, ...data }));
+                }}
+              />
+            </Section>
+          )}
+
+          {activeTab === 'territory' && (
+            <Section>
+              <SectionTitle>Territory & Endorsements</SectionTitle>
+
+              {/* Territory Selector */}
+              <FormGroup>
+                <TerritorySelector
+                  territoryType={formData.territoryType}
+                  includedTerritories={formData.includedTerritories}
+                  excludedTerritories={formData.excludedTerritories}
+                  onChange={(data) => {
+                    setFormData(prev => ({ ...prev, ...data }));
+                  }}
+                />
+              </FormGroup>
+
+              {/* Endorsement Metadata */}
+              {formData.category === 'Endorsement Coverage' && (
+                <FormGroup>
+                  <EndorsementMetadataSection
+                    modifiesCoverageId={formData.modifiesCoverageId}
+                    endorsementType={formData.endorsementType}
+                    supersedes={formData.supersedes}
+                    onChange={(data) => {
+                      setFormData(prev => ({ ...prev, ...data }));
+                    }}
+                  />
+                </FormGroup>
+              )}
+
+              {formData.category !== 'Endorsement Coverage' && (
+                <InfoBox>
+                  <InfoText>
+                    ℹ️ Endorsement metadata is only available for coverages with category "Endorsement Coverage".
+                    Change the category in the Basic Info tab to enable endorsement features.
+                  </InfoText>
+                </InfoBox>
+              )}
             </Section>
           )}
         </Content>
@@ -403,6 +483,19 @@ const CheckboxLabel = styled.label`
   font-size: 14px;
   color: #374151;
   cursor: pointer;
+`;
+
+const InfoBox = styled.div`
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  padding: 12px;
+`;
+
+const InfoText = styled.div`
+  font-size: 13px;
+  color: #1e3a8a;
+  line-height: 1.5;
 `;
 
 const Footer = styled.div`
