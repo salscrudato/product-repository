@@ -65,6 +65,10 @@ const CoverageStatesScreen = createOptimizedLazyComponent(
   () => import('./components/CoverageStatesScreen'),
   { chunkName: 'CoverageStatesScreen', fallback: <LoadingSpinner /> }
 );
+const PackagesScreen = createOptimizedLazyComponent(
+  () => import('./components/PackagesScreen'),
+  { chunkName: 'PackagesScreen', fallback: <LoadingSpinner /> }
+);
 const ProductExplorer = createOptimizedLazyComponent(
   () => import('./components/ProductExplorer'),
   { chunkName: 'ProductExplorer', fallback: <LoadingSpinner /> }
@@ -249,6 +253,16 @@ const HistoryWrapper: React.FC = () => {
             <RequireAuth>
               <Suspense fallback={<LoadingSpinner />}>
                 <TaskManagement />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/products/:productId/packages"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <PackagesScreen />
               </Suspense>
             </RequireAuth>
           }
