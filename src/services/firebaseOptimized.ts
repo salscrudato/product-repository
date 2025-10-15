@@ -111,10 +111,8 @@ class FirebaseOptimizedService {
     if (useCache) {
       const cached = this.getCachedData(cacheKey);
       if (cached) {
-        const duration = Date.now() - startTime;
-        logger.logPerformance(`Firebase getCollection (cached) - ${collectionName}`, duration, {
+        logger.debug(LOG_CATEGORIES.CACHE, `Cache hit for ${collectionName}`, {
           collectionName,
-          cacheHit: true,
           resultCount: cached.length
         });
         return cached;
@@ -156,17 +154,12 @@ class FirebaseOptimizedService {
         const effectiveLimit = limitCount || 1000; // Default limit
         q = query(q, limit(effectiveLimit));
 
-        const startTime = performance.now();
         const snapshot = await getDocs(q);
-        const queryTime = performance.now() - startTime;
 
         const data = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
-
-        // Store performance metrics for query optimization
-        this.storeQueryMetrics(collectionName, options, queryTime, data.length);
 
         // Cache the result
         if (useCache) {
@@ -212,20 +205,7 @@ class FirebaseOptimizedService {
     });
   }
 
-  // Store query performance metrics
-  storeQueryMetrics(collectionName, options, queryTime, resultCount) {
-    const metrics = {
-      timestamp: Date.now(),
-      queryTime,
-      resultCount,
-      options
-    };
 
-    // Store in performance monitoring (could be sent to analytics)
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📊 Query metrics for ${collectionName}:`, metrics);
-    }
-  }
 
   // Suggest index optimizations
   suggestIndexOptimization(collectionName, options, error) {
@@ -256,11 +236,9 @@ class FirebaseOptimizedService {
     if (useCache) {
       const cached = this.getCachedData(cacheKey);
       if (cached) {
-        const duration = Date.now() - startTime;
-        logger.logPerformance(`Firebase getDocument (cached) - ${collectionName}/${docId}`, duration, {
+        logger.debug(LOG_CATEGORIES.CACHE, `Cache hit for ${collectionName}/${docId}`, {
           collectionName,
-          docId,
-          cacheHit: true
+          docId
         });
         return cached;
       }
@@ -286,12 +264,9 @@ class FirebaseOptimizedService {
         this.setCachedData(cacheKey, data);
       }
 
-      const duration = Date.now() - startTime;
-      logger.logPerformance(`Firebase getDocument - ${collectionName}/${docId}`, duration, {
+      logger.debug(LOG_CATEGORIES.FIREBASE, `Document fetched: ${collectionName}/${docId}`, {
         collectionName,
-        docId,
-        cacheHit: false,
-        dataSize: JSON.stringify(data).length
+        docId
       });
 
       return data;

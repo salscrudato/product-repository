@@ -29,29 +29,22 @@ export const createOptimizedLazyComponent = <P extends object = any>(
   
   const LazyComponent = lazy(async () => {
     try {
-      console.log(`📦 Loading chunk: ${chunkName}`);
-      const startTime = performance.now();
-      
       const module = await importFn();
-      
-      const loadTime = performance.now() - startTime;
-      console.log(`✅ Chunk loaded: ${chunkName} in ${loadTime.toFixed(2)}ms`);
-      
       return module;
     } catch (error) {
-      console.error(`❌ Failed to load chunk: ${chunkName}`, error);
-      
+      logger.error(LOG_CATEGORIES.ERROR, `Failed to load chunk: ${chunkName}`, {}, error);
+
       if (retries < retryCount) {
         retries++;
-        console.log(`🔄 Retrying chunk load: ${chunkName} (attempt ${retries}/${retryCount})`);
-        
+        logger.debug(LOG_CATEGORIES.DATA, `Retrying chunk load: ${chunkName}`, { attempt: `${retries}/${retryCount}` });
+
         // Wait before retry
         await new Promise(resolve => setTimeout(resolve, retryDelay * retries));
-        
+
         // Recursive retry
         return createOptimizedLazyComponent(importFn, options);
       }
-      
+
       throw error;
     }
   });
@@ -133,140 +126,14 @@ export const addResourceHints = () => {
   }
 };
 
-// Module federation for micro-frontends (future enhancement)
-export const loadRemoteModule = async (remoteUrl, moduleName) => {
-  try {
-    const script = document.createElement('script');
-    script.src = remoteUrl;
-    script.type = 'module';
-    
-    return new Promise((resolve, reject) => {
-      script.onload = () => {
-        // Access the remote module
-        const remoteModule = window[moduleName];
-        if (remoteModule) {
-          resolve(remoteModule);
-        } else {
-          reject(new Error(`Remote module ${moduleName} not found`));
-        }
-      };
-      
-      script.onerror = () => {
-        reject(new Error(`Failed to load remote module from ${remoteUrl}`));
-      };
-      
-      document.head.appendChild(script);
-    });
-  } catch (error) {
-    console.error('Failed to load remote module:', error);
-    throw error;
-  }
-};
 
-// Tree shaking optimization hints
-export const optimizeImports = () => {
-  // Log unused imports in development
-  if (process.env.NODE_ENV === 'development') {
-    console.group('🌳 Tree Shaking Optimization Hints');
-    
-    // Check for large libraries that might not be tree-shaken
-    const largeLibraries = [
-      'lodash',
-      'moment',
-      'rxjs',
-      'antd'
-    ];
-    
-    largeLibraries.forEach(lib => {
-      try {
-        // Check if library is available without dynamic require
-        if (typeof window !== 'undefined' && window[lib]) {
-          console.warn(`📦 Large library detected: ${lib} - consider using specific imports`);
-        }
-      } catch (e) {
-        // Library not installed, which is good
-      }
-    });
-    
-    console.groupEnd();
-  }
-};
 
-// Bundle analysis utilities
-export const analyzeBundleComposition = () => {
-  if (process.env.NODE_ENV !== 'development') return [];
 
-  try {
-    const scripts = Array.from(document.querySelectorAll('script[src]'));
-    const chunks = scripts
-      .filter(script => script.src && script.src.includes('/static/js/'))
-      .map(script => {
-        try {
-          const url = new URL(script.src);
-          const filename = url.pathname.split('/').pop();
-          const match = filename.match(/(\d+)\.([a-f0-9]+)\.chunk\.js/);
-
-          return {
-            filename,
-            chunkId: match ? match[1] : 'main',
-            hash: match ? match[2] : 'unknown',
-            url: script.src
-          };
-        } catch (error) {
-          console.warn('Failed to analyze script:', script.src, error);
-          return null;
-        }
-      })
-      .filter(chunk => chunk !== null);
-
-    console.group('📊 Bundle Composition Analysis');
-    console.log(`Total chunks: ${chunks.length}`);
-    if (chunks.length > 0) {
-      console.table(chunks);
-    }
-    console.groupEnd();
-
-    return chunks;
-  } catch (error) {
-    console.error('Bundle composition analysis failed:', error);
-    return [];
-  }
-};
-
-// Performance budget monitoring
-export const monitorPerformanceBudget = () => {
-  const budget = {
-    maxChunks: 15,
-    maxMainBundleSize: 500 * 1024, // 500KB
-    maxTotalSize: 2 * 1024 * 1024, // 2MB
-    maxLoadTime: 3000 // 3 seconds
-  };
-
-  try {
-    const chunks = analyzeBundleComposition();
-
-    if (chunks && Array.isArray(chunks) && chunks.length > budget.maxChunks) {
-      console.warn(`⚠️ Performance Budget: Too many chunks (${chunks.length}/${budget.maxChunks})`);
-    }
-
-    // Monitor load time
-    if (performance.timing) {
-      const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
-      if (loadTime > budget.maxLoadTime) {
-        console.warn(`⚠️ Performance Budget: Slow load time (${loadTime}ms/${budget.maxLoadTime}ms)`);
-      }
-    }
-  } catch (error) {
-    console.error('Performance budget monitoring failed:', error);
-  }
-};
 
 // Critical resource loading optimization
 export const optimizeCriticalResources = () => {
   // Inline critical CSS (would be done at build time in production)
-  if (process.env.NODE_ENV === 'development') {
-    console.log('💡 Consider inlining critical CSS for faster rendering');
-  }
+  // Removed console.log to reduce noise
 
   // Optimize font loading - improve existing Google Fonts links
   try {
@@ -323,73 +190,27 @@ export const optimizeCriticalResources = () => {
 // Initialize bundle optimizations
 export const initBundleOptimizations = () => {
   if (typeof window === 'undefined') {
-    logger.warn(LOG_CATEGORIES.PERFORMANCE, 'Bundle optimizations skipped - no window object');
+    logger.warn(LOG_CATEGORIES.DATA, 'Bundle optimizations skipped - no window object');
     return;
   }
 
-  const startTime = Date.now();
-  logger.info(LOG_CATEGORIES.PERFORMANCE, 'Initializing bundle optimizations');
+  logger.info(LOG_CATEGORIES.DATA, 'Initializing bundle optimizations');
 
   try {
     // Add resource hints
     addResourceHints();
-    logger.debug(LOG_CATEGORIES.PERFORMANCE, 'Resource hints added');
+    logger.debug(LOG_CATEGORIES.DATA, 'Resource hints added');
 
     // Optimize critical resources
     optimizeCriticalResources();
-    logger.debug(LOG_CATEGORIES.PERFORMANCE, 'Critical resources optimized');
+    logger.debug(LOG_CATEGORIES.DATA, 'Critical resources optimized');
 
     // Preload critical chunks
     preloadCriticalChunks();
-    logger.debug(LOG_CATEGORIES.PERFORMANCE, 'Critical chunks preload initiated');
-
-    // Monitor performance budget
-    setTimeout(() => {
-      try {
-        monitorPerformanceBudget();
-        optimizeImports();
-        logger.debug(LOG_CATEGORIES.PERFORMANCE, 'Performance monitoring and import optimization completed');
-      } catch (error) {
-        logger.error(LOG_CATEGORIES.PERFORMANCE, 'Error in delayed performance monitoring', {}, error);
-      }
-    }, 3000);
-
-    const duration = Date.now() - startTime;
-    logger.logPerformance('Bundle optimizations initialization', duration, {
-      hasWindow: true,
-      userAgent: navigator.userAgent
-    });
+    logger.debug(LOG_CATEGORIES.DATA, 'Critical chunks preload initiated');
 
   } catch (error) {
-    const duration = Date.now() - startTime;
-    logger.error(LOG_CATEGORIES.PERFORMANCE, 'Bundle optimizations initialization failed', {
-      duration
-    }, error);
-  }
-};
-
-// Webpack chunk loading optimization
-export const optimizeChunkLoading = () => {
-  // Implement chunk loading strategies
-  if (window.__webpack_require__) {
-    const originalEnsure = window.__webpack_require__.e;
-    
-    window.__webpack_require__.e = function(chunkId) {
-      console.log(`📦 Loading chunk: ${chunkId}`);
-      const startTime = performance.now();
-      
-      return originalEnsure.call(this, chunkId).then(
-        (result) => {
-          const loadTime = performance.now() - startTime;
-          console.log(`✅ Chunk ${chunkId} loaded in ${loadTime.toFixed(2)}ms`);
-          return result;
-        },
-        (error) => {
-          console.error(`❌ Failed to load chunk ${chunkId}:`, error);
-          throw error;
-        }
-      );
-    };
+    logger.error(LOG_CATEGORIES.ERROR, 'Bundle optimizations initialization failed', {}, error);
   }
 };
 
@@ -397,13 +218,8 @@ const bundleOptimization = {
   createOptimizedLazyComponent,
   preloadCriticalChunks,
   addResourceHints,
-  loadRemoteModule,
-  optimizeImports,
-  analyzeBundleComposition,
-  monitorPerformanceBudget,
   optimizeCriticalResources,
-  initBundleOptimizations,
-  optimizeChunkLoading
+  initBundleOptimizations
 };
 
 export default bundleOptimization;

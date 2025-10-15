@@ -31,29 +31,59 @@ export interface ProductFormData {
 // Coverage Types
 // ============================================================================
 
+/**
+ * Coverage represents an insurance coverage that can be part of a product.
+ * Coverages can be hierarchical - a coverage with parentCoverageId is a sub-coverage.
+ *
+ * Database Structure:
+ * - Stored in: products/{productId}/coverages/{coverageId}
+ * - Sub-coverages use parentCoverageId to reference their parent
+ * - Forms are linked via formCoverages junction table (not stored here)
+ */
 export interface Coverage {
   id: string;
   productId: string;
   name: string;
   description?: string;
   type?: string;
-  limit?: number | string;
-  deductible?: number | string;
+  category?: 'base' | 'endorsement' | 'optional';
+
+  // Hierarchical structure - if set, this is a sub-coverage
+  parentCoverageId?: string;
+
+  // Coverage financial details
+  limits?: string[];  // Array of available limit options
+  deductibles?: string[];  // Array of available deductible options
   premium?: number;
   isOptional?: boolean;
-  subCoverages?: SubCoverage[];
+
+  // State availability (must be subset of product's availableStates)
+  states?: string[];
+
+  // Additional coverage details
+  coverageCode?: string;
+  scopeOfCoverage?: string;
+  perilsCovered?: string[];
+
+  // Metadata
   createdAt?: Timestamp | Date;
   updatedAt?: Timestamp | Date;
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * @deprecated SubCoverage is now just a Coverage with parentCoverageId set.
+ * Use Coverage interface instead and filter by parentCoverageId.
+ * This interface is kept for backward compatibility only.
+ */
 export interface SubCoverage {
   id: string;
-  coverageId: string;
+  parentCoverageId: string;  // Renamed from coverageId for clarity
+  productId: string;
   name: string;
   description?: string;
-  limit?: number | string;
-  deductible?: number | string;
+  limits?: string[];
+  deductibles?: string[];
   premium?: number;
   createdAt?: Timestamp | Date;
   updatedAt?: Timestamp | Date;
@@ -64,10 +94,13 @@ export interface CoverageFormData {
   name: string;
   description?: string;
   type?: string;
-  limit?: number | string;
-  deductible?: number | string;
+  category?: 'base' | 'endorsement' | 'optional';
+  parentCoverageId?: string;
+  limits?: string[];
+  deductibles?: string[];
   premium?: number;
   isOptional?: boolean;
+  states?: string[];
 }
 
 // ============================================================================
@@ -126,16 +159,66 @@ export interface FormFieldValidation {
   message?: string;
 }
 
+/**
+ * FormTemplate represents an insurance form (policy form, endorsement, etc.)
+ *
+ * Database Structure:
+ * - Stored in: forms/{formId}
+ * - Linked to coverages via formCoverages junction table
+ * - Do NOT store coverageIds or productIds arrays here (use formCoverages instead)
+ */
 export interface FormTemplate {
   id: string;
-  productId: string;
-  name: string;
+
+  // Form identification
+  formNumber: string;
+  formName?: string;
+  formEditionDate?: string;
+
+  // Primary product association (optional, for organizational purposes)
+  productId?: string;
+
+  // Form metadata
+  name?: string;  // Deprecated: use formName instead
   description?: string;
-  fields: FormField[];
+  type?: string;  // e.g., 'coverage', 'endorsement', 'exclusion', 'notice'
+  category?: string;
+
+  // Form fields (for dynamic forms)
+  fields?: FormField[];
+
+  // Versioning
   version?: string;
+  effectiveDate?: string | Timestamp | Date;
+
+  // State availability (informational - actual coverage availability via formCoverages)
+  states?: string[];
+
+  // File storage
+  filePath?: string;
+  downloadUrl?: string;
+
+  // Status
   isActive?: boolean;
+
+  // Metadata
   createdAt?: Timestamp | Date;
   updatedAt?: Timestamp | Date;
+}
+
+/**
+ * FormCoverageMapping represents the many-to-many relationship between forms and coverages.
+ * This is the SINGLE SOURCE OF TRUTH for form-coverage relationships.
+ *
+ * Database Structure:
+ * - Stored in: formCoverages/{mappingId}
+ */
+export interface FormCoverageMapping {
+  id: string;
+  formId: string;
+  coverageId: string;
+  productId: string;  // Denormalized for efficient querying
+  createdAt?: Timestamp | Date;
 }
 
 // ============================================================================
@@ -253,27 +336,6 @@ export interface FilterOptions {
   field: string;
   value: unknown;
   operator?: 'equals' | 'contains' | 'greaterThan' | 'lessThan';
-}
-
-// ============================================================================
-// Performance & Monitoring Types
-// ============================================================================
-
-export interface PerformanceMetric {
-  name: string;
-  value: number;
-  unit: 'ms' | 'bytes' | 'count';
-  timestamp: number;
-  metadata?: Record<string, unknown>;
-}
-
-export interface LogEntry {
-  level: 'debug' | 'info' | 'warn' | 'error';
-  category: string;
-  message: string;
-  timestamp: number;
-  data?: Record<string, unknown>;
-  error?: Error;
 }
 
 // ============================================================================

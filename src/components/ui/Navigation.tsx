@@ -380,9 +380,7 @@ export default function MainNavigation() {
         sessionStorage.removeItem('ph-authed');
         sessionStorage.removeItem('ph-username');
 
-        const duration = Date.now() - startTime;
-        logger.logPerformance('Session logout', duration, {
-          success: true,
+        logger.info(LOG_CATEGORIES.AUTH, 'Session logout successful', {
           sessionType: sessionStatus
         });
 
@@ -396,17 +394,12 @@ export default function MainNavigation() {
         // Firebase logout
         await signOut(auth);
 
-        const duration = Date.now() - startTime;
-        logger.logPerformance('Firebase logout', duration, {
-          success: true,
-          sessionType: 'firebase'
-        });
+        logger.info(LOG_CATEGORIES.AUTH, 'Firebase logout successful');
 
         logger.logNavigation(location.pathname, '/login', { reason: 'firebase_logout' });
         navigate('/login', { replace: true });
       }
     } catch (error) {
-      const duration = Date.now() - startTime;
       logger.error(LOG_CATEGORIES.AUTH, 'Logout failed', {
         sessionType: sessionStatus,
         duration

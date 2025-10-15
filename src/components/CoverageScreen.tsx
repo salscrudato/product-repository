@@ -1165,7 +1165,8 @@ export default function CoverageScreen() {
     try {
       const coverage = selectedCoverageForForms;
       const desired = new Set(linkFormIds);
-      // fetch existing links
+
+      // Fetch existing links from junction table
       const existingSnap = await getDocs(
         query(
           collection(db, 'formCoverages'),
@@ -1173,24 +1174,33 @@ export default function CoverageScreen() {
           where('productId', '==', productId)
         )
       );
+
       const batch = writeBatch(db);
-      // remove deselected
+
+      // Remove deselected links
       existingSnap.docs.forEach(d => {
-        if (!desired.has(d.data().formId)) batch.delete(d.ref);
+        if (!desired.has(d.data().formId)) {
+          batch.delete(d.ref);
+        }
       });
-      // add new
+
+      // Add new links
       const existingIds = new Set(existingSnap.docs.map(d => d.data().formId));
       desired.forEach(fid => {
         if (!existingIds.has(fid)) {
           const linkRef = doc(collection(db, 'formCoverages'));
-          batch.set(linkRef, { formId: fid, coverageId: coverage.id, productId });
+          batch.set(linkRef, {
+            formId: fid,
+            coverageId: coverage.id,
+            productId,
+            createdAt: serverTimestamp()
+          });
         }
       });
-      // update coverage.formIds
-      batch.update(
-        doc(db, `products/${productId}/coverages`, coverage.id),
-        { formIds: [...desired] }
-      );
+
+      // ✅ REMOVED: No longer updating coverage.formIds array
+      // The formCoverages junction table is the single source of truth
+
       await batch.commit();
       setLinkFormsModalOpen(false);
       await reloadCoverages();

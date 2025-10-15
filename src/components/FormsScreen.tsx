@@ -855,7 +855,8 @@ export default function FormsScreen() {
       const formId = selectedForm.id;
       const productId = selectedForm.productId;
       const batch = writeBatch(db);
-      // 1) delete old links for this product only
+
+      // 1) Delete old links for this product only
       const existingLinksSnap = await getDocs(
         query(
           collection(db, 'formCoverages'),
@@ -864,33 +865,25 @@ export default function FormsScreen() {
         )
       );
       existingLinksSnap.docs.forEach(linkDoc => {
-        // delete link doc
         batch.delete(doc(db, 'formCoverages', linkDoc.id));
-        // remove formId from coverage.formIds
-        const covId = linkDoc.data().coverageId;
-        const covProdId = covIdToProductId[covId];
-        batch.update(
-          doc(db, `products/${covProdId}/coverages`, covId),
-          { formIds: arrayRemove(formId) }
-        );
       });
-      // 2) add new links
+
+      // 2) Add new links (junction table only - single source of truth)
       linkCoverageIds.forEach(coverageId => {
         const owningProductId = covIdToProductId[coverageId];
         if (!owningProductId) return; // safety: skip if we can't resolve product
         const newRef = doc(collection(db, 'formCoverages'));
-        batch.set(newRef, { formId, coverageId, productId: owningProductId });
-        // add formId to the coverage document under the correct product path (if it exists)
-        batch.update(
-          doc(db, `products/${owningProductId}/coverages`, coverageId),
-          { formIds: arrayUnion(formId) }
-        );
+        batch.set(newRef, {
+          formId,
+          coverageId,
+          productId: owningProductId,
+          createdAt: serverTimestamp()
+        });
       });
-      // 3) update the form document's coverageIds field
-      batch.update(
-        doc(db, 'forms', formId),
-        { coverageIds: linkCoverageIds }
-      );
+
+      // ✅ REMOVED: No longer updating form.coverageIds or coverage.formIds arrays
+      // The formCoverages junction table is the single source of truth
+
       await batch.commit();
       // update local state without re-fetching URLs
       setForms(fs =>

@@ -19,7 +19,9 @@ import { useDeepMemo } from '../hooks/useAdvancedMemo';
 import { ProgressiveLoader } from '../components/ui/ProgressiveLoader';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
 import { collection, getDocs, collectionGroup } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, functions } from '../firebase';
+import { httpsCallable } from 'firebase/functions';
+import { AI_MODELS, AI_PARAMETERS } from '../config/aiConfig';
 
 /* ---------- styled components ---------- */
 const Page = styled.div`
@@ -577,50 +579,43 @@ ${JSON.stringify(context, null, 2)}
 
       logger.logAIOperation('Home chat query', AI_MODELS.HOME_CHAT, query.substring(0, 100), '', 0);
 
-      const res = await fetch(AI_API_CONFIG.OPENAI_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`
-        },
-        body: JSON.stringify({
-          model: AI_MODELS.HOME_CHAT,
-          messages: [
-            {
-              role: 'system',
-              content: systemPrompt
-            },
-            { role: 'user', content: query }
-          ],
-          max_tokens: AI_PARAMETERS.HOME_CHAT.max_tokens,
-          temperature: AI_PARAMETERS.HOME_CHAT.temperature,
-          top_p: AI_PARAMETERS.HOME_CHAT.top_p,
-          frequency_penalty: AI_PARAMETERS.HOME_CHAT.frequency_penalty,
-          presence_penalty: AI_PARAMETERS.HOME_CHAT.presence_penalty
-        })
+      // Call Cloud Function (secure proxy to OpenAI)
+      const generateChat = httpsCallable(functions, 'generateChatResponse');
+
+      // Ensure we're sending a plain object with proper types
+      const payload = {
+        messages: [
+          {
+            role: 'system',
+            content: String(systemPrompt)
+          },
+          { role: 'user', content: String(query) }
+        ],
+        model: String(AI_MODELS.HOME_CHAT),
+        maxTokens: Number(AI_PARAMETERS.HOME_CHAT.max_tokens),
+        temperature: Number(AI_PARAMETERS.HOME_CHAT.temperature)
+      };
+
+      console.log('🚀 Calling generateChatResponse with:', {
+        messagesCount: payload.messages.length,
+        model: payload.model,
+        maxTokens: payload.maxTokens,
+        temperature: payload.temperature
       });
 
-      if (!res.ok) {
-        logger.error(LOG_CATEGORIES.AI, 'OpenAI API error', {
-          status: res.status,
-          statusText: res.statusText,
+      const result = await generateChat(payload);
+
+      if (!result.data.success) {
+        logger.error(LOG_CATEGORIES.AI, 'Cloud Function error', {
           model: AI_MODELS.HOME_CHAT,
           query: query.substring(0, 100)
         });
-        throw new Error(`OpenAI API error: ${res.status}`);
+        throw new Error('Failed to generate chat response');
       }
 
-      const data = await res.json();
-      const aiResponse = data.choices?.[0]?.message?.content?.trim();
+      const aiResponse = result.data.content?.trim();
 
-      const duration = Date.now() - startTime;
-      logger.logAIOperation('Home chat response', AI_MODELS.HOME_CHAT, query.substring(0, 100), aiResponse?.substring(0, 100), duration);
-      logger.logPerformance('Home chat query', duration, {
-        queryLength: query.length,
-        responseLength: aiResponse?.length || 0,
-        model: AI_MODELS.HOME_CHAT,
-        tokensUsed: data.usage?.total_tokens || 0
-      });
+      logger.logAIOperation('Home chat response', AI_MODELS.HOME_CHAT, query.substring(0, 100), aiResponse?.substring(0, 100), Date.now() - startTime);
 
       if (aiResponse) {
         setResponse(aiResponse);

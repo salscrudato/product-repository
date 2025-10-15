@@ -30,6 +30,7 @@ import MarkdownRenderer from '../utils/markdownParser';
 import ProductCard from './ui/ProductCard';
 import VirtualizedGrid from './ui/VirtualizedGrid';
 import { debounce } from '../utils/performance';
+import { extractPdfText } from '../utils/pdfChunking';
 
 
 /* ---------- Animations ---------- */
@@ -797,16 +798,6 @@ const ChatSendButton = styled.button`
 /* ---------- rules modal components ---------- */
 // Unused rules styled components removed to fix ESLint warnings
 
-/* ---------- lazy-load pdfjs ---------- */
-let pdfjsLib = null;
-const loadPdfJs = async () => {
-  if (pdfjsLib) return pdfjsLib;
-  pdfjsLib = await import(/* webpackChunkName: "pdfjs" */ 'pdfjs-dist');
-  // Using .mjs for pdfjs-dist v5.4+
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
-  return pdfjsLib;
-};
-
 /* ---------- system prompts ---------- */
 const SYSTEM_INSTRUCTIONS = `
 Persona: You are an expert in P&C insurance products. Your task is to analyze the provided insurance document text and extract key information into a structured JSON format.
@@ -990,27 +981,72 @@ const ProductHub = memo(() => {
     setLoadingSummary(prev => ({ ...prev, [id]: true }));
 
     try {
-      // Extract text from PDF
-      await loadPdfJs();
-      const loadingTask = pdfjsLib.getDocument(url);
-      const pdf = await loadingTask.promise;
-      let text = '';
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        const strings = content.items.map(item => item.str);
-        text += strings.join(' ') + '\n';
+      console.log('🔍 Starting PDF extraction from URL:', url);
+
+      // Extract text from PDF using centralized utility
+      const text = await extractPdfText(url);
+
+      console.log('📝 PDF text extracted:', {
+        textLength: text?.length || 0,
+        textType: typeof text,
+        firstChars: text?.substring(0, 100) || 'EMPTY',
+        trimmedLength: text?.trim().length || 0
+      });
+
+      // Validate extracted text
+      if (!text || text.trim().length === 0) {
+        throw new Error('No text could be extracted from the PDF');
       }
 
       // Keep first ~100k tokens to stay safely under GPT limit
       const snippet = text.split(/\s+/).slice(0, 100000).join(' ');
 
+      console.log('✂️ Text snippet created:', {
+        snippetLength: snippet.length,
+        snippetType: typeof snippet,
+        trimmedSnippetLength: snippet.trim().length,
+        firstChars: snippet.substring(0, 100)
+      });
+
+      // Validate snippet before sending
+      if (!snippet || snippet.trim().length < 50) {
+        throw new Error('Extracted text is too short to generate a meaningful summary');
+      }
+
+      // Estimate payload size (rough approximation)
+      const payloadSize = new Blob([snippet]).size;
+      const payloadSizeMB = (payloadSize / (1024 * 1024)).toFixed(2);
+
+      console.log('📄 Sending PDF text to AI:', {
+        originalLength: text.length,
+        snippetLength: snippet.length,
+        wordCount: snippet.split(/\s+/).length,
+        payloadSizeMB: payloadSizeMB,
+        pdfTextParam: snippet.substring(0, 200) + '...'
+      });
+
+      // Firebase Callable Functions have a 10MB payload limit
+      if (payloadSize > 9 * 1024 * 1024) { // 9MB to be safe
+        throw new Error(`PDF text is too large (${payloadSizeMB}MB). Please use a smaller document.`);
+      }
+
       // Call Cloud Function (secure proxy to OpenAI)
       const generateSummary = httpsCallable(functions, 'generateProductSummary');
-      const result = await generateSummary({
-        pdfText: snippet,
-        systemPrompt: SYSTEM_INSTRUCTIONS.trim()
+
+      // Ensure we're sending a plain object with string values
+      const payload = {
+        pdfText: String(snippet),
+        systemPrompt: String(SYSTEM_INSTRUCTIONS.trim())
+      };
+
+      console.log('🚀 Calling Cloud Function with payload:', {
+        hasPdfText: !!payload.pdfText,
+        pdfTextType: typeof payload.pdfText,
+        pdfTextLength: payload.pdfText.length,
+        hasSystemPrompt: !!payload.systemPrompt
       });
+
+      const result = await generateSummary(payload);
 
       if (!result.data.success) {
         throw new Error('Failed to generate summary');
@@ -1054,15 +1090,7 @@ const ProductHub = memo(() => {
     // Load PDF text for context if available
     if (product.formDownloadUrl) {
       try {
-        await loadPdfJs();
-        const loadingTask = pdfjsLib.getDocument(product.formDownloadUrl);
-        const pdf = await loadingTask.promise;
-        let text = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          text += content.items.map(it => it.str).join(' ') + '\n';
-        }
+        const text = await extractPdfText(product.formDownloadUrl);
         setChatPdfText(text.split(/\s+/).slice(0, 100000).join(' '));
       } catch (err) {
         console.error('Failed to load PDF for chat:', err);

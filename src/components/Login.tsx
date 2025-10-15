@@ -323,9 +323,7 @@ export default function Login() {
 
       setSuccess('Guest login successful! Redirecting...');
 
-      const duration = Date.now() - startTime;
-      logger.logPerformance('Guest login', duration, {
-        success: true,
+      logger.info(LOG_CATEGORIES.AUTH, 'Guest login successful', {
         loginType: 'guest'
       });
 

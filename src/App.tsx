@@ -1,14 +1,11 @@
 import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from 'styled-components';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { GlobalStyle } from './styles/GlobalStyle';
 import { theme } from './styles/theme';
 import ErrorBoundary from './components/ErrorBoundary';
 import { initBundleOptimizations, createOptimizedLazyComponent } from './utils/bundleOptimization';
 import { ConnectionStatus } from './components/ui/ConnectionStatus';
-import { queryClient } from './lib/queryClient';
 
 import logger, { LOG_CATEGORIES } from './utils/logger';
 import env from './config/env';
@@ -257,11 +254,11 @@ const HistoryWrapper: React.FC = () => {
 const App: React.FC = () => {
   // Initialize bundle optimizations
   useEffect(() => {
-    logger.info(LOG_CATEGORIES.PERFORMANCE, 'App initialization started');
+    logger.info(LOG_CATEGORIES.DATA, 'App initialization started');
 
     try {
       initBundleOptimizations();
-      logger.info(LOG_CATEGORIES.PERFORMANCE, 'Bundle optimizations initialized');
+      logger.info(LOG_CATEGORIES.DATA, 'Bundle optimizations initialized');
     } catch (error) {
       logger.error(LOG_CATEGORIES.ERROR, 'App initialization failed', {
         environment: env.NODE_ENV
@@ -271,16 +268,13 @@ const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider theme={theme}>
-          <GlobalStyle />
-          <ConnectionStatus />
-          <Router>
-            <HistoryWrapper />
-          </Router>
-        </ThemeProvider>
-        {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
-      </QueryClientProvider>
+      <ThemeProvider theme={theme}>
+        <GlobalStyle />
+        <ConnectionStatus />
+        <Router>
+          <HistoryWrapper />
+        </Router>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 };

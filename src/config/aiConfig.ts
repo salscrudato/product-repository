@@ -519,92 +519,12 @@ export const getSystemPrompt = (useCase: keyof AIPrompts, ...args: unknown[]): s
   return prompt.trim();
 };
 
-/**
- * Create standardized headers for OpenAI API calls
- */
-export const createAPIHeaders = (apiKey: string): Record<string, string> => ({
-  'Content-Type': 'application/json',
-  'Authorization': `Bearer ${apiKey}`
-});
-
-/**
- * Create standardized request body for OpenAI API calls
- */
-export const createRequestBody = (
-  useCase: keyof AIParameters,
-  messages: ChatMessage[],
-  overrides: Partial<AIParameterConfig> = {}
-): Record<string, unknown> => {
-  const config = getAIConfig(useCase);
-
-  return {
-    model: config.model,
-    messages,
-    max_tokens: config.max_tokens,
-    temperature: config.temperature,
-    ...(config.top_p && { top_p: config.top_p }),
-    ...(config.frequency_penalty && { frequency_penalty: config.frequency_penalty }),
-    ...(config.presence_penalty && { presence_penalty: config.presence_penalty }),
-    ...overrides
-  };
-};
-
-/**
- * Make a standardized OpenAI API call with timeout and error handling
- */
-export const makeAIRequest = async (
-  useCase: keyof AIParameters,
-  messages: ChatMessage[],
-  apiKey: string,
-  overrides: Partial<AIParameterConfig> = {}
-): Promise<string> => {
-  const config = getAIConfig(useCase);
-  const headers = createAPIHeaders(apiKey);
-  const body = createRequestBody(useCase, messages, overrides);
-
-  const response = await Promise.race([
-    fetch(AI_API_CONFIG.OPENAI_ENDPOINT, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body)
-    }),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('AI request timeout')), config.timeout)
-    )
-  ]);
-
-  if (!response.ok) {
-    let errorMessage = `OpenAI API error: ${response.status}`;
-    try {
-      const errorData = await response.json();
-      if (errorData.error?.message) {
-        errorMessage += ` - ${errorData.error.message}`;
-      }
-    } catch (e) {
-      // Ignore JSON parsing errors
-    }
-    throw new Error(errorMessage);
-  }
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content?.trim();
-
-  if (!content) {
-    throw new Error('No content received from OpenAI');
-  }
-
-  return content;
-};
-
 export default {
   AI_MODELS,
   AI_API_CONFIG,
   AI_PARAMETERS,
   AI_PROMPTS,
   getAIConfig,
-  getSystemPrompt,
-  createAPIHeaders,
-  createRequestBody,
-  makeAIRequest
+  getSystemPrompt
 };
 

@@ -234,26 +234,4 @@ self.addEventListener('push', (event) => {
   }
 });
 
-// Performance monitoring
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'CACHE_STATS') {
-    getCacheStats().then(stats => {
-      event.ports[0].postMessage(stats);
-    });
-  }
-});
-
-async function getCacheStats() {
-  const cacheNames = await caches.keys();
-  const stats = {};
-  
-  for (const cacheName of cacheNames) {
-    const cache = await caches.open(cacheName);
-    const keys = await cache.keys();
-    stats[cacheName] = keys.length;
-  }
-  
-  return stats;
-}
-
 console.log('🎯 Product Hub Service Worker loaded');

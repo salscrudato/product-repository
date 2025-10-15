@@ -18,6 +18,7 @@ class FirebaseConnectionMonitor {
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 2000; // Start with 2 seconds
     this.maxReconnectDelay = 30000; // Max 30 seconds
+    this.networkListenersAdded = false;
   }
 
   /**
@@ -25,45 +26,50 @@ class FirebaseConnectionMonitor {
    */
   startMonitoring() {
     if (this.unsubscribeConnectionListener) {
-      logger.warn(LOG_CATEGORIES.FIREBASE, 'Connection monitor already running');
+      // Connection monitor already running (reduced logging noise)
       return;
     }
 
-    logger.info(LOG_CATEGORIES.FIREBASE, 'Starting Firebase connection monitor');
+    // Starting Firebase connection monitor (reduced logging noise)
 
-    // Use Firestore's built-in connection detection
-    // Create a reference to a special connection document
-    const connectedRef = doc(db, '.info/connected');
+    // Firestore doesn't have a .info/connected path like Realtime Database
+    // Instead, we'll use network events and onSnapshot error handling
+    // to detect connection state
 
+    // Setup network monitoring as primary detection method
+    this.setupNetworkMonitoring();
+
+    // Also use a dummy snapshot listener to detect Firestore connectivity
+    // This will fail gracefully if there's no connection
     try {
+      // Create a minimal listener that will error if disconnected
+      const dummyRef = doc(db, '_connection_test_', 'status');
+
       this.unsubscribeConnectionListener = onSnapshot(
-        connectedRef,
-        (snapshot) => {
-          const connected = snapshot.exists();
-          this.handleConnectionChange(connected);
+        dummyRef,
+        () => {
+          // Successfully listening means we're connected
+          if (!this.isConnected) {
+            this.handleConnectionChange(true);
+          }
         },
         (error) => {
-          // If we can't listen to .info/connected, fall back to network events
+          // Snapshot error might indicate connection issues
+          // But don't treat all errors as disconnection
           logger.warn(
             LOG_CATEGORIES.FIREBASE,
-            'Could not monitor .info/connected, using network events',
+            'Firestore snapshot listener error (may indicate connection issue)',
             { error: error.message }
           );
-          this.setupNetworkMonitoring();
         }
       );
     } catch (error) {
-      logger.error(
+      logger.warn(
         LOG_CATEGORIES.FIREBASE,
-        'Failed to start connection monitoring',
-        {},
-        error
+        'Could not setup Firestore connection listener, using network events only',
+        { error: error.message }
       );
-      this.setupNetworkMonitoring();
     }
-
-    // Also monitor network status
-    this.setupNetworkMonitoring();
   }
 
   /**
@@ -72,18 +78,27 @@ class FirebaseConnectionMonitor {
   setupNetworkMonitoring() {
     if (typeof window === 'undefined') return;
 
+    // Only add listeners once
+    if (this.networkListenersAdded) return;
+    this.networkListenersAdded = true;
+
     window.addEventListener('online', () => {
-      logger.info(LOG_CATEGORIES.NETWORK, 'Network online event detected');
+      // Network online event detected (reduced logging noise)
       this.handleConnectionChange(true);
     });
 
     window.addEventListener('offline', () => {
-      logger.info(LOG_CATEGORIES.NETWORK, 'Network offline event detected');
+      // Network offline event detected (reduced logging noise)
       this.handleConnectionChange(false);
     });
 
-    // Initial check
-    this.handleConnectionChange(navigator.onLine);
+    // Initial check - assume connected unless proven otherwise
+    // This prevents false "disconnected" warnings on page load
+    const initialState = navigator.onLine !== false; // Default to true if undefined
+    if (initialState) {
+      this.isConnected = true;
+      this.notifyListeners('connected');
+    }
   }
 
   /**
@@ -94,13 +109,15 @@ class FirebaseConnectionMonitor {
     this.isConnected = connected;
 
     if (connected && !wasConnected) {
-      // Connection restored
-      logger.info(LOG_CATEGORIES.FIREBASE, '✅ Firebase connection restored');
+      // Connection restored - only log if there were previous reconnect attempts
+      if (this.reconnectAttempts > 0) {
+        logger.info(LOG_CATEGORIES.FIREBASE, '✅ Firebase connection restored');
+      }
       this.reconnectAttempts = 0;
       this.reconnectDelay = 2000; // Reset delay
       this.notifyListeners('connected');
     } else if (!connected && wasConnected) {
-      // Connection lost
+      // Connection lost - only log warning
       logger.warn(LOG_CATEGORIES.FIREBASE, '⚠️ Firebase connection lost');
       this.notifyListeners('disconnected');
       this.attemptReconnect();
@@ -127,11 +144,7 @@ class FirebaseConnectionMonitor {
       this.maxReconnectDelay
     );
 
-    logger.info(
-      LOG_CATEGORIES.FIREBASE,
-      `Attempting reconnection in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
-      { delay, attempt: this.reconnectAttempts }
-    );
+    // Attempting reconnection (reduced logging noise - only log on errors)
 
     setTimeout(() => {
       if (!this.isConnected) {
@@ -200,7 +213,7 @@ class FirebaseConnectionMonitor {
    * Stop monitoring
    */
   stopMonitoring() {
-    logger.info(LOG_CATEGORIES.FIREBASE, 'Stopping Firebase connection monitor');
+    // Stopping Firebase connection monitor (reduced logging noise)
 
     if (this.unsubscribeConnectionListener) {
       this.unsubscribeConnectionListener();
@@ -230,7 +243,7 @@ class FirebaseConnectionMonitor {
    * Force reconnection attempt
    */
   forceReconnect() {
-    logger.info(LOG_CATEGORIES.FIREBASE, 'Forcing reconnection attempt');
+    // Forcing reconnection attempt (reduced logging noise)
     this.reconnectAttempts = 0;
     this.attemptReconnect();
   }

@@ -4,8 +4,13 @@
  */
 
 const functions = require('firebase-functions');
+const { onCall } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const axios = require('axios');
+
+// Define the secret
+const openaiKey = defineSecret('OPENAI_KEY');
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -259,10 +264,10 @@ const agentTools = {
 };
 
 // Main agent function
-exports.agent = functions.https.onCall(async (data, context) => {
+exports.agent = onCall({ secrets: [openaiKey] }, async (request) => {
   try {
-    const { goal, memory = [], sessionId } = data;
-    
+    const { goal, memory = [], sessionId } = request.data;
+
     if (!goal) {
       throw new functions.https.HttpsError('invalid-argument', 'Goal is required');
     }
@@ -274,6 +279,12 @@ exports.agent = functions.https.onCall(async (data, context) => {
       { role: 'user', content: goal }
     ];
 
+    const apiKey = openaiKey.value()?.trim();
+
+    if (!apiKey) {
+      throw new functions.https.HttpsError('internal', 'OpenAI API key not configured');
+    }
+
     // Call OpenAI
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-4o-mini',
@@ -282,7 +293,7 @@ exports.agent = functions.https.onCall(async (data, context) => {
       temperature: 0.3
     }, {
       headers: {
-        'Authorization': `Bearer ${functions.config().openai.key}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       }
     });
@@ -325,16 +336,46 @@ exports.agent = functions.https.onCall(async (data, context) => {
 
 /**
  * Generate product summary from PDF text
+ * Updated: 2025-10-15 - Enhanced validation and logging
  */
-exports.generateProductSummary = functions.https.onCall(async (data, context) => {
+exports.generateProductSummary = onCall({ secrets: [openaiKey] }, async (request) => {
   try {
-    const { pdfText, systemPrompt } = data;
+    const { pdfText, systemPrompt } = request.data;
 
+    // Enhanced logging for debugging
+    console.log('generateProductSummary called with:', {
+      hasPdfText: !!pdfText,
+      pdfTextType: typeof pdfText,
+      pdfTextLength: pdfText?.length || 0,
+      pdfTextTrimmedLength: pdfText?.trim?.()?.length || 0,
+      hasSystemPrompt: !!systemPrompt,
+      firstChars: pdfText?.substring?.(0, 100) || 'N/A'
+    });
+
+    // Validate pdfText
     if (!pdfText) {
+      console.error('pdfText is missing or null');
       throw new functions.https.HttpsError('invalid-argument', 'PDF text is required');
     }
 
-    const apiKey = getOpenAIKey();
+    if (typeof pdfText !== 'string') {
+      console.error('pdfText is not a string:', typeof pdfText);
+      throw new functions.https.HttpsError('invalid-argument', 'PDF text must be a string');
+    }
+
+    if (pdfText.trim().length === 0) {
+      console.error('pdfText is empty after trimming');
+      throw new functions.https.HttpsError('invalid-argument', 'PDF text cannot be empty');
+    }
+
+    console.log('✅ PDF text validation passed, calling OpenAI...');
+
+    const apiKey = openaiKey.value()?.trim();
+
+    if (!apiKey) {
+      console.error('OpenAI API key not found in secrets');
+      throw new functions.https.HttpsError('internal', 'OpenAI API key not configured');
+    }
 
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-4o-mini',
@@ -351,6 +392,8 @@ exports.generateProductSummary = functions.https.onCall(async (data, context) =>
       },
       timeout: 45000
     });
+
+    console.log('✅ OpenAI response received successfully');
 
     return {
       success: true,
@@ -370,15 +413,30 @@ exports.generateProductSummary = functions.https.onCall(async (data, context) =>
 /**
  * Generate chat response
  */
-exports.generateChatResponse = functions.https.onCall(async (data, context) => {
+exports.generateChatResponse = onCall({ secrets: [openaiKey] }, async (request) => {
   try {
-    const { messages, model = 'gpt-4o-mini', maxTokens = 1000, temperature = 0.7 } = data;
+    const { messages, model = 'gpt-4o-mini', maxTokens = 1000, temperature = 0.7 } = request.data;
+
+    console.log('generateChatResponse called with:', {
+      messagesCount: messages?.length,
+      model,
+      maxTokens,
+      temperature
+    });
 
     if (!messages || !Array.isArray(messages)) {
       throw new functions.https.HttpsError('invalid-argument', 'Messages array is required');
     }
 
-    const apiKey = getOpenAIKey();
+    // Access the secret value and clean it
+    const apiKey = openaiKey.value()?.trim();
+
+    if (!apiKey) {
+      console.error('OpenAI API key not found in secrets');
+      throw new functions.https.HttpsError('internal', 'OpenAI API key not configured');
+    }
+
+    console.log('API key found, length:', apiKey.length, 'starts with:', apiKey.substring(0, 10));
 
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model,
@@ -411,15 +469,19 @@ exports.generateChatResponse = functions.https.onCall(async (data, context) => {
 /**
  * Extract rules from PDF text
  */
-exports.extractRules = functions.https.onCall(async (data, context) => {
+exports.extractRules = onCall({ secrets: [openaiKey] }, async (request) => {
   try {
-    const { pdfText, systemPrompt } = data;
+    const { pdfText, systemPrompt } = request.data;
 
     if (!pdfText) {
       throw new functions.https.HttpsError('invalid-argument', 'PDF text is required');
     }
 
-    const apiKey = getOpenAIKey();
+    const apiKey = openaiKey.value()?.trim();
+
+    if (!apiKey) {
+      throw new functions.https.HttpsError('internal', 'OpenAI API key not configured');
+    }
 
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-4o-mini',
@@ -458,15 +520,19 @@ exports.extractRules = functions.https.onCall(async (data, context) => {
 /**
  * Claims analysis
  */
-exports.analyzeClaim = functions.https.onCall(async (data, context) => {
+exports.analyzeClaim = onCall({ secrets: [openaiKey] }, async (request) => {
   try {
-    const { messages, model = 'gpt-4o', maxTokens = 2000, temperature = 0.2 } = data;
+    const { messages, model = 'gpt-4o', maxTokens = 2000, temperature = 0.2 } = request.data;
 
     if (!messages || !Array.isArray(messages)) {
       throw new functions.https.HttpsError('invalid-argument', 'Messages array is required');
     }
 
-    const apiKey = getOpenAIKey();
+    const apiKey = openaiKey.value()?.trim();
+
+    if (!apiKey) {
+      throw new functions.https.HttpsError('internal', 'OpenAI API key not configured');
+    }
 
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model,

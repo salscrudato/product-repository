@@ -78,18 +78,6 @@ class Logger {
     functions.logger.error(log);
   }
 
-  /**
-   * Log function execution time
-   * @param {string} functionName - Name of function
-   * @param {number} duration - Duration in milliseconds
-   * @param {Object} metadata - Additional metadata
-   */
-  logPerformance(functionName, duration, metadata = {}) {
-    this.info(`Function ${functionName} completed`, {
-      duration: `${duration}ms`,
-      ...metadata
-    });
-  }
 }
 
 // Export singleton instance

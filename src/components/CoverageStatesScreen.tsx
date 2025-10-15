@@ -7,6 +7,11 @@ import styled, { keyframes } from 'styled-components';
 import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
+import {
+  validateCoverageStates,
+  validateSubCoverageStates,
+  formatValidationResult
+} from '../utils/stateValidation';
 
 const spin = keyframes`
   0% { transform: rotate(0deg); }
@@ -240,6 +245,37 @@ export default function CoverageStatesScreen() {
 
   const handleSave = async () => {
     try {
+      // Validate states before saving
+      let validation;
+
+      if (coverage.parentCoverageId) {
+        // Sub-coverage validation - validate against parent coverage states
+        const parentDoc = await getDoc(
+          doc(db, `products/${productId}/coverages`, coverage.parentCoverageId)
+        );
+        const parentStates = parentDoc.data()?.states || [];
+
+        validation = validateSubCoverageStates(selectedStates, parentStates);
+      } else {
+        // Top-level coverage validation - validate against product states
+        validation = validateCoverageStates(selectedStates, product.availableStates || []);
+      }
+
+      // Show errors and prevent save
+      if (!validation.isValid) {
+        alert(`Validation errors:\n\n${formatValidationResult(validation)}`);
+        return;
+      }
+
+      // Show warnings but allow save with confirmation
+      if (validation.warnings.length > 0) {
+        const proceed = window.confirm(
+          `${formatValidationResult(validation)}\n\nDo you want to continue?`
+        );
+        if (!proceed) return;
+      }
+
+      // Save the states
       await updateDoc(doc(db, `products/${productId}/coverages`, coverageId), {
         states: selectedStates,
         updatedAt: serverTimestamp(),

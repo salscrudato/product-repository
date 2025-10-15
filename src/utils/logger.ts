@@ -23,7 +23,6 @@ export const LOG_CATEGORIES = {
   NAVIGATION: 'NAVIGATION',
   FORM: 'FORM',
   DATA: 'DATA',
-  PERFORMANCE: 'PERFORMANCE',
   ERROR: 'ERROR',
   AI: 'AI',
   UPLOAD: 'UPLOAD',
@@ -264,13 +263,7 @@ class Logger {
     });
   }
 
-  logPerformance(operation: string, duration: number, details: Record<string, unknown> = {}): void {
-    this.info(LOG_CATEGORIES.PERFORMANCE, `Performance: ${operation}`, {
-      operation,
-      duration,
-      ...details
-    });
-  }
+
 
   logAIOperation(
     operation: string,

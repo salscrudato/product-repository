@@ -7,11 +7,10 @@ import { FirebaseApp, initializeApp } from 'firebase/app';
 import { Auth, getAuth, connectAuthEmulator } from 'firebase/auth';
 import {
   Firestore,
-  getFirestore,
+  initializeFirestore,
   connectFirestoreEmulator,
-  enableIndexedDbPersistence,
-  enableMultiTabIndexedDbPersistence,
-  CACHE_SIZE_UNLIMITED
+  persistentLocalCache,
+  persistentMultipleTabManager
 } from 'firebase/firestore';
 import { Functions, getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { FirebaseStorage, getStorage, connectStorageEmulator } from 'firebase/storage';
@@ -64,7 +63,14 @@ try {
 
 // Initialize services
 export const auth: Auth = getAuth(app);
-export const db: Firestore = getFirestore(app);
+
+// Initialize Firestore with modern cache API (replaces deprecated enableMultiTabIndexedDbPersistence)
+export const db: Firestore = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
+
 export const functions: Functions = getFunctions(app);
 export const storage: FirebaseStorage = getStorage(app);
 
@@ -100,42 +106,8 @@ if (USE_EMULATORS) {
   console.log('🌐 Using production Firebase services');
 }
 
-// Enable Firestore persistence for offline support
-const enablePersistence = async (): Promise<void> => {
-  if (typeof window === 'undefined') return;
-
-  try {
-    // Try multi-tab persistence first (better for most use cases)
-    await enableMultiTabIndexedDbPersistence(db);
-    console.log('✅ Firestore multi-tab persistence enabled');
-  } catch (error) {
-    const err = error as { code?: string; message?: string };
-    if (err.code === 'failed-precondition') {
-      // Multiple tabs open, persistence can only be enabled in one tab at a time
-      console.warn('⚠️ Firestore persistence failed: Multiple tabs open');
-      try {
-        // Fall back to single-tab persistence
-        await enableIndexedDbPersistence(db, {
-          cacheSizeBytes: CACHE_SIZE_UNLIMITED
-        });
-        console.log('✅ Firestore single-tab persistence enabled');
-      } catch (fallbackErr) {
-        const fallbackError = fallbackErr as Error;
-        console.warn('⚠️ Firestore persistence not available:', fallbackError.message);
-      }
-    } else if (err.code === 'unimplemented') {
-      // Browser doesn't support persistence
-      console.warn('⚠️ Firestore persistence not supported in this browser');
-    } else {
-      console.error('❌ Firestore persistence error:', error);
-    }
-  }
-};
-
-// Initialize persistence (non-blocking)
-enablePersistence().catch(err => {
-  console.warn('⚠️ Could not enable Firestore persistence:', err);
-});
+// Firestore persistence is now configured via initializeFirestore with persistentLocalCache
+console.log('✅ Firestore initialized with multi-tab persistent cache');
 
 // Export app instance for advanced use cases
 export default app;

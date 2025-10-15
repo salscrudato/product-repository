@@ -1,6 +1,6 @@
 /**
- * Performance Utilities
- * Simplified version containing only actively used functions
+ * Utility Functions
+ * Common utility functions for the application
  */
 
 /**
@@ -15,18 +15,18 @@ export const debounce = <T extends (...args: any[]) => any>(
   immediate: boolean = false
 ): ((...args: Parameters<T>) => void) => {
   let timeout: NodeJS.Timeout | null;
-  
+
   return function executedFunction(...args: Parameters<T>) {
     const later = () => {
       timeout = null;
       if (!immediate) func(...args);
     };
-    
+
     const callNow = immediate && !timeout;
-    
+
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(later, wait);
-    
+
     if (callNow) func(...args);
   };
 };
@@ -41,7 +41,7 @@ export const throttle = <T extends (...args: any[]) => any>(
   wait: number
 ): ((...args: Parameters<T>) => void) => {
   let inThrottle: boolean;
-  
+
   return function executedFunction(...args: Parameters<T>) {
     if (!inThrottle) {
       func(...args);
