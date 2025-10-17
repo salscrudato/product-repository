@@ -669,7 +669,7 @@ const Builder = () => {
       // Create coverages for new product (with sub-coverages, limits, and deductibles)
       const newCoverageIds = {};
 
-      // Helper function to recursively clone a coverage and its sub-coverages
+      // Helper function to recursively clone a coverage and all its related data
       const cloneCoverage = async (sourceCoverageId, sourceProductId, newProductId, parentCoverageId = null) => {
         // Get source coverage data
         const sourceCoverageRef = doc(db, `products/${sourceProductId}/coverages`, sourceCoverageId);
@@ -715,6 +715,13 @@ const Builder = () => {
           await batch.commit();
         }
 
+        // Clone states
+        if (sourceCoverageData.states && sourceCoverageData.states.length > 0) {
+          await updateDoc(doc(db, `products/${newProductId}/coverages`, newCoverageId), {
+            states: sourceCoverageData.states
+          });
+        }
+
         // Clone sub-coverages recursively
         const subCoveragesSnap = await getDocs(
           query(
@@ -734,6 +741,40 @@ const Builder = () => {
         const sourceProductId = selectedCoverages[coverageId].productId;
         const newCoverageId = await cloneCoverage(coverageId, sourceProductId, newProductId);
         newCoverageIds[coverageId] = newCoverageId;
+      }
+
+      // Clone pricing steps from source product
+      const sourceProductId = Object.values(selectedCoverages)[0]?.productId;
+      if (sourceProductId) {
+        const pricingSnap = await getDocs(collection(db, `products/${sourceProductId}/steps`));
+        if (pricingSnap.docs.length > 0) {
+          const batch = writeBatch(db);
+          pricingSnap.docs.forEach(pricingDoc => {
+            const pricingRef = doc(collection(db, `products/${newProductId}/steps`));
+            batch.set(pricingRef, pricingDoc.data());
+          });
+          await batch.commit();
+        }
+      }
+
+      // Clone rules from source product
+      if (sourceProductId) {
+        const rulesSnap = await getDocs(
+          query(collection(db, 'rules'), where('productId', '==', sourceProductId))
+        );
+        if (rulesSnap.docs.length > 0) {
+          const batch = writeBatch(db);
+          rulesSnap.docs.forEach(ruleDoc => {
+            const ruleData = ruleDoc.data();
+            const ruleRef = doc(collection(db, 'rules'));
+            batch.set(ruleRef, {
+              ...ruleData,
+              productId: newProductId,
+              createdAt: serverTimestamp()
+            });
+          });
+          await batch.commit();
+        }
       }
 
       // ✅ AUTO-ADD FORM: If form was uploaded, create form document and link to coverages
@@ -766,7 +807,12 @@ const Builder = () => {
       }
 
       alert('Product created successfully! Redirecting to product hub.');
-      navigate('/');
+      // Navigate to product hub with the new product ID
+      navigate(`/product-hub?productId=${newProductId}`, { replace: true });
+      // Force a small delay to ensure navigation completes
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     } catch (error) {
       console.error('Error creating product:', error);
       alert('Failed to create product. Please try again.');
