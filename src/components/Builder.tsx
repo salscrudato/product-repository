@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, collectionGroup, getDocs, addDoc, updateDoc, doc, writeBatch, serverTimestamp, query, where } from 'firebase/firestore';
+import { collection, collectionGroup, getDocs, addDoc, updateDoc, doc, writeBatch, serverTimestamp, query, where, getDoc } from 'firebase/firestore';
 import { db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import styled from 'styled-components';
@@ -666,23 +666,74 @@ const Builder = () => {
       });
       const newProductId = productRef.id;
 
-      // Create coverages for new product
+      // Create coverages for new product (with sub-coverages, limits, and deductibles)
       const newCoverageIds = {};
-      for (const coverageId in selectedCoverages) {
-        const coverage = selectedCoverages[coverageId];
+
+      // Helper function to recursively clone a coverage and its sub-coverages
+      const cloneCoverage = async (sourceCoverageId, sourceProductId, newProductId, parentCoverageId = null) => {
+        // Get source coverage data
+        const sourceCoverageRef = doc(db, `products/${sourceProductId}/coverages`, sourceCoverageId);
+        const sourceCoverageSnap = await getDoc(sourceCoverageRef);
+        if (!sourceCoverageSnap.exists()) return null;
+
+        const sourceCoverageData = sourceCoverageSnap.data();
+
+        // Create new coverage
         const newCoverageRef = await addDoc(
           collection(db, `products/${newProductId}/coverages`),
           {
-            name: coverage.name || coverage.coverageName || 'Unnamed Coverage',
-            coverageCode: coverage.coverageCode || '',
-            coverageName: coverage.coverageName || coverage.name || '',
-            scopeOfCoverage: coverage.scopeOfCoverage || '',
-            category: coverage.category || 'Base Coverage',
-            parentCoverageId: null,
+            name: sourceCoverageData.name || 'Unnamed Coverage',
+            coverageCode: sourceCoverageData.coverageCode || '',
+            coverageName: sourceCoverageData.coverageName || '',
+            scopeOfCoverage: sourceCoverageData.scopeOfCoverage || '',
+            category: sourceCoverageData.category || 'Base Coverage',
+            parentCoverageId: parentCoverageId,
             createdAt: serverTimestamp(),
           }
         );
-        newCoverageIds[coverageId] = newCoverageRef.id;
+        const newCoverageId = newCoverageRef.id;
+
+        // Clone limits
+        const limitsSnap = await getDocs(collection(db, `products/${sourceProductId}/coverages/${sourceCoverageId}/limits`));
+        if (limitsSnap.docs.length > 0) {
+          const batch = writeBatch(db);
+          limitsSnap.docs.forEach(limitDoc => {
+            const limitRef = doc(collection(db, `products/${newProductId}/coverages/${newCoverageId}/limits`));
+            batch.set(limitRef, limitDoc.data());
+          });
+          await batch.commit();
+        }
+
+        // Clone deductibles
+        const deductiblesSnap = await getDocs(collection(db, `products/${sourceProductId}/coverages/${sourceCoverageId}/deductibles`));
+        if (deductiblesSnap.docs.length > 0) {
+          const batch = writeBatch(db);
+          deductiblesSnap.docs.forEach(deductibleDoc => {
+            const deductibleRef = doc(collection(db, `products/${newProductId}/coverages/${newCoverageId}/deductibles`));
+            batch.set(deductibleRef, deductibleDoc.data());
+          });
+          await batch.commit();
+        }
+
+        // Clone sub-coverages recursively
+        const subCoveragesSnap = await getDocs(
+          query(
+            collection(db, `products/${sourceProductId}/coverages`),
+            where('parentCoverageId', '==', sourceCoverageId)
+          )
+        );
+        for (const subCoverageDoc of subCoveragesSnap.docs) {
+          await cloneCoverage(subCoverageDoc.id, sourceProductId, newProductId, newCoverageId);
+        }
+
+        return newCoverageId;
+      };
+
+      // Clone all selected coverages
+      for (const coverageId in selectedCoverages) {
+        const sourceProductId = selectedCoverages[coverageId].productId;
+        const newCoverageId = await cloneCoverage(coverageId, sourceProductId, newProductId);
+        newCoverageIds[coverageId] = newCoverageId;
       }
 
       // ✅ AUTO-ADD FORM: If form was uploaded, create form document and link to coverages
