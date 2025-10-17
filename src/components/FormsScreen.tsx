@@ -679,6 +679,18 @@ export default function FormsScreen() {
 
         /* forms */
         const fSnap = await getDocs(collection(db, 'forms'));
+
+        // Fetch all form-coverage links
+        const linksSnap = await getDocs(collection(db, 'formCoverages'));
+        const coveragesByForm = {};
+        linksSnap.docs.forEach(doc => {
+          const { formId, coverageId } = doc.data();
+          if (!coveragesByForm[formId]) {
+            coveragesByForm[formId] = [];
+          }
+          coveragesByForm[formId].push(coverageId);
+        });
+
         const formList = await Promise.all(
           fSnap.docs.map(async d => {
             const data = d.data();
@@ -690,7 +702,8 @@ export default function FormsScreen() {
               ...data,
               id: d.id,
               downloadUrl: url,
-              productIds: data.productIds || (data.productId ? [data.productId] : [])
+              productIds: data.productIds || (data.productId ? [data.productId] : []),
+              coverageIds: coveragesByForm[d.id] || []
             };
           })
         );

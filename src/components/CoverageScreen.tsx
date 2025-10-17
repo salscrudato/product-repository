@@ -1033,10 +1033,24 @@ export default function CoverageScreen() {
     if (!productId) return;
     setMetaLoading(true);
     try {
-      // forms
+      // forms - enrich with linked coverages from junction table
       const formsSnap = await getDocs(
         query(collection(db, 'forms'), where('productId', '==', productId))
       );
+
+      // Fetch all form-coverage links for this product
+      const linksSnap = await getDocs(
+        query(collection(db, 'formCoverages'), where('productId', '==', productId))
+      );
+      const coveragesByForm = {};
+      linksSnap.docs.forEach(doc => {
+        const { formId, coverageId } = doc.data();
+        if (!coveragesByForm[formId]) {
+          coveragesByForm[formId] = [];
+        }
+        coveragesByForm[formId].push(coverageId);
+      });
+
       const list = await Promise.all(
         formsSnap.docs.map(async d => {
           const data = d.data();
@@ -1044,7 +1058,12 @@ export default function CoverageScreen() {
           if (data.filePath) {
             try { url = await getDownloadURL(ref(storage, data.filePath)); } catch {}
           }
-          return { ...data, id: d.id, downloadUrl: url };
+          return {
+            ...data,
+            id: d.id,
+            downloadUrl: url,
+            coverageIds: coveragesByForm[d.id] || []
+          };
         })
       );
       setForms(list);
