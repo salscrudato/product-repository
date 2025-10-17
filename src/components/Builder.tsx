@@ -14,6 +14,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import MainNavigation from '../components/ui/Navigation';
 import EnhancedHeader from '../components/ui/EnhancedHeader';
+import ConfirmationModal from '../components/ui/ConfirmationModal';
 
 /* ---------- Styled Components (reused from ProductBuilder) ---------- */
 const Page = styled.div`
@@ -492,6 +493,7 @@ const Builder = () => {
   const [effectiveDate, setEffectiveDate] = useState('');
   const [file, setFile] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   const navigate = useNavigate();
 
@@ -643,6 +645,10 @@ const Builder = () => {
       return;
     }
 
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmCreateProduct = async () => {
     setIsCreating(true);
     try {
       let formDownloadUrl = '';
@@ -806,16 +812,17 @@ const Builder = () => {
         await batch.commit();
       }
 
-      alert('Product created successfully! Redirecting to product hub.');
       // Navigate to product hub with the new product ID
       navigate(`/product-hub?productId=${newProductId}`, { replace: true });
       // Force a small delay to ensure navigation completes
       setTimeout(() => {
         window.location.reload();
       }, 500);
+      setShowConfirmation(false);
     } catch (error) {
       console.error('Error creating product:', error);
       alert('Failed to create product. Please try again.');
+      setShowConfirmation(false);
     } finally {
       setIsCreating(false);
     }
@@ -1058,6 +1065,19 @@ const Builder = () => {
             </ProductBuilderContent>
           </ProductBuilderPanel>
         </ProductBuilderGrid>
+
+        {/* Create Product Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showConfirmation}
+          title="Create Product"
+          message={`Create product "${newProductName}" with ${Object.keys(selectedCoverages).length} coverage(s)? All related data including sub-coverages, limits, deductibles, pricing, and rules will be cloned.`}
+          confirmText="Create"
+          cancelText="Cancel"
+          isDangerous={false}
+          isLoading={isCreating}
+          onConfirm={handleConfirmCreateProduct}
+          onCancel={() => setShowConfirmation(false)}
+        />
       </MainContent>
     </Page>
   );

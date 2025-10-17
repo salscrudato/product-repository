@@ -27,6 +27,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/solid';
 import DataDictionaryModal from './DataDictionaryModal';
+import ConfirmationModal from './ui/ConfirmationModal';
 import useProducts from '../hooks/useProducts';
 import MarkdownRenderer from '../utils/markdownParser';
 import ProductCard from './ui/ProductCard';
@@ -1295,6 +1296,9 @@ const ProductHub = memo(() => {
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   const [chatModalOpen, setChatModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form states
   const [name, setName] = useState('');
@@ -1501,24 +1505,35 @@ const ProductHub = memo(() => {
     setModalOpen(true);
   }, []);
 
-  const handleDelete = useCallback(async (id) => {
-    const product = products.find(p => p.id === id);
-    if (!window.confirm(`Delete product "${product?.name}"? This action cannot be undone.`)) return;
+  const handleDelete = useCallback((id) => {
+    setDeleteProductId(id);
+    setConfirmDeleteOpen(true);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteProductId) return;
+
+    setIsDeleting(true);
     try {
-      await deleteDoc(doc(db, 'products', id));
+      const product = products.find(p => p.id === deleteProductId);
+      await deleteDoc(doc(db, 'products', deleteProductId));
 
       // Log audit event
-      await logAuditEvent('DELETE', 'PRODUCT', id, {
+      await logAuditEvent('DELETE', 'PRODUCT', deleteProductId, {
         entityName: product?.name,
         reason: 'User-initiated deletion'
       });
 
       showToast(`Product "${product?.name}" deleted successfully`, 'success');
+      setConfirmDeleteOpen(false);
+      setDeleteProductId(null);
     } catch (error) {
       console.error('Delete failed:', error);
       showToast('Failed to delete product. Please try again.', 'error');
+    } finally {
+      setIsDeleting(false);
     }
-  }, [products, showToast]);
+  }, [deleteProductId, products, showToast]);
 
   const handleSummary = async (id, url) => {
     if (!url) {
@@ -2313,6 +2328,22 @@ const ProductHub = memo(() => {
       <DataDictionaryModal
         open={dictModalOpen}
         onClose={() => setDictModalOpen(false)}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmDeleteOpen}
+        title="Delete Product"
+        message={`Are you sure you want to delete "${products.find(p => p.id === deleteProductId)?.name || 'this product'}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDangerous={true}
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setConfirmDeleteOpen(false);
+          setDeleteProductId(null);
+        }}
       />
 
       {/* Toast Notifications */}

@@ -453,41 +453,65 @@ const InsuranceNews: React.FC = () => {
       setError(null);
 
       try {
-        // Using corsproxy.io as a reliable CORS proxy
+        // Try multiple CORS proxies for reliability
         const RSS_URL = 'https://www.insurancejournal.com/feed/';
-        const PROXY_URL = `https://corsproxy.io/?${encodeURIComponent(RSS_URL)}`;
+        const proxies = [
+          `https://corsproxy.io/?${encodeURIComponent(RSS_URL)}`,
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(RSS_URL)}`,
+          `https://cors-anywhere.herokuapp.com/${RSS_URL}`
+        ];
 
-        const response = await fetch(PROXY_URL);
+        let response = null;
+        let lastError = null;
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch news feed');
+        for (const proxyUrl of proxies) {
+          try {
+            response = await fetch(proxyUrl, {
+              headers: {
+                'Accept': 'application/rss+xml, application/xml, text/xml'
+              }
+            });
+            if (response.ok) break;
+          } catch (err) {
+            lastError = err;
+            continue;
+          }
+        }
+
+        if (!response?.ok) {
+          throw lastError || new Error('Failed to fetch news feed from all proxies');
         }
 
         const text = await response.text();
         const parser = new DOMParser();
         const xml = parser.parseFromString(text, 'text/xml');
-        
+
+        // Check for XML parsing errors
+        if (xml.getElementsByTagName('parsererror').length > 0) {
+          throw new Error('Failed to parse RSS feed');
+        }
+
         const items = xml.querySelectorAll('item');
         const newsArticles: NewsArticle[] = [];
-        
+
         items.forEach((item) => {
           const title = item.querySelector('title')?.textContent || '';
           const link = item.querySelector('link')?.textContent || '';
           const description = item.querySelector('description')?.textContent || '';
           const pubDate = item.querySelector('pubDate')?.textContent || '';
           const guid = item.querySelector('guid')?.textContent || '';
-          
+
           // Extract categories
           const categories: string[] = [];
           item.querySelectorAll('category').forEach((cat) => {
             const catText = cat.textContent;
             if (catText) categories.push(catText);
           });
-          
+
           // Extract image URL from enclosure
           const enclosure = item.querySelector('enclosure');
           const imageUrl = enclosure?.getAttribute('url') || undefined;
-          
+
           const article: NewsArticle = {
             title,
             link,
@@ -498,7 +522,7 @@ const InsuranceNews: React.FC = () => {
             imageUrl
           };
 
-          // Only include P&C insurance related articles
+          // Only include P&C insurance related articles - strict filtering
           if (isPCInsuranceRelated(article)) {
             newsArticles.push(article);
           }
@@ -513,9 +537,9 @@ const InsuranceNews: React.FC = () => {
         setLoading(false);
       }
     };
-    
+
     fetchNews();
-    
+
     // Refresh every 15 minutes
     const interval = setInterval(fetchNews, 15 * 60 * 1000);
     return () => clearInterval(interval);
@@ -618,34 +642,7 @@ const InsuranceNews: React.FC = () => {
               </PCFilterBadge>
             </StatsBar>
 
-            {allCategories.length > 0 && (
-              <FilterSection>
-                <FilterTitle>
-                  <FunnelIcon />
-                  Filter by Category
-                </FilterTitle>
-                <FilterTags>
-                  <FilterTag
-                    $active={!selectedCategory}
-                    onClick={() => setSelectedCategory(null)}
-                  >
-                    All News
-                  </FilterTag>
-                  {allCategories.slice(0, 15).map(category => (
-                    <FilterTag
-                      key={category}
-                      $active={selectedCategory === category}
-                      onClick={() => setSelectedCategory(
-                        selectedCategory === category ? null : category
-                      )}
-                    >
-                      {selectedCategory === category && <XMarkIcon />}
-                      {category}
-                    </FilterTag>
-                  ))}
-                </FilterTags>
-              </FilterSection>
-            )}
+
 
             {filteredArticles.length > 0 ? (
               <NewsGrid>
