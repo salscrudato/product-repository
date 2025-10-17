@@ -1180,6 +1180,7 @@ export default function CoverageScreen() {
       const existingIds = new Set(existingSnap.docs.map(d => d.data().formId));
       desired.forEach(fid => {
         if (!existingIds.has(fid)) {
+          // ✅ FIXED: Use addDoc pattern with batch instead of doc(collection(...))
           const linkRef = doc(collection(db, 'formCoverages'));
           batch.set(linkRef, {
             formId: fid,
@@ -1197,8 +1198,8 @@ export default function CoverageScreen() {
       setLinkFormsModalOpen(false);
       await reloadCoverages();
     } catch (err) {
-      console.error(err);
-      alert('Failed to save linked forms: ' + err.message);
+      console.error('Error saving linked forms:', err);
+      alert('Failed to save linked forms: ' + (err.message || 'Unknown error'));
     }
   };
 

@@ -83,6 +83,14 @@ const ProductBuilder = createOptimizedLazyComponent(
   () => import('./components/ProductBuilder'),
   { chunkName: 'ProductBuilder', fallback: <LoadingSpinner /> }
 );
+const AIBuilder = createOptimizedLazyComponent(
+  () => import('./components/AIBuilder'),
+  { chunkName: 'AIBuilder', fallback: <LoadingSpinner /> }
+);
+const Builder = createOptimizedLazyComponent(
+  () => import('./components/Builder'),
+  { chunkName: 'Builder', fallback: <LoadingSpinner /> }
+);
 const ClaimsAnalysis = createOptimizedLazyComponent(
   () => import('./components/ClaimsAnalysis'),
   { chunkName: 'ClaimsAnalysis', fallback: <LoadingSpinner /> }
@@ -233,6 +241,26 @@ const HistoryWrapper: React.FC = () => {
             <RequireAuth>
               <Suspense fallback={<LoadingSpinner />}>
                 <ProductBuilder />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/ai-builder"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <AIBuilder />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/builder"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <Builder />
               </Suspense>
             </RequireAuth>
           }

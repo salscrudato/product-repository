@@ -566,9 +566,14 @@ function ClaimsAnalysisComponent() {
         };
       });
 
-      logger.info(LOG_CATEGORIES.DATA, `Loaded ${formsData.length} forms`);
-      setForms(formsData);
-      setFilteredForms(formsData);
+      // ✅ FILTER: Only show forms with PDF uploaded (have downloadUrl or filePath)
+      const formsWithPDF = formsData.filter(form =>
+        form.downloadUrl || form.filePath
+      );
+
+      logger.info(LOG_CATEGORIES.DATA, `Loaded ${formsWithPDF.length} forms with PDF (out of ${formsData.length} total)`);
+      setForms(formsWithPDF);
+      setFilteredForms(formsWithPDF);
     } catch (error) {
       logger.error(LOG_CATEGORIES.ERROR, 'Error loading forms', {}, error);
       // Set empty arrays to prevent undefined errors

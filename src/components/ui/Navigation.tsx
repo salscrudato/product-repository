@@ -433,10 +433,20 @@ export default function MainNavigation() {
             </Tooltip>
           </NavItem>
           <NavItem>
-            <Tooltip content="Build new insurance products with AI assistance" position="bottom">
+            <Tooltip content="AI-powered product builder assistant" position="bottom">
               <NavLink
-                to="/product-builder"
-                className={location.pathname.startsWith('/product-builder') ? 'active' : ''}
+                to="/ai-builder"
+                className={location.pathname === '/ai-builder' ? 'active' : ''}
+              >
+                AI Builder
+              </NavLink>
+            </Tooltip>
+          </NavItem>
+          <NavItem>
+            <Tooltip content="Build new insurance products" position="bottom">
+              <NavLink
+                to="/builder"
+                className={location.pathname === '/builder' ? 'active' : ''}
               >
                 Builder
               </NavLink>
