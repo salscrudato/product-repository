@@ -52,15 +52,15 @@ const MainContent = styled.main`
 
 const ProductBuilderGrid = styled.div`
   display: grid;
-  grid-template-columns: 1fr 400px 350px;
+  grid-template-columns: 1fr 1fr;
   gap: 24px;
   margin-bottom: 40px;
   max-width: 2000px;
   margin-left: auto;
   margin-right: auto;
 
-  @media (max-width: 1400px) {
-    grid-template-columns: 1fr 350px;
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr;
     & > *:last-child {
       grid-column: 1 / -1;
     }
