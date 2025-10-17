@@ -150,6 +150,42 @@ const nodeGlow = keyframes`
   }
 `;
 
+/* AI-inspired particle animations */
+const aiParticleFloat = keyframes`
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(var(--drift, 0px)) scale(0.3);
+    opacity: 0;
+  }
+`;
+
+const aiPulseGlow = keyframes`
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(99,102,241,0.4), 0 0 20px rgba(168,85,247,0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(99,102,241,0.8), 0 0 40px rgba(168,85,247,0.4);
+  }
+`;
+
+const aiOrbitSpin = keyframes`
+  0% {
+    transform: rotate(0deg) translateX(60px) rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg) translateX(60px) rotate(-360deg);
+  }
+`;
+
 /* Smooth card entrance with subtle scale */
 const cardEnter = keyframes`
   from {
@@ -186,8 +222,6 @@ const Page = styled.div`
   --bg-a: #06071a;
   --bg-b: #08091f;
   --bg-c: #000000;
-  --mouseX: 50%;
-  --mouseY: 50%;
 
   min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
@@ -214,26 +248,9 @@ const Page = styled.div`
     z-index: 0;
   }
 
-  /* Enhanced spotlight that follows the cursor - more vibrant */
-  &::after {
-    content:'';
-    position: absolute; inset: 0;
-    background: radial-gradient(
-      50vmin 40vmin at var(--mouseX) var(--mouseY),
-      rgba(99,102,241,.25),
-      rgba(168,85,247,.18) 40%,
-      rgba(99,102,241,0) 70%
-    );
-    mix-blend-mode: soft-light;
-    pointer-events: none;
-    z-index: 0;
-    transition: background 0.1s ease-out;
-  }
-
   @media (prefers-reduced-motion: reduce) {
     animation: none;
     background-size: auto;
-    &::after { display: none; }
   }
 `;
 
@@ -372,6 +389,48 @@ const Orb = styled.div<{ $x: number; $y: number; $size: number; $delay: number; 
   animation-delay: ${({$delay}) => $delay}s;
   filter: blur(1px);
   opacity: 0.5;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`;
+
+/* AI-inspired particle field for innovative background */
+const AIParticleField = styled.div`
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  overflow: hidden;
+`;
+
+const AIParticle = styled.div<{ $duration: number; $delay: number; $drift: number }>`
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(99,102,241,0.8), rgba(168,85,247,0.4));
+  box-shadow: 0 0 8px rgba(99,102,241,0.6), 0 0 16px rgba(168,85,247,0.3);
+  animation: ${aiParticleFloat} ${({$duration}) => $duration}s linear ${({$delay}) => $delay}s infinite;
+  --drift: ${({$drift}) => $drift}px;
+  will-change: transform, opacity;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    opacity: 0.3;
+  }
+`;
+
+/* AI orbital nodes - creates a sense of intelligent movement */
+const AIOrbitalNode = styled.div`
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, rgba(99,102,241,0.9), rgba(168,85,247,0.5));
+  box-shadow: 0 0 12px rgba(99,102,241,0.8), 0 0 24px rgba(168,85,247,0.4);
+  animation: ${aiPulseGlow} 3s ease-in-out infinite;
+  will-change: box-shadow;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -1091,47 +1150,6 @@ const Login: React.FC = () => {
     prefersReduced.current =
       window.matchMedia &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    const el = pageRef.current;
-    const card = cardRef.current;
-    if (!el || prefersReduced.current) return;
-
-    let lastX = 0;
-    let lastY = 0;
-
-    const onMove = (e: MouseEvent) => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(() => {
-        const rect = el.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 100;
-        const y = ((e.clientY - rect.top) / rect.height) * 100;
-
-        // Only update if movement is significant (debounce)
-        if (Math.abs(x - lastX) > 0.5 || Math.abs(y - lastY) > 0.5) {
-          lastX = x;
-          lastY = y;
-          el.style.setProperty('--mouseX', `${x}%`);
-          el.style.setProperty('--mouseY', `${y}%`);
-        }
-
-        // 3D card tilt effect with smooth interpolation
-        if (card) {
-          const cardRect = card.getBoundingClientRect();
-          const cardCenterX = cardRect.left + cardRect.width / 2;
-          const cardCenterY = cardRect.top + cardRect.height / 2;
-          const angleX = (e.clientY - cardCenterY) / 30;
-          const angleY = (cardCenterX - e.clientX) / 30;
-
-          card.style.transform = `perspective(1000px) rotateX(${angleX}deg) rotateY(${angleY}deg)`;
-        }
-      });
-    };
-
-    window.addEventListener('mousemove', onMove, { passive: true });
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
   }, []);
 
   const handleGuestLogin = useCallback(async () => {
@@ -1227,6 +1245,26 @@ const Login: React.FC = () => {
         <Orb $x={40} $y={15} $size={6} $delay={0.5} $duration={17} />
         <Orb $x={60} $y={85} $size={9} $delay={2.8} $duration={15} />
       </FloatingOrbs>
+
+      {/* AI-inspired particle field - innovative background animation */}
+      <AIParticleField aria-hidden="true">
+        {[...Array(12)].map((_, i) => (
+          <AIParticle
+            key={`particle-${i}`}
+            $duration={8 + Math.random() * 6}
+            $delay={Math.random() * 4}
+            $drift={-40 + Math.random() * 80}
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${100 + Math.random() * 20}%`
+            }}
+          />
+        ))}
+        {/* Orbital nodes for intelligent feel */}
+        <AIOrbitalNode style={{ left: '20%', top: '30%' }} />
+        <AIOrbitalNode style={{ left: '80%', top: '40%' }} />
+        <AIOrbitalNode style={{ left: '50%', top: '60%' }} />
+      </AIParticleField>
 
       {/* Neural Network Layer - Subtle animated network in background */}
       <NeuralNetworkLayer aria-hidden="true">
