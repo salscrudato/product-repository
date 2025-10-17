@@ -1122,10 +1122,26 @@ export default function CoverageScreen() {
     setDeductibleModalOpen(true);
   };
 
-  const openLinkFormsModal = c => {
+  const openLinkFormsModal = async c => {
     setSelectedCoverageForForms(c);
-    setLinkFormIds(c.formIds || []);
     setFormSearchQuery('');
+
+    // Fetch existing linked forms from junction table
+    try {
+      const linksSnap = await getDocs(
+        query(
+          collection(db, 'formCoverages'),
+          where('coverageId', '==', c.id),
+          where('productId', '==', productId)
+        )
+      );
+      const linkedFormIds = linksSnap.docs.map(doc => doc.data().formId);
+      setLinkFormIds(linkedFormIds);
+    } catch (err) {
+      console.error('Error fetching linked forms:', err);
+      setLinkFormIds([]);
+    }
+
     setLinkFormsModalOpen(true);
   };
 

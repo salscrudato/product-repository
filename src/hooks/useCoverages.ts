@@ -18,7 +18,8 @@ import {
   onSnapshot,
   getDocs,
   query,
-  orderBy
+  orderBy,
+  where
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -26,6 +27,38 @@ export default function useCoverages(productId) {
   const [coverages, setCoverages] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState(null);
+
+  // Helper function to enrich coverages with linked forms
+  const enrichCoveragesWithForms = useCallback(async (coveragesList) => {
+    try {
+      // Fetch all form-coverage links for this product
+      const linksSnap = await getDocs(
+        query(
+          collection(db, 'formCoverages'),
+          where('productId', '==', productId)
+        )
+      );
+
+      // Build a map of coverageId -> [formIds]
+      const formsByCoverage = {};
+      linksSnap.docs.forEach(doc => {
+        const { coverageId, formId } = doc.data();
+        if (!formsByCoverage[coverageId]) {
+          formsByCoverage[coverageId] = [];
+        }
+        formsByCoverage[coverageId].push(formId);
+      });
+
+      // Enrich each coverage with its linked form IDs
+      return coveragesList.map(coverage => ({
+        ...coverage,
+        formIds: formsByCoverage[coverage.id] || []
+      }));
+    } catch (err) {
+      console.error('Error enriching coverages with forms:', err);
+      return coveragesList;
+    }
+  }, [productId]);
 
   // real‑time listener
   useEffect(() => {
@@ -39,8 +72,10 @@ export default function useCoverages(productId) {
 
     const unsub = onSnapshot(
       q,
-      snap => {
-        setCoverages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      async snap => {
+        const baseCoverages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const enriched = await enrichCoveragesWithForms(baseCoverages);
+        setCoverages(enriched);
         setLoading(false);
       },
       err => {
@@ -51,7 +86,7 @@ export default function useCoverages(productId) {
     );
 
     return () => unsub();
-  }, [productId]);
+  }, [productId, enrichCoveragesWithForms]);
 
   /* manual reload helper ----------------------------------------- */
   const reload = useCallback(async () => {
@@ -61,14 +96,16 @@ export default function useCoverages(productId) {
       const snap = await getDocs(
         query(collection(db, `products/${productId}/coverages`))
       );
-      setCoverages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const baseCoverages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const enriched = await enrichCoveragesWithForms(baseCoverages);
+      setCoverages(enriched);
       setLoading(false);
     } catch (err) {
       console.error('Coverages reload failed:', err);
       setError(err);
       setLoading(false);
     }
-  }, [productId]);
+  }, [productId, enrichCoveragesWithForms]);
 
   return { coverages, loading, error, reload };
 }
