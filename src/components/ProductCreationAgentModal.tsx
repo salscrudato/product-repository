@@ -392,7 +392,14 @@ const ProductCreationAgentModal: React.FC<ProductCreationAgentModalProps> = ({
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
-          const base64Data = e.target?.result as string;
+          const dataUrl = e.target?.result as string;
+
+          // Extract base64 from data URL (remove "data:application/pdf;base64," prefix)
+          const base64Data = dataUrl.includes(',')
+            ? dataUrl.split(',')[1]
+            : dataUrl;
+
+          console.log('File read successfully, base64 length:', base64Data.length);
 
           // Update progress
           setProgress(prev => prev.map(p =>
