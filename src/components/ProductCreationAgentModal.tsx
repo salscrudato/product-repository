@@ -390,16 +390,43 @@ const ProductCreationAgentModal: React.FC<ProductCreationAgentModalProps> = ({
     try {
       // Read file as base64
       const reader = new FileReader();
+      reader.onerror = () => {
+        console.error('FileReader error:', reader.error);
+        setError('Failed to read PDF file');
+        setIsProcessing(false);
+        setCurrentStep('upload');
+      };
+
       reader.onload = async (e) => {
         try {
           const dataUrl = e.target?.result as string;
+
+          if (!dataUrl) {
+            console.error('FileReader returned empty result');
+            setError('Failed to read PDF file - empty result');
+            setIsProcessing(false);
+            setCurrentStep('upload');
+            return;
+          }
 
           // Extract base64 from data URL (remove "data:application/pdf;base64," prefix)
           const base64Data = dataUrl.includes(',')
             ? dataUrl.split(',')[1]
             : dataUrl;
 
-          console.log('File read successfully, base64 length:', base64Data.length);
+          console.log('File read successfully');
+          console.log('File name:', file.name);
+          console.log('File size:', file.size);
+          console.log('Base64 length:', base64Data.length);
+          console.log('Base64 starts with:', base64Data.substring(0, 50));
+
+          if (!base64Data || base64Data.length === 0) {
+            console.error('Base64 data is empty');
+            setError('Failed to convert PDF to base64');
+            setIsProcessing(false);
+            setCurrentStep('upload');
+            return;
+          }
 
           // Update progress
           setProgress(prev => prev.map(p =>

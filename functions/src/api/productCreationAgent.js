@@ -178,7 +178,10 @@ const createProductFromPDF = functions.https.onCall(
     logger.info('Product creation from PDF requested', {
       userId,
       fileName,
-      isFinalized: isFinalized || false
+      isFinalized: isFinalized || false,
+      hasPdfBase64: !!pdfBase64,
+      pdfBase64Length: pdfBase64 ? pdfBase64.length : 0,
+      dataKeys: Object.keys(data)
     });
 
     // If finalized, skip extraction and go straight to product creation
@@ -186,10 +189,15 @@ const createProductFromPDF = functions.https.onCall(
       return createFinalizedProduct(extractionResult, context, fileName);
     }
 
-    if (!pdfBase64) {
+    if (!pdfBase64 || pdfBase64.length === 0) {
+      logger.error('Invalid pdfBase64', {
+        hasPdfBase64: !!pdfBase64,
+        pdfBase64Length: pdfBase64 ? pdfBase64.length : 0,
+        pdfBase64Type: typeof pdfBase64
+      });
       throw new functions.https.HttpsError(
         'invalid-argument',
-        'pdfBase64 is required'
+        'pdfBase64 is required and must not be empty'
       );
     }
 
