@@ -20,14 +20,16 @@ const extractTextFromBuffer = async (pdfBuffer) => {
       bufferSize: pdfBuffer.length
     });
 
-    const data = await new PDFParse(pdfBuffer);
+    // pdf-parse v2.3.10 API: create parser instance with buffer, then call getText()
+    const parser = new PDFParse({ buffer: pdfBuffer });
+    const result = await parser.getText();
 
     logger.info('PDF text extraction successful', {
-      pages: data.numpages,
-      textLength: data.text.length
+      textLength: result.text ? result.text.length : 0,
+      textPreview: result.text ? result.text.substring(0, 100) : 'empty'
     });
 
-    return data.text;
+    return result.text || '';
   } catch (error) {
     logger.error('PDF text extraction failed', {
       error: error.message
