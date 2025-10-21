@@ -104,27 +104,33 @@ const RetryButton = styled.button`
   }
 `;
 
-const ErrorFallback = ({ error, errorInfo, resetError }) => {
+interface ErrorFallbackProps {
+  error: Error | null;
+  errorInfo: React.ErrorInfo | null;
+  resetError: () => void;
+}
+
+const ErrorFallback: React.FC<ErrorFallbackProps> = ({ error, errorInfo, resetError }) => {
   const isDevelopment = process.env.NODE_ENV === 'development';
-  
+
   return (
     <ErrorContainer>
       <ErrorIcon>
         <ExclamationTriangleIcon />
       </ErrorIcon>
-      
+
       <ErrorTitle>Something went wrong</ErrorTitle>
-      
+
       <ErrorMessage>
-        We encountered an unexpected error. This has been logged and our team will investigate. 
+        We encountered an unexpected error. This has been logged and our team will investigate.
         Please try refreshing the page or contact support if the problem persists.
       </ErrorMessage>
-      
+
       <RetryButton onClick={resetError}>
         <ArrowPathIcon />
         Try Again
       </RetryButton>
-      
+
       {isDevelopment && error && (
         <ErrorDetails>
           <summary>Error Details (Development Only)</summary>
@@ -144,54 +150,65 @@ const ErrorFallback = ({ error, errorInfo, resetError }) => {
   );
 };
 
-class ErrorBoundary extends React.Component {
-  constructor(props) {
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  fallback?: (error: Error | null, errorInfo: React.ErrorInfo | null, resetError: () => void) => React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: React.ErrorInfo | null;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { 
-      hasError: false, 
-      error: null, 
-      errorInfo: null 
+    this.state = {
+      hasError: false,
+      error: null,
+      errorInfo: null
     };
   }
 
-  static getDerivedStateFromError(_error) {
+  static getDerivedStateFromError(_error: Error): Partial<ErrorBoundaryState> {
     // Update state so the next render will show the fallback UI
     return { hasError: true };
   }
 
-  componentDidCatch(error, errorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     // Log error details
     console.error('Error caught by ErrorBoundary:', error, errorInfo);
-    
+
     this.setState({
       error,
       errorInfo
     });
-    
+
     // In production, you might want to send this to an error reporting service
     if (process.env.NODE_ENV === 'production') {
       // Example: Sentry.captureException(error, { contexts: { react: errorInfo } });
     }
   }
 
-  resetError = () => {
-    this.setState({ 
-      hasError: false, 
-      error: null, 
-      errorInfo: null 
+  resetError = (): void => {
+    this.setState({
+      hasError: false,
+      error: null,
+      errorInfo: null
     });
   };
 
-  render() {
+  render(): React.ReactNode {
     if (this.state.hasError) {
       // Custom fallback UI
       if (this.props.fallback) {
         return this.props.fallback(this.state.error, this.state.errorInfo, this.resetError);
       }
-      
+
       // Default fallback UI
       return (
-        <ErrorFallback 
+        <ErrorFallback
           error={this.state.error}
           errorInfo={this.state.errorInfo}
           resetError={this.resetError}

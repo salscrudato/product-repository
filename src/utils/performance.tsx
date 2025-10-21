@@ -9,15 +9,15 @@
  * @param wait - Wait time in milliseconds
  * @param immediate - Execute on leading edge instead of trailing
  */
-export const debounce = <T extends (...args: any[]) => any>(
+export const debounce = <T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number,
   immediate: boolean = false
 ): ((...args: Parameters<T>) => void) => {
-  let timeout: NodeJS.Timeout | null;
+  let timeout: NodeJS.Timeout | null = null;
 
-  return function executedFunction(...args: Parameters<T>) {
-    const later = () => {
+  return function executedFunction(...args: Parameters<T>): void {
+    const later = (): void => {
       timeout = null;
       if (!immediate) func(...args);
     };
@@ -36,17 +36,19 @@ export const debounce = <T extends (...args: any[]) => any>(
  * @param func - Function to throttle
  * @param wait - Wait time in milliseconds
  */
-export const throttle = <T extends (...args: any[]) => any>(
+export const throttle = <T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => void) => {
-  let inThrottle: boolean;
+  let inThrottle = false;
 
-  return function executedFunction(...args: Parameters<T>) {
+  return function executedFunction(...args: Parameters<T>): void {
     if (!inThrottle) {
       func(...args);
       inThrottle = true;
-      setTimeout(() => (inThrottle = false), wait);
+      setTimeout(() => {
+        inThrottle = false;
+      }, wait);
     }
   };
 };

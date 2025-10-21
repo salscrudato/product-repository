@@ -7,49 +7,54 @@
 
 import { Timestamp } from 'firebase/firestore';
 
+type TimestampLike = Timestamp | Date | string | null | undefined;
+
 /**
  * Check if a value is a Firestore Timestamp
  */
-export const isFirestoreTimestamp = (value: any): value is Timestamp => {
+export const isFirestoreTimestamp = (value: unknown): value is Timestamp => {
   return value && typeof value === 'object' && 'seconds' in value && 'nanoseconds' in value;
 };
 
 /**
  * Convert Firestore Timestamp to Date object
  */
-export const timestampToDate = (timestamp: any): Date | null => {
+export const timestampToDate = (timestamp: TimestampLike): Date | null => {
   if (!timestamp) return null;
-  
+
   if (isFirestoreTimestamp(timestamp)) {
     return timestamp.toDate();
   }
-  
+
   if (timestamp instanceof Date) {
     return timestamp;
   }
-  
+
   if (typeof timestamp === 'string') {
-    return new Date(timestamp);
+    const date = new Date(timestamp);
+    return isNaN(date.getTime()) ? null : date;
   }
-  
+
   return null;
 };
 
+type DateFormat = 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'MMM DD, YYYY' | 'MMMM DD, YYYY';
+
 /**
  * Convert Firestore Timestamp to formatted date string
- * 
+ *
  * @param timestamp - Firestore Timestamp or Date
  * @param format - Format string (default: 'MM/DD/YYYY')
  * @returns Formatted date string or empty string if invalid
  */
-export const formatFirestoreDate = (timestamp: any, format: string = 'MM/DD/YYYY'): string => {
+export const formatFirestoreDate = (timestamp: TimestampLike, format: DateFormat = 'MM/DD/YYYY'): string => {
   const date = timestampToDate(timestamp);
   if (!date) return '';
-  
+
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
-  
+
   switch (format) {
     case 'MM/DD/YYYY':
       return `${month}/${day}/${year}`;
@@ -69,21 +74,21 @@ export const formatFirestoreDate = (timestamp: any, format: string = 'MM/DD/YYYY
 /**
  * Normalize Firestore document data by converting all Timestamps to dates
  */
-export const normalizeFirestoreData = (data: any): any => {
+export const normalizeFirestoreData = <T extends Record<string, unknown>>(data: unknown): T | unknown => {
   if (!data || typeof data !== 'object') {
     return data;
   }
-  
+
   if (Array.isArray(data)) {
     return data.map(item => normalizeFirestoreData(item));
   }
-  
+
   if (isFirestoreTimestamp(data)) {
     return data.toDate();
   }
-  
-  const normalized: any = {};
-  
+
+  const normalized: Record<string, unknown> = {};
+
   for (const [key, value] of Object.entries(data)) {
     if (isFirestoreTimestamp(value)) {
       normalized[key] = value.toDate();
@@ -95,24 +100,24 @@ export const normalizeFirestoreData = (data: any): any => {
       normalized[key] = value;
     }
   }
-  
-  return normalized;
+
+  return normalized as T;
 };
 
 /**
  * Get relative time string (e.g., "2 hours ago", "3 days ago")
  */
-export const getRelativeTime = (timestamp: any): string => {
+export const getRelativeTime = (timestamp: TimestampLike): string => {
   const date = timestampToDate(timestamp);
   if (!date) return '';
-  
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffSecs = Math.floor(diffMs / 1000);
   const diffMins = Math.floor(diffSecs / 60);
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
-  
+
   if (diffSecs < 60) return 'just now';
   if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
   if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
@@ -125,7 +130,7 @@ export const getRelativeTime = (timestamp: any): string => {
     const months = Math.floor(diffDays / 30);
     return `${months} month${months > 1 ? 's' : ''} ago`;
   }
-  
+
   const years = Math.floor(diffDays / 365);
   return `${years} year${years > 1 ? 's' : ''} ago`;
 };

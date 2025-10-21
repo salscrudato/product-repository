@@ -3,57 +3,67 @@
  * Tracks all changes to insurance products for regulatory compliance
  */
 
-import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs, FieldValue } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
 
-export type AuditAction = 
-  | 'CREATE' 
-  | 'UPDATE' 
-  | 'DELETE' 
-  | 'APPROVE' 
-  | 'REJECT' 
-  | 'PUBLISH' 
+export type AuditAction =
+  | 'CREATE'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'APPROVE'
+  | 'REJECT'
+  | 'PUBLISH'
   | 'ARCHIVE';
 
-export type AuditEntity = 
-  | 'PRODUCT' 
-  | 'COVERAGE' 
-  | 'FORM' 
-  | 'PRICING_STEP' 
-  | 'RULE' 
+export type AuditEntity =
+  | 'PRODUCT'
+  | 'COVERAGE'
+  | 'FORM'
+  | 'PRICING_STEP'
+  | 'RULE'
   | 'TASK';
+
+export interface AuditChange {
+  field: string;
+  oldValue: unknown;
+  newValue: unknown;
+}
 
 export interface AuditLogEntry {
   // Who
   userId: string;
   userEmail: string;
   userName?: string;
-  
+
   // What
   action: AuditAction;
   entityType: AuditEntity;
   entityId: string;
   entityName?: string;
-  
+
   // Details
-  changes?: {
-    field: string;
-    oldValue: any;
-    newValue: any;
-  }[];
-  
+  changes?: AuditChange[];
+
   // Context
   productId?: string;
   reason?: string;
-  metadata?: Record<string, any>;
-  
+  metadata?: Record<string, unknown>;
+
   // When
-  timestamp: any; // Firestore serverTimestamp
-  
+  timestamp: FieldValue;
+
   // Compliance
   ipAddress?: string;
   userAgent?: string;
+}
+
+interface LogAuditEventOptions {
+  entityName?: string;
+  changes?: AuditChange[];
+  productId?: string;
+  reason?: string;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -63,13 +73,7 @@ export async function logAuditEvent(
   action: AuditAction,
   entityType: AuditEntity,
   entityId: string,
-  options: {
-    entityName?: string;
-    changes?: { field: string; oldValue: any; newValue: any }[];
-    productId?: string;
-    reason?: string;
-    metadata?: Record<string, any>;
-  } = {}
+  options: LogAuditEventOptions = {}
 ): Promise<void> {
   try {
     const user = auth.currentUser;
@@ -78,7 +82,7 @@ export async function logAuditEvent(
       return;
     }
 
-    const auditEntry: Omit<AuditLogEntry, 'timestamp'> & { timestamp: any } = {
+    const auditEntry: Omit<AuditLogEntry, 'timestamp'> & { timestamp: FieldValue } = {
       userId: user.uid,
       userEmail: user.email || 'unknown',
       userName: user.displayName || undefined,

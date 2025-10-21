@@ -14,8 +14,8 @@ export interface PaginationState {
   endIndex: number;
 }
 
-export interface InfiniteScrollState {
-  items: any[];
+export interface InfiniteScrollState<T = Record<string, unknown>> {
+  items: T[];
   isLoading: boolean;
   hasMore: boolean;
   cursor?: string;
@@ -221,8 +221,8 @@ export function formatPaginationInfo(state: PaginationState): string {
 /**
  * Create cursor for pagination
  */
-export function createCursor(
-  items: any[],
+export function createCursor<T extends { pubDate?: string; guid?: string; link?: string }>(
+  items: T[],
   pageSize: number,
   currentPage: number
 ): string {
