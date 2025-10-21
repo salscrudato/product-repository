@@ -5,6 +5,7 @@
 
 const functions = require('firebase-functions');
 const { onCall } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const { withErrorHandling } = require('../middleware/errorHandler');
 const { requireAuth, rateLimitAI } = require('../middleware/auth');
@@ -12,6 +13,9 @@ const { validateAIRequest } = require('../middleware/validation');
 const pdfService = require('../services/pdf');
 const openaiService = require('../services/openai');
 const { logger } = require('../utils/logger');
+
+// Define the secret for OpenAI API key
+const openaiKey = defineSecret('OPENAI_KEY');
 
 const db = admin.firestore();
 const bucket = admin.storage().bucket();
@@ -169,7 +173,7 @@ async function createFinalizedProduct(extractionResult, context, fileName) {
 /**
  * Create product from PDF using autonomous agent
  */
-const createProductFromPDF = onCall(async (request) => {
+const createProductFromPDF = onCall({ secrets: [openaiKey] }, async (request) => {
   try {
     // Extract data and context from v2 API request
     const data = request.data;
@@ -278,10 +282,20 @@ const createProductFromPDF = onCall(async (request) => {
     // Generate extraction using OpenAI
     let extractedResult;
     try {
+      logger.info('Calling OpenAI for product extraction', {
+        textLength: truncatedText.length,
+        systemPromptLength: systemPrompt.length
+      });
+
       const result = await openaiService.generateProductSummary(
         truncatedText,
         systemPrompt
       );
+
+      logger.info('OpenAI response received', {
+        contentLength: result.content ? result.content.length : 0,
+        contentPreview: result.content ? result.content.substring(0, 200) : 'empty'
+      });
 
       // Parse the response
       const content = result.content
@@ -290,12 +304,26 @@ const createProductFromPDF = onCall(async (request) => {
         .replace(/[\u200B-\u200D\uFEFF]/g, '')
         .trim();
 
+      logger.info('Parsing JSON response', {
+        cleanedContentLength: content.length,
+        cleanedContentPreview: content.substring(0, 200)
+      });
+
       extractedResult = JSON.parse(content);
+
+      logger.info('JSON parsed successfully', {
+        productName: extractedResult.productName,
+        coverageCount: extractedResult.coverages ? extractedResult.coverages.length : 0
+      });
     } catch (error) {
-      logger.error('AI extraction failed', { error: error.message });
+      logger.error('AI extraction failed', {
+        error: error.message,
+        errorStack: error.stack,
+        errorType: error.constructor.name
+      });
       throw new functions.https.HttpsError(
         'internal',
-        'Failed to extract product information from PDF'
+        `Failed to extract product information from PDF: ${error.message}`
       );
     }
 
