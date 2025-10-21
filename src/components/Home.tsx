@@ -594,6 +594,16 @@ export default function Home() {
   const [tasks, setTasks] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
+  // Memoize modal callbacks to prevent unnecessary re-renders
+  const handleProductCreationAgentClose = useCallback(() => {
+    setProductCreationAgentOpen(false);
+  }, []);
+
+  const handleProductCreated = useCallback((productId: string) => {
+    logger.info(LOG_CATEGORIES.DATA, 'Product created via agent', { productId });
+    setProductCreationAgentOpen(false);
+  }, []);
+
   // Fetch comprehensive application data for enhanced AI context (optimized with caching)
   useEffect(() => {
     const fetchContextData = async () => {
@@ -1111,11 +1121,8 @@ export default function Home() {
       {/* Product Creation Agent Modal */}
       <ProductCreationAgentModal
         isOpen={productCreationAgentOpen}
-        onClose={() => setProductCreationAgentOpen(false)}
-        onProductCreated={(productId) => {
-          logger.info(LOG_CATEGORIES.DATA, 'Product created via agent', { productId });
-          setProductCreationAgentOpen(false);
-        }}
+        onClose={handleProductCreationAgentClose}
+        onProductCreated={handleProductCreated}
       />
     </Page>
   );

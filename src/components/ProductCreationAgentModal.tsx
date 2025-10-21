@@ -262,8 +262,8 @@ const ProductCreationAgentModal: React.FC<ProductCreationAgentModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    console.log('Modal state changed:', { isOpen, currentStep, file: file?.name });
-  }, [isOpen, currentStep, file]);
+    console.log('Modal state changed:', { isOpen, currentStep, file: file?.name, hasExtractionResult: !!extractionResult });
+  }, [isOpen, currentStep, file, extractionResult]);
 
   if (!isOpen) return null;
 
@@ -469,8 +469,15 @@ const ProductCreationAgentModal: React.FC<ProductCreationAgentModalProps> = ({
     setCreatedProductId(null);
   };
 
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    // Only close if clicking directly on the overlay, not on modal content
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
-    <Overlay onClick={onClose}>
+    <Overlay onClick={handleOverlayClick}>
       <ModalContent onClick={e => e.stopPropagation()}>
         <ModalHeader>
           <ModalTitle>
