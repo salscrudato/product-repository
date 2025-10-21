@@ -7,6 +7,9 @@ const pdfParseModule = require('pdf-parse');
 // pdf-parse v2.3.10 exports PDFParse class
 const PDFParse = pdfParseModule.PDFParse;
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const { logger } = require('../utils/logger');
 
 /**
@@ -15,13 +18,22 @@ const { logger } = require('../utils/logger');
  * @returns {Promise<string>} Extracted text
  */
 const extractTextFromBuffer = async (pdfBuffer) => {
+  let tempFilePath = null;
   try {
     logger.debug('Extracting text from PDF buffer', {
       bufferSize: pdfBuffer.length
     });
 
-    // pdf-parse v2.3.10 API: create parser instance with buffer, then call getText()
-    const parser = new PDFParse({ buffer: pdfBuffer });
+    // pdf-parse v2.3.10 requires file:// URL, so write buffer to temp file
+    const tempDir = os.tmpdir();
+    tempFilePath = path.join(tempDir, `pdf-${Date.now()}-${Math.random().toString(36).substring(7)}.pdf`);
+
+    logger.debug('Writing PDF buffer to temp file', { tempFilePath });
+    fs.writeFileSync(tempFilePath, pdfBuffer);
+
+    // Create parser with file:// URL
+    const fileUrl = `file://${tempFilePath}`;
+    const parser = new PDFParse({ url: fileUrl });
     const result = await parser.getText();
 
     logger.info('PDF text extraction successful', {
@@ -35,6 +47,19 @@ const extractTextFromBuffer = async (pdfBuffer) => {
       error: error.message
     });
     throw new Error(`Failed to extract text from PDF: ${error.message}`);
+  } finally {
+    // Clean up temp file
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
+      try {
+        fs.unlinkSync(tempFilePath);
+        logger.debug('Cleaned up temp PDF file', { tempFilePath });
+      } catch (cleanupError) {
+        logger.warn('Failed to clean up temp PDF file', {
+          tempFilePath,
+          error: cleanupError.message
+        });
+      }
+    }
   }
 };
 
