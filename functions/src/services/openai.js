@@ -13,7 +13,11 @@ const { logger } = require('../utils/logger');
  */
 const getOpenAIKey = () => {
   if (process.env.OPENAI_KEY) {
-    return process.env.OPENAI_KEY;
+    const key = process.env.OPENAI_KEY.trim();
+    if (!key) {
+      throw new Error('OpenAI API key is empty after trimming.');
+    }
+    return key;
   }
   throw new Error('OpenAI API key not configured. Set OPENAI_KEY environment variable.');
 };
@@ -38,14 +42,16 @@ const chatCompletion = async (options = {}) => {
   } = options;
 
   const startTime = Date.now();
-  
+
   try {
     const apiKey = getOpenAIKey();
-    
+
     logger.debug('Calling OpenAI API', {
       model,
       messageCount: messages.length,
-      maxTokens
+      maxTokens,
+      apiKeyLength: apiKey.length,
+      apiKeyPrefix: apiKey.substring(0, 10)
     });
 
     const response = await axios.post(
