@@ -14,6 +14,7 @@ import {
   ClockIcon
 } from '@heroicons/react/24/solid';
 import LoadingSpinner from './LoadingSpinner';
+import { formatFirestoreDate, getRelativeTime } from '../../utils/firestoreHelpers';
 
 // Styled components
 const Card = styled.div`
@@ -434,7 +435,7 @@ const ProductCard = memo(({
             <CalendarIcon />
             <MetaLabel>Effective</MetaLabel>
           </MetaGroup>
-          <MetaValue>{product.effectiveDate || '05/16'}</MetaValue>
+          <MetaValue>{formatFirestoreDate(product.effectiveDate) || '01/01/2025'}</MetaValue>
         </MetaItem>
       </ProductMeta>
 

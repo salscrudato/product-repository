@@ -15,8 +15,23 @@ export interface Product {
   description?: string;
   category?: string;
   status?: 'active' | 'inactive' | 'draft';
+
+  // State Availability
+  states?: string[];                // State codes where product is available (e.g., ['CA', 'NY', 'TX'])
+  excludedStates?: string[];        // State codes where product is NOT available
+
+  // Versioning & Effective Dates
+  version?: number;                 // Version number for tracking changes
+  effectiveDate?: Timestamp | Date;  // When this product becomes effective
+  expirationDate?: Timestamp | Date; // When this product expires
+
+  // Audit Trail
   createdAt?: Timestamp | Date;
   updatedAt?: Timestamp | Date;
+  createdBy?: string;               // User who created this product
+  updatedBy?: string;               // User who last updated this product
+  changeReason?: string;            // Reason for last change
+
   metadata?: Record<string, unknown>;
 }
 
@@ -88,6 +103,7 @@ export interface CoverageLimit {
   // Applicability
   appliesTo?: string[];  // Specific perils, property types, or situations
   description?: string;
+  states?: string[];    // State-specific applicability
 
   // Behavior
   isDefault?: boolean;
@@ -98,9 +114,17 @@ export interface CoverageLimit {
   // Relationships
   parentLimitId?: string;  // For sublimits that reduce from parent
 
+  // Versioning & Effective Dates
+  version?: number;
+  effectiveDate?: Timestamp | Date;
+  expirationDate?: Timestamp | Date;
+  displayOrder?: number;
+
   // Metadata
   createdAt?: Timestamp | Date;
   updatedAt?: Timestamp | Date;
+  createdBy?: string;
+  updatedBy?: string;
 }
 
 /**
@@ -121,6 +145,7 @@ export interface CoverageDeductible {
   // Applicability
   appliesTo?: string[];      // Specific perils or situations
   description?: string;
+  states?: string[];         // State-specific applicability
 
   // Behavior
   isDefault?: boolean;
@@ -138,9 +163,17 @@ export interface CoverageDeductible {
     deductibleAmount: number;
   }[];
 
+  // Versioning & Effective Dates
+  version?: number;
+  effectiveDate?: Timestamp | Date;
+  expirationDate?: Timestamp | Date;
+  displayOrder?: number;
+
   // Metadata
   createdAt?: Timestamp | Date;
   updatedAt?: Timestamp | Date;
+  createdBy?: string;
+  updatedBy?: string;
 }
 
 
@@ -236,6 +269,17 @@ export interface Coverage {
   hasSubrogationRights?: boolean;
   hasSalvageRights?: boolean;
 
+  // ========== Versioning & Effective Dates ==========
+  version?: number;                 // Version number for tracking changes
+  effectiveDate?: Timestamp | Date;  // When this coverage becomes effective
+  expirationDate?: Timestamp | Date; // When this coverage expires
+  displayOrder?: number;            // Order for UI display
+
+  // ========== Coverage Metadata & Classification ==========
+  coverageCategory?: 'Liability' | 'Property' | 'Medical' | 'Other';
+  lineOfBusiness?: string;          // e.g., "Commercial Auto", "Homeowners"
+  dependsOnCoverageId?: string[];   // Coverage IDs this depends on
+
   // ========== Relationships & Counts ==========
   formIds?: string[];  // Linked form IDs (denormalized for quick access)
   ruleCount?: number;  // Cached count of rules for this coverage (computed)
@@ -243,6 +287,8 @@ export interface Coverage {
   // ========== Metadata ==========
   createdAt?: Timestamp | Date;
   updatedAt?: Timestamp | Date;
+  createdBy?: string;               // User who created this coverage
+  updatedBy?: string;               // User who last updated this coverage
   metadata?: Record<string, unknown>;
 }
 
@@ -358,8 +404,22 @@ export interface PricingRule {
   conditions?: PricingCondition[];
   priority?: number;
   isActive?: boolean;
+
+  // Versioning & Effective Dates
+  version?: number;
+  effectiveDate?: Timestamp | Date;
+  expirationDate?: Timestamp | Date;
+
+  // State Applicability
+  states?: string[];  // State-specific pricing rules
+  dependsOnRuleId?: string[];  // Rule dependencies
+
+  // Audit Trail
   createdAt?: Timestamp | Date;
   updatedAt?: Timestamp | Date;
+  createdBy?: string;
+  updatedBy?: string;
+  changeReason?: string;
 }
 
 export interface PricingCondition {
@@ -426,9 +486,10 @@ export interface FormTemplate {
   // Form fields (for dynamic forms)
   fields?: FormField[];
 
-  // Versioning
+  // Versioning & Effective Dates
   version?: string;
   effectiveDate?: string | Timestamp | Date;
+  expirationDate?: string | Timestamp | Date;  // When this form version expires
 
   // State availability (informational - actual coverage availability via formCoverages)
   states?: string[];
@@ -440,9 +501,12 @@ export interface FormTemplate {
   // Status
   isActive?: boolean;
 
-  // Metadata
+  // Audit Trail
   createdAt?: Timestamp | Date;
   updatedAt?: Timestamp | Date;
+  createdBy?: string;               // User who created this form
+  updatedBy?: string;               // User who last updated this form
+  changeReason?: string;            // Reason for last change
 }
 
 /**
@@ -457,7 +521,32 @@ export interface FormCoverageMapping {
   formId: string;
   coverageId: string;
   productId: string;  // Denormalized for efficient querying
+
+  // Mapping Metadata
+  isPrimary?: boolean;  // Indicates primary form for coverage
+  displayOrder?: number;  // Order for UI display
+  notes?: string;  // Mapping-specific notes
+
+  // State Applicability
+  states?: string[];  // State-specific form-coverage mappings
+
+  // Applicability Conditions
+  applicabilityConditions?: {
+    field: string;
+    operator: 'equals' | 'greaterThan' | 'lessThan' | 'contains' | 'between';
+    value: string | number | boolean | [number, number];
+  }[];
+
+  // Versioning & Effective Dates
+  version?: number;
+  effectiveDate?: Timestamp | Date;
+  expirationDate?: Timestamp | Date;
+
+  // Audit Trail
   createdAt?: Timestamp | Date;
+  updatedAt?: Timestamp | Date;
+  createdBy?: string;
+  updatedBy?: string;
 }
 
 // ============================================================================
@@ -526,11 +615,21 @@ export interface Rule {
   status: RuleStatus;
   priority?: number;      // For rule execution order
 
+  // Versioning & Effective Dates
+  version?: number;
+  effectiveDate?: Timestamp | Date;
+  expirationDate?: Timestamp | Date;
+
+  // State Applicability
+  states?: string[];  // State-specific rules
+  dependsOnRuleId?: string[];  // Rule dependencies
+
   // Metadata
   createdAt?: Timestamp | Date;
   updatedAt?: Timestamp | Date;
   createdBy?: string;
   updatedBy?: string;
+  changeReason?: string;
 }
 
 /**
@@ -611,6 +710,60 @@ export interface CacheOptions {
   ttl?: number;
   priority?: 'low' | 'medium' | 'high';
   tags?: string[];
+}
+
+// ============================================================================
+// Comprehensive State Applicability Types
+// ============================================================================
+
+/**
+ * StateApplicability represents comprehensive state-specific information for products, coverages, and forms.
+ * This is the SINGLE SOURCE OF TRUTH for state-specific data.
+ *
+ * Database Structure:
+ * - Stored in: stateApplicability/{applicabilityId}
+ * - Linked to products, coverages, or forms via entityId and entityType
+ */
+export interface StateApplicability {
+  id: string;
+  entityId: string;  // productId, coverageId, or formId
+  entityType: 'product' | 'coverage' | 'form';
+  productId: string;  // Denormalized for efficient querying
+
+  // State Information
+  state: string;  // State code (e.g., 'CA', 'NY')
+  stateName: string;  // Full state name
+
+  // Filing & Approval Status
+  filingStatus?: 'pending' | 'filed' | 'approved' | 'rejected' | 'withdrawn';
+  rateApprovalStatus?: 'pending' | 'approved' | 'denied' | 'conditional';
+  complianceStatus?: 'compliant' | 'non-compliant' | 'under-review';
+
+  // Effective Dates
+  effectiveDate?: Timestamp | Date;
+  expirationDate?: Timestamp | Date;
+
+  // State-Specific Rules
+  stateSpecificRules?: string[];  // Rule IDs that apply to this state
+  stateSpecificForms?: string[];  // Form IDs specific to this state
+  stateSpecificLimits?: string[];  // Limit IDs specific to this state
+  stateSpecificDeductibles?: string[];  // Deductible IDs specific to this state
+
+  // Regulatory Information
+  regulatoryNotes?: string;
+  filingNumber?: string;
+  approvalDate?: Timestamp | Date;
+  regulatoryAgency?: string;
+
+  // Restrictions & Conditions
+  restrictions?: string[];  // Any state-specific restrictions
+  conditions?: string[];  // Any state-specific conditions
+
+  // Metadata
+  createdAt?: Timestamp | Date;
+  updatedAt?: Timestamp | Date;
+  createdBy?: string;
+  updatedBy?: string;
 }
 
 // ============================================================================

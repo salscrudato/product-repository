@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
+import { normalizeFirestoreData } from '../utils/firestoreHelpers';
 
 // Cache for products data to prevent unnecessary re-fetches
 const productsCache = {
@@ -55,10 +56,13 @@ export default function useProducts(options = {}) {
       productsQuery,
       (snap) => {
         try {
-          const productsData = snap.docs.map(d => ({
-            id: d.id,
-            ...d.data()
-          }));
+          const productsData = snap.docs.map(d => {
+            const data = d.data();
+            return {
+              id: d.id,
+              ...normalizeFirestoreData(data)
+            };
+          });
 
           setProducts(productsData);
           setLoading(false);

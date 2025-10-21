@@ -18,6 +18,7 @@ const db = admin.firestore();
 
 // Import modular API functions
 const aiAPI = require('./src/api/ai');
+const productCreationAgentAPI = require('./src/api/productCreationAgent');
 
 // Get OpenAI API key from environment
 const getOpenAIKey = () => {
@@ -570,3 +571,6 @@ exports.analyzeClaim = onCall({ secrets: [openaiKey] }, async (request) => {
 exports.generateProductSummaryV2 = aiAPI.generateProductSummary;
 exports.generateChatResponseV2 = aiAPI.generateChatResponse;
 exports.analyzeClaimV2 = aiAPI.analyzeClaim;
+
+// Product Creation Agent
+exports.createProductFromPDF = productCreationAgentAPI.createProductFromPDF;
