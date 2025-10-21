@@ -3,7 +3,9 @@
  * Handles PDF text extraction on the backend
  */
 
-const pdfParse = require('pdf-parse');
+const pdfParseModule = require('pdf-parse');
+// pdf-parse exports a default function
+const pdfParse = pdfParseModule.default || pdfParseModule;
 const axios = require('axios');
 const { logger } = require('../utils/logger');
 

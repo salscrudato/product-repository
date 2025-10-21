@@ -238,12 +238,26 @@ const createProductFromPDF = onCall(async (request) => {
     // Extract text from PDF
     let extractedText;
     try {
+      logger.info('Starting PDF text extraction', {
+        bufferSize: pdfBuffer ? pdfBuffer.length : 0,
+        bufferType: pdfBuffer ? typeof pdfBuffer : 'undefined'
+      });
+
       extractedText = await pdfService.extractTextFromBuffer(pdfBuffer);
+
+      logger.info('PDF text extraction successful', {
+        textLength: extractedText ? extractedText.length : 0,
+        textPreview: extractedText ? extractedText.substring(0, 200) : 'empty'
+      });
     } catch (error) {
-      logger.error('PDF extraction failed', { error: error.message });
+      logger.error('PDF extraction failed', {
+        error: error.message,
+        errorStack: error.stack,
+        bufferSize: pdfBuffer ? pdfBuffer.length : 0
+      });
       throw new functions.https.HttpsError(
         'invalid-argument',
-        'Failed to extract text from PDF'
+        `Failed to extract text from PDF: ${error.message}`
       );
     }
 
