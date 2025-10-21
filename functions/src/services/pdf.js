@@ -4,8 +4,8 @@
  */
 
 const pdfParseModule = require('pdf-parse');
-// pdf-parse exports a default function
-const pdfParse = pdfParseModule.default || pdfParseModule;
+// pdf-parse v2.3.10 exports PDFParse class
+const PDFParse = pdfParseModule.PDFParse;
 const axios = require('axios');
 const { logger } = require('../utils/logger');
 
@@ -20,8 +20,8 @@ const extractTextFromBuffer = async (pdfBuffer) => {
       bufferSize: pdfBuffer.length
     });
 
-    const data = await pdfParse(pdfBuffer);
-    
+    const data = await PDFParse(pdfBuffer);
+
     logger.info('PDF text extraction successful', {
       pages: data.numpages,
       textLength: data.text.length
