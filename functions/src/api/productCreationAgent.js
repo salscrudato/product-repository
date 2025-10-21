@@ -85,6 +85,9 @@ async function createFinalizedProduct(extractionResult, context, fileName) {
     );
   }
 
+  // Get user ID (optional auth)
+  const userId = context.auth?.uid || 'anonymous';
+
   // Create product in Firestore
   let productId;
   try {
@@ -97,12 +100,12 @@ async function createFinalizedProduct(extractionResult, context, fileName) {
       formUploadedAt: admin.firestore.FieldValue.serverTimestamp(),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdBy: context.auth.uid,
+      createdBy: userId,
       metadata: extractionResult.metadata || {}
     });
 
     productId = productRef.id;
-    logger.info('Finalized product created', { productId, userId: context.auth.uid });
+    logger.info('Finalized product created', { productId, userId });
 
     // Create coverages
     const coverageMap = {};
@@ -166,14 +169,14 @@ async function createFinalizedProduct(extractionResult, context, fileName) {
  */
 const createProductFromPDF = functions.https.onCall(
   withErrorHandling(async (data, context) => {
-    // Authentication and rate limiting
-    requireAuth(context);
-    rateLimitAI(context);
+    // Note: Authentication is optional for this endpoint
+    // Users can create products without authentication
+    const userId = context.auth?.uid || 'anonymous';
 
     const { pdfBase64, fileName, extractionResult, isFinalized } = data;
 
     logger.info('Product creation from PDF requested', {
-      userId: context.auth.uid,
+      userId,
       fileName,
       isFinalized: isFinalized || false
     });
