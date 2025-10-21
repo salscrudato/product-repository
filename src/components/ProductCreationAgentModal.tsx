@@ -15,7 +15,8 @@ import {
   ArrowPathIcon
 } from '@heroicons/react/24/solid';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '../firebase';
+import { ref, uploadBytes } from 'firebase/storage';
+import { functions, storage } from '../firebase';
 import { CreationProgress, ExtractionResult } from '../services/productCreationAgent';
 import ProductCreationSpinner from './ui/ProductCreationSpinner';
 import CoverageSelectionReview from './ui/CoverageSelectionReview';
@@ -388,108 +389,82 @@ const ProductCreationAgentModal: React.FC<ProductCreationAgentModalProps> = ({
     ]);
 
     try {
-      // Read file as base64
-      const reader = new FileReader();
-      reader.onerror = () => {
-        console.error('FileReader error:', reader.error);
-        setError('Failed to read PDF file');
+      // Upload file to Firebase Storage first
+      console.log('Uploading PDF to Firebase Storage...');
+      const timestamp = Date.now();
+      const storagePath = `product-pdfs/${timestamp}-${file.name}`;
+      const storageRef = ref(storage, storagePath);
+
+      try {
+        await uploadBytes(storageRef, file);
+        console.log('PDF uploaded to storage:', storagePath);
+      } catch (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        setError('Failed to upload PDF to storage');
         setIsProcessing(false);
         setCurrentStep('upload');
+        return;
+      }
+
+      // Update progress
+      setProgress(prev => prev.map(p =>
+        p.step === 'upload' ? { ...p, status: 'completed', progress: 20 } :
+        p.step === 'extract' ? { ...p, status: 'in_progress', progress: 30 } : p
+      ));
+
+      // Call Cloud Function to create product
+      console.log('Calling Cloud Function createProductFromPDF...');
+      console.log('Payload:', {
+        storagePath,
+        fileName: file.name
+      });
+
+      const createProduct = httpsCallable(functions, 'createProductFromPDF');
+      const payload = {
+        storagePath,
+        fileName: file.name
       };
 
-      reader.onload = async (e) => {
-        try {
-          const dataUrl = e.target?.result as string;
+      console.log('Sending payload with keys:', Object.keys(payload));
+      const result = await createProduct(payload);
+      console.log('Cloud Function response:', result.data);
 
-          if (!dataUrl) {
-            console.error('FileReader returned empty result');
-            setError('Failed to read PDF file - empty result');
-            setIsProcessing(false);
-            setCurrentStep('upload');
-            return;
-          }
+      if (result.data.success) {
+        // Update progress to extraction complete
+        setProgress(prev => prev.map(p =>
+          p.step === 'extract' ? { ...p, status: 'completed', progress: 100 } :
+          p.step === 'validate' ? { ...p, status: 'in_progress', progress: 50 } : p
+        ));
 
-          // Extract base64 from data URL (remove "data:application/pdf;base64," prefix)
-          const base64Data = dataUrl.includes(',')
-            ? dataUrl.split(',')[1]
-            : dataUrl;
-
-          console.log('File read successfully');
-          console.log('File name:', file.name);
-          console.log('File size:', file.size);
-          console.log('Base64 length:', base64Data.length);
-          console.log('Base64 starts with:', base64Data.substring(0, 50));
-
-          if (!base64Data || base64Data.length === 0) {
-            console.error('Base64 data is empty');
-            setError('Failed to convert PDF to base64');
-            setIsProcessing(false);
-            setCurrentStep('upload');
-            return;
-          }
-
-          // Update progress
-          setProgress(prev => prev.map(p =>
-            p.step === 'upload' ? { ...p, status: 'completed', progress: 20 } :
-            p.step === 'extract' ? { ...p, status: 'in_progress', progress: 30 } : p
-          ));
-
-          // Call Cloud Function to create product
-          console.log('Calling Cloud Function createProductFromPDF...');
-          const createProduct = httpsCallable(functions, 'createProductFromPDF');
-          const result = await createProduct({
-            pdfBase64: base64Data,
-            fileName: file.name
-          });
-          console.log('Cloud Function response:', result.data);
-
-          if (result.data.success) {
-            // Update progress to extraction complete
-            setProgress(prev => prev.map(p =>
-              p.step === 'extract' ? { ...p, status: 'completed', progress: 100 } :
-              p.step === 'validate' ? { ...p, status: 'in_progress', progress: 50 } : p
-            ));
-
-            // Transition to review step
-            setExtractionResult(result.data.extractionResult);
-            setCurrentStep('review');
-            logger.info(LOG_CATEGORIES.DATA, 'Extraction complete, ready for review', {
-              coverageCount: result.data.extractionResult.coverages.length
-            });
-          } else {
-            setError(result.data.error || 'Failed to create product');
-            setProgress(prev => prev.map(p =>
-              p.status === 'in_progress' ? { ...p, status: 'error', error: result.data.error } : p
-            ));
-            setCurrentStep('upload');
-          }
-        } catch (err) {
-          let errorMsg = (err as Error).message || 'An error occurred';
-
-          // Check if it's a Cloud Function not found error
-          if (errorMsg.includes('createProductFromPDF') || errorMsg.includes('not found')) {
-            errorMsg = 'Cloud Function not deployed. Please deploy Cloud Functions first: firebase deploy --only functions';
-          }
-
-          console.error('Product creation error:', err);
-          logger.error(LOG_CATEGORIES.ERROR, 'Product creation failed', { error: errorMsg }, err as Error);
-          setError(errorMsg);
-          setProgress(prev => prev.map(p =>
-            p.status === 'in_progress' ? { ...p, status: 'error', error: errorMsg } : p
-          ));
-          setCurrentStep('upload');
-        } finally {
-          setIsProcessing(false);
-        }
-      };
-      reader.readAsDataURL(file);
+        // Transition to review step
+        setExtractionResult(result.data.extractionResult);
+        setCurrentStep('review');
+        logger.info(LOG_CATEGORIES.DATA, 'Extraction complete, ready for review', {
+          coverageCount: result.data.extractionResult.coverages.length
+        });
+      } else {
+        setError(result.data.error || 'Failed to create product');
+        setProgress(prev => prev.map(p =>
+          p.status === 'in_progress' ? { ...p, status: 'error', error: result.data.error } : p
+        ));
+        setCurrentStep('upload');
+      }
     } catch (err) {
-      logger.error(LOG_CATEGORIES.ERROR, 'File processing failed', {}, err as Error);
-      const errorMsg = (err as Error).message || 'Failed to process file';
+      let errorMsg = (err as Error).message || 'An error occurred';
+
+      // Check if it's a Cloud Function not found error
+      if (errorMsg.includes('createProductFromPDF') || errorMsg.includes('not found')) {
+        errorMsg = 'Cloud Function not deployed. Please deploy Cloud Functions first: firebase deploy --only functions';
+      }
+
+      console.error('Product creation error:', err);
+      logger.error(LOG_CATEGORIES.ERROR, 'Product creation failed', { error: errorMsg }, err as Error);
       setError(errorMsg);
       setProgress(prev => prev.map(p =>
         p.status === 'in_progress' ? { ...p, status: 'error', error: errorMsg } : p
       ));
+      setCurrentStep('upload');
+    } finally {
       setIsProcessing(false);
     }
   };

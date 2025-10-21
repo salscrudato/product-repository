@@ -13,6 +13,7 @@ const openaiService = require('../services/openai');
 const { logger } = require('../utils/logger');
 
 const db = admin.firestore();
+const bucket = admin.storage().bucket();
 
 /**
  * Get the autonomous product creation prompt
@@ -173,14 +174,14 @@ const createProductFromPDF = functions.https.onCall(
     // Users can create products without authentication
     const userId = context.auth?.uid || 'anonymous';
 
-    const { pdfBase64, fileName, extractionResult, isFinalized } = data;
+    const { storagePath, pdfBase64, fileName, extractionResult, isFinalized } = data;
 
     logger.info('Product creation from PDF requested', {
       userId,
       fileName,
       isFinalized: isFinalized || false,
+      hasStoragePath: !!storagePath,
       hasPdfBase64: !!pdfBase64,
-      pdfBase64Length: pdfBase64 ? pdfBase64.length : 0,
       dataKeys: Object.keys(data)
     });
 
@@ -189,22 +190,43 @@ const createProductFromPDF = functions.https.onCall(
       return createFinalizedProduct(extractionResult, context, fileName);
     }
 
-    if (!pdfBase64 || pdfBase64.length === 0) {
-      logger.error('Invalid pdfBase64', {
-        hasPdfBase64: !!pdfBase64,
-        pdfBase64Length: pdfBase64 ? pdfBase64.length : 0,
-        pdfBase64Type: typeof pdfBase64
-      });
+    // Get PDF data from storage or base64
+    let pdfBuffer;
+    if (storagePath) {
+      try {
+        logger.info('Downloading PDF from storage', { storagePath });
+        const file = bucket.file(storagePath);
+        const [buffer] = await file.download();
+        pdfBuffer = buffer;
+        logger.info('PDF downloaded from storage', { size: buffer.length });
+      } catch (error) {
+        logger.error('Failed to download PDF from storage', { error: error.message, storagePath });
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'Failed to download PDF from storage'
+        );
+      }
+    } else if (pdfBase64) {
+      try {
+        pdfBuffer = Buffer.from(pdfBase64, 'base64');
+      } catch (error) {
+        logger.error('Failed to decode base64 PDF', { error: error.message });
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'Failed to decode PDF data'
+        );
+      }
+    } else {
       throw new functions.https.HttpsError(
         'invalid-argument',
-        'pdfBase64 is required and must not be empty'
+        'Either storagePath or pdfBase64 is required'
       );
     }
 
     // Extract text from PDF
     let extractedText;
     try {
-      extractedText = await pdfService.extractTextFromBase64(pdfBase64);
+      extractedText = await pdfService.extractTextFromBuffer(pdfBuffer);
     } catch (error) {
       logger.error('PDF extraction failed', { error: error.message });
       throw new functions.https.HttpsError(
