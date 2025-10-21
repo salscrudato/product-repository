@@ -4,6 +4,7 @@
  */
 
 const functions = require('firebase-functions');
+const { onCall } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 const { withErrorHandling } = require('../middleware/errorHandler');
 const { requireAuth, rateLimitAI } = require('../middleware/auth');
@@ -168,11 +169,21 @@ async function createFinalizedProduct(extractionResult, context, fileName) {
 /**
  * Create product from PDF using autonomous agent
  */
-const createProductFromPDF = functions.https.onCall(
-  withErrorHandling(async (data, context) => {
+const createProductFromPDF = onCall(async (request) => {
+  try {
+    // Extract data and context from v2 API request
+    const data = request.data;
+    const context = { auth: request.auth };
+
     // Note: Authentication is optional for this endpoint
     // Users can create products without authentication
     const userId = context.auth?.uid || 'anonymous';
+
+    logger.info('Raw data received', {
+      dataKeys: Object.keys(data),
+      dataType: typeof data,
+      dataValue: JSON.stringify(data).substring(0, 500)
+    });
 
     const { storagePath, pdfBase64, fileName, extractionResult, isFinalized } = data;
 
@@ -182,7 +193,8 @@ const createProductFromPDF = functions.https.onCall(
       isFinalized: isFinalized || false,
       hasStoragePath: !!storagePath,
       hasPdfBase64: !!pdfBase64,
-      dataKeys: Object.keys(data)
+      dataKeys: Object.keys(data),
+      storagePath: storagePath ? storagePath.substring(0, 100) : 'undefined'
     });
 
     // If finalized, skip extraction and go straight to product creation
@@ -293,8 +305,14 @@ const createProductFromPDF = functions.https.onCall(
       extractionResult: extractedResult,
       message: `Extracted ${extractedResult.coverages.length} coverages from PDF. Please review and confirm.`
     };
-  }, 'createProductFromPDF')
-);
+  } catch (error) {
+    logger.error('Error in createProductFromPDF', {
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
+});
 
 module.exports = {
   createProductFromPDF,
