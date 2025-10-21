@@ -20,7 +20,7 @@ const extractTextFromBuffer = async (pdfBuffer) => {
       bufferSize: pdfBuffer.length
     });
 
-    const data = await PDFParse(pdfBuffer);
+    const data = await new PDFParse(pdfBuffer);
 
     logger.info('PDF text extraction successful', {
       pages: data.numpages,
