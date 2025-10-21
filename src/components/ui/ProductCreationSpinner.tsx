@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import { CreationProgress } from '../../services/productCreationAgent';
 
@@ -143,19 +143,19 @@ const StatusIcon = styled.div<{ $status: string }>`
 
   ${props => {
     if (props.$status === 'completed') {
-      return `
+      return css`
         color: #22c55e;
         svg { width: 20px; height: 20px; }
       `;
     }
     if (props.$status === 'error') {
-      return `
+      return css`
         color: #ef4444;
         svg { width: 20px; height: 20px; }
       `;
     }
     if (props.$status === 'in_progress') {
-      return `
+      return css`
         animation: ${spin} 1s linear infinite;
         color: #3b82f6;
         width: 20px;
@@ -165,7 +165,7 @@ const StatusIcon = styled.div<{ $status: string }>`
         border-radius: 50%;
       `;
     }
-    return `
+    return css`
       width: 8px;
       height: 8px;
       background: #d1d5db;
