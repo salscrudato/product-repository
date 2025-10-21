@@ -70,7 +70,7 @@ export const preloadCriticalChunks = () => {
     criticalChunks.forEach((importFn, index) => {
       setTimeout(() => {
         importFn().catch(error => {
-          console.warn('Failed to preload chunk:', error);
+          logger.warn(LOG_CATEGORIES.DATA, 'Failed to preload chunk', {}, error as Error);
         });
       }, index * 100); // Stagger preloading
     });
@@ -160,7 +160,7 @@ export const optimizeCriticalResources = () => {
       });
     }
   } catch (error) {
-    console.error('Failed to optimize font loading:', error);
+    logger.error(LOG_CATEGORIES.ERROR, 'Failed to optimize font loading', {}, error as Error);
   }
 
   // Preload critical images if any
