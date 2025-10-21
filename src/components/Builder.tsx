@@ -795,21 +795,32 @@ const Builder = () => {
           downloadUrl: formDownloadUrl,
           filePath: formFilePath,
           createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          isActive: true,
+          edition: new Date().toLocaleDateString('en-US', { month: '2-digit', year: '2-digit' })
         });
         const newFormId = newFormRef.id;
 
         // Create form-coverage links for all selected coverages
         const batch = writeBatch(db);
-        for (const coverageId in newCoverageIds) {
+        const newCoverageIdsList = Object.values(newCoverageIds);
+
+        for (let i = 0; i < newCoverageIdsList.length; i++) {
+          const newCoverageId = newCoverageIdsList[i];
           const mappingRef = doc(collection(db, 'formCoverages'));
           batch.set(mappingRef, {
             formId: newFormId,
-            coverageId: newCoverageIds[coverageId],
+            coverageId: newCoverageId,
             productId: newProductId,
+            isPrimary: i === 0, // First coverage is primary
+            displayOrder: i,
             createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
           });
         }
         await batch.commit();
+
+        console.log(`✅ Form auto-added: ${newFormId} linked to ${newCoverageIdsList.length} coverages`);
       }
 
       // Navigate to product hub with the new product ID
