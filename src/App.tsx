@@ -103,6 +103,22 @@ const InsuranceNews = createOptimizedLazyComponent(
   () => import('./components/InsuranceNews'),
   { chunkName: 'InsuranceNews', fallback: <LoadingSpinner /> }
 );
+const Product360 = createOptimizedLazyComponent(
+  () => import('./pages/Product360'),
+  { chunkName: 'Product360', fallback: <LoadingSpinner /> }
+);
+const FormsMapper = createOptimizedLazyComponent(
+  () => import('./pages/FormsMapper'),
+  { chunkName: 'FormsMapper', fallback: <LoadingSpinner /> }
+);
+const PricingBuilder = createOptimizedLazyComponent(
+  () => import('./pages/PricingBuilder'),
+  { chunkName: 'PricingBuilder', fallback: <LoadingSpinner /> }
+);
+const QuoteSandbox = createOptimizedLazyComponent(
+  () => import('./pages/QuoteSandbox'),
+  { chunkName: 'QuoteSandbox', fallback: <LoadingSpinner /> }
+);
 
 // ──────────────────────────────────────────────────────────────
 // HistoryWrapper – provides floating toggle + Version sidebar
@@ -311,6 +327,46 @@ const HistoryWrapper: React.FC = () => {
             <RequireAuth>
               <Suspense fallback={<LoadingSpinner />}>
                 <PackagesScreen />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/products/:productId/overview"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <Product360 />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/products/:productId/forms-mapper"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <FormsMapper />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/products/:productId/pricing"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <PricingBuilder />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/quote-sandbox/:productId"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <QuoteSandbox />
               </Suspense>
             </RequireAuth>
           }

@@ -11,19 +11,33 @@ import { Timestamp } from 'firebase/firestore';
 
 export interface Product {
   id: string;
+  /** Product code for internal reference (e.g., 'CP-001') */
+  productCode?: string;
   name: string;
   description?: string;
+  /** Product category (e.g., 'Commercial Property', 'BOP', 'Auto') */
   category?: string;
   status?: 'active' | 'inactive' | 'draft';
 
   // State Availability
   states?: string[];                // State codes where product is available (e.g., ['CA', 'NY', 'TX'])
   excludedStates?: string[];        // State codes where product is NOT available
+  availableStates?: string[];       // Alias for states (for consistency)
 
   // Versioning & Effective Dates
   version?: number;                 // Version number for tracking changes
   effectiveDate?: Timestamp | Date;  // When this product becomes effective
   expirationDate?: Timestamp | Date; // When this product expires
+
+  // Denormalized Statistics (maintained by CF triggers)
+  /** Count of coverages in this product */
+  coverageCount?: number;
+  /** Count of forms linked to this product */
+  formCount?: number;
+  /** Count of rules for this product */
+  ruleCount?: number;
+  /** Count of packages for this product */
+  packageCount?: number;
 
   // Audit Trail
   createdAt?: Timestamp | Date;
@@ -283,6 +297,14 @@ export interface Coverage {
   // ========== Relationships & Counts ==========
   formIds?: string[];  // Linked form IDs (denormalized for quick access)
   ruleCount?: number;  // Cached count of rules for this coverage (computed)
+  /** Count of limits in this coverage (computed) */
+  limitCount?: number;
+  /** Count of deductibles in this coverage (computed) */
+  deductibleCount?: number;
+  /** Count of sub-coverages under this coverage (computed) */
+  subCoverageCount?: number;
+  /** Count of form mappings for this coverage (computed) */
+  formMappingCount?: number;
 
   // ========== Metadata ==========
   createdAt?: Timestamp | Date;
@@ -426,6 +448,70 @@ export interface PricingCondition {
   field: string;
   operator: 'equals' | 'greaterThan' | 'lessThan' | 'contains' | 'between';
   value: string | number | boolean | [number, number];
+}
+
+/**
+ * PricingRuleRef represents a reference to a pricing rule within a pricing step
+ */
+export interface PricingRuleRef {
+  /** ID of the pricing rule */
+  ruleId: string;
+  /** Optional weight/priority for this rule in the step */
+  weight?: number;
+}
+
+/**
+ * PricingStep represents a step in the pricing calculation process
+ * Stored in: products/{productId}/pricingSteps/{stepId}
+ */
+export interface PricingStep {
+  id: string;
+  productId: string;
+
+  // Step Identification
+  /** Name of the pricing step (e.g., "Base Rate", "Territory Factor", "Protection Class") */
+  name: string;
+  description?: string;
+
+  // Execution
+  /** Order in which this step executes (0, 1, 2, ...) */
+  order: number;
+  /** Scope of this step: 'product' applies to all coverages, 'coverage' applies to specific coverage */
+  scope: 'product' | 'coverage';
+  /** Coverage ID when scope='coverage' */
+  targetId?: string;
+
+  // Rules
+  /** Ordered list of pricing rule references */
+  rules: PricingRuleRef[];
+
+  // Versioning & Effective Dates
+  version?: string;
+  effectiveDate?: Timestamp | Date;
+  expirationDate?: Timestamp | Date;
+  isActive?: boolean;
+
+  // Audit Trail
+  createdAt?: Timestamp | Date;
+  updatedAt?: Timestamp | Date;
+  createdBy?: string;
+  updatedBy?: string;
+}
+
+/**
+ * PremiumBreakdown represents the result of pricing calculation
+ */
+export interface PremiumBreakdown {
+  /** Premium amount for each step */
+  stepBreakdown: Record<string, number>;
+  /** Total premium before adjustments */
+  subtotal: number;
+  /** Total adjustments (discounts/surcharges) */
+  adjustments: number;
+  /** Final premium */
+  total: number;
+  /** Metadata about the calculation */
+  metadata?: Record<string, unknown>;
 }
 
 // ============================================================================

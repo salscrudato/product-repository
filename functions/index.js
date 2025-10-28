@@ -574,3 +574,25 @@ exports.analyzeClaimV2 = aiAPI.analyzeClaim;
 
 // Product Creation Agent
 exports.createProductFromPDF = productCreationAgentAPI.createProductFromPDF;
+
+// Pricing Engine
+const pricingAPI = require('./src/api/pricing');
+exports.rateCoverage = pricingAPI.rateCoverage;
+exports.ratePackage = pricingAPI.ratePackage;
+
+// Data Integrity (extended)
+const dataIntegrityAPI = require('./src/api/dataIntegrity');
+exports.migrateToSchemaV3 = dataIntegrityAPI.migrateToSchemaV3;
+exports.recalculateProductStats = dataIntegrityAPI.recalculateProductStats;
+exports.recalculateCoverageStats = dataIntegrityAPI.recalculateCoverageStats;
+
+// Product Integrity Triggers
+const productIntegrityTriggers = require('./src/triggers/productIntegrity');
+exports.onCoverageChange = productIntegrityTriggers.onCoverageChange;
+exports.onCoverageDelete = productIntegrityTriggers.onCoverageDelete;
+exports.onLimitChange = productIntegrityTriggers.onLimitChange;
+exports.onLimitDelete = productIntegrityTriggers.onLimitDelete;
+exports.onDeductibleChange = productIntegrityTriggers.onDeductibleChange;
+exports.onDeductibleDelete = productIntegrityTriggers.onDeductibleDelete;
+exports.onFormCoverageChange = productIntegrityTriggers.onFormCoverageChange;
+exports.onFormCoverageDelete = productIntegrityTriggers.onFormCoverageDelete;

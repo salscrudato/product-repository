@@ -1708,13 +1708,20 @@ const ProductHub = memo(() => {
       }
 
       if (editingId) {
-        await updateDoc(doc(db, 'products', editingId), {
+        // When updating, only include formDownloadUrl if a new file was uploaded
+        const updateData: any = {
           name: name.trim(),
           formNumber: formNumber.trim(),
           productCode: productCode.trim(),
-          formDownloadUrl: downloadUrl || undefined,
           updatedAt: new Date()
-        });
+        };
+
+        // Only update formDownloadUrl if a new file was provided
+        if (downloadUrl) {
+          updateData.formDownloadUrl = downloadUrl;
+        }
+
+        await updateDoc(doc(db, 'products', editingId), updateData);
         showToast(`Product "${name.trim()}" updated successfully`, 'success');
       } else {
         await addDoc(collection(db, 'products'), {
