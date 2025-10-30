@@ -76,34 +76,12 @@ export const addResourceHints = () => {
 };
 
 
-
-
-
-// Optimize font loading for better performance
-export const optimizeCriticalResources = () => {
-  try {
-    const fontLinks = document.querySelectorAll('link[href*="fonts.googleapis.com"]');
-    fontLinks.forEach(link => {
-      if (link.rel === 'stylesheet' && link.href?.includes('fonts.googleapis.com/css')) {
-        // Add font-display: swap for better performance
-        if (!link.href.includes('display=swap')) {
-          const separator = link.href.includes('?') ? '&' : '?';
-          link.href = `${link.href}${separator}display=swap`;
-        }
-      }
-    });
-  } catch (error) {
-    logger.error(LOG_CATEGORIES.ERROR, 'Failed to optimize font loading', {}, error as Error);
-  }
-};
-
 // Initialize bundle optimizations
 export const initBundleOptimizations = () => {
   if (typeof window === 'undefined') return;
 
   try {
     addResourceHints();
-    optimizeCriticalResources();
     logger.debug(LOG_CATEGORIES.DATA, 'Bundle optimizations initialized');
   } catch (error) {
     logger.error(LOG_CATEGORIES.ERROR, 'Bundle optimizations failed', {}, error as Error);

@@ -221,6 +221,9 @@ export interface Coverage {
   // ========== Coverage Scope ==========
   scopeOfCoverage?: string;
   perilsCovered?: string[];
+  exclusions?: string[];           // Specific exclusions for this coverage
+  insurableObjects?: string[];     // Types of property/objects covered (e.g., 'buildings', 'contents', 'equipment')
+  excludedObjects?: string[];      // Types of property/objects NOT covered
 
   // ========== Financial Structure ==========
   /**
@@ -245,6 +248,8 @@ export interface Coverage {
   coinsurancePercentage?: number;  // 80, 90, 100
   hasCoinsurancePenalty?: boolean;
   insuredParticipation?: number;   // Percentage insured pays (copay)
+  coinsuranceWaiver?: boolean;     // Whether coinsurance can be waived
+  coinsuranceMinimum?: number;     // Minimum coinsurance percentage
 
   // ========== Coverage Triggers & Periods ==========
   coverageTrigger?: CoverageTrigger;
@@ -256,6 +261,8 @@ export interface Coverage {
   // ========== Valuation ==========
   valuationMethod?: ValuationMethod;
   depreciationMethod?: DepreciationMethod;
+  valuationMethods?: ValuationMethod[];  // Multiple valuation methods allowed
+  agreedValueAmount?: number;      // For agreed value valuation
 
   // ========== Territory ==========
   territoryType?: TerritoryType;
@@ -309,7 +316,13 @@ export interface Coverage {
   updatedAt?: Timestamp | Date;
   createdBy?: string;               // User who created this coverage
   updatedBy?: string;               // User who last updated this coverage
+  changeReason?: string;            // Reason for last change
   metadata?: Record<string, unknown>;
+
+  // ========== Audit Trail (subcollection: auditLogs) ==========
+  // Audit logs are stored in: products/{productId}/coverages/{coverageId}/auditLogs/{logId}
+  // This field is for reference only; actual logs are in subcollection
+  lastAuditLogId?: string;          // Reference to most recent audit log
 }
 
 /**
@@ -842,6 +855,13 @@ export interface StateApplicability {
   restrictions?: string[];  // Any state-specific restrictions
   conditions?: string[];  // Any state-specific conditions
 
+  // Subset Validation (for hierarchical entities)
+  // When a coverage is state-specific, it must be a subset of product's states
+  parentEntityId?: string;  // Reference to parent entity (e.g., productId for coverage state)
+  isSubsetOf?: string[];    // State codes this must be a subset of
+  validationStatus?: 'valid' | 'invalid' | 'pending-review';
+  validationErrors?: string[];  // Errors if subset validation fails
+
   // Metadata
   createdAt?: Timestamp | Date;
   updatedAt?: Timestamp | Date;
@@ -899,6 +919,40 @@ export interface FilterOptions {
   field: string;
   value: unknown;
   operator?: 'equals' | 'contains' | 'greaterThan' | 'lessThan';
+}
+
+// ============================================================================
+// Audit Log Types
+// ============================================================================
+
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'PUBLISH' | 'ARCHIVE' | 'RESTORE';
+
+export interface AuditLogEntry {
+  id: string;
+  entityType: 'Product' | 'Coverage' | 'Form' | 'Rule' | 'PricingStep' | 'StateApplicability';
+  entityId: string;
+  parentId?: string;  // For nested entities (e.g., productId for coverage)
+
+  // Action Details
+  action: AuditAction;
+  userId: string;
+  userEmail?: string;
+  timestamp: Timestamp | Date;
+
+  // Change Details
+  changes?: {
+    field: string;
+    oldValue?: unknown;
+    newValue?: unknown;
+  }[];
+
+  // Context
+  reason?: string;
+  ipAddress?: string;
+  userAgent?: string;
+
+  // Metadata
+  metadata?: Record<string, unknown>;
 }
 
 // ============================================================================

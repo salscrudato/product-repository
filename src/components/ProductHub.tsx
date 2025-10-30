@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback, memo } from 'react'; // eslint-disable-line no-unused-vars
+import React, { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import styled from 'styled-components';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';

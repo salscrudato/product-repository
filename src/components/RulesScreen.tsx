@@ -1,5 +1,5 @@
 // src/components/RulesScreen.js
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '../firebase';
@@ -724,6 +724,134 @@ const EmptyStateText = styled.p`
   line-height: 1.5;
 `;
 
+/**
+ * Memoized Rule Card Item Component
+ * Prevents unnecessary re-renders when parent component updates
+ */
+interface RuleCardItemProps {
+  rule: any;
+  getProductName: (productId: string) => string;
+  getTargetName: (rule: any) => string;
+  getRuleTypeColor: (ruleType: string) => string;
+  onEdit: (rule: any) => void;
+  onDelete: (ruleId: string) => void;
+}
+
+const RuleCardItem = React.memo(({
+  rule,
+  getProductName,
+  getTargetName,
+  getRuleTypeColor,
+  onEdit,
+  onDelete
+}: RuleCardItemProps) => (
+  <RuleCard>
+    <CardHeader>
+      <CardTitleContainer>
+        <CardTitle>
+          {rule.name || 'Unnamed Rule'}
+        </CardTitle>
+        <CardSubtitle>
+          <span>{getProductName(rule.productId)}</span>
+          {rule.ruleType && (
+            <>
+              <span>•</span>
+              <span style={{ color: getRuleTypeColor(rule.ruleType) }}>
+                {rule.ruleType}
+              </span>
+            </>
+          )}
+          {rule.targetId && (
+            <>
+              <span>•</span>
+              <span>{getTargetName(rule)}</span>
+            </>
+          )}
+        </CardSubtitle>
+      </CardTitleContainer>
+      <CardActions>
+        <IconButton onClick={() => onEdit(rule)}>
+          <PencilIcon />
+        </IconButton>
+        <IconButton className="danger" onClick={() => onDelete(rule.id)}>
+          <TrashIcon />
+        </IconButton>
+      </CardActions>
+    </CardHeader>
+
+    <CardContent>
+      {rule.condition && (
+        <RuleSection>
+          <SectionLabel>When</SectionLabel>
+          <SectionContent>{rule.condition}</SectionContent>
+        </RuleSection>
+      )}
+
+      {rule.outcome && (
+        <RuleSection>
+          <SectionLabel>Then</SectionLabel>
+          <SectionContent>{rule.outcome}</SectionContent>
+        </RuleSection>
+      )}
+
+      {rule.reference && (
+        <RuleSection>
+          <SectionLabel>Reference</SectionLabel>
+          <SectionContent>{rule.reference}</SectionContent>
+        </RuleSection>
+      )}
+    </CardContent>
+
+    <CardMetrics>
+      {rule.ruleType && (
+        <MetricBadge style={{ backgroundColor: `${getRuleTypeColor(rule.ruleType)}15`, color: getRuleTypeColor(rule.ruleType), border: `1px solid ${getRuleTypeColor(rule.ruleType)}30` }}>
+          {rule.ruleType === 'Coverage' && <ShieldCheckIcon />}
+          {rule.ruleType === 'Forms' && <DocumentTextIcon />}
+          {rule.ruleType === 'Pricing' && <CurrencyDollarIcon />}
+          {rule.ruleType === 'Product' && <BuildingOfficeIcon />}
+          {rule.ruleType} Rule
+        </MetricBadge>
+      )}
+      {rule.ruleCategory && (
+        <MetricBadge style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+          <TagIcon />
+          {rule.ruleCategory}
+        </MetricBadge>
+      )}
+      {rule.status && rule.status !== 'Active' && (
+        <MetricBadge style={{
+          backgroundColor: rule.status === 'Draft' ? 'rgba(251, 191, 36, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+          color: rule.status === 'Draft' ? '#fbbf24' : '#6b7280',
+          border: `1px solid ${rule.status === 'Draft' ? 'rgba(251, 191, 36, 0.3)' : 'rgba(107, 114, 128, 0.3)'}`
+        }}>
+          {rule.status}
+        </MetricBadge>
+      )}
+      {rule.proprietary && (
+        <MetricBadge type="proprietary">
+          <ShieldCheckIcon />
+          Proprietary
+        </MetricBadge>
+      )}
+      {rule.reference && (
+        <MetricBadge>
+          <DocumentTextIcon />
+          Referenced
+        </MetricBadge>
+      )}
+    </CardMetrics>
+  </RuleCard>
+), (prevProps, nextProps) => {
+  // Custom comparison: only re-render if rule data or callbacks change
+  return (
+    prevProps.rule === nextProps.rule &&
+    prevProps.onEdit === nextProps.onEdit &&
+    prevProps.onDelete === nextProps.onDelete
+  );
+});
+
+RuleCardItem.displayName = 'RuleCardItem';
+
 export default function RulesScreen() {
   const navigate = useNavigate();
   const { productId: preselectedProductId, coverageId: preselectedCoverageId } = useParams();
@@ -899,8 +1027,11 @@ export default function RulesScreen() {
   }, [rules, searchTerm, selectedProductFilter, selectedCategoryFilter, selectedStatusFilter,
       selectedTypeFilter, sortBy, sortOrder, preselectedProductId, preselectedCoverageId]);
 
-  // Get unique products for filter
-  const uniqueProducts = products.filter(p => p.name).sort((a, b) => a.name.localeCompare(b.name));
+  // Get unique products for filter (memoized to prevent unnecessary re-renders)
+  const uniqueProducts = useMemo(
+    () => products.filter(p => p.name).sort((a, b) => a.name.localeCompare(b.name)),
+    [products]
+  );
 
   // Enhanced form handlers
   const resetForm = () => {
@@ -1079,12 +1210,12 @@ export default function RulesScreen() {
     }
   };
 
-  const getProductName = (productId) => {
+  const getProductName = useCallback((productId) => {
     const product = products.find(p => p.id === productId);
     return product?.name || 'Unknown Product';
-  };
+  }, [products]);
 
-  const getTargetName = (rule) => {
+  const getTargetName = useCallback((rule) => {
     if (!rule.ruleType) return 'Product Level';
     if (rule.ruleType === 'Product') return 'Product Level';
     if (!rule.targetId) return 'No Target';
@@ -1103,9 +1234,9 @@ export default function RulesScreen() {
       default:
         return 'Unknown Target';
     }
-  };
+  }, [coverages, forms, pricingSteps]);
 
-  const getRuleTypeColor = (ruleType) => {
+  const getRuleTypeColor = useCallback((ruleType) => {
     switch (ruleType) {
       case 'Product': return '#6366f1';
       case 'Coverage': return '#10b981';
@@ -1113,7 +1244,7 @@ export default function RulesScreen() {
       case 'Pricing': return '#8b5cf6';
       default: return '#6b7280';
     }
-  };
+  }, []);
 
   const pageTitle = preselectedCoverageId && selectedCoverageName
     ? `${selectedCoverageName} Rules`
@@ -1265,102 +1396,15 @@ export default function RulesScreen() {
         ) : (
           <RulesGrid>
             {filteredRules.map(rule => (
-              <RuleCard key={rule.id}>
-                <CardHeader>
-                  <CardTitleContainer>
-                    <CardTitle>
-                      {rule.name || 'Unnamed Rule'}
-                    </CardTitle>
-                    <CardSubtitle>
-                      <span>{getProductName(rule.productId)}</span>
-                      {rule.ruleType && (
-                        <>
-                          <span>•</span>
-                          <span style={{ color: getRuleTypeColor(rule.ruleType) }}>
-                            {rule.ruleType}
-                          </span>
-                        </>
-                      )}
-                      {rule.targetId && (
-                        <>
-                          <span>•</span>
-                          <span>{getTargetName(rule)}</span>
-                        </>
-                      )}
-                    </CardSubtitle>
-                  </CardTitleContainer>
-                  <CardActions>
-                    <IconButton onClick={() => openModal(rule)}>
-                      <PencilIcon />
-                    </IconButton>
-                    <IconButton className="danger" onClick={() => handleDelete(rule.id)}>
-                      <TrashIcon />
-                    </IconButton>
-                  </CardActions>
-                </CardHeader>
-
-                <CardContent>
-                  {rule.condition && (
-                    <RuleSection>
-                      <SectionLabel>When</SectionLabel>
-                      <SectionContent>{rule.condition}</SectionContent>
-                    </RuleSection>
-                  )}
-
-                  {rule.outcome && (
-                    <RuleSection>
-                      <SectionLabel>Then</SectionLabel>
-                      <SectionContent>{rule.outcome}</SectionContent>
-                    </RuleSection>
-                  )}
-
-                  {rule.reference && (
-                    <RuleSection>
-                      <SectionLabel>Reference</SectionLabel>
-                      <SectionContent>{rule.reference}</SectionContent>
-                    </RuleSection>
-                  )}
-                </CardContent>
-
-                <CardMetrics>
-                  {rule.ruleType && (
-                    <MetricBadge style={{ backgroundColor: `${getRuleTypeColor(rule.ruleType)}15`, color: getRuleTypeColor(rule.ruleType), border: `1px solid ${getRuleTypeColor(rule.ruleType)}30` }}>
-                      {rule.ruleType === 'Coverage' && <ShieldCheckIcon />}
-                      {rule.ruleType === 'Forms' && <DocumentTextIcon />}
-                      {rule.ruleType === 'Pricing' && <CurrencyDollarIcon />}
-                      {rule.ruleType === 'Product' && <BuildingOfficeIcon />}
-                      {rule.ruleType} Rule
-                    </MetricBadge>
-                  )}
-                  {rule.ruleCategory && (
-                    <MetricBadge style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
-                      <TagIcon />
-                      {rule.ruleCategory}
-                    </MetricBadge>
-                  )}
-                  {rule.status && rule.status !== 'Active' && (
-                    <MetricBadge style={{
-                      backgroundColor: rule.status === 'Draft' ? 'rgba(251, 191, 36, 0.1)' : 'rgba(107, 114, 128, 0.1)',
-                      color: rule.status === 'Draft' ? '#fbbf24' : '#6b7280',
-                      border: `1px solid ${rule.status === 'Draft' ? 'rgba(251, 191, 36, 0.3)' : 'rgba(107, 114, 128, 0.3)'}`
-                    }}>
-                      {rule.status}
-                    </MetricBadge>
-                  )}
-                  {rule.proprietary && (
-                    <MetricBadge type="proprietary">
-                      <ShieldCheckIcon />
-                      Proprietary
-                    </MetricBadge>
-                  )}
-                  {rule.reference && (
-                    <MetricBadge>
-                      <DocumentTextIcon />
-                      Referenced
-                    </MetricBadge>
-                  )}
-                </CardMetrics>
-              </RuleCard>
+              <RuleCardItem
+                key={rule.id}
+                rule={rule}
+                getProductName={getProductName}
+                getTargetName={getTargetName}
+                getRuleTypeColor={getRuleTypeColor}
+                onEdit={openModal}
+                onDelete={handleDelete}
+              />
             ))}
           </RulesGrid>
         )}

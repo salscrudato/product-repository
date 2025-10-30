@@ -98,10 +98,6 @@ const TaskManagement = createOptimizedLazyComponent(
   () => import('./components/TaskManagement'),
   { chunkName: 'TaskManagement', fallback: <LoadingSpinner /> }
 );
-const InsuranceNews = createOptimizedLazyComponent(
-  () => import('./components/InsuranceNews'),
-  { chunkName: 'InsuranceNews', fallback: <LoadingSpinner /> }
-);
 const Product360 = createOptimizedLazyComponent(
   () => import('./pages/Product360'),
   { chunkName: 'Product360', fallback: <LoadingSpinner /> }
@@ -306,16 +302,6 @@ const HistoryWrapper: React.FC = () => {
             <RequireAuth>
               <Suspense fallback={<LoadingSpinner />}>
                 <TaskManagement />
-              </Suspense>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/news"
-          element={
-            <RequireAuth>
-              <Suspense fallback={<LoadingSpinner />}>
-                <InsuranceNews />
               </Suspense>
             </RequireAuth>
           }

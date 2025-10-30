@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
-import { FaUser, FaCog, FaSignOutAlt } from 'react-icons/fa';
+import { UserIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon } from '@heroicons/react/24/outline';
 import logger, { LOG_CATEGORIES } from '../../utils/logger';
 import { Tooltip } from './Tooltip';
 
@@ -433,7 +433,7 @@ export default function MainNavigation() {
             </Tooltip>
           </NavItem>
           <NavItem>
-            <Tooltip content="AI-powered product builder assistant" position="bottom">
+            <Tooltip content="AI-powered product builder" position="bottom">
               <NavLink
                 to="/ai-builder"
                 className={location.pathname === '/ai-builder' ? 'active' : ''}
@@ -469,16 +469,6 @@ export default function MainNavigation() {
                 className={location.pathname === '/tasks' ? 'active' : ''}
               >
                 Tasks
-              </NavLink>
-            </Tooltip>
-          </NavItem>
-          <NavItem>
-            <Tooltip content="Real-time P&C insurance industry news and updates" position="bottom">
-              <NavLink
-                to="/news"
-                className={location.pathname === '/news' ? 'active' : ''}
-              >
-                News
               </NavLink>
             </Tooltip>
           </NavItem>
@@ -526,11 +516,11 @@ export default function MainNavigation() {
 
               <DropdownSection>
                 <DropdownItem onClick={() => console.info('Profile view - Coming soon')}>
-                  <FaUser />
+                  <UserIcon width={16} height={16} />
                   View Profile
                 </DropdownItem>
                 <DropdownItem onClick={() => console.info('Account settings - Coming soon')}>
-                  <FaCog />
+                  <Cog6ToothIcon width={16} height={16} />
                   Account Settings
                 </DropdownItem>
               </DropdownSection>
@@ -539,7 +529,7 @@ export default function MainNavigation() {
 
               <DropdownSection>
                 <DropdownItem onClick={handleSignOut}>
-                  <FaSignOutAlt />
+                  <ArrowLeftOnRectangleIcon width={16} height={16} />
                   Sign Out
                 </DropdownItem>
               </DropdownSection>

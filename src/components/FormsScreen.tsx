@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, memo, useCallback } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { db } from '@/firebase';
 import {
@@ -20,7 +20,6 @@ import { TextInput } from '@components/ui/Input';
 import MainNavigation from '@components/ui/Navigation';
 import { PageContainer, PageContent } from '@components/ui/PageContainer';
 import EnhancedHeader from '@components/ui/EnhancedHeader';
-import Select from 'react-select';
 
 import {
   Overlay, Modal, ModalHeader, ModalTitle, CloseBtn
@@ -1067,36 +1066,16 @@ export default function FormsScreen() {
             <label>Select Coverage</label>
             <FilterWrapper>
               <FunnelIcon width={16} height={16} style={{ color: '#6B7280' }} />
-              <Select
-                options={coverageOptions}
-                value={coverageOptions.find(o => o.value === selectedCoverage)}
-                onChange={o => setSelectedCoverage(o?.value || null)}
-                placeholder="All Coverages"
-                isClearable
-                styles={{
-                  control: (base, state) => ({
-                    ...base,
-                    width: '100%',
-                    borderColor: state.isFocused ? '#6366f1' : '#d1d5db',
-                    boxShadow: state.isFocused ? '0 0 0 1px #6366f1' : 'none',
-                    '&:hover': {
-                      borderColor: '#6366f1'
-                    }
-                  }),
-                  menu: base => ({ ...base, background: '#fff', borderRadius: 8, zIndex: 9999 }),
-                  option: (base, state) => ({
-                    ...base,
-                    background: state.isFocused ? '#F0F5FF' : '#fff',
-                    color: '#1f2937',
-                    fontWeight: state.isSelected ? '600' : '400',
-                    '&:active': {
-                      background: '#E6EEFF'
-                    }
-                  }),
-                  placeholder: base => ({ ...base, color: '#6b7280', fontWeight: '400' }),
-                  singleValue: base => ({ ...base, color: '#1f2937', fontWeight: '500' })
-                }}
-              />
+              <TextInput
+                as="select"
+                value={selectedCoverage || ''}
+                onChange={e => setSelectedCoverage(e.target.value || null)}
+              >
+                <option value="">All Coverages</option>
+                {coverageOptions.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </TextInput>
             </FilterWrapper>
           </FormGroup>
 
@@ -1104,38 +1083,17 @@ export default function FormsScreen() {
             <label>Select States</label>
             <FilterWrapper>
               <MapIcon width={16} height={16} style={{ color: '#6B7280' }} />
-              <Select
-                options={stateOptions.filter(o => o.value !== null)}
-                value={stateOptions.filter(o => selectedFilterStates.includes(o.value))}
-                onChange={opts => setSelectedFilterStates(opts ? opts.map(o => o.value) : [])}
-                isMulti
-                placeholder="All States"
-                styles={{
-                  control: (base, state) => ({
-                    ...base,
-                    width: '100%',
-                    borderColor: state.isFocused ? '#6366f1' : '#d1d5db',
-                    boxShadow: state.isFocused ? '0 0 0 1px #6366f1' : 'none',
-                    '&:hover': {
-                      borderColor: '#6366f1'
-                    }
-                  }),
-                  menu: base => ({ ...base, background: '#fff', borderRadius: 8, zIndex: 9999 }),
-                  option: (base, state) => ({
-                    ...base,
-                    background: state.isFocused ? '#F0F5FF' : '#fff',
-                    color: '#1f2937',
-                    fontWeight: state.isSelected ? '600' : '400',
-                    '&:active': {
-                      background: '#E6EEFF'
-                    }
-                  }),
-                  placeholder: base => ({ ...base, color: '#6b7280', fontWeight: '400' }),
-                  multiValue: base => ({ ...base, backgroundColor: '#e0e7ff' }),
-                  multiValueLabel: base => ({ ...base, color: '#3730a3', fontWeight: '500' }),
-                  multiValueRemove: base => ({ ...base, color: '#6366f1', '&:hover': { backgroundColor: '#c7d2fe', color: '#4338ca' } })
-                }}
-              />
+              <TextInput
+                as="select"
+                multiple
+                value={selectedFilterStates}
+                onChange={e => setSelectedFilterStates(Array.from(e.target.selectedOptions, option => option.value))}
+                style={{ minHeight: '100px' }}
+              >
+                {stateOptions.filter(o => o.value !== null).map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </TextInput>
             </FilterWrapper>
           </FormGroup>
         </FiltersBar>

@@ -61,7 +61,6 @@ export default defineConfig({
       '@utils': path.resolve(__dirname, './src/utils'),
       '@styles': path.resolve(__dirname, './src/styles'),
       '@config': path.resolve(__dirname, './src/config'),
-      '@contexts': path.resolve(__dirname, './src/contexts'),
       '@types': path.resolve(__dirname, './src/types'),
     },
   },
@@ -149,12 +148,6 @@ export default defineConfig({
   esbuild: {
     loader: 'tsx',
     include: /src\/.*\.[jt]sx?$/,
-    exclude: [],
-  },
-
-  // Environment variables
-  define: {
-    'process.env': {},
   },
 
   // Preview server (for production build preview)

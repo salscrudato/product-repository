@@ -77,20 +77,11 @@ export const LIMITS = {
 // ============================================================================
 
 export const API = {
-  // RSS Feed URLs
-  RSS_FEED_URL: 'https://www.insurancejournal.com/feed/',
-  CORS_PROXIES: [
-    'https://corsproxy.io/',
-    'https://api.allorigins.win/raw',
-    'https://cors-anywhere.herokuapp.com/'
-  ],
-
   // Cloud Functions
   FUNCTIONS: {
     GENERATE_SUMMARY: 'generateProductSummary',
     GENERATE_CHAT: 'generateChatResponse',
-    ANALYZE_CLAIM: 'analyzeClaimWithChunking',
-    GENERATE_NEWS_SUMMARY: 'generateNewsSummary'
+    ANALYZE_CLAIM: 'analyzeClaimWithChunking'
   }
 } as const;
 

@@ -575,6 +575,395 @@ export function validateStateCode(state: string): ValidationResult {
   };
 }
 
+/**
+ * Validate a coverage limit
+ */
+export function validateCoverageLimit(limit: Partial<CoverageLimit>): ValidationResult {
+  const errors: ValidationError[] = [];
+  const warnings: ValidationWarning[] = [];
+
+  if (!limit.limitType) {
+    errors.push({
+      field: 'limitType',
+      message: 'Limit type is required',
+      severity: 'error'
+    });
+  }
+
+  if (limit.amount === undefined || limit.amount === null) {
+    errors.push({
+      field: 'amount',
+      message: 'Limit amount is required',
+      severity: 'error'
+    });
+  } else if (typeof limit.amount === 'number' && limit.amount < 0) {
+    errors.push({
+      field: 'amount',
+      message: 'Limit amount must be a positive number',
+      severity: 'error'
+    });
+  }
+
+  if (!limit.displayValue || limit.displayValue.trim() === '') {
+    warnings.push({
+      field: 'displayValue',
+      message: 'Display value is recommended for better readability',
+      severity: 'warning'
+    });
+  }
+
+  // Min/max validation
+  if (limit.minAmount !== undefined && limit.maxAmount !== undefined) {
+    if (limit.minAmount > limit.maxAmount) {
+      errors.push({
+        field: 'minAmount',
+        message: 'Minimum amount cannot be greater than maximum amount',
+        severity: 'error'
+      });
+    }
+  }
+
+  if (limit.amount !== undefined && limit.minAmount !== undefined && limit.amount < limit.minAmount) {
+    errors.push({
+      field: 'amount',
+      message: 'Amount cannot be less than minimum amount',
+      severity: 'error'
+    });
+  }
+
+  if (limit.amount !== undefined && limit.maxAmount !== undefined && limit.amount > limit.maxAmount) {
+    errors.push({
+      field: 'amount',
+      message: 'Amount cannot be greater than maximum amount',
+      severity: 'error'
+    });
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings
+  };
+}
+
+/**
+ * Validate a coverage deductible
+ */
+export function validateCoverageDeductible(deductible: Partial<CoverageDeductible>): ValidationResult {
+  const errors: ValidationError[] = [];
+  const warnings: ValidationWarning[] = [];
+
+  if (!deductible.deductibleType) {
+    errors.push({
+      field: 'deductibleType',
+      message: 'Deductible type is required',
+      severity: 'error'
+    });
+  }
+
+  if (deductible.amount === undefined || deductible.amount === null) {
+    errors.push({
+      field: 'amount',
+      message: 'Deductible amount is required',
+      severity: 'error'
+    });
+  } else if (typeof deductible.amount === 'number' && deductible.amount < 0) {
+    errors.push({
+      field: 'amount',
+      message: 'Deductible amount must be a positive number',
+      severity: 'error'
+    });
+  }
+
+  // Percentage validation
+  if (deductible.deductibleType === 'percentage' && deductible.amount !== undefined) {
+    if (typeof deductible.amount === 'number' && (deductible.amount < 0 || deductible.amount > 100)) {
+      errors.push({
+        field: 'amount',
+        message: 'Percentage must be between 0 and 100',
+        severity: 'error'
+      });
+    }
+    if (typeof deductible.amount === 'number' && deductible.amount > 50) {
+      warnings.push({
+        field: 'amount',
+        message: 'Percentage deductible above 50% is unusual',
+        severity: 'warning'
+      });
+    }
+  }
+
+  if (!deductible.displayValue || deductible.displayValue.trim() === '') {
+    warnings.push({
+      field: 'displayValue',
+      message: 'Display value is recommended for better readability',
+      severity: 'warning'
+    });
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings
+  };
+}
+
+/**
+ * Format validation result into a readable string
+ */
+export function formatValidationResult(result: ValidationResult): string {
+  const messages: string[] = [];
+
+  if (result.errors.length > 0) {
+    messages.push('Errors:');
+    result.errors.forEach(error => {
+      messages.push(`  • ${error.message}`);
+    });
+  }
+
+  if (result.warnings.length > 0) {
+    if (messages.length > 0) messages.push('');
+    messages.push('Warnings:');
+    result.warnings.forEach(warning => {
+      messages.push(`  • ${warning.message}`);
+    });
+  }
+
+  return messages.join('\n');
+}
+
+// ============================================================================
+// Rule Helper Functions (from ruleValidation.ts)
+// ============================================================================
+
+/**
+ * Validate rule type
+ */
+export function isValidRuleType(ruleType: string): boolean {
+  return ['Product', 'Coverage', 'Forms', 'Pricing'].includes(ruleType);
+}
+
+/**
+ * Validate rule category
+ */
+export function isValidRuleCategory(category: string): boolean {
+  return ['Eligibility', 'Pricing', 'Compliance', 'Coverage', 'Forms'].includes(category);
+}
+
+/**
+ * Validate rule status
+ */
+export function isValidRuleStatus(status: string): boolean {
+  return ['Active', 'Inactive', 'Draft', 'Under Review', 'Archived'].includes(status);
+}
+
+/**
+ * Sanitize rule data before saving
+ */
+export function sanitizeRule(rule: Partial<Rule>): Partial<Rule> {
+  const sanitized: Partial<Rule> = { ...rule };
+
+  // Trim string fields
+  if (sanitized.name) sanitized.name = sanitized.name.trim();
+  if (sanitized.condition) sanitized.condition = sanitized.condition.trim();
+  if (sanitized.outcome) sanitized.outcome = sanitized.outcome.trim();
+  if (sanitized.reference) sanitized.reference = sanitized.reference.trim();
+  if (sanitized.productId) sanitized.productId = sanitized.productId.trim();
+  if (sanitized.targetId) sanitized.targetId = sanitized.targetId.trim();
+
+  // Remove targetId if rule type is Product
+  if (sanitized.ruleType === 'Product') {
+    delete sanitized.targetId;
+  }
+
+  // Set default values
+  if (sanitized.proprietary === undefined) sanitized.proprietary = false;
+  if (sanitized.status === undefined) sanitized.status = 'Draft';
+
+  return sanitized;
+}
+
+/**
+ * Check if a rule conflicts with existing rules
+ */
+export function checkRuleConflicts(
+  newRule: Partial<Rule>,
+  existingRules: Rule[]
+): { hasConflict: boolean; conflicts: string[] } {
+  const conflicts: string[] = [];
+
+  // Check for duplicate names in same product
+  const duplicateName = existingRules.find(
+    rule =>
+      rule.productId === newRule.productId &&
+      rule.name.toLowerCase() === newRule.name?.toLowerCase() &&
+      rule.id !== newRule.id
+  );
+
+  if (duplicateName) {
+    conflicts.push(`A rule with the name "${newRule.name}" already exists for this product`);
+  }
+
+  // Check for identical conditions and outcomes
+  const identicalRule = existingRules.find(
+    rule =>
+      rule.productId === newRule.productId &&
+      rule.ruleType === newRule.ruleType &&
+      rule.targetId === newRule.targetId &&
+      rule.condition === newRule.condition &&
+      rule.outcome === newRule.outcome &&
+      rule.id !== newRule.id
+  );
+
+  if (identicalRule) {
+    conflicts.push(`An identical rule already exists: "${identicalRule.name}"`);
+  }
+
+  return {
+    hasConflict: conflicts.length > 0,
+    conflicts
+  };
+}
+
+/**
+ * Validate rule before deletion
+ */
+export function validateRuleDeletion(rule: Rule): { canDelete: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+
+  if (rule.status === 'Active') {
+    warnings.push('This is an active rule. Deleting it may affect product behavior.');
+  }
+
+  if (rule.proprietary) {
+    warnings.push('This is a proprietary rule. Make sure you have a backup.');
+  }
+
+  if (rule.priority !== undefined && rule.priority >= 80) {
+    warnings.push('This is a high-priority rule. Verify it is safe to delete.');
+  }
+
+  return {
+    canDelete: true,
+    warnings
+  };
+}
+
+// ============================================================================
+// State Applicability Validation
+// ============================================================================
+
+/**
+ * Validate that child entity states are a subset of parent entity states
+ * Used for hierarchical state applicability (e.g., coverage states must be subset of product states)
+ */
+export function validateStateSubset(
+  childStates: string[] | undefined,
+  parentStates: string[] | undefined,
+  entityName: string = 'Entity'
+): ValidationResult {
+  const errors: ValidationError[] = [];
+  const warnings: ValidationWarning[] = [];
+
+  // If child has no states, it's valid (inherits parent)
+  if (!childStates || childStates.length === 0) {
+    return { isValid: true, errors, warnings };
+  }
+
+  // If parent has no states, child can't have states
+  if (!parentStates || parentStates.length === 0) {
+    errors.push({
+      field: 'states',
+      message: `${entityName} cannot have state restrictions when parent has no state restrictions`,
+      severity: 'error',
+      code: 'STATE_SUBSET_INVALID'
+    });
+    return { isValid: false, errors, warnings };
+  }
+
+  // Check if all child states are in parent states
+  const invalidStates = childStates.filter(state => !parentStates.includes(state));
+
+  if (invalidStates.length > 0) {
+    errors.push({
+      field: 'states',
+      message: `${entityName} states must be a subset of parent states. Invalid states: ${invalidStates.join(', ')}`,
+      severity: 'error',
+      code: 'STATE_SUBSET_MISMATCH'
+    });
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings
+  };
+}
+
+/**
+ * Validate state applicability record
+ */
+export function validateStateApplicability(stateApp: Partial<StateApplicability>): ValidationResult {
+  const errors: ValidationError[] = [];
+  const warnings: ValidationWarning[] = [];
+
+  // Required fields
+  if (!stateApp.state || stateApp.state.trim().length === 0) {
+    errors.push({
+      field: 'state',
+      message: 'State code is required',
+      severity: 'error',
+      code: 'STATE_CODE_REQUIRED'
+    });
+  }
+
+  if (!stateApp.entityId || stateApp.entityId.trim().length === 0) {
+    errors.push({
+      field: 'entityId',
+      message: 'Entity ID is required',
+      severity: 'error',
+      code: 'ENTITY_ID_REQUIRED'
+    });
+  }
+
+  if (!stateApp.entityType) {
+    errors.push({
+      field: 'entityType',
+      message: 'Entity type is required',
+      severity: 'error',
+      code: 'ENTITY_TYPE_REQUIRED'
+    });
+  }
+
+  // Validate state code format (2-letter US state code)
+  if (stateApp.state && !/^[A-Z]{2}$/.test(stateApp.state)) {
+    errors.push({
+      field: 'state',
+      message: 'State code must be a 2-letter US state abbreviation',
+      severity: 'error',
+      code: 'INVALID_STATE_CODE_FORMAT'
+    });
+  }
+
+  // Validate subset if parent states are provided
+  if (stateApp.isSubsetOf && stateApp.isSubsetOf.length > 0 && stateApp.state) {
+    if (!stateApp.isSubsetOf.includes(stateApp.state)) {
+      errors.push({
+        field: 'state',
+        message: `State ${stateApp.state} is not in the allowed parent states`,
+        severity: 'error',
+        code: 'STATE_NOT_IN_PARENT_SET'
+      });
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings
+  };
+}
+
 export default {
   validateProduct,
   validateCoverage,
@@ -584,6 +973,17 @@ export default {
   validateBatch,
   validateProductIntegrity,
   checkReferentialIntegrity,
-  validateStateCode
+  validateStateCode,
+  validateCoverageLimit,
+  validateCoverageDeductible,
+  formatValidationResult,
+  isValidRuleType,
+  isValidRuleCategory,
+  isValidRuleStatus,
+  sanitizeRule,
+  checkRuleConflicts,
+  validateRuleDeletion,
+  validateStateSubset,
+  validateStateApplicability
 };
 

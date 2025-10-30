@@ -9,7 +9,7 @@ import { Coverage, CoverageLimit, CoverageDeductible, CoverageVersion } from '@t
 /**
  * Generate a hash of an object for change detection
  */
-export function generateHash(obj: any): string {
+function generateHash(obj: any): string {
   const json = JSON.stringify(obj, Object.keys(obj).sort());
   return crypto.createHash('sha256').update(json).digest('hex').substring(0, 16);
 }
@@ -137,100 +137,5 @@ export function detectVersionOverlaps(
   };
 }
 
-/**
- * Compare two version snapshots
- */
-export interface VersionComparison {
-  changedFields: Array<{
-    field: string;
-    oldValue: any;
-    newValue: any;
-  }>;
-  limitsChanged: boolean;
-  deductiblesChanged: boolean;
-  summary: string;
-}
 
-export function compareVersionSnapshots(
-  snapshot1: VersionSnapshot,
-  snapshot2: VersionSnapshot
-): VersionComparison {
-  const changedFields: VersionComparison['changedFields'] = [];
-  
-  // Compare coverage fields
-  const coverage1 = snapshot1.coverage;
-  const coverage2 = snapshot2.coverage;
-  
-  const fieldsToCompare = [
-    'name', 'description', 'coverageCode', 'coverageType',
-    'isOptional', 'isPrimary', 'exclusions', 'conditions', 'scopeOfCoverage',
-    'coverageTrigger', 'waitingPeriod', 'valuationMethod', 'depreciationMethod',
-    'coinsurancePercentage', 'requiresUnderwriterApproval', 'territoryType',
-    'modifiesCoverageId', 'endorsementType', 'supersedes', 'states'
-  ];
-  
-  fieldsToCompare.forEach(field => {
-    const val1 = (coverage1 as any)[field];
-    const val2 = (coverage2 as any)[field];
-    
-    if (JSON.stringify(val1) !== JSON.stringify(val2)) {
-      changedFields.push({
-        field,
-        oldValue: val1,
-        newValue: val2
-      });
-    }
-  });
-  
-  const limitsChanged = snapshot1.limitsHash !== snapshot2.limitsHash;
-  const deductiblesChanged = snapshot1.deductiblesHash !== snapshot2.deductiblesHash;
-  
-  const changes = [
-    changedFields.length > 0 ? `${changedFields.length} field(s)` : null,
-    limitsChanged ? 'limits' : null,
-    deductiblesChanged ? 'deductibles' : null
-  ].filter(Boolean);
-  
-  return {
-    changedFields,
-    limitsChanged,
-    deductiblesChanged,
-    summary: changes.length > 0 
-      ? `Changed: ${changes.join(', ')}`
-      : 'No changes detected'
-  };
-}
-
-/**
- * Validate version dates
- */
-export interface DateValidationResult {
-  isValid: boolean;
-  errors: string[];
-}
-
-export function validateVersionDates(
-  effectiveDate: Date,
-  expirationDate?: Date
-): DateValidationResult {
-  const errors: string[] = [];
-  
-  if (!effectiveDate) {
-    errors.push('Effective date is required');
-  }
-  
-  if (expirationDate && effectiveDate >= expirationDate) {
-    errors.push('Expiration date must be after effective date');
-  }
-  
-  const now = new Date();
-  if (effectiveDate < now) {
-    errors.push('Effective date cannot be in the past');
-  }
-  
-  return {
-    isValid: errors.length === 0,
-    errors
-  };
-}
 

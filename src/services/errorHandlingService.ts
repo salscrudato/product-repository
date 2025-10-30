@@ -7,6 +7,21 @@
 import logger, { LOG_CATEGORIES } from '../utils/logger';
 
 /**
+ * Custom AppError class for application-specific errors
+ */
+export class AppError extends Error {
+  constructor(
+    public code: string,
+    public message: string,
+    public statusCode: number = 500,
+    public details?: Record<string, unknown>
+  ) {
+    super(message);
+    this.name = 'AppError';
+  }
+}
+
+/**
  * Error types for categorization
  */
 export const ERROR_TYPES = {
@@ -263,6 +278,7 @@ export const createErrorFallback = (error, resetError) => {
 };
 
 export default {
+  AppError,
   ERROR_TYPES,
   getUserFriendlyMessage,
   handleFirebaseError,

@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Coverage } from '@types';
-import { validateCoverage, formatValidationResult } from '@utils/validation/coverage';
+import { validateCoverage, formatValidationResult } from '@services/validationService';
 import { CoverageTriggerSelector } from '../selectors/CoverageTriggerSelector';
 import { WaitingPeriodInput } from '../inputs/WaitingPeriodInput';
 import { ValuationMethodSelector } from '../selectors/ValuationMethodSelector';

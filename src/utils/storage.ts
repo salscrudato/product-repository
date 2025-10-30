@@ -102,35 +102,5 @@ export async function deleteFormPdf(filePath: string): Promise<void> {
   }
 }
 
-/**
- * Get download URL for a stored file
- * 
- * @param filePath - Path to the file in storage
- */
-export async function getFormPdfUrl(filePath: string): Promise<string> {
-  try {
-    const storageRef = ref(storage, filePath);
-    return await getDownloadURL(storageRef);
-  } catch (error) {
-    logger.error(LOG_CATEGORIES.ERROR, 'Failed to get form PDF URL', {
-      filePath,
-    }, error as Error);
-    throw error;
-  }
-}
 
-/**
- * Check if a file exists in storage
- * 
- * @param filePath - Path to the file in storage
- */
-export async function formPdfExists(filePath: string): Promise<boolean> {
-  try {
-    const storageRef = ref(storage, filePath);
-    await getDownloadURL(storageRef);
-    return true;
-  } catch {
-    return false;
-  }
-}
 

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { CoveragePackage, Coverage, PackageType } from '../../types';
 import { validatePackage, calculatePackagePremium } from '../../hooks/useCoveragePackages';
-import Select from 'react-select';
 
 interface PackageBuilderProps {
   availableCoverages: Coverage[];
@@ -119,12 +118,15 @@ export const PackageBuilder: React.FC<PackageBuilderProps> = ({
 
         <FormGroup>
           <Label>Package Type *</Label>
-          <Select
-            value={packageTypeOptions.find((opt) => opt.value === packageType)}
-            onChange={(option) => setPackageType(option?.value as PackageType)}
-            options={packageTypeOptions}
-            placeholder="Select package type..."
-          />
+          <select
+            value={packageType}
+            onChange={(e) => setPackageType(e.target.value as PackageType)}
+            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #d1d5db' }}
+          >
+            {packageTypeOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </FormGroup>
       </FormSection>
 
@@ -133,13 +135,16 @@ export const PackageBuilder: React.FC<PackageBuilderProps> = ({
         
         <FormGroup>
           <Label>Select Coverages *</Label>
-          <Select
-            isMulti
-            value={coverageOptions.filter((opt) => selectedCoverageIds.includes(opt.value))}
-            onChange={(options) => setSelectedCoverageIds(options.map((opt) => opt.value))}
-            options={coverageOptions}
-            placeholder="Select coverages to include..."
-          />
+          <select
+            multiple
+            value={selectedCoverageIds}
+            onChange={(e) => setSelectedCoverageIds(Array.from(e.target.selectedOptions, option => option.value))}
+            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #d1d5db', minHeight: '100px' }}
+          >
+            {coverageOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </FormGroup>
 
         {selectedCoverages.length > 0 && (

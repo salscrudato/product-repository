@@ -2,6 +2,13 @@
  * Comprehensive Logging System for Product Hub App
  * Provides structured logging for all user actions, API calls, data operations, and system events
  * Merged from: logger.ts, auditTrail.ts, performanceMonitor.ts
+ *
+ * Features:
+ * - Structured logging with categories and levels
+ * - Performance metrics tracking
+ * - Audit trail logging
+ * - Session storage for debugging
+ * - Global error handlers
  */
 
 import {

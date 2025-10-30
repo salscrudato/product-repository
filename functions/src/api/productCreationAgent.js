@@ -3,361 +3,182 @@
  * Autonomous workflow for creating insurance products from PDF coverage forms
  */
 
-const functions = require('firebase-functions');
+const admin = require('firebase-admin');
 const { onCall } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
-const admin = require('firebase-admin');
-const { withErrorHandling } = require('../middleware/errorHandler');
-const { requireAuth, rateLimitAI } = require('../middleware/auth');
-const { validateAIRequest } = require('../middleware/validation');
-const pdfService = require('../services/pdf');
-const openaiService = require('../services/openai');
-const { logger } = require('../utils/logger');
-
-// Define the secret for OpenAI API key
-const openaiKey = defineSecret('OPENAI_KEY');
+const axios = require('axios');
+const pdfParse = require('pdf-parse');
 
 const db = admin.firestore();
-const bucket = admin.storage().bucket();
+const openaiKey = defineSecret('OPENAI_KEY');
 
 /**
- * Get the autonomous product creation prompt
+ * Get the system prompt for autonomous product creation
  */
 function getAutonomousProductCreationPrompt() {
-  return `
-Persona: You are an expert in P&C insurance products with deep knowledge of policy language, coverage structures, and insurance terminology. Your task is to autonomously create a complete insurance product from a coverage form.
+  return `You are an expert insurance product architect. Your task is to analyze PDF coverage forms and create comprehensive insurance products.
 
-**Your Task:** Analyze the provided insurance document and extract ALL information needed to create a complete, production-ready insurance product.
+When analyzing a PDF, extract:
+1. Product name and code
+2. All coverages with their details (limits, deductibles, scope)
+3. Coverage relationships and hierarchies
+4. Form associations
+5. Pricing structure if available
 
-**Key Definitions:**
-- **Coverage**: A specific type of protection provided by the insurance policy
-- **Sub-Coverage**: A coverage that is subordinate to or dependent on a parent coverage
-- **Peril**: A specific cause of loss that is covered
-- **Limit**: The maximum amount the insurer will pay for a covered loss
-- **Deductible**: The amount the policyholder must pay before insurance coverage applies
-- **Exclusion**: Specific situations, conditions, or types of losses that are not covered
-- **Condition**: Requirements that must be met for coverage to apply
-
-**Analysis Process:**
-1. Identify the product type and create an appropriate product name
-2. Extract all coverages, noting parent-child relationships (hierarchies)
-3. For each coverage, identify: scope, limits, deductibles, covered perils, exclusions, conditions
-4. Identify general conditions and exclusions that apply to the entire policy
-5. Extract any product metadata (effective dates, states, etc.)
-6. Assess confidence level for each extraction
-
-**Output Format (JSON):**
+Return a JSON object with this structure:
 {
-  "productName": "Derived product name from document",
-  "productDescription": "2-3 sentence description of the product",
-  "productCode": "Suggested product code if identifiable",
-  "category": "Product category (e.g., Commercial Property, Homeowners)",
+  "productName": "string",
+  "productCode": "string",
+  "productType": "string",
+  "description": "string",
   "coverages": [
     {
-      "name": "Coverage name",
-      "description": "Coverage description",
-      "code": "Coverage code if available",
-      "limits": "Limits description",
-      "deductibles": "Deductible description",
-      "perilsCovered": ["peril1", "peril2"],
-      "exclusions": ["exclusion1", "exclusion2"],
-      "conditions": ["condition1", "condition2"],
-      "parentCoverageName": "Parent coverage name if sub-coverage",
-      "confidence": 0-100
+      "name": "string",
+      "code": "string",
+      "type": "string",
+      "scopeOfCoverage": "string",
+      "limits": "string",
+      "deductible": "string"
     }
   ],
+  "forms": ["form names"],
   "metadata": {
-    "effectiveDate": "Date if available",
-    "states": ["State codes if available"],
-    "lineOfBusiness": "Line of business if identifiable",
-    "documentType": "Type of document analyzed"
-  },
-  "confidence": 0-100,
-  "extractionNotes": "Any notes about extraction challenges or ambiguities"
-}
-
-**Important:** Extract ALL coverages including sub-coverages. Derive a professional product name from the document content. Flag any ambiguities or unclear language. Provide confidence scores for all extractions. Ensure the output is valid JSON that can be parsed.`;
+    "effectiveDate": "string",
+    "expirationDate": "string",
+    "jurisdiction": "string"
+  }
+}`;
 }
 
 /**
- * Create finalized product from extraction result
+ * Create finalized product in Firestore
  */
-async function createFinalizedProduct(extractionResult, context, fileName) {
-  // Validate extraction result
-  if (!extractionResult.productName || !extractionResult.coverages || extractionResult.coverages.length === 0) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Invalid extraction result: missing product name or coverages'
-    );
-  }
-
-  // Get user ID (optional auth)
-  const userId = context.auth?.uid || 'anonymous';
-
-  // Create product in Firestore
-  let productId;
+async function createFinalizedProduct(productData, userId) {
   try {
-    const productRef = await db.collection('products').add({
-      name: extractionResult.productName,
-      description: extractionResult.productDescription,
-      productCode: extractionResult.productCode || '',
-      category: extractionResult.category || 'General',
-      formFileName: fileName || 'user-provided',
-      formUploadedAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdBy: userId,
-      metadata: extractionResult.metadata || {}
+    const productsRef = db.collection('products');
+    
+    // Create product document
+    const productDoc = await productsRef.add({
+      name: productData.productName,
+      code: productData.productCode,
+      type: productData.productType,
+      description: productData.description,
+      createdAt: new Date(),
+      createdBy: userId || 'anonymous',
+      status: 'active',
+      metadata: productData.metadata || {}
     });
-
-    productId = productRef.id;
-    logger.info('Finalized product created', { productId, userId });
 
     // Create coverages
-    const coverageMap = {};
-    for (const coverage of extractionResult.coverages) {
-      const coverageRef = await db.collection('products').doc(productId)
-        .collection('coverages').add({
+    if (productData.coverages && Array.isArray(productData.coverages)) {
+      const coveragesRef = productDoc.collection('coverages');
+      for (const coverage of productData.coverages) {
+        await coveragesRef.add({
           name: coverage.name,
-          description: coverage.description || '',
-          coverageCode: coverage.code || '',
-          limits: coverage.limits || '',
-          deductibles: coverage.deductibles || '',
-          perilsCovered: coverage.perilsCovered || [],
-          exclusions: coverage.exclusions || [],
-          conditions: coverage.conditions || [],
-          parentCoverageName: coverage.parentCoverageName || null,
-          confidence: coverage.confidence || 0,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          coverageName: coverage.name,
+          code: coverage.code,
+          coverageCode: coverage.code,
+          type: coverage.type,
+          coverageType: coverage.type,
+          scopeOfCoverage: coverage.scopeOfCoverage,
+          limits: coverage.limits,
+          deductible: coverage.deductible,
+          createdAt: new Date()
         });
-
-      coverageMap[coverage.name] = coverageRef.id;
-    }
-
-    // Link sub-coverages to parent coverages
-    const coverages = await db.collection('products').doc(productId)
-      .collection('coverages').get();
-
-    for (const doc of coverages.docs) {
-      const coverage = doc.data();
-      if (coverage.parentCoverageName) {
-        const parentId = coverageMap[coverage.parentCoverageName];
-        if (parentId) {
-          await doc.ref.update({ parentCoverageId: parentId });
-        }
       }
     }
 
-    logger.info('Finalized coverages created', {
-      productId,
-      count: extractionResult.coverages.length
-    });
-
+    return {
+      success: true,
+      productId: productDoc.id,
+      message: `Product "${productData.productName}" created successfully`
+    };
   } catch (error) {
-    logger.error('Finalized product creation failed', { error: error.message });
-    throw new functions.https.HttpsError(
-      'internal',
-      'Failed to create product in database'
-    );
+    console.error('Error creating finalized product:', error);
+    throw error;
   }
-
-  return {
-    success: true,
-    productId,
-    extractionResult,
-    message: `Product "${extractionResult.productName}" created successfully with ${extractionResult.coverages.length} coverages`
-  };
 }
 
 /**
- * Create product from PDF using autonomous agent
+ * Create product from PDF using AI analysis
  */
-const createProductFromPDF = onCall({ secrets: [openaiKey] }, async (request) => {
+exports.createProductFromPDF = onCall({ secrets: [openaiKey] }, async (request) => {
   try {
-    // Extract data and context from v2 API request
-    const data = request.data;
-    const context = { auth: request.auth };
+    const { storagePath } = request.data;
+    const userId = request.auth?.uid || 'anonymous';
 
-    // Note: Authentication is optional for this endpoint
-    // Users can create products without authentication
-    const userId = context.auth?.uid || 'anonymous';
-
-    logger.info('Raw data received', {
-      dataKeys: Object.keys(data),
-      dataType: typeof data,
-      dataValue: JSON.stringify(data).substring(0, 500)
-    });
-
-    const { storagePath, pdfBase64, fileName, extractionResult, isFinalized } = data;
-
-    logger.info('Product creation from PDF requested', {
-      userId,
-      fileName,
-      isFinalized: isFinalized || false,
-      hasStoragePath: !!storagePath,
-      hasPdfBase64: !!pdfBase64,
-      dataKeys: Object.keys(data),
-      storagePath: storagePath ? storagePath.substring(0, 100) : 'undefined'
-    });
-
-    // If finalized, skip extraction and go straight to product creation
-    if (isFinalized && extractionResult) {
-      return createFinalizedProduct(extractionResult, context, fileName);
+    if (!storagePath) {
+      throw new Error('storagePath is required');
     }
 
-    // Get PDF data from storage or base64
-    let pdfBuffer;
-    if (storagePath) {
-      try {
-        logger.info('Downloading PDF from storage', { storagePath });
-        const file = bucket.file(storagePath);
-        const [buffer] = await file.download();
-        pdfBuffer = buffer;
-        logger.info('PDF downloaded from storage', { size: buffer.length });
-      } catch (error) {
-        logger.error('Failed to download PDF from storage', { error: error.message, storagePath });
-        throw new functions.https.HttpsError(
-          'invalid-argument',
-          'Failed to download PDF from storage'
-        );
-      }
-    } else if (pdfBase64) {
-      try {
-        pdfBuffer = Buffer.from(pdfBase64, 'base64');
-      } catch (error) {
-        logger.error('Failed to decode base64 PDF', { error: error.message });
-        throw new functions.https.HttpsError(
-          'invalid-argument',
-          'Failed to decode PDF data'
-        );
-      }
-    } else {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'Either storagePath or pdfBase64 is required'
-      );
-    }
+    console.log('Creating product from PDF:', { storagePath, userId });
+
+    // Download PDF from Firebase Storage
+    const bucket = admin.storage().bucket();
+    const file = bucket.file(storagePath);
+    const [buffer] = await file.download();
 
     // Extract text from PDF
-    let extractedText;
-    try {
-      logger.info('Starting PDF text extraction', {
-        bufferSize: pdfBuffer ? pdfBuffer.length : 0,
-        bufferType: pdfBuffer ? typeof pdfBuffer : 'undefined'
-      });
+    const pdfData = await pdfParse(buffer);
+    const pdfText = pdfData.text;
 
-      extractedText = await pdfService.extractTextFromBuffer(pdfBuffer);
-
-      logger.info('PDF text extraction successful', {
-        textLength: extractedText ? extractedText.length : 0,
-        textPreview: extractedText ? extractedText.substring(0, 200) : 'empty'
-      });
-    } catch (error) {
-      logger.error('PDF extraction failed', {
-        error: error.message,
-        errorStack: error.stack,
-        bufferSize: pdfBuffer ? pdfBuffer.length : 0
-      });
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        `Failed to extract text from PDF: ${error.message}`
-      );
+    if (!pdfText || pdfText.trim().length === 0) {
+      throw new Error('No text extracted from PDF');
     }
 
-    if (!extractedText) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'PDF appears to be empty or unreadable'
-      );
+    console.log('PDF text extracted:', { length: pdfText.length });
+
+    // Call OpenAI to analyze PDF and extract product structure
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: getAutonomousProductCreationPrompt()
+          },
+          {
+            role: 'user',
+            content: `Analyze this insurance coverage form and extract the product structure:\n\n${pdfText}`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${openaiKey.value()}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const aiResponse = response.data.choices[0].message.content;
+    console.log('AI response received:', { length: aiResponse.length });
+
+    // Parse AI response
+    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Could not parse AI response as JSON');
     }
 
-    // Validate and truncate text
-    validateAIRequest({ pdfText: extractedText });
-    const truncatedText = pdfService.truncateText(extractedText, 100000);
+    const productData = JSON.parse(jsonMatch[0]);
+    console.log('Product data parsed:', { productName: productData.productName });
 
-    // Get autonomous product creation prompt
-    const systemPrompt = getAutonomousProductCreationPrompt();
+    // Create product in Firestore
+    const result = await createFinalizedProduct(productData, userId);
 
-    // Generate extraction using OpenAI
-    let extractedResult;
-    try {
-      logger.info('Calling OpenAI for product extraction', {
-        textLength: truncatedText.length,
-        systemPromptLength: systemPrompt.length
-      });
-
-      const result = await openaiService.generateProductSummary(
-        truncatedText,
-        systemPrompt
-      );
-
-      logger.info('OpenAI response received', {
-        contentLength: result.content ? result.content.length : 0,
-        contentPreview: result.content ? result.content.substring(0, 200) : 'empty'
-      });
-
-      // Parse the response
-      const content = result.content
-        .replace(/```json\n?/g, '')
-        .replace(/\n?```/g, '')
-        .replace(/[\u200B-\u200D\uFEFF]/g, '')
-        .trim();
-
-      logger.info('Parsing JSON response', {
-        cleanedContentLength: content.length,
-        cleanedContentPreview: content.substring(0, 200)
-      });
-
-      extractedResult = JSON.parse(content);
-
-      logger.info('JSON parsed successfully', {
-        productName: extractedResult.productName,
-        coverageCount: extractedResult.coverages ? extractedResult.coverages.length : 0
-      });
-    } catch (error) {
-      logger.error('AI extraction failed', {
-        error: error.message,
-        errorStack: error.stack,
-        errorType: error.constructor.name
-      });
-      throw new functions.https.HttpsError(
-        'internal',
-        `Failed to extract product information from PDF: ${error.message}`
-      );
-    }
-
-    // Validate extraction result
-    if (!extractedResult.productName || !extractedResult.coverages || extractedResult.coverages.length === 0) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'Could not extract valid product information from PDF'
-      );
-    }
-
-    logger.info('Extraction complete, returning for review', {
-      userId: context.auth.uid,
-      productName: extractedResult.productName,
-      coverageCount: extractedResult.coverages.length
-    });
-
-    // Return extraction result for user review (don't create product yet)
     return {
       success: true,
-      extractionResult: extractedResult,
-      message: `Extracted ${extractedResult.coverages.length} coverages from PDF. Please review and confirm.`
+      data: result
     };
   } catch (error) {
-    logger.error('Error in createProductFromPDF', {
-      error: error.message,
-      stack: error.stack
-    });
-    throw error;
+    console.error('Error in createProductFromPDF:', error);
+    return {
+      success: false,
+      error: error.message
+    };
   }
 });
-
-module.exports = {
-  createProductFromPDF,
-  createFinalizedProduct
-};
 

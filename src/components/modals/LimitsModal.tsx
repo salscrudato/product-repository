@@ -9,7 +9,7 @@ import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { CoverageLimit } from '@types';
 import { useCoverageLimits } from '@hooks/useCoverageLimits';
 import { LimitTypeSelector } from '../selectors/LimitTypeSelector';
-import { validateCoverageLimit, formatValidationResult } from '@utils/validation/coverage';
+import { validateCoverageLimit, formatValidationResult } from '@services/validationService';
 
 interface LimitsModalProps {
   isOpen: boolean;

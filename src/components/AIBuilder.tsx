@@ -15,7 +15,6 @@ import { WrenchScrewdriverIcon } from '@heroicons/react/24/solid';
 import MarkdownRenderer from '@utils/markdownParser';
 import { sanitizeMarkdown, sanitizeMarkdownWithLimit } from '@utils/markdownSanitizer';
 import { withTimeout, DEFAULT_AI_RETRY_OPTIONS } from '@utils/aiTimeout';
-import { buildCompactContext, formatCompactContext } from '@utils/compactContext';
 import { AI_MODELS, AI_PARAMETERS } from '@config/aiConfig';
 
 /* ---------- Styled Components ---------- */
@@ -361,13 +360,10 @@ const AIBuilder = () => {
     setChatMessages(prev => [...prev, newUserMessage]);
 
     try {
-      // Build compact context to reduce token usage
-      const compactCtx = buildCompactContext(
-        contextData.products,
-        contextData.coverages,
-        contextData.forms
-      );
-      const contextString = formatCompactContext(compactCtx);
+      // Build context string from available data
+      const contextString = `Available Products: ${Object.keys(contextData.products).length}
+Available Coverages: ${contextData.coverages.length}
+Available Forms: ${contextData.forms.length}`;
 
       const generateChat = httpsCallable(functions, 'generateChatResponse');
 

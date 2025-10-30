@@ -37,7 +37,6 @@ import {
 } from '../components/ui/Table';
 import styled, { keyframes } from 'styled-components';
 import { TextInput } from '../components/ui/Input';
-import Select from 'react-select';
 import PremiumCalculator from './pricing/PremiumCalculator';
 
 /* ========== MODERN STYLED COMPONENTS ========== */
@@ -1499,35 +1498,15 @@ function operandGlyph(op) {
               <label>Select Coverage</label>
               <FilterWrapper>
                 <FunnelIcon width={16} height={16} style={{ color: '#6B7280' }} />
-                <Select
-                  options={coverageOptions}
-                  value={coverageOptions.find(o => o.value === selectedCoverage)}
-                  onChange={o => setSelectedCoverage(o.value)}
-                  placeholder="All Coverages"
-                  styles={{
-                    control: (base, state) => ({
-                      ...base,
-                      width: '100%',
-                      borderColor: state.isFocused ? '#6366f1' : '#d1d5db',
-                      boxShadow: state.isFocused ? '0 0 0 1px #6366f1' : 'none',
-                      '&:hover': {
-                        borderColor: '#6366f1'
-                      }
-                    }),
-                    menu: base => ({ ...base, background: '#fff', borderRadius: 8, zIndex: 1000 }),
-                    option: (base, state) => ({
-                      ...base,
-                      background: state.isFocused ? '#F0F5FF' : '#fff',
-                      color: '#1f2937',
-                      fontWeight: state.isSelected ? '600' : '400',
-                      '&:active': {
-                        background: '#E6EEFF'
-                      }
-                    }),
-                    placeholder: base => ({ ...base, color: '#6b7280', fontWeight: '400' }),
-                    singleValue: base => ({ ...base, color: '#1f2937', fontWeight: '500' })
-                  }}
-                />
+                <TextInput
+                  as="select"
+                  value={selectedCoverage || ''}
+                  onChange={e => setSelectedCoverage(e.target.value || null)}
+                >
+                  {coverageOptions.map(o => (
+                    <option key={o.value} value={o.value || ''}>{o.label}</option>
+                  ))}
+                </TextInput>
               </FilterWrapper>
             </FormGroup>
 
@@ -1535,38 +1514,17 @@ function operandGlyph(op) {
               <label>Select State</label>
               <FilterWrapper>
                 <MapIcon width={16} height={16} style={{ color: '#6B7280' }} />
-                <Select
-                  options={stateOptions}
-                  value={stateOptions.filter(o => selectedStates.includes(o.value))}
-                  onChange={opts => setSelectedStates(opts.map(o => o.value))}
-                  isMulti
-                  placeholder="All States"
-                  styles={{
-                    control: (base, state) => ({
-                      ...base,
-                      width: '100%',
-                      borderColor: state.isFocused ? '#6366f1' : '#d1d5db',
-                      boxShadow: state.isFocused ? '0 0 0 1px #6366f1' : 'none',
-                      '&:hover': {
-                        borderColor: '#6366f1'
-                      }
-                    }),
-                    menu: base => ({ ...base, background: '#fff', borderRadius: 8, zIndex: 1000 }),
-                    option: (base, state) => ({
-                      ...base,
-                      background: state.isFocused ? '#F0F5FF' : '#fff',
-                      color: '#1f2937',
-                      fontWeight: state.isSelected ? '600' : '400',
-                      '&:active': {
-                        background: '#E6EEFF'
-                      }
-                    }),
-                    placeholder: base => ({ ...base, color: '#6b7280', fontWeight: '400' }),
-                    multiValue: base => ({ ...base, backgroundColor: '#e0e7ff' }),
-                    multiValueLabel: base => ({ ...base, color: '#3730a3', fontWeight: '500' }),
-                    multiValueRemove: base => ({ ...base, color: '#6366f1', '&:hover': { backgroundColor: '#c7d2fe', color: '#4338ca' } })
-                  }}
-                />
+                <TextInput
+                  as="select"
+                  multiple
+                  value={selectedStates}
+                  onChange={e => setSelectedStates(Array.from(e.target.selectedOptions, option => option.value))}
+                  style={{ minHeight: '100px' }}
+                >
+                  {stateOptions.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </TextInput>
               </FilterWrapper>
             </FormGroup>
 

@@ -9,7 +9,7 @@ import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { CoverageDeductible } from '@types';
 import { useCoverageDeductibles } from '@hooks/useCoverageDeductibles';
 import { DeductibleTypeSelector } from '../selectors/DeductibleTypeSelector';
-import { validateCoverageDeductible, formatValidationResult } from '@utils/validation/coverage';
+import { validateCoverageDeductible, formatValidationResult } from '@services/validationService';
 
 interface DeductiblesModalProps {
   isOpen: boolean;
