@@ -10,7 +10,6 @@ import {
 } from '@heroicons/react/24/solid';
 import MainNavigation from './ui/Navigation';
 import { EnhancedChatMessage } from './ui/EnhancedChatMessage';
-import ProductCreationAgentModal from './ProductCreationAgentModal';
 import useProducts from '@hooks/useProducts';
 import { useDeepMemo } from '@hooks/useAdvancedMemo';
 import logger, { LOG_CATEGORIES } from '@utils/logger';
@@ -434,51 +433,6 @@ const ClearButton = styled.button`
   }
 `;
 
-const ProductCreationFAB = styled.button`
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  border: none;
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
-  z-index: 50;
-  font-size: 0;
-
-  svg {
-    width: 24px;
-    height: 24px;
-  }
-
-  &:hover {
-    transform: scale(1.1);
-    box-shadow: 0 12px 32px rgba(99, 102, 241, 0.6);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-
-  @media (max-width: 768px) {
-    bottom: 16px;
-    right: 16px;
-    width: 48px;
-    height: 48px;
-
-    svg {
-      width: 20px;
-      height: 20px;
-    }
-  }
-`;
 
 const SystemStatus = styled.div<{ $isReady: boolean }>`
   position: absolute;
@@ -579,7 +533,6 @@ export default function Home() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [productCreationAgentOpen, setProductCreationAgentOpen] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -594,15 +547,7 @@ export default function Home() {
   const [tasks, setTasks] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
-  // Memoize modal callbacks to prevent unnecessary re-renders
-  const handleProductCreationAgentClose = useCallback(() => {
-    setProductCreationAgentOpen(false);
-  }, []);
 
-  const handleProductCreated = useCallback((productId: string) => {
-    logger.info(LOG_CATEGORIES.DATA, 'Product created via agent', { productId });
-    setProductCreationAgentOpen(false);
-  }, []);
 
   // Fetch comprehensive application data for enhanced AI context (optimized with caching)
   useEffect(() => {
@@ -1109,21 +1054,7 @@ export default function Home() {
         )}
       </MainContent>
 
-      {/* Product Creation Agent FAB */}
-      <ProductCreationFAB
-        onClick={() => setProductCreationAgentOpen(true)}
-        title="Create product from PDF with AI"
-        aria-label="Open Product Creation Agent"
-      >
-        <SparklesIcon />
-      </ProductCreationFAB>
 
-      {/* Product Creation Agent Modal */}
-      <ProductCreationAgentModal
-        isOpen={productCreationAgentOpen}
-        onClose={handleProductCreationAgentClose}
-        onProductCreated={handleProductCreated}
-      />
     </Page>
   );
 }
