@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { onAuthStateChanged, getAuth, type User } from 'firebase/auth';
-import logger, { LOG_CATEGORIES } from '../utils/logger';
+import logger, { LOG_CATEGORIES } from '@utils/logger';
 
 /**
  * RequireAuth

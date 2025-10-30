@@ -11,11 +11,11 @@ import {
 import MainNavigation from './ui/Navigation';
 import { EnhancedChatMessage } from './ui/EnhancedChatMessage';
 import ProductCreationAgentModal from './ProductCreationAgentModal';
-import useProducts from '../hooks/useProducts';
-import { useDeepMemo } from '../hooks/useAdvancedMemo';
-import logger, { LOG_CATEGORIES } from '../utils/logger';
+import useProducts from '@hooks/useProducts';
+import { useDeepMemo } from '@hooks/useAdvancedMemo';
+import logger, { LOG_CATEGORIES } from '@utils/logger';
 import { collection, getDocs, collectionGroup } from 'firebase/firestore';
-import { db, functions } from '../firebase';
+import { db, functions } from '@/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { AI_MODELS, AI_PARAMETERS } from '../config/aiConfig';
 import firebaseOptimized from '../services/firebaseOptimized';

@@ -1,20 +1,19 @@
 import { useState, useEffect } from 'react';
 import { collection, collectionGroup, getDocs, addDoc, updateDoc, doc, writeBatch, serverTimestamp, query, where, getDoc } from 'firebase/firestore';
-import { db, storage } from '../firebase';
+import { db, storage } from '@/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import styled from 'styled-components';
 import {
-  XMarkIcon,
-  PlusIcon,
   WrenchScrewdriverIcon,
   DocumentDuplicateIcon,
   MagnifyingGlassIcon,
   ChevronDownIcon
 } from '@heroicons/react/24/solid';
 import { useNavigate } from 'react-router-dom';
-import MainNavigation from '../components/ui/Navigation';
-import EnhancedHeader from '../components/ui/EnhancedHeader';
-import ConfirmationModal from '../components/ui/ConfirmationModal';
+import MainNavigation from '@components/ui/Navigation';
+import EnhancedHeader from '@components/ui/EnhancedHeader';
+import ConfirmationModal from '@components/ui/ConfirmationModal';
+import { cloneProduct } from '@utils/productClone';
 
 /* ---------- Styled Components (reused from ProductBuilder) ---------- */
 const Page = styled.div`

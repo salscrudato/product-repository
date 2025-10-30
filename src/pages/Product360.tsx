@@ -7,10 +7,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import styled from 'styled-components';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Product } from '../types';
-import logger, { LOG_CATEGORIES } from '../utils/logger';
+import { Product } from '@types/index';
+import logger, { LOG_CATEGORIES } from '@utils/logger';
+import { getProduct360Summary, Product360Summary } from '@services/product360ReadModel';
 
 const Container = styled.div`
   display: flex;
@@ -121,6 +120,7 @@ interface Product360Props {}
 const Product360: React.FC<Product360Props> = () => {
   const { productId } = useParams<{ productId: string }>();
   const [product, setProduct] = useState<Product | null>(null);
+  const [summary, setSummary] = useState<Product360Summary | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'coverages' | 'forms' | 'pricing' | 'packages'>('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -129,11 +129,11 @@ const Product360: React.FC<Product360Props> = () => {
     const loadProduct = async () => {
       if (!productId) return;
       try {
-        const docRef = doc(db, 'products', productId);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          setProduct({ id: docSnap.id, ...docSnap.data() } as Product);
+        const productSummary = await getProduct360Summary(productId);
+
+        if (productSummary) {
+          setProduct(productSummary.product);
+          setSummary(productSummary);
         } else {
           setError('Product not found');
         }
@@ -177,19 +177,23 @@ const Product360: React.FC<Product360Props> = () => {
         <StatsGrid>
           <StatCard>
             <StatLabel>Coverages</StatLabel>
-            <StatValue>{product.coverageCount || 0}</StatValue>
+            <StatValue>{summary?.stats.totalCoverages || 0}</StatValue>
           </StatCard>
           <StatCard>
             <StatLabel>Forms</StatLabel>
-            <StatValue>{product.formCount || 0}</StatValue>
+            <StatValue>{summary?.stats.totalForms || 0}</StatValue>
           </StatCard>
           <StatCard>
             <StatLabel>Rules</StatLabel>
-            <StatValue>{product.ruleCount || 0}</StatValue>
+            <StatValue>{summary?.stats.totalRules || 0}</StatValue>
           </StatCard>
           <StatCard>
-            <StatLabel>Packages</StatLabel>
-            <StatValue>{product.packageCount || 0}</StatValue>
+            <StatLabel>Limits</StatLabel>
+            <StatValue>{summary?.stats.totalLimits || 0}</StatValue>
+          </StatCard>
+          <StatCard>
+            <StatLabel>Deductibles</StatLabel>
+            <StatValue>{summary?.stats.totalDeductibles || 0}</StatValue>
           </StatCard>
           <StatCard>
             <StatLabel>Status</StatLabel>

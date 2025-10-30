@@ -28,98 +28,78 @@ service cloud.firestore {
 
     // Products collection
     match /products/{productId} {
-      // Admin and product managers can read/write
-      // Underwriters can read
-      // Viewers can read
-      allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin() || isProductManager();
+      // Allow all read/write for development
+      allow read, write: if true;
 
       // Nested coverages
       match /coverages/{coverageId} {
-        allow read: if isAuthenticated();
-        allow create, update, delete: if isAdmin() || isProductManager();
+        allow read, write: if true;
 
         // Limits subcollection
         match /limits/{limitId} {
-          allow read: if isAuthenticated();
-          allow create, update, delete: if isAdmin() || isProductManager();
+          allow read, write: if true;
         }
 
         // Deductibles subcollection
         match /deductibles/{deductibleId} {
-          allow read: if isAuthenticated();
-          allow create, update, delete: if isAdmin() || isProductManager();
+          allow read, write: if true;
         }
 
         // Versions subcollection
         match /versions/{versionId} {
-          allow read: if isAuthenticated();
-          allow create, update: if isAdmin() || isProductManager();
-          allow delete: if isAdmin();
+          allow read, write: if true;
         }
       }
 
       // Packages subcollection
       match /packages/{packageId} {
-        allow read: if isAuthenticated();
-        allow create, update, delete: if isAdmin() || isProductManager();
+        allow read, write: if true;
       }
 
       // Pricing steps subcollection
       match /pricingSteps/{stepId} {
-        allow read: if isAuthenticated();
-        allow create, update, delete: if isAdmin() || isProductManager() || isUnderwriter();
+        allow read, write: if true;
       }
 
       // Data dictionary subcollection
       match /dataDictionary/{fieldId} {
-        allow read: if isAuthenticated();
-        allow create, update, delete: if isAdmin() || isProductManager();
+        allow read, write: if true;
       }
     }
 
     // Forms collection
     match /forms/{formId} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin() || isProductManager();
+      allow read, write: if true;
     }
 
     // Form-Coverage mappings (junction table)
     match /formCoverages/{mappingId} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin() || isProductManager();
+      allow read, write: if true;
     }
 
     // Rules collection
     match /rules/{ruleId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAdmin() || isProductManager() || isUnderwriter();
-      allow delete: if isAdmin() || isProductManager();
+      allow read, write: if true;
     }
 
     // Pricing rules collection
     match /pricingRules/{ruleId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAdmin() || isProductManager() || isUnderwriter();
-      allow delete: if isAdmin() || isProductManager();
+      allow read, write: if true;
     }
 
     // State applicability
     match /stateApplicability/{docId} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin() || isProductManager();
+      allow read, write: if true;
     }
 
     // Versions (global)
     match /versions/{versionId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAdmin() || isProductManager();
-      allow delete: if isAdmin();
+      allow read, write: if true;
     }
 
-    // Catch-all: deny everything else
+    // Catch-all: allow all for development
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
   }
 }

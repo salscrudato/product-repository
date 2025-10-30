@@ -6,10 +6,10 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { CoverageLimit } from '../../types';
-import { useCoverageLimits } from '../../hooks/useCoverageLimits';
+import { CoverageLimit } from '@types';
+import { useCoverageLimits } from '@hooks/useCoverageLimits';
 import { LimitTypeSelector } from '../selectors/LimitTypeSelector';
-import { validateCoverageLimit, formatValidationErrors } from '../../utils/coverageValidation';
+import { validateCoverageLimit, formatValidationResult } from '@utils/validation/coverage';
 
 interface LimitsModalProps {
   isOpen: boolean;
@@ -43,7 +43,7 @@ export const LimitsModal: React.FC<LimitsModalProps> = ({
     // Validate the limit
     const validationResult = validateCoverageLimit(editingLimit);
     if (!validationResult.isValid) {
-      alert('Validation errors:\n\n' + formatValidationErrors(validationResult));
+      alert('Validation errors:\n\n' + formatValidationResult(validationResult));
       return;
     }
 

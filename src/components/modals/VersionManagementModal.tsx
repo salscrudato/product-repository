@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { CoverageVersion, Coverage } from '../../types';
-import { useCoverageVersions, createVersionSnapshot, generateNextVersionNumber } from '../../hooks/useCoverageVersions';
+import { CoverageVersion, Coverage } from '@types';
+import { useCoverageVersions, generateNextVersionNumber } from '@hooks/useCoverageVersions';
 import { VersionHistoryTimeline } from '../version/VersionHistoryTimeline';
 import { VersionComparisonView } from '../version/VersionComparisonView';
 import { Timestamp } from 'firebase/firestore';
+import { createVersionSnapshot, detectVersionOverlaps } from '@utils/versioningUtils';
 
 interface VersionManagementModalProps {
   isOpen: boolean;
@@ -52,14 +53,25 @@ export const VersionManagementModal: React.FC<VersionManagementModalProps> = ({
     setError(null);
 
     try {
+      const newEffectiveDate = new Date(effectiveDate);
+      const newExpirationDate = expirationDate ? new Date(expirationDate) : undefined;
+
+      // Check for version date overlaps
+      const overlapResult = detectVersionOverlaps(newEffectiveDate, newExpirationDate, versions);
+      if (overlapResult.hasOverlap) {
+        setError(overlapResult.message);
+        setSaving(false);
+        return;
+      }
+
       const snapshot = createVersionSnapshot(currentCoverage);
-      
+
       const newVersion: Omit<CoverageVersion, 'id'> = {
         coverageId,
         productId,
         versionNumber,
-        effectiveDate: Timestamp.fromDate(new Date(effectiveDate)),
-        expirationDate: expirationDate ? Timestamp.fromDate(new Date(expirationDate)) : undefined,
+        effectiveDate: Timestamp.fromDate(newEffectiveDate),
+        expirationDate: newExpirationDate ? Timestamp.fromDate(newExpirationDate) : undefined,
         changes,
         changedBy: changedBy || undefined,
         approvedBy: requiresApproval ? undefined : (approvedBy || undefined),
@@ -70,7 +82,7 @@ export const VersionManagementModal: React.FC<VersionManagementModalProps> = ({
       };
 
       await createVersion(newVersion);
-      
+
       // Reset form
       setShowCreateForm(false);
       setVersionNumber('');

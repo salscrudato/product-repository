@@ -8,9 +8,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { collection, getDocs, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
-import { FormTemplate, Coverage, FormCoverageMapping } from '../types';
-import logger, { LOG_CATEGORIES } from '../utils/logger';
+import { db } from '@/firebase';
+import { FormTemplate, Coverage, FormCoverageMapping } from '@types';
+import logger, { LOG_CATEGORIES } from '@utils/logger';
 
 const Container = styled.div`
   display: grid;

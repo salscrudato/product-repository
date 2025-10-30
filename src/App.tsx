@@ -9,7 +9,6 @@ import { ConnectionStatus } from './components/ui/ConnectionStatus';
 
 import logger, { LOG_CATEGORIES } from './utils/logger';
 import env from './config/env';
-import performanceMonitor from './utils/performanceMonitor';
 
 /* public */
 import Login from './components/Login';

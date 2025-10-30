@@ -1,304 +1,247 @@
 /**
- * Performance Monitoring Utility
- * Tracks and reports application performance metrics
+ * Performance Monitor
+ * Tracks operation timing, metrics, and performance bottlenecks
  */
 
 import logger, { LOG_CATEGORIES } from './logger';
 
-interface PerformanceMetric {
+/**
+ * Performance metric
+ */
+export interface PerformanceMetric {
   name: string;
-  value: number;
-  timestamp: number;
+  duration: number;
+  startTime: number;
+  endTime: number;
   category: string;
+  metadata?: Record<string, any>;
 }
 
-interface PerformanceThresholds {
-  fcp: number;  // First Contentful Paint
-  lcp: number;  // Largest Contentful Paint
-  fid: number;  // First Input Delay
-  cls: number;  // Cumulative Layout Shift
-  ttfb: number; // Time to First Byte
+/**
+ * Performance statistics
+ */
+export interface PerformanceStats {
+  name: string;
+  count: number;
+  totalDuration: number;
+  avgDuration: number;
+  minDuration: number;
+  maxDuration: number;
+  p95Duration: number;
+  p99Duration: number;
 }
 
-class PerformanceMonitor {
-  private metrics: PerformanceMetric[] = [];
-  private thresholds: PerformanceThresholds = {
-    fcp: 1800,  // 1.8s
-    lcp: 2500,  // 2.5s
-    fid: 100,   // 100ms
-    cls: 0.1,   // 0.1
-    ttfb: 600   // 600ms
-  };
+/**
+ * Performance monitor for tracking operation timing
+ */
+export class PerformanceMonitor {
+  private metrics: Map<string, PerformanceMetric[]> = new Map();
+  private activeTimers: Map<string, number> = new Map();
+  private maxMetricsPerName: number = 1000;
 
-  constructor() {
-    if (typeof window !== 'undefined') {
-      this.initializeWebVitals();
-      this.initializeNavigationTiming();
-      this.initializeResourceTiming();
+  /**
+   * Start timing an operation
+   */
+  start(name: string): string {
+    const timerId = `${name}-${Date.now()}-${Math.random()}`;
+    this.activeTimers.set(timerId, Date.now());
+    return timerId;
+  }
+
+  /**
+   * End timing an operation
+   */
+  end(
+    timerId: string,
+    name: string,
+    category: string = 'GENERAL',
+    metadata?: Record<string, any>
+  ): PerformanceMetric | null {
+    const startTime = this.activeTimers.get(timerId);
+    if (!startTime) {
+      logger.warn(LOG_CATEGORIES.PERFORMANCE, 'Timer not found', { timerId, name });
+      return null;
     }
-  }
 
-  /**
-   * Initialize Web Vitals monitoring
-   */
-  private initializeWebVitals(): void {
-    // First Contentful Paint (FCP)
-    this.observePaint('first-contentful-paint', 'fcp');
+    this.activeTimers.delete(timerId);
+    const endTime = Date.now();
+    const duration = endTime - startTime;
 
-    // Largest Contentful Paint (LCP)
-    this.observeLCP();
-
-    // First Input Delay (FID)
-    this.observeFID();
-
-    // Cumulative Layout Shift (CLS)
-    this.observeCLS();
-  }
-
-  /**
-   * Observe paint timing
-   */
-  private observePaint(entryName: string, metricName: string): void {
-    const observer = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        if (entry.name === entryName) {
-          this.recordMetric(metricName, entry.startTime, 'web-vitals');
-          observer.disconnect();
-        }
-      }
-    });
-
-    try {
-      observer.observe({ entryTypes: ['paint'] });
-    } catch (error) {
-      logger.warn(LOG_CATEGORIES.PERFORMANCE, `Failed to observe ${entryName}`, { error });
-    }
-  }
-
-  /**
-   * Observe Largest Contentful Paint
-   */
-  private observeLCP(): void {
-    const observer = new PerformanceObserver((list) => {
-      const entries = list.getEntries();
-      const lastEntry = entries[entries.length - 1];
-      this.recordMetric('lcp', lastEntry.startTime, 'web-vitals');
-    });
-
-    try {
-      observer.observe({ entryTypes: ['largest-contentful-paint'] });
-    } catch (error) {
-      logger.warn(LOG_CATEGORIES.PERFORMANCE, 'Failed to observe LCP', { error });
-    }
-  }
-
-  /**
-   * Observe First Input Delay
-   */
-  private observeFID(): void {
-    const observer = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        const fidEntry = entry as PerformanceEventTiming;
-        const fid = fidEntry.processingStart - fidEntry.startTime;
-        this.recordMetric('fid', fid, 'web-vitals');
-        observer.disconnect();
-      }
-    });
-
-    try {
-      observer.observe({ entryTypes: ['first-input'] });
-    } catch (error) {
-      logger.warn(LOG_CATEGORIES.PERFORMANCE, 'Failed to observe FID', { error });
-    }
-  }
-
-  /**
-   * Observe Cumulative Layout Shift
-   */
-  private observeCLS(): void {
-    let clsValue = 0;
-    const observer = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        const layoutShiftEntry = entry as LayoutShift;
-        if (!layoutShiftEntry.hadRecentInput) {
-          clsValue += layoutShiftEntry.value;
-        }
-      }
-      this.recordMetric('cls', clsValue, 'web-vitals');
-    });
-
-    try {
-      observer.observe({ entryTypes: ['layout-shift'] });
-    } catch (error) {
-      logger.warn(LOG_CATEGORIES.PERFORMANCE, 'Failed to observe CLS', { error });
-    }
-  }
-
-  /**
-   * Initialize Navigation Timing monitoring
-   */
-  private initializeNavigationTiming(): void {
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
-        
-        if (navigation) {
-          // Time to First Byte
-          const ttfb = navigation.responseStart - navigation.requestStart;
-          this.recordMetric('ttfb', ttfb, 'navigation');
-
-          // DOM Content Loaded
-          const dcl = navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart;
-          this.recordMetric('dcl', dcl, 'navigation');
-
-          // Load Complete
-          const loadComplete = navigation.loadEventEnd - navigation.loadEventStart;
-          this.recordMetric('load-complete', loadComplete, 'navigation');
-
-          // DNS Lookup
-          const dnsLookup = navigation.domainLookupEnd - navigation.domainLookupStart;
-          this.recordMetric('dns-lookup', dnsLookup, 'navigation');
-
-          // TCP Connection
-          const tcpConnection = navigation.connectEnd - navigation.connectStart;
-          this.recordMetric('tcp-connection', tcpConnection, 'navigation');
-
-          this.logNavigationMetrics();
-        }
-      }, 0);
-    });
-  }
-
-  /**
-   * Initialize Resource Timing monitoring
-   */
-  private initializeResourceTiming(): void {
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
-        
-        // Categorize resources
-        const resourcesByType: Record<string, number[]> = {
-          script: [],
-          stylesheet: [],
-          image: [],
-          fetch: [],
-          other: []
-        };
-
-        resources.forEach(resource => {
-          const duration = resource.responseEnd - resource.startTime;
-          const type = this.getResourceType(resource.name);
-          resourcesByType[type].push(duration);
-        });
-
-        // Log resource timing summary
-        Object.entries(resourcesByType).forEach(([type, durations]) => {
-          if (durations.length > 0) {
-            const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
-            const max = Math.max(...durations);
-            
-            logger.debug(LOG_CATEGORIES.PERFORMANCE, `Resource timing: ${type}`, {
-              count: durations.length,
-              avgDuration: Math.round(avg),
-              maxDuration: Math.round(max)
-            });
-          }
-        });
-      }, 1000);
-    });
-  }
-
-  /**
-   * Get resource type from URL
-   */
-  private getResourceType(url: string): string {
-    if (url.endsWith('.js') || url.includes('/static/js/')) return 'script';
-    if (url.endsWith('.css') || url.includes('/static/css/')) return 'stylesheet';
-    if (url.match(/\.(png|jpg|jpeg|gif|svg|webp)$/)) return 'image';
-    if (url.includes('/api/') || url.includes('firestore') || url.includes('firebase')) return 'fetch';
-    return 'other';
-  }
-
-  /**
-   * Record a performance metric
-   */
-  private recordMetric(name: string, value: number, category: string): void {
     const metric: PerformanceMetric = {
       name,
-      value,
-      timestamp: Date.now(),
-      category
+      duration,
+      startTime,
+      endTime,
+      category,
+      metadata
     };
 
-    this.metrics.push(metric);
-
-    // Check against thresholds
-    if (category === 'web-vitals') {
-      this.checkThreshold(name, value);
+    // Store metric
+    if (!this.metrics.has(name)) {
+      this.metrics.set(name, []);
     }
 
-    logger.debug(LOG_CATEGORIES.PERFORMANCE, `Performance metric: ${name}`, {
-      value: Math.round(value),
-      category
+    const metrics = this.metrics.get(name)!;
+    metrics.push(metric);
+
+    // Keep only recent metrics to avoid memory bloat
+    if (metrics.length > this.maxMetricsPerName) {
+      metrics.shift();
+    }
+
+    // Log slow operations
+    if (duration > 1000) {
+      logger.warn(LOG_CATEGORIES.PERFORMANCE, `Slow operation: ${name}`, {
+        duration,
+        category,
+        metadata
+      });
+    }
+
+    return metric;
+  }
+
+  /**
+   * Measure operation with automatic timing
+   */
+  async measure<T>(
+    name: string,
+    fn: () => Promise<T>,
+    category: string = 'GENERAL',
+    metadata?: Record<string, any>
+  ): Promise<T> {
+    const timerId = this.start(name);
+    try {
+      const result = await fn();
+      this.end(timerId, name, category, metadata);
+      return result;
+    } catch (error) {
+      this.end(timerId, name, category, { ...metadata, error: true });
+      throw error;
+    }
+  }
+
+  /**
+   * Measure synchronous operation
+   */
+  measureSync<T>(
+    name: string,
+    fn: () => T,
+    category: string = 'GENERAL',
+    metadata?: Record<string, any>
+  ): T {
+    const timerId = this.start(name);
+    try {
+      const result = fn();
+      this.end(timerId, name, category, metadata);
+      return result;
+    } catch (error) {
+      this.end(timerId, name, category, { ...metadata, error: true });
+      throw error;
+    }
+  }
+
+  /**
+   * Get statistics for a metric name
+   */
+  getStats(name: string): PerformanceStats | null {
+    const metrics = this.metrics.get(name);
+    if (!metrics || metrics.length === 0) {
+      return null;
+    }
+
+    const durations = metrics.map(m => m.duration).sort((a, b) => a - b);
+    const totalDuration = durations.reduce((a, b) => a + b, 0);
+
+    return {
+      name,
+      count: metrics.length,
+      totalDuration,
+      avgDuration: totalDuration / metrics.length,
+      minDuration: durations[0],
+      maxDuration: durations[durations.length - 1],
+      p95Duration: durations[Math.floor(durations.length * 0.95)],
+      p99Duration: durations[Math.floor(durations.length * 0.99)]
+    };
+  }
+
+  /**
+   * Get all statistics
+   */
+  getAllStats(): PerformanceStats[] {
+    const stats: PerformanceStats[] = [];
+    this.metrics.forEach((_, name) => {
+      const stat = this.getStats(name);
+      if (stat) {
+        stats.push(stat);
+      }
     });
+    return stats;
   }
 
   /**
-   * Check metric against threshold
+   * Clear metrics
    */
-  private checkThreshold(name: string, value: number): void {
-    const threshold = this.thresholds[name as keyof PerformanceThresholds];
-    
-    if (threshold && value > threshold) {
-      logger.warn(LOG_CATEGORIES.PERFORMANCE, `Performance threshold exceeded: ${name}`, {
-        value: Math.round(value),
-        threshold,
-        exceedBy: Math.round(value - threshold)
-      });
+  clear(): void {
+    this.metrics.clear();
+    this.activeTimers.clear();
+  }
+
+  /**
+   * Get all metrics
+   */
+  getMetrics(name?: string): PerformanceMetric[] {
+    if (name) {
+      return this.metrics.get(name) || [];
     }
+
+    const allMetrics: PerformanceMetric[] = [];
+    this.metrics.forEach(metrics => {
+      allMetrics.push(...metrics);
+    });
+    return allMetrics;
   }
 
   /**
-   * Log navigation metrics summary
+   * Log performance report
    */
-  private logNavigationMetrics(): void {
-    const navMetrics = this.metrics.filter(m => m.category === 'navigation');
-    
-    if (navMetrics.length > 0) {
-      logger.info(LOG_CATEGORIES.PERFORMANCE, 'Navigation timing summary', {
-        metrics: navMetrics.reduce((acc, m) => {
-          acc[m.name] = Math.round(m.value);
-          return acc;
-        }, {} as Record<string, number>)
-      });
-    }
-  }
-
-  /**
-   * Get all recorded metrics
-   */
-  public getMetrics(): PerformanceMetric[] {
-    return [...this.metrics];
-  }
-
-  /**
-   * Get metrics by category
-   */
-  public getMetricsByCategory(category: string): PerformanceMetric[] {
-    return this.metrics.filter(m => m.category === category);
-  }
-
-  /**
-   * Clear all metrics
-   */
-  public clearMetrics(): void {
-    this.metrics = [];
+  logReport(): void {
+    const stats = this.getAllStats();
+    logger.info(LOG_CATEGORIES.PERFORMANCE, 'Performance Report', {
+      metricsCount: stats.length,
+      stats: stats.map(s => ({
+        name: s.name,
+        count: s.count,
+        avgDuration: Math.round(s.avgDuration),
+        maxDuration: s.maxDuration,
+        p95Duration: Math.round(s.p95Duration)
+      }))
+    });
   }
 }
 
-// Create singleton instance
-const performanceMonitor = new PerformanceMonitor();
+/**
+ * Global performance monitor instance
+ */
+export const performanceMonitor = new PerformanceMonitor();
 
-export default performanceMonitor;
+/**
+ * Decorator for measuring function performance
+ */
+export function Measure(category: string = 'GENERAL') {
+  return function (
+    target: any,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ) {
+    const originalMethod = descriptor.value;
+
+    descriptor.value = async function (...args: any[]) {
+      const name = `${target.constructor.name}.${propertyKey}`;
+      return performanceMonitor.measure(name, () => originalMethod.apply(this, args), category);
+    };
+
+    return descriptor;
+  };
+}
 

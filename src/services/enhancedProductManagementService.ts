@@ -18,7 +18,7 @@ import {
 import { db } from '../firebase';
 import { Product, Coverage, FormTemplate } from '../types';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
-import dataValidationService from './dataValidationService';
+import validationService from './validationService';
 import enhancedCoverageManagementService from './enhancedCoverageManagementService';
 import enhancedFormManagementService from './enhancedFormManagementService';
 
@@ -156,11 +156,11 @@ class EnhancedProductManagementService {
       const warnings: string[] = [];
 
       // Validate product exists and has required fields
-      const productValidation = await dataValidationService.validateProduct(productId);
+      const productValidation = await validationService.validateProductIntegrity(productId);
       if (!productValidation.isValid) {
-        issues.push(...productValidation.errors);
+        issues.push(...productValidation.errors.map(e => e.message));
       }
-      warnings.push(...productValidation.warnings);
+      warnings.push(...productValidation.warnings.map(w => w.message));
 
       // Validate coverage hierarchy
       const coveragesSnap = await getDocs(
@@ -171,20 +171,10 @@ class EnhancedProductManagementService {
         issues.push('Product must have at least one coverage');
       }
 
-      for (const coverageDoc of coveragesSnap.docs) {
-        const coverageValidation = await dataValidationService.validateCoverageHierarchy(
-          productId,
-          coverageDoc.id
-        );
-        if (!coverageValidation.isValid) {
-          issues.push(...coverageValidation.errors);
-        }
-      }
-
-      // Validate form-coverage mappings
-      const mappingValidation = await dataValidationService.validateFormCoverageMappings(productId);
-      if (!mappingValidation.isValid) {
-        issues.push(...mappingValidation.errors);
+      // Validate referential integrity
+      const integrityReport = await validationService.checkReferentialIntegrity(productId);
+      if (integrityReport.totalIssues > 0) {
+        issues.push(`Found ${integrityReport.totalIssues} referential integrity issues`);
       }
 
       return {
@@ -269,10 +259,8 @@ class EnhancedProductManagementService {
           name: coverage.name,
           description: coverage.description,
           coverageCode: coverage.coverageCode,
-          category: coverage.category,
           isOptional: coverage.isOptional,
-          states: coverage.states,
-          basePremium: coverage.basePremium
+          states: coverage.states
         });
       }
 

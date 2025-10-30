@@ -1,14 +1,27 @@
 /**
- * Validation Service
- * Comprehensive validation for insurance product data
+ * Consolidated Validation Service
+ * Comprehensive validation for all insurance product data
+ * Merged from: validationService.ts, dataValidationService.ts, coverageValidation.ts, ruleValidation.ts, stateValidation.ts
  */
 
-import { Product, Coverage, Form, PricingStep, Rule } from '../types';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+  Timestamp
+} from 'firebase/firestore';
+import { db } from '../firebase';
+import { Product, Coverage, Form, PricingStep, Rule, StateApplicability } from '../types';
+import logger, { LOG_CATEGORIES } from '../utils/logger';
 
 export interface ValidationResult {
   isValid: boolean;
   errors: ValidationError[];
   warnings: ValidationWarning[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface ValidationError {
@@ -23,6 +36,15 @@ export interface ValidationWarning {
   message: string;
   severity: 'warning';
   code: string;
+}
+
+export interface ReferentialIntegrityReport {
+  orphanedCoverages: string[];
+  orphanedForms: string[];
+  orphanedRules: string[];
+  brokenFormMappings: string[];
+  invalidStateReferences: string[];
+  totalIssues: number;
 }
 
 // ============================================================================
@@ -117,15 +139,7 @@ export function validateCoverage(coverage: Partial<Coverage>): ValidationResult 
     });
   }
 
-  // Premium validation
-  if (coverage.basePremium !== undefined && coverage.basePremium < 0) {
-    errors.push({
-      field: 'basePremium',
-      message: 'Premium cannot be negative',
-      severity: 'error',
-      code: 'NEGATIVE_PREMIUM'
-    });
-  }
+
 
   // Coinsurance validation
   if (coverage.coinsurancePercentage !== undefined) {
@@ -159,17 +173,7 @@ export function validateCoverage(coverage: Partial<Coverage>): ValidationResult 
     });
   }
 
-  // Logical validations
-  if (coverage.minimumPremium !== undefined && coverage.basePremium !== undefined) {
-    if (coverage.minimumPremium > coverage.basePremium) {
-      warnings.push({
-        field: 'minimumPremium',
-        message: 'Minimum premium is higher than base premium',
-        severity: 'warning',
-        code: 'MIN_PREMIUM_EXCEEDS_BASE'
-      });
-    }
-  }
+
 
   return {
     isValid: errors.length === 0,
@@ -383,4 +387,203 @@ export function validateBatch<T>(
 
   return { valid, invalid };
 }
+
+// ============================================================================
+// Referential Integrity Validation (from dataValidationService)
+// ============================================================================
+
+/**
+ * Validate a product and all its relationships
+ */
+export async function validateProductIntegrity(productId: string): Promise<ValidationResult> {
+  const errors: ValidationError[] = [];
+  const warnings: ValidationWarning[] = [];
+
+  try {
+    // Check product exists
+    const productDoc = await getDoc(doc(db, 'products', productId));
+    if (!productDoc.exists()) {
+      errors.push({
+        field: 'productId',
+        message: `Product ${productId} does not exist`,
+        severity: 'error',
+        code: 'PRODUCT_NOT_FOUND'
+      });
+      return { isValid: false, errors, warnings };
+    }
+
+    const product = productDoc.data() as Product;
+
+    // Validate product fields
+    if (!product.name || product.name.trim().length === 0) {
+      errors.push({
+        field: 'name',
+        message: 'Product name is required and cannot be empty',
+        severity: 'error',
+        code: 'PRODUCT_NAME_EMPTY'
+      });
+    }
+
+    if (product.effectiveDate && product.expirationDate) {
+      const effectiveDate = product.effectiveDate instanceof Timestamp
+        ? product.effectiveDate.toDate()
+        : new Date(product.effectiveDate);
+      const expirationDate = product.expirationDate instanceof Timestamp
+        ? product.expirationDate.toDate()
+        : new Date(product.expirationDate);
+
+      if (effectiveDate >= expirationDate) {
+        errors.push({
+          field: 'dates',
+          message: 'Product effective date must be before expiration date',
+          severity: 'error',
+          code: 'INVALID_DATE_RANGE'
+        });
+      }
+    }
+
+    // Validate coverages exist
+    const coveragesSnap = await getDocs(
+      collection(db, `products/${productId}/coverages`)
+    );
+    if (coveragesSnap.empty) {
+      warnings.push({
+        field: 'coverages',
+        message: 'Product has no coverages defined',
+        severity: 'warning',
+        code: 'NO_COVERAGES'
+      });
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+      metadata: { productId, coverageCount: coveragesSnap.size }
+    };
+  } catch (error) {
+    logger.error(LOG_CATEGORIES.ERROR, 'Product integrity validation failed',
+      { productId }, error as Error);
+    errors.push({
+      field: 'validation',
+      message: 'Failed to validate product integrity',
+      severity: 'error',
+      code: 'VALIDATION_ERROR'
+    });
+    return { isValid: false, errors, warnings };
+  }
+}
+
+/**
+ * Check referential integrity across all entities
+ */
+export async function checkReferentialIntegrity(productId: string): Promise<ReferentialIntegrityReport> {
+  const report: ReferentialIntegrityReport = {
+    orphanedCoverages: [],
+    orphanedForms: [],
+    orphanedRules: [],
+    brokenFormMappings: [],
+    invalidStateReferences: [],
+    totalIssues: 0
+  };
+
+  try {
+    // Check for orphaned coverages
+    const coveragesSnap = await getDocs(
+      collection(db, `products/${productId}/coverages`)
+    );
+
+    for (const coverageDoc of coveragesSnap.docs) {
+      const coverage = coverageDoc.data() as Coverage;
+      if (!coverage.name || !coverage.coverageType) {
+        report.orphanedCoverages.push(coverageDoc.id);
+      }
+    }
+
+    // Check for orphaned forms
+    const formsSnap = await getDocs(
+      query(collection(db, 'forms'), where('productId', '==', productId))
+    );
+
+    for (const formDoc of formsSnap.docs) {
+      const form = formDoc.data() as Form;
+      if (!form.formName || !form.formNumber) {
+        report.orphanedForms.push(formDoc.id);
+      }
+    }
+
+    // Check for orphaned rules
+    const rulesSnap = await getDocs(
+      query(collection(db, 'rules'), where('productId', '==', productId))
+    );
+
+    for (const ruleDoc of rulesSnap.docs) {
+      const rule = ruleDoc.data() as Rule;
+      if (!rule.name || !rule.condition) {
+        report.orphanedRules.push(ruleDoc.id);
+      }
+    }
+
+    report.totalIssues =
+      report.orphanedCoverages.length +
+      report.orphanedForms.length +
+      report.orphanedRules.length +
+      report.brokenFormMappings.length +
+      report.invalidStateReferences.length;
+
+    return report;
+  } catch (error) {
+    logger.error(LOG_CATEGORIES.ERROR, 'Referential integrity check failed',
+      { productId }, error as Error);
+    return report;
+  }
+}
+
+/**
+ * Validate state code
+ */
+export function validateStateCode(state: string): ValidationResult {
+  const errors: ValidationError[] = [];
+  const warnings: ValidationWarning[] = [];
+
+  const validStates = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+                       'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+                       'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+                       'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+                       'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
+
+  if (!state || state.trim().length === 0) {
+    errors.push({
+      field: 'state',
+      message: 'State code is required',
+      severity: 'error',
+      code: 'STATE_REQUIRED'
+    });
+  } else if (!validStates.includes(state.toUpperCase())) {
+    errors.push({
+      field: 'state',
+      message: `Invalid state code: ${state}`,
+      severity: 'error',
+      code: 'INVALID_STATE_CODE'
+    });
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings
+  };
+}
+
+export default {
+  validateProduct,
+  validateCoverage,
+  validateForm,
+  validatePricingStep,
+  validateRule,
+  validateBatch,
+  validateProductIntegrity,
+  checkReferentialIntegrity,
+  validateStateCode
+};
 

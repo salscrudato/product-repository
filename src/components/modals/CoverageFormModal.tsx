@@ -6,8 +6,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { Coverage } from '../../types';
-import { validateCoverage, formatValidationErrors } from '../../utils/coverageValidation';
+import { Coverage } from '@types';
+import { validateCoverage, formatValidationResult } from '@utils/validation/coverage';
 import { CoverageTriggerSelector } from '../selectors/CoverageTriggerSelector';
 import { WaitingPeriodInput } from '../inputs/WaitingPeriodInput';
 import { ValuationMethodSelector } from '../selectors/ValuationMethodSelector';
@@ -40,10 +40,10 @@ export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
 
   useEffect(() => {
-    if (coverage) {
+    if (coverage && isOpen) {
       setFormData(coverage);
     }
-  }, [coverage]);
+  }, [coverage?.id, isOpen]);  // Use coverage.id to create stable dependency
 
   if (!isOpen) return null;
 
@@ -54,7 +54,7 @@ export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
     if (!validationResult.isValid) {
       setValidationErrors(validationResult.errors.map(e => e.message));
       setValidationWarnings(validationResult.warnings.map(w => w.message));
-      alert('Please fix validation errors before saving:\n\n' + formatValidationErrors(validationResult));
+      alert('Please fix validation errors before saving:\n\n' + formatValidationResult(validationResult));
       return;
     }
 
@@ -98,22 +98,22 @@ export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
         </Header>
 
         <TabBar>
-          <Tab active={activeTab === 'basic'} onClick={() => setActiveTab('basic')}>
+          <Tab $active={activeTab === 'basic'} onClick={() => setActiveTab('basic')}>
             Basic Info
           </Tab>
-          <Tab active={activeTab === 'triggers'} onClick={() => setActiveTab('triggers')}>
+          <Tab $active={activeTab === 'triggers'} onClick={() => setActiveTab('triggers')}>
             Triggers & Periods
           </Tab>
-          <Tab active={activeTab === 'valuation'} onClick={() => setActiveTab('valuation')}>
+          <Tab $active={activeTab === 'valuation'} onClick={() => setActiveTab('valuation')}>
             Valuation & Coinsurance
           </Tab>
-          <Tab active={activeTab === 'underwriting'} onClick={() => setActiveTab('underwriting')}>
+          <Tab $active={activeTab === 'underwriting'} onClick={() => setActiveTab('underwriting')}>
             Underwriting
           </Tab>
-          <Tab active={activeTab === 'claims'} onClick={() => setActiveTab('claims')}>
+          <Tab $active={activeTab === 'claims'} onClick={() => setActiveTab('claims')}>
             Claims
           </Tab>
-          <Tab active={activeTab === 'territory'} onClick={() => setActiveTab('territory')}>
+          <Tab $active={activeTab === 'territory'} onClick={() => setActiveTab('territory')}>
             Territory & Endorsements
           </Tab>
         </TabBar>
@@ -170,28 +170,6 @@ export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
                   value={formData.description || ''}
                   onChange={(e) => updateField('description', e.target.value)}
                   rows={4}
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Category</Label>
-                <Input
-                  type="text"
-                  placeholder="e.g., Property, Liability, Auto"
-                  value={formData.category || ''}
-                  onChange={(e) => updateField('category', e.target.value)}
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Base Premium</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Enter base premium amount"
-                  value={formData.basePremium || ''}
-                  onChange={(e) => updateField('basePremium', parseFloat(e.target.value) || undefined)}
                 />
               </FormGroup>
             </Section>
@@ -327,27 +305,16 @@ export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
               </FormGroup>
 
               {/* Endorsement Metadata */}
-              {formData.category === 'Endorsement Coverage' && (
-                <FormGroup>
-                  <EndorsementMetadataSection
-                    modifiesCoverageId={formData.modifiesCoverageId}
-                    endorsementType={formData.endorsementType}
-                    supersedes={formData.supersedes}
-                    onChange={(data) => {
-                      setFormData(prev => ({ ...prev, ...data }));
-                    }}
-                  />
-                </FormGroup>
-              )}
-
-              {formData.category !== 'Endorsement Coverage' && (
-                <InfoBox>
-                  <InfoText>
-                    ℹ️ Endorsement metadata is only available for coverages with category "Endorsement Coverage".
-                    Change the category in the Basic Info tab to enable endorsement features.
-                  </InfoText>
-                </InfoBox>
-              )}
+              <FormGroup>
+                <EndorsementMetadataSection
+                  modifiesCoverageId={formData.modifiesCoverageId}
+                  endorsementType={formData.endorsementType}
+                  supersedes={formData.supersedes}
+                  onChange={(data) => {
+                    setFormData(prev => ({ ...prev, ...data }));
+                  }}
+                />
+              </FormGroup>
             </Section>
           )}
         </Content>
@@ -423,14 +390,14 @@ const TabBar = styled.div`
   padding: 0 24px;
 `;
 
-const Tab = styled.button<{ active?: boolean }>`
+const Tab = styled.button<{ $active?: boolean }>`
   padding: 12px 20px;
   background: none;
   border: none;
-  border-bottom: 2px solid ${props => props.active ? '#3b82f6' : 'transparent'};
-  color: ${props => props.active ? '#3b82f6' : '#6b7280'};
+  border-bottom: 2px solid ${props => props.$active ? '#3b82f6' : 'transparent'};
+  color: ${props => props.$active ? '#3b82f6' : '#6b7280'};
   font-size: 14px;
-  font-weight: ${props => props.active ? '600' : '500'};
+  font-weight: ${props => props.$active ? '600' : '500'};
   cursor: pointer;
   transition: all 0.2s ease;
 

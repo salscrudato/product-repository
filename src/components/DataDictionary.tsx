@@ -7,9 +7,9 @@ import {
   doc,
   onSnapshot
 } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Button } from '../components/ui/Button';
-import { TextInput } from '../components/ui/Input';
+import { db } from '@/firebase';
+import { Button } from '@components/ui/Button';
+import { TextInput } from '@components/ui/Input';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
 import { PageContainer, PageContent } from './ui/PageContainer';

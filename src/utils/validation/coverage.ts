@@ -1,21 +1,16 @@
 /**
  * Coverage Validation Utilities
- * Comprehensive validation for coverage data
+ * Comprehensive validation for coverage, limits, and deductibles
  */
 
-import { Coverage, CoverageLimit, CoverageDeductible } from '../types';
-
-export interface ValidationError {
-  field: string;
-  message: string;
-  severity: 'error' | 'warning';
-}
-
-export interface ValidationResult {
-  isValid: boolean;
-  errors: ValidationError[];
-  warnings: ValidationError[];
-}
+import { Coverage, CoverageLimit, CoverageDeductible } from '@types';
+import {
+  ValidationError,
+  ValidationResult,
+  validateNumeric,
+  validatePercentage,
+  formatValidationResult,
+} from './common';
 
 /**
  * Validate a coverage object
@@ -52,39 +47,23 @@ export function validateCoverage(coverage: Partial<Coverage>): ValidationResult 
 
   // Coinsurance validation
   if (coverage.coinsurancePercentage !== undefined) {
-    if (coverage.coinsurancePercentage < 0 || coverage.coinsurancePercentage > 100) {
-      errors.push({
-        field: 'coinsurancePercentage',
-        message: 'Coinsurance percentage must be between 0 and 100',
-        severity: 'error',
-      });
-    }
-
-    if (coverage.coinsurancePercentage > 0 && coverage.coinsurancePercentage < 50) {
-      warnings.push({
-        field: 'coinsurancePercentage',
-        message: 'Coinsurance percentage below 50% is unusual',
-        severity: 'warning',
-      });
-    }
+    const { errors: coinsErrors, warnings: coinsWarnings } = validatePercentage(
+      coverage.coinsurancePercentage,
+      'coinsurancePercentage',
+      { warnAbove: 50 }
+    );
+    errors.push(...coinsErrors);
+    warnings.push(...coinsWarnings);
   }
 
   // Waiting period validation
-  if (coverage.waitingPeriod !== undefined && coverage.waitingPeriod < 0) {
-    errors.push({
-      field: 'waitingPeriod',
-      message: 'Waiting period cannot be negative',
-      severity: 'error',
-    });
+  if (coverage.waitingPeriod !== undefined) {
+    errors.push(...validateNumeric(coverage.waitingPeriod, 'waitingPeriod', { allowZero: true }));
   }
 
   // Claims reporting period validation
-  if (coverage.claimsReportingPeriod !== undefined && coverage.claimsReportingPeriod < 0) {
-    errors.push({
-      field: 'claimsReportingPeriod',
-      message: 'Claims reporting period cannot be negative',
-      severity: 'error',
-    });
+  if (coverage.claimsReportingPeriod !== undefined) {
+    errors.push(...validateNumeric(coverage.claimsReportingPeriod, 'claimsReportingPeriod', { allowZero: true }));
   }
 
 
@@ -167,12 +146,8 @@ export function validateCoverageLimit(limit: Partial<CoverageLimit>): Validation
       message: 'Limit amount is required',
       severity: 'error',
     });
-  } else if (limit.amount < 0) {
-    errors.push({
-      field: 'amount',
-      message: 'Limit amount cannot be negative',
-      severity: 'error',
-    });
+  } else {
+    errors.push(...validateNumeric(limit.amount, 'amount'));
   }
 
   if (!limit.displayValue || limit.displayValue.trim() === '') {
@@ -238,31 +213,19 @@ export function validateCoverageDeductible(deductible: Partial<CoverageDeductibl
       message: 'Deductible amount is required',
       severity: 'error',
     });
-  } else if (deductible.amount < 0) {
-    errors.push({
-      field: 'amount',
-      message: 'Deductible amount cannot be negative',
-      severity: 'error',
-    });
+  } else {
+    errors.push(...validateNumeric(deductible.amount, 'amount'));
   }
 
   // Percentage validation
   if (deductible.deductibleType === 'percentage' && deductible.amount !== undefined) {
-    if (deductible.amount > 100) {
-      errors.push({
-        field: 'amount',
-        message: 'Percentage deductible cannot exceed 100%',
-        severity: 'error',
-      });
-    }
-
-    if (deductible.amount > 50) {
-      warnings.push({
-        field: 'amount',
-        message: 'Percentage deductible above 50% is unusual',
-        severity: 'warning',
-      });
-    }
+    const { errors: percErrors, warnings: percWarnings } = validatePercentage(
+      deductible.amount,
+      'amount',
+      { warnAbove: 50 }
+    );
+    errors.push(...percErrors);
+    warnings.push(...percWarnings);
   }
 
   if (!deductible.displayValue || deductible.displayValue.trim() === '') {
@@ -280,27 +243,6 @@ export function validateCoverageDeductible(deductible: Partial<CoverageDeductibl
   };
 }
 
-/**
- * Format validation errors for display
- */
-export function formatValidationErrors(result: ValidationResult): string {
-  const messages: string[] = [];
-
-  if (result.errors.length > 0) {
-    messages.push('Errors:');
-    result.errors.forEach(error => {
-      messages.push(`  • ${error.message}`);
-    });
-  }
-
-  if (result.warnings.length > 0) {
-    if (messages.length > 0) messages.push('');
-    messages.push('Warnings:');
-    result.warnings.forEach(warning => {
-      messages.push(`  • ${warning.message}`);
-    });
-  }
-
-  return messages.join('\n');
-}
+// Re-export common formatter
+export { formatValidationResult };
 

@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db } from '@/firebase';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import styled, { keyframes } from 'styled-components';
-import { Page, Container, PageHeader, Title } from '../components/ui/Layout';
-import { Button } from '../components/ui/Button';
-import { TextInput } from '../components/ui/Input';
+import { Page, Container, PageHeader, Title } from '@components/ui/Layout';
+import { Button } from '@components/ui/Button';
+import { TextInput } from '@components/ui/Input';
 import {
   validateCoverageStates,
   validateSubCoverageStates,
   formatValidationResult
-} from '../utils/stateValidation';
+} from '@utils/stateValidation';
 
 const spin = keyframes`
   0% { transform: rotate(0deg); }

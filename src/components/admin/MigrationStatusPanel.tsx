@@ -6,8 +6,10 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { CheckCircleIcon, ExclamationCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
-import { Coverage } from '../../types';
-import { getProductMigrationStatus, isCoverageMigrated } from '../../utils/coverageDataHelpers';
+import { Coverage } from '@types/index';
+import { getProductMigrationStatus, isCoverageMigrated } from '@utils/coverageDataHelpers';
+import { migrationRegistry, MigrationState } from '@utils/migrationUtils';
+import logger, { LOG_CATEGORIES } from '@utils/logger';
 
 interface MigrationStatusPanelProps {
   productId: string;
@@ -40,6 +42,14 @@ export const MigrationStatusPanel: React.FC<MigrationStatusPanelProps> = ({
   const loadMigrationStatus = async () => {
     setLoading(true);
     try {
+      // Check migration registry for recent migrations
+      const recentMigrations = migrationRegistry.getByState(MigrationState.COMPLETED);
+      if (recentMigrations.length > 0) {
+        logger.debug(LOG_CATEGORIES.DATA, 'Found recent migrations', {
+          count: recentMigrations.length
+        });
+      }
+
       // Get overall status
       const status = await getProductMigrationStatus(productId, coverages);
       setOverallStatus(status);
@@ -54,7 +64,7 @@ export const MigrationStatusPanel: React.FC<MigrationStatusPanelProps> = ({
       );
       setCoverageStatuses(statuses);
     } catch (error) {
-      console.error('Error loading migration status:', error);
+      logger.error(LOG_CATEGORIES.ERROR, 'Error loading migration status', {}, error as Error);
     } finally {
       setLoading(false);
     }

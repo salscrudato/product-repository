@@ -215,7 +215,6 @@ export interface Coverage {
   parentCoverageId?: string;
 
   // ========== Classification ==========
-  category?: 'base' | 'endorsement' | 'optional';
   type?: string;
   isOptional?: boolean;
 
@@ -237,11 +236,10 @@ export interface Coverage {
   deductibles?: string[];
 
   // Premium Structure
-  basePremium?: number;
   premiumBasis?: PremiumBasis;
   ratePerUnit?: number;
   minimumPremium?: number;
-  premium?: number;  // Deprecated: use basePremium instead
+  premium?: number;
 
   // ========== Coinsurance & Participation ==========
   coinsurancePercentage?: number;  // 80, 90, 100
@@ -337,7 +335,6 @@ export interface CoverageFormData {
   name: string;
   description?: string;
   type?: string;
-  category?: 'base' | 'endorsement' | 'optional';
   parentCoverageId?: string;
   limits?: string[];
   deductibles?: string[];

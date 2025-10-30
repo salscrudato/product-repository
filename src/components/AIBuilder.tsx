@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { collection, collectionGroup, getDocs } from 'firebase/firestore';
-import { db, functions } from '../firebase';
+import { db, functions } from '@/firebase';
 import { httpsCallable } from 'firebase/functions';
 import styled from 'styled-components';
 import {
@@ -9,10 +9,14 @@ import {
   CpuChipIcon,
   PaperAirplaneIcon
 } from '@heroicons/react/24/solid';
-import MainNavigation from '../components/ui/Navigation';
-import EnhancedHeader from '../components/ui/EnhancedHeader';
+import MainNavigation from '@components/ui/Navigation';
+import EnhancedHeader from '@components/ui/EnhancedHeader';
 import { WrenchScrewdriverIcon } from '@heroicons/react/24/solid';
-import MarkdownRenderer from '../utils/markdownParser';
+import MarkdownRenderer from '@utils/markdownParser';
+import { sanitizeMarkdown, sanitizeMarkdownWithLimit } from '@utils/markdownSanitizer';
+import { withTimeout, DEFAULT_AI_RETRY_OPTIONS } from '@utils/aiTimeout';
+import { buildCompactContext, formatCompactContext } from '@utils/compactContext';
+import { AI_MODELS, AI_PARAMETERS } from '@config/aiConfig';
 
 /* ---------- Styled Components ---------- */
 const Page = styled.div`
@@ -129,7 +133,11 @@ const ChatMessages = styled.div`
   }
 `;
 
-const ChatMessage = styled.div`
+interface ChatMessageProps {
+  isUser: boolean;
+}
+
+const ChatMessage = styled.div<ChatMessageProps>`
   margin-bottom: 16px;
   display: flex;
   justify-content: ${props => props.isUser ? 'flex-end' : 'flex-start'};
@@ -147,7 +155,7 @@ const ChatMessage = styled.div`
   }
 `;
 
-const MessageBubble = styled.div`
+const MessageBubble = styled.div<ChatMessageProps>`
   max-width: 80%;
   padding: 16px 20px;
   border-radius: ${props => props.isUser ? '20px 20px 4px 20px' : '20px 20px 20px 4px'};
@@ -284,21 +292,30 @@ When users describe what they want to build:
 
 Always be conversational, helpful, and professional. Use markdown formatting.`;
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface ContextData {
+  products: Record<string, string>;
+  coverages: Array<{ id: string; [key: string]: unknown }>;
+  forms: Array<{ id: string; [key: string]: unknown }>;
+}
+
 const AIBuilder = () => {
-  const [chatMessages, setChatMessages] = useState([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [contextData, setContextData] = useState(null);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [contextData, setContextData] = useState<ContextData | null>(null);
 
   // Fetch data on mount
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
       try {
         const productsSnap = await getDocs(collection(db, 'products'));
-        const productMap = {};
+        const productMap: Record<string, string> = {};
         productsSnap.docs.forEach(doc => {
           productMap[doc.id] = doc.data().name;
         });
@@ -307,7 +324,7 @@ const AIBuilder = () => {
         const coverageList = coveragesSnap.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          productId: doc.ref.parent.parent.id,
+          productId: doc.ref.parent.parent?.id || '',
         }));
 
         const formsSnap = await getDocs(collection(db, 'forms'));
@@ -328,8 +345,6 @@ const AIBuilder = () => {
         ]);
       } catch (error) {
         console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
       }
     };
     fetchData();
@@ -342,28 +357,44 @@ const AIBuilder = () => {
     setChatInput('');
     setChatLoading(true);
 
-    const newUserMessage = { role: 'user', content: userMessage };
+    const newUserMessage: ChatMessage = { role: 'user', content: userMessage };
     setChatMessages(prev => [...prev, newUserMessage]);
 
     try {
-      const generateChat = httpsCallable(functions, 'generateChatResponse');
-      const result = await generateChat({
-        messages: [
-          { role: 'system', content: AI_SYSTEM_PROMPT },
-          { role: 'system', content: `Database context: ${JSON.stringify(contextData, null, 2)}` },
-          ...chatMessages,
-          newUserMessage
-        ],
-        model: 'gpt-4o-mini',
-        maxTokens: 2000,
-        temperature: 0.7
-      });
+      // Build compact context to reduce token usage
+      const compactCtx = buildCompactContext(
+        contextData.products,
+        contextData.coverages,
+        contextData.forms
+      );
+      const contextString = formatCompactContext(compactCtx);
 
-      if (!result.data.success) {
+      const generateChat = httpsCallable(functions, 'generateChatResponse');
+
+      // Use timeout to prevent hanging requests
+      const result = await withTimeout(
+        generateChat({
+          messages: [
+            { role: 'system', content: AI_SYSTEM_PROMPT },
+            { role: 'system', content: `Database context:\n${contextString}` },
+            ...chatMessages,
+            newUserMessage
+          ],
+          model: AI_MODELS.PRODUCT_BUILDER,
+          maxTokens: AI_PARAMETERS.PRODUCT_BUILDER.max_tokens,
+          temperature: AI_PARAMETERS.PRODUCT_BUILDER.temperature
+        }) as Promise<any>,
+        DEFAULT_AI_RETRY_OPTIONS.timeoutMs,
+        'AI chat response'
+      );
+
+      const data = result.data as { success: boolean; content?: string };
+      if (!data.success) {
         throw new Error('Failed to generate chat response');
       }
 
-      const aiResponse = result.data.content?.trim();
+      // Sanitize markdown response to prevent XSS
+      const aiResponse = sanitizeMarkdownWithLimit(data.content?.trim() || '', 5000);
       if (aiResponse) {
         setChatMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
       }
@@ -378,11 +409,11 @@ const AIBuilder = () => {
     }
   };
 
-  const handleSuggestionClick = (suggestion) => {
+  const handleSuggestionClick = (suggestion: string) => {
     setChatInput(suggestion);
   };
 
-  const handleChatKeyDown = (e) => {
+  const handleChatKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleChatMessage();

@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  onSnapshot, 
-  query, 
+import {
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  query,
   orderBy,
   Timestamp,
   getDocs
 } from 'firebase/firestore';
-import { db } from '../firebase';
-import { CoverageVersion, Coverage } from '../types';
+import { db } from '@/firebase';
+import { CoverageVersion, Coverage } from '@types';
 
 /**
  * Custom hook for managing coverage versions
@@ -199,64 +199,8 @@ export const useCoverageVersions = (productId: string | undefined, coverageId: s
   };
 };
 
-/**
- * Utility function to create a version snapshot from current coverage
- */
-export const createVersionSnapshot = (coverage: Coverage): any => {
-  return {
-    name: coverage.name,
-    description: coverage.description,
-    category: coverage.category,
-    coverageType: coverage.coverageType,
-    isOptional: coverage.isOptional,
-    isPrimary: coverage.isPrimary,
-    
-    // Limits & Deductibles (legacy)
-    limits: coverage.limits,
-    deductibles: coverage.deductibles,
-    
-    // Exclusions & Conditions
-    exclusions: coverage.exclusions,
-    conditions: coverage.conditions,
-    
-    // Triggers & Periods
-    coverageTrigger: coverage.coverageTrigger,
-    waitingPeriod: coverage.waitingPeriod,
-    waitingPeriodUnit: coverage.waitingPeriodUnit,
-    allowRetroactiveDate: coverage.allowRetroactiveDate,
-    extendedReportingPeriod: coverage.extendedReportingPeriod,
-    
-    // Valuation & Coinsurance
-    valuationMethod: coverage.valuationMethod,
-    depreciationMethod: coverage.depreciationMethod,
-    coinsurancePercentage: coverage.coinsurancePercentage,
-    hasCoinsurancePenalty: coverage.hasCoinsurancePenalty,
-    insuredParticipation: coverage.insuredParticipation,
-    
-    // Underwriting
-    requiresUnderwriterApproval: coverage.requiresUnderwriterApproval,
-    eligibilityCriteria: coverage.eligibilityCriteria,
-    prohibitedClasses: coverage.prohibitedClasses,
-    requiredCoverages: coverage.requiredCoverages,
-    incompatibleCoverages: coverage.incompatibleCoverages,
-    
-    // Claims
-    claimsReportingPeriod: coverage.claimsReportingPeriod,
-    proofOfLossDeadline: coverage.proofOfLossDeadline,
-    hasSubrogationRights: coverage.hasSubrogationRights,
-    hasSalvageRights: coverage.hasSalvageRights,
-    
-    // Territory
-    territoryType: coverage.territoryType,
-    excludedTerritories: coverage.excludedTerritories,
-    includedTerritories: coverage.includedTerritories,
-    
-    // Endorsement
-    modifiesCoverageId: coverage.modifiesCoverageId,
-    endorsementType: coverage.endorsementType,
-    supersedes: coverage.supersedes,
-  };
-};
+// Note: createVersionSnapshot has been moved to @utils/versioningUtils
+// Import it from there instead
 
 /**
  * Utility function to generate next version number

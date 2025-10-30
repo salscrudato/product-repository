@@ -15,10 +15,11 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../firebase';
-import useCoverages from '../hooks/useCoverages';
-import { useCoverageLimits } from '../hooks/useCoverageLimits';
-import { useCoverageDeductibles } from '../hooks/useCoverageDeductibles';
+import { db, storage } from '@/firebase';
+import useCoverages from '@hooks/useCoverages';
+import { useCoverageLimits } from '@hooks/useCoverageLimits';
+import { useCoverageDeductibles } from '@hooks/useCoverageDeductibles';
+import { useCoverageFormCounts } from '@hooks/useCoverageFormCounts';
 
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
@@ -893,6 +894,12 @@ export default function CoverageScreen() {
     reload: reloadCoverages
   } = useCoverages(productId);
 
+  /* --- form counts from junction table --- */
+  const formCounts = useCoverageFormCounts(
+    productId,
+    coverages.map(c => c.id)
+  );
+
   /* --- derived sub-counts & filtering --- */
   const coveragesWithSub = useMemo(() => {
     const counts = {};
@@ -983,14 +990,12 @@ export default function CoverageScreen() {
     parentCoverages.forEach(parent => {
       const parentMatches =
         (parent.name || '').toLowerCase().includes(q) ||
-        (parent.coverageCode || '').toLowerCase().includes(q) ||
-        (parent.category || '').toLowerCase().includes(q);
+        (parent.coverageCode || '').toLowerCase().includes(q);
 
       const children = childrenMap[parent.id] || [];
       const matchingChildren = children.filter(child =>
         (child.name || '').toLowerCase().includes(q) ||
-        (child.coverageCode || '').toLowerCase().includes(q) ||
-        (child.category || '').toLowerCase().includes(q)
+        (child.coverageCode || '').toLowerCase().includes(q)
       );
 
       // Include parent if it matches or has matching children
@@ -1111,8 +1116,7 @@ export default function CoverageScreen() {
     setFormState({
       name: c.name || '', coverageCode: c.coverageCode || '',
       formIds: c.formIds || [], limits: c.limits || [],
-      deductibles: c.deductibles || [], states: c.states || [],
-      category: c.category || ''
+      deductibles: c.deductibles || [], states: c.states || []
     });
     setEditingId(c.id); setAddModalOpen(true);
   };
@@ -1279,7 +1283,6 @@ export default function CoverageScreen() {
         limits: formState.limits,
         deductibles: formState.deductibles,
         states: formState.states,
-        category: formState.category,
         parentCoverageId: editingId ? parentCoverageId : addingParentId,
         productId,
         updatedAt: serverTimestamp()
@@ -1367,11 +1370,6 @@ export default function CoverageScreen() {
                           <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
                             <CardTitle>
                               {parent.name}
-                              {parent.category && (
-                                <CardCategory category={parent.category} inline style={{ marginLeft: '12px' }}>
-                                  {parent.category}
-                                </CardCategory>
-                              )}
                               {parent.subCount > 0 && (
                                 <>
                                   <SubCoverageCount>
@@ -1420,7 +1418,7 @@ export default function CoverageScreen() {
                             </MetricItem>
                             <MetricItem onClick={() => openLinkFormsModal(parent)}>
                               <DocumentTextIcon />
-                              Forms {parent.formIds?.length ? `(${parent.formIds.length})` : '(0)'}
+                              Forms {formCounts[parent.id] ? `(${formCounts[parent.id]})` : '(0)'}
                             </MetricItem>
                             <MetricItem onClick={() => navigate(`/pricing/${productId}?coverage=${encodeURIComponent(parent.name)}`)}>
                               <CurrencyDollarIcon />
@@ -1442,11 +1440,6 @@ export default function CoverageScreen() {
                               <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
                                 <CardTitle>
                                   {child.name}
-                                  {child.category && (
-                                    <CardCategory category={child.category} inline style={{ marginLeft: '12px' }}>
-                                      {child.category}
-                                    </CardCategory>
-                                  )}
                                 </CardTitle>
                               </div>
                               <CardCode>{child.coverageCode}</CardCode>
@@ -1477,7 +1470,7 @@ export default function CoverageScreen() {
                                 </MetricItem>
                                 <MetricItem onClick={() => openLinkFormsModal(child)}>
                                   <DocumentTextIcon />
-                                  Forms {child.formIds?.length ? `(${child.formIds.length})` : '(0)'}
+                                  Forms {formCounts[child.id] ? `(${formCounts[child.id]})` : '(0)'}
                                 </MetricItem>
                                 <MetricItem onClick={() => navigate(`/pricing/${productId}?coverage=${encodeURIComponent(child.name)}`)}>
                                   <CurrencyDollarIcon />
@@ -1624,7 +1617,6 @@ export default function CoverageScreen() {
             } : {
               name: formState.name,
               coverageCode: formState.coverageCode,
-              category: formState.category,
               parentCoverageId: addingParentId
             }}
             onSave={async (coverageData) => {

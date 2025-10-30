@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styled, { keyframes, css } from 'styled-components';
 import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/solid';
 import { getAuth, signInAnonymously } from 'firebase/auth';
-import logger, { LOG_CATEGORIES } from '../utils/logger';
+import logger, { LOG_CATEGORIES } from '@utils/logger';
 
 /* ============================== Motion =============================== */
 const fadeInUp = keyframes`

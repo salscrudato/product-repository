@@ -12,7 +12,7 @@ import {
   updateDoc,
 
 } from 'firebase/firestore';
-import { db, storage, functions } from '../firebase';
+import { db, storage, functions } from '@/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import {
@@ -28,15 +28,15 @@ import {
 } from '@heroicons/react/24/solid';
 import DataDictionaryModal from './DataDictionaryModal';
 import ConfirmationModal from './ui/ConfirmationModal';
-import useProducts from '../hooks/useProducts';
-import MarkdownRenderer from '../utils/markdownParser';
+import useProducts from '@hooks/useProducts';
+import MarkdownRenderer from '@utils/markdownParser';
 import ProductCard from './ui/ProductCard';
 import VirtualizedGrid from './ui/VirtualizedGrid';
-import { debounce } from '../utils/performance';
-import { extractPdfText } from '../utils/pdfChunking';
+import { debounce } from '@utils/performance';
+import { extractPdfText } from '@utils/pdfChunking';
 import LoadingSpinner from './ui/LoadingSpinner';
 import { EmptyState } from './ui/EmptyState';
-import { logAuditEvent } from '../services/auditService';
+import { logAuditEvent } from '@services/auditService';
 
 
 /* ---------- Styled Components ---------- */

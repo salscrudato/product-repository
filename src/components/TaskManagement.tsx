@@ -21,7 +21,7 @@ import {
   onSnapshot,
   serverTimestamp
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db } from '@/firebase';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
 import { PageContainer, PageContent } from './ui/PageContainer';

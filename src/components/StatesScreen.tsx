@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
-import { db } from '../firebase';
+import { db } from '@/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import styled, { keyframes } from 'styled-components';
-import { Page, Container } from '../components/ui/Layout';
-import { Button } from '../components/ui/Button';
-import { TextInput } from '../components/ui/Input';
+import { Page, Container } from '@components/ui/Layout';
+import { Button } from '@components/ui/Button';
+import { TextInput } from '@components/ui/Input';
 import { ArrowLeftIcon, MapIcon } from '@heroicons/react/24/solid';
-import MainNavigation from '../components/ui/Navigation';
+import MainNavigation from '@components/ui/Navigation';
+import { createDirtyState, updateDirtyState, resetDirtyState, buildSaveConfirmation } from '@utils/stateGuards';
 
 
 // Modern Container
@@ -181,6 +182,7 @@ function StatesScreen() {
   const [selectedStates, setSelectedStates] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [newState, setNewState] = useState('');
+  const [dirtyState, setDirtyState] = useState(createDirtyState([]));
 
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const searchRef = useRef(null);
@@ -265,7 +267,9 @@ function StatesScreen() {
         if (productDoc.exists()) {
           const data = productDoc.data();
           setProductName(data.name);
-          setSelectedStates(data.availableStates || []);
+          const states = data.availableStates || [];
+          setSelectedStates(states);
+          setDirtyState(createDirtyState(states));
         } else {
           throw new Error("Product not found");
         }
@@ -292,39 +296,50 @@ function StatesScreen() {
 
   const handleAddState = () => {
     if (newState && !selectedStates.includes(newState)) {
-      setSelectedStates([...selectedStates, newState]);
+      const newStates = [...selectedStates, newState];
+      setSelectedStates(newStates);
+      setDirtyState(updateDirtyState(dirtyState, newStates, 'states'));
       setNewState('');
     }
   };
 
   const handleRemoveState = (state) => {
-    setSelectedStates(selectedStates.filter(s => s !== state));
+    const newStates = selectedStates.filter(s => s !== state);
+    setSelectedStates(newStates);
+    setDirtyState(updateDirtyState(dirtyState, newStates, 'states'));
   };
 
   const handleSelectAll = () => {
     setSelectedStates([...allStates]);
+    setDirtyState(updateDirtyState(dirtyState, allStates, 'states'));
   };
 
   const handleClearAll = () => {
     setSelectedStates([]);
+    setDirtyState(updateDirtyState(dirtyState, [], 'states'));
   };
 
   const handleSave = async () => {
+    if (!dirtyState.isDirty) {
+      alert('No changes to save.');
+      return;
+    }
+
+    const confirmation = buildSaveConfirmation(
+      dirtyState.originalValue,
+      selectedStates,
+      productName
+    );
+
+    if (!window.confirm(confirmation)) {
+      return;
+    }
+
     try {
       const productRef = doc(db, 'products', productId);
-      const beforeSnap = await getDoc(productRef);
-      const beforeStates = beforeSnap.exists() ? (beforeSnap.data().availableStates || []) : [];
-
       await updateDoc(productRef, { availableStates: selectedStates });
 
-      // Build diff
-      const added = selectedStates.filter(s => !beforeStates.includes(s));
-      const removed = beforeStates.filter(s => !selectedStates.includes(s));
-      const diff = {};
-      if (added.length) diff.added = added;
-      if (removed.length) diff.removed = removed;
-
-
+      setDirtyState(resetDirtyState(dirtyState));
       alert("State availability saved successfully!");
     } catch (error) {
       console.error("Error saving states:", error);

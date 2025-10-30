@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { collection, collectionGroup, getDocs, getDoc, addDoc, updateDoc, doc, query, where } from 'firebase/firestore';
-import { db, storage, functions } from '../firebase';
+import { db, storage, functions } from '@/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import styled from 'styled-components';
@@ -16,9 +16,10 @@ import {
   DocumentDuplicateIcon
 } from '@heroicons/react/24/solid';
 import { useNavigate } from 'react-router-dom';
-import MainNavigation from '../components/ui/Navigation';
-import EnhancedHeader from '../components/ui/EnhancedHeader';
-import MarkdownRenderer from '../utils/markdownParser';
+import MainNavigation from '@components/ui/Navigation';
+import EnhancedHeader from '@components/ui/EnhancedHeader';
+import MarkdownRenderer from '@utils/markdownParser';
+import { cloneProduct } from '@utils/productClone';
 
 /* ---------- Modern Styled Components ---------- */
 
@@ -1449,82 +1450,22 @@ const ProductBuilder = () => {
     );
   }
 
-  // --- CLONE PRODUCT HELPER ---
-  const cloneProduct = async (sourceId) => {
+  // --- CLONE PRODUCT HANDLER ---
+  const handleCloneProduct = async (sourceId: string) => {
     if (!window.confirm('Clone this product and all of its related data?')) return;
     try {
       setCloneLoading(true);
+      const result = await cloneProduct(sourceId);
 
-      // 1️⃣ fetch source product
-      const srcProdSnap = await getDoc(doc(db, 'products', sourceId));
-      if (!srcProdSnap.exists()) throw new Error('Source product not found');
-      const srcData = srcProdSnap.data();
-
-      // 2️⃣ create new product (append " – Copy" to name)
-      const newProdRef = await addDoc(collection(db, 'products'), {
-        ...srcData,
-        name: `${srcData.name} – Copy`,
-      });
-      const newProdId = newProdRef.id;
-
-      // --- helper maps for ID translation ---
-      const coverageIdMap = {};
-      const formIdMap = {};
-
-      // 3️⃣ clone coverages
-      const covSnap = await getDocs(collection(db, `products/${sourceId}/coverages`));
-      for (const c of covSnap.docs) {
-        const newCovRef = await addDoc(collection(db, `products/${newProdId}/coverages`), {
-          ...c.data(),
-          formIds: [],                // temp ‑ will patch later
-          parentCoverageId: null,     // parent links rebuilt later
-        });
-        coverageIdMap[c.id] = newCovRef.id;
+      if (result.success) {
+        alert(`Product cloned successfully! New product ID: ${result.newProductId}`);
+        navigate('/');
+      } else {
+        alert(`Clone failed: ${result.error}`);
       }
-      // rebuild parentCoverage relationships
-      for (const c of covSnap.docs) {
-        const parentId = c.data().parentCoverageId;
-        if (parentId && coverageIdMap[parentId]) {
-          await updateDoc(
-            doc(db, `products/${newProdId}/coverages`, coverageIdMap[c.id]),
-            { parentCoverageId: coverageIdMap[parentId] }
-          );
-        }
-      }
-
-      // 4️⃣ clone forms
-      const formSnap = await getDocs(query(collection(db, 'forms'), where('productId','==',sourceId)));
-      for (const f of formSnap.docs) {
-        const newCovIds = (f.data().coverageIds || []).map(cid => coverageIdMap[cid]).filter(Boolean);
-        const newFormRef = await addDoc(collection(db, 'forms'), {
-          ...f.data(),
-          productId: newProdId,
-          coverageIds: newCovIds,
-        });
-        formIdMap[f.id] = newFormRef.id;
-
-        // recreate formCoverages docs
-        for (const newCovId of newCovIds) {
-          await addDoc(collection(db, 'formCoverages'), {
-            formId: newFormRef.id,
-            coverageId: newCovId,
-            productId: newProdId,
-          });
-        }
-      }
-
-      // 5️⃣ patch each cloned coverage.formIds
-      for (const [oldCovId,newCovId] of Object.entries(coverageIdMap)) {
-        const srcCov = covSnap.docs.find(d=>d.id===oldCovId).data();
-        const newFormIds = (srcCov.formIds||[]).map(fid=>formIdMap[fid]).filter(Boolean);
-        await updateDoc(doc(db, `products/${newProdId}/coverages`, newCovId), { formIds: newFormIds });
-      }
-
-      alert('Product cloned! Redirecting to ProductHub.');
-      navigate('/');
     } catch (err) {
-      console.error(err);
-      alert('Clone failed: '+err.message);
+      console.error('Clone error:', err);
+      alert('Clone failed: ' + (err as Error).message);
     } finally {
       setCloneLoading(false);
     }
@@ -2037,7 +1978,7 @@ const ProductBuilder = () => {
                 <ModernButton
                   disabled={!cloneTargetId}
                   onClick={async () => {
-                    await cloneProduct(cloneTargetId);
+                    await handleCloneProduct(cloneTargetId);
                     setCloneModalOpen(false);
                   }}
                 >

@@ -47,8 +47,6 @@ export async function exportProductToExcel(
     'Coverage Name',
     'Coverage Code',
     'Type',
-    'Category',
-    'Base Premium',
     'Minimum Premium',
     'Coinsurance %',
     'Waiting Period',
@@ -60,8 +58,6 @@ export async function exportProductToExcel(
       c.name,
       c.coverageCode || '',
       c.type || '',
-      c.category || '',
-      c.basePremium || '',
       c.minimumPremium || '',
       c.coinsurancePercentage || '',
       c.waitingPeriod ? `${c.waitingPeriod} ${c.waitingPeriodUnit || 'days'}` : '',
@@ -79,12 +75,11 @@ export async function exportProductToExcel(
         c.name,
         parent?.name || 'Unknown',
         c.coverageCode || '',
-        c.basePremium || '',
         c.description || ''
       ];
     });
   if (subCoverageRows.length > 0) {
-    const subCoverageHeaders = ['Sub-Coverage Name', 'Parent Coverage', 'Code', 'Premium', 'Description'];
+    const subCoverageHeaders = ['Sub-Coverage Name', 'Parent Coverage', 'Code', 'Description'];
     const subCoverageSheet = XLSX.utils.aoa_to_sheet([subCoverageHeaders, ...subCoverageRows]);
     XLSX.utils.book_append_sheet(workbook, subCoverageSheet, 'Sub-Coverages');
   }
@@ -227,8 +222,6 @@ export function exportCoveragesToCSV(coverages: Coverage[], productName: string)
     'Coverage Name',
     'Coverage Code',
     'Type',
-    'Category',
-    'Base Premium',
     'Minimum Premium',
     'Coinsurance %',
     'Description'
@@ -238,8 +231,6 @@ export function exportCoveragesToCSV(coverages: Coverage[], productName: string)
     c.name,
     c.coverageCode || '',
     c.type || '',
-    c.category || '',
-    c.basePremium || '',
     c.minimumPremium || '',
     c.coinsurancePercentage || '',
     c.description || ''

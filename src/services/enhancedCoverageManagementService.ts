@@ -24,11 +24,9 @@ export interface CoverageCreationOptions {
   name: string;
   description?: string;
   coverageCode?: string;
-  category?: 'base' | 'endorsement' | 'optional';
   parentCoverageId?: string;
   isOptional?: boolean;
   states?: string[];
-  basePremium?: number;
   limits?: Partial<CoverageLimit>[];
   deductibles?: Partial<CoverageDeductible>[];
 }
@@ -58,11 +56,9 @@ class EnhancedCoverageManagementService {
         name: options.name,
         description: options.description,
         coverageCode: options.coverageCode,
-        category: options.category || 'base',
         parentCoverageId: options.parentCoverageId,
         isOptional: options.isOptional || false,
         states: options.states,
-        basePremium: options.basePremium,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };

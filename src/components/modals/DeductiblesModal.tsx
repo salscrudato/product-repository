@@ -6,10 +6,10 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { CoverageDeductible } from '../../types';
-import { useCoverageDeductibles } from '../../hooks/useCoverageDeductibles';
+import { CoverageDeductible } from '@types';
+import { useCoverageDeductibles } from '@hooks/useCoverageDeductibles';
 import { DeductibleTypeSelector } from '../selectors/DeductibleTypeSelector';
-import { validateCoverageDeductible, formatValidationErrors } from '../../utils/coverageValidation';
+import { validateCoverageDeductible, formatValidationResult } from '@utils/validation/coverage';
 
 interface DeductiblesModalProps {
   isOpen: boolean;
@@ -53,7 +53,7 @@ export const DeductiblesModal: React.FC<DeductiblesModalProps> = ({
     // Validate the deductible
     const validationResult = validateCoverageDeductible(editingDeductible);
     if (!validationResult.isValid) {
-      alert('Validation errors:\n\n' + formatValidationErrors(validationResult));
+      alert('Validation errors:\n\n' + formatValidationResult(validationResult));
       return;
     }
 

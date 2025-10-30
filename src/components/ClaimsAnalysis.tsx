@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { db } from '../firebase';
+import { db } from '@/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import {
   DocumentTextIcon,
@@ -15,7 +15,7 @@ import { UnifiedAIResponse } from './ui/UnifiedAIResponse';
 import EnhancedHeader from './ui/EnhancedHeader';
 import { PageContainer, PageContent } from './ui/PageContainer';
 import { Breadcrumb } from './ui/Breadcrumb';
-import { processFormsForAnalysis } from '../utils/pdfChunking';
+import { processFormsForAnalysis } from '@utils/pdfChunking';
 import { analyzeClaimWithChunking } from '../services/claimsAnalysisService';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
 import LoadingSpinner from './ui/LoadingSpinner';

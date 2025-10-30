@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
-import { db, storage } from '../firebase';
+import { db } from '@/firebase';
 import {
   collection, getDocs, addDoc, deleteDoc, doc, updateDoc,
-  query, where, getDoc, writeBatch, arrayUnion, arrayRemove
+  query, where, getDoc, writeBatch, serverTimestamp
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { uploadFormPdf, deleteFormPdf } from '@utils/storage';
+import { getFormDisplayName } from '@utils/format';
 import {
   TrashIcon, DocumentTextIcon, PlusIcon, XMarkIcon,
   LinkIcon, PencilIcon, MagnifyingGlassIcon,
@@ -14,16 +15,16 @@ import {
 
 
 
-import { Button } from '../components/ui/Button';
-import { TextInput } from '../components/ui/Input';
-import MainNavigation from '../components/ui/Navigation';
-import { PageContainer, PageContent } from '../components/ui/PageContainer';
-import EnhancedHeader from '../components/ui/EnhancedHeader';
+import { Button } from '@components/ui/Button';
+import { TextInput } from '@components/ui/Input';
+import MainNavigation from '@components/ui/Navigation';
+import { PageContainer, PageContent } from '@components/ui/PageContainer';
+import EnhancedHeader from '@components/ui/EnhancedHeader';
 import Select from 'react-select';
 
 import {
   Overlay, Modal, ModalHeader, ModalTitle, CloseBtn
-} from '../components/ui/Table';
+} from '@components/ui/Table';
 
 import styled, { keyframes } from 'styled-components';
 
@@ -835,16 +836,14 @@ export default function FormsScreen() {
         category,
         productIds: selectedProduct ? [selectedProduct] : [],
         productId: selectedProduct,
-        coverageIds: selectedCoverages,
         states: selectedStates
       };
       let filePath = null;
       let downloadUrl = null;
       if (file) {
-        const storageRef = ref(storage, `forms/${file.name}`);
-        await uploadBytes(storageRef, file);
-        downloadUrl = await getDownloadURL(storageRef);
-        filePath = storageRef.fullPath;
+        const uploadResult = await uploadFormPdf(file, selectedProduct);
+        filePath = uploadResult.filePath;
+        downloadUrl = uploadResult.downloadUrl;
       }
       const payload = {
         ...basePayload,
@@ -852,40 +851,42 @@ export default function FormsScreen() {
       };
       let formId;
       if (editingId) {
-
         await updateDoc(doc(db, 'forms', editingId), payload);
         formId = editingId;
-
       } else {
         const docRef = await addDoc(collection(db, 'forms'), {
           ...payload,
           filePath,
-          downloadUrl
+          downloadUrl,
+          createdAt: serverTimestamp()
         });
         formId = docRef.id;
-
       }
-      // link to coverages
-      for (const coverageId of selectedCoverages) {
-        await addDoc(collection(db, 'formCoverages'), {
+
+      // ✅ Link to coverages via junction table only (no array writes)
+      const batch = writeBatch(db);
+
+      // Delete old links for this form
+      const existingLinksSnap = await getDocs(
+        query(collection(db, 'formCoverages'), where('formId', '==', formId))
+      );
+      existingLinksSnap.docs.forEach(linkDoc => {
+        batch.delete(linkDoc.ref);
+      });
+
+      // Add new links
+      selectedCoverages.forEach(coverageId => {
+        const newRef = doc(collection(db, 'formCoverages'));
+        batch.set(newRef, {
           formId,
           coverageId,
           productId: selectedProduct,
+          createdAt: serverTimestamp()
         });
+      });
 
-        const coverageDoc = await getDoc(
-          doc(db, `products/${selectedProduct}/coverages`, coverageId)
-        );
-        if (coverageDoc.exists()) {
-          const currentFormIds = coverageDoc.data().formIds || [];
-          if (!currentFormIds.includes(formId)) {
-            await updateDoc(
-              doc(db, `products/${selectedProduct}/coverages`, coverageId),
-              { formIds: [...currentFormIds, formId] }
-            );
-          }
-        }
-      }
+      await batch.commit();
+
       // reset ui
       setFormName('');
       setFormNumber('');
@@ -902,16 +903,10 @@ export default function FormsScreen() {
 
       // refresh forms list
       const snap = await getDocs(collection(db, 'forms'));
-      const formList = await Promise.all(
-        snap.docs.map(async d => {
-          const data = d.data();
-          let url = null;
-          if (data.filePath) {
-            try { url = await getDownloadURL(ref(storage, data.filePath)); } catch {}
-          }
-          return { ...data, id: d.id, downloadUrl: url };
-        })
-      );
+      const formList = snap.docs.map(d => ({
+        ...d.data(),
+        id: d.id
+      }));
       setForms(formList);
     } catch (err) {
       console.error(err);
@@ -924,26 +919,24 @@ export default function FormsScreen() {
     try {
       const formDoc = forms.find(f => f.id === id);
       if (formDoc) {
-        /* remove link docs and update coverages */
+        // Delete PDF file if it exists
+        if (formDoc.filePath) {
+          try {
+            await deleteFormPdf(formDoc.filePath);
+          } catch (err) {
+            console.warn('Failed to delete PDF file:', err);
+          }
+        }
+
+        // ✅ Delete junction table links only (no array writes to coverages)
         const linksSnap = await getDocs(
           query(collection(db, 'formCoverages'), where('formId', '==', id))
         );
-        for (const linkDoc of linksSnap.docs) {
-          const { coverageId } = linkDoc.data();
-          const covDoc = await getDoc(
-            doc(db, `products/${formDoc.productId}/coverages`, coverageId)
-          );
-          if (covDoc.exists()) {
-            const formIds = (covDoc.data().formIds || []).filter(fid => fid !== id);
-            await updateDoc(
-              doc(db, `products/${formDoc.productId}/coverages`, coverageId),
-              { formIds }
-            );
-          }
-          await deleteDoc(doc(db, 'formCoverages', linkDoc.id));
-        }
-
-
+        const batch = writeBatch(db);
+        linksSnap.docs.forEach(linkDoc => {
+          batch.delete(linkDoc.ref);
+        });
+        await batch.commit();
       }
       await deleteDoc(doc(db, 'forms', id));
       setForms(forms.filter(f => f.id !== id));
@@ -971,22 +964,17 @@ export default function FormsScreen() {
     const covIdToProductId = Object.fromEntries(coverages.map(c => [c.id, c.productId]));
     try {
       const formId = selectedForm.id;
-      const productId = selectedForm.productId;
       const batch = writeBatch(db);
 
-      // 1) Delete old links for this product only
+      // Delete old links for this form
       const existingLinksSnap = await getDocs(
-        query(
-          collection(db, 'formCoverages'),
-          where('formId', '==', formId),
-          where('productId', '==', productId)
-        )
+        query(collection(db, 'formCoverages'), where('formId', '==', formId))
       );
       existingLinksSnap.docs.forEach(linkDoc => {
-        batch.delete(doc(db, 'formCoverages', linkDoc.id));
+        batch.delete(linkDoc.ref);
       });
 
-      // 2) Add new links (junction table only - single source of truth)
+      // Add new links (junction table only - single source of truth)
       linkCoverageIds.forEach(coverageId => {
         const owningProductId = covIdToProductId[coverageId];
         if (!owningProductId) return; // safety: skip if we can't resolve product
@@ -999,18 +987,7 @@ export default function FormsScreen() {
         });
       });
 
-      // ✅ REMOVED: No longer updating form.coverageIds or coverage.formIds arrays
-      // The formCoverages junction table is the single source of truth
-
       await batch.commit();
-      // update local state without re-fetching URLs
-      setForms(fs =>
-        fs.map(f =>
-          f.id === formId
-            ? { ...f, coverageIds: linkCoverageIds }
-            : f
-        )
-      );
       setLinkCoverageModalOpen(false);
       setSelectedForm(null);
       setLinkCoverageIds([]);
@@ -1182,7 +1159,7 @@ export default function FormsScreen() {
                           </a>
                         ) : (
                           <span>
-                            {(f.formName || f.formNumber || 'Unnamed Form').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
+                            {getFormDisplayName(f).toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
                           </span>
                         )}
                       </CardTitle>
@@ -1483,7 +1460,7 @@ export default function FormsScreen() {
                 <CloseBtn onClick={() => setLinkCoverageModalOpen(false)}>✕</CloseBtn>
               </ModalHeader>
               <p style={{ margin:'8px 0 12px' }}>
-                Form:&nbsp;<strong>{selectedForm?.formName || selectedForm?.formNumber}</strong>
+                Form:&nbsp;<strong>{getFormDisplayName(selectedForm || {})}</strong>
               </p>
               <div style={{ marginBottom: 8 }}>
                 <TextInput
@@ -1541,7 +1518,7 @@ export default function FormsScreen() {
               </ModalHeader>
 
               <p style={{ margin:'8px 0 12px' }}>
-                Form:&nbsp;<strong>{selectedForm?.formName || selectedForm?.formNumber}</strong>
+                Form:&nbsp;<strong>{getFormDisplayName(selectedForm || {})}</strong>
               </p>
 
               <div style={{ marginBottom: 8 }}>
