@@ -7,9 +7,10 @@ import { getAuth, signInAnonymously } from 'firebase/auth';
 import logger, { LOG_CATEGORIES } from '@utils/logger';
 
 /* ============================== Motion =============================== */
+/* Optimized animations - reduced complexity for better performance */
 const fadeInUp = keyframes`
-  from { opacity: 0; transform: translateY(30px) scale(.98); }
-  to   { opacity: 1; transform: translateY(0)    scale(1);   }
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
 `;
 const slideIn = keyframes`
   from { transform: translateX(-100%); opacity:0; }
@@ -20,18 +21,18 @@ const gradientShift = keyframes`
   50%     { background-position: 100% 50% }
 `;
 const glowPulse = keyframes`
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.05); }
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
 `;
 const shimmer = keyframes`
   0% { background-position: -200% center; }
   100% { background-position: 200% center; }
 `;
 
-/* Enhanced animations for futuristic feel */
+/* Optimized breathing animation - removed scale for better perf */
 const breathe = keyframes`
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.03); }
+  0%, 100% { opacity: 0.95; }
+  50% { opacity: 1; }
 `;
 
 const gradientFlow = keyframes`
@@ -40,9 +41,10 @@ const gradientFlow = keyframes`
   100% { background-position: 0% 50%; }
 `;
 
+/* Optimized float - reduced movement */
 const float = keyframes`
   0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
+  50% { transform: translateY(-4px); }
 `;
 
 const ripple = keyframes`
@@ -73,146 +75,86 @@ const particleBurst = keyframes`
   }
 `;
 
-/* Misting pulse animation - creates fog effect from behind card */
+/* Optimized misting pulse - reduced blur and complexity */
 const mistPulse = keyframes`
   0%, 100% {
     transform: translate(-50%, -50%) scale(1);
-    opacity: 0.08;
+    opacity: 0.06;
   }
-  33% {
-    transform: translate(-50%, -50%) scale(1.2);
-    opacity: 0.15;
-  }
-  66% {
-    transform: translate(-50%, -50%) scale(0.95);
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
     opacity: 0.12;
   }
 `;
 
 const mistPulse2 = keyframes`
   0%, 100% {
-    transform: translate(-50%, -50%) scale(1.05) rotate(0deg);
-    opacity: 0.1;
+    transform: translate(-50%, -50%) scale(1.05);
+    opacity: 0.08;
   }
   50% {
-    transform: translate(-50%, -50%) scale(1.25) rotate(180deg);
-    opacity: 0.18;
-  }
-`;
-
-const mistPulse3 = keyframes`
-  0%, 100% {
-    transform: translate(-50%, -50%) scale(0.98);
-    opacity: 0.09;
-  }
-  40% {
     transform: translate(-50%, -50%) scale(1.15);
-    opacity: 0.16;
-  }
-  80% {
-    transform: translate(-50%, -50%) scale(1.02);
-    opacity: 0.13;
+    opacity: 0.14;
   }
 `;
 
-/* Neural network animations */
+/* Optimized neural network animations - removed expensive filters */
 const neuralPulse = keyframes`
   0%, 100% {
-    opacity: 0.3;
-    transform: scale(1);
+    opacity: 0.2;
   }
   50% {
-    opacity: 0.8;
-    transform: scale(1.2);
+    opacity: 0.5;
   }
 `;
 
 const connectionFlow = keyframes`
   0% {
     stroke-dashoffset: 1000;
-    opacity: 0.2;
-  }
-  50% {
-    opacity: 0.6;
+    opacity: 0.15;
   }
   100% {
     stroke-dashoffset: 0;
-    opacity: 0.2;
+    opacity: 0.15;
   }
 `;
 
-const nodeGlow = keyframes`
-  0%, 100% {
-    filter: drop-shadow(0 0 2px rgba(99,102,241,0.4));
-  }
-  50% {
-    filter: drop-shadow(0 0 8px rgba(99,102,241,0.8));
-  }
-`;
-
-/* AI-inspired particle animations */
+/* Optimized particle float - simpler animation */
 const aiParticleFloat = keyframes`
   0% {
-    transform: translateY(0) translateX(0) scale(1);
+    transform: translateY(0) translateX(0);
     opacity: 0;
   }
   10% {
-    opacity: 0.6;
+    opacity: 0.5;
   }
   90% {
-    opacity: 0.6;
+    opacity: 0.5;
   }
   100% {
-    transform: translateY(-100vh) translateX(var(--drift, 0px)) scale(0.3);
+    transform: translateY(-100vh) translateX(var(--drift, 0px));
     opacity: 0;
   }
 `;
 
 const aiPulseGlow = keyframes`
   0%, 100% {
-    box-shadow: 0 0 10px rgba(99,102,241,0.4), 0 0 20px rgba(168,85,247,0.2);
+    opacity: 0.6;
   }
   50% {
-    box-shadow: 0 0 20px rgba(99,102,241,0.8), 0 0 40px rgba(168,85,247,0.4);
+    opacity: 1;
   }
 `;
 
-const aiOrbitSpin = keyframes`
-  0% {
-    transform: rotate(0deg) translateX(60px) rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg) translateX(60px) rotate(-360deg);
-  }
-`;
-
-/* Smooth card entrance with subtle scale */
+/* Smooth card entrance */
 const cardEnter = keyframes`
   from {
     opacity: 0;
-    transform: translateY(40px) scale(0.95);
+    transform: translateY(40px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-`;
-
-/* Subtle glow pulse for card border */
-const borderGlow = keyframes`
-  0%, 100% {
-    box-shadow: 0 0 0 1px rgba(255,255,255,.15),
-                0 40px 100px rgba(0,0,0,.7),
-                0 0 180px rgba(99,102,241,.3),
-                inset 0 2px 0 rgba(255,255,255,.1),
-                inset 0 -1px 0 rgba(0,0,0,.3);
-  }
-  50% {
-    box-shadow: 0 0 0 1px rgba(255,255,255,.2),
-                0 40px 100px rgba(0,0,0,.7),
-                0 0 220px rgba(99,102,241,.4),
-                inset 0 2px 0 rgba(255,255,255,.15),
-                inset 0 -1px 0 rgba(0,0,0,.3);
+    transform: translateY(0);
   }
 `;
 
@@ -227,30 +169,28 @@ const Page = styled.div`
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
   position: relative; overflow: hidden;
+  contain: layout style paint;
 
-  /* Deep, immersive background gradient with richer colors */
-  background:
-    radial-gradient(ellipse at center, var(--bg-a) 0%, var(--bg-b) 50%, var(--bg-c) 100%);
-  background-size: 200% 200%;
-  animation: ${gradientShift} 24s ease-in-out infinite;
+  /* Optimized static background - removed animation for better perf */
+  background: radial-gradient(ellipse at center, var(--bg-a) 0%, var(--bg-b) 50%, var(--bg-c) 100%);
 
-  /* Enhanced neural mesh with more vibrant colors and refined grid */
+  /* Optimized neural mesh - simplified grid */
   &::before {
     content: '';
     position: absolute; inset: -20%;
     background:
-      radial-gradient(120vmax 120vmax at 50% 50%, rgba(255,255,255,.12), transparent 60%),
-      repeating-linear-gradient( 0deg, rgba(99,102,241,.1) 0 1px, transparent 1px 24px),
-      repeating-linear-gradient(90deg, rgba(99,102,241,.1) 0 1px, transparent 1px 24px);
+      radial-gradient(120vmax 120vmax at 50% 50%, rgba(255,255,255,.08), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(99,102,241,.06) 0 1px, transparent 1px 32px),
+      repeating-linear-gradient(90deg, rgba(99,102,241,.06) 0 1px, transparent 1px 32px);
     mask-image: radial-gradient(70vmin 70vmin at 50% 50%, #000 45%, transparent 100%);
-    opacity: .75;
+    opacity: .6;
     pointer-events: none;
     z-index: 0;
+    will-change: auto;
   }
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
-    background-size: auto;
   }
 `;
 
@@ -291,20 +231,7 @@ const morphBlob2 = keyframes`
   }
 `;
 
-const morphBlob3 = keyframes`
-  0%, 100% {
-    border-radius: 30% 70% 70% 30% / 30% 50% 50% 70%;
-    transform: translate(-50%, -50%) translate3d(0, 0, 0) scale(1);
-  }
-  40% {
-    border-radius: 60% 40% 50% 50% / 50% 60% 40% 50%;
-    transform: translate(-50%, -50%) translate3d(6vmin, 7vmin, 0) scale(1.12);
-  }
-  80% {
-    border-radius: 50% 50% 60% 40% / 40% 60% 50% 50%;
-    transform: translate(-50%, -50%) translate3d(-5vmin, -6vmin, 0) scale(0.9);
-  }
-`;
+
 
 /* Organic gradient background layer */
 const OrganicBackground = styled.div`
@@ -315,24 +242,23 @@ const OrganicBackground = styled.div`
   overflow: hidden;
 `;
 
-/* Morphing blob shapes */
-const MorphingBlob = styled.div<{ $variant: 1 | 2 | 3 }>`
+/* Optimized morphing blob shapes - reduced blur and opacity for performance */
+const MorphingBlob = styled.div<{ $variant: 1 | 2 }>`
   position: absolute;
   top: 50%;
   left: 50%;
-  width: ${({$variant}) => $variant === 1 ? '70vmin' : $variant === 2 ? '85vmin' : '60vmin'};
-  height: ${({$variant}) => $variant === 1 ? '70vmin' : $variant === 2 ? '85vmin' : '60vmin'};
+  width: ${({$variant}) => $variant === 1 ? '70vmin' : '85vmin'};
+  height: ${({$variant}) => $variant === 1 ? '70vmin' : '85vmin'};
   background: ${({$variant}) =>
     $variant === 1
-      ? 'radial-gradient(circle, rgba(99,102,241,.35) 0%, rgba(99,102,241,.15) 40%, transparent 70%)'
-      : $variant === 2
-      ? 'radial-gradient(circle, rgba(168,85,247,.3) 0%, rgba(168,85,247,.12) 40%, transparent 70%)'
-      : 'radial-gradient(circle, rgba(14,165,233,.28) 0%, rgba(14,165,233,.1) 40%, transparent 70%)'
+      ? 'radial-gradient(circle, rgba(99,102,241,.25) 0%, rgba(99,102,241,.08) 40%, transparent 70%)'
+      : 'radial-gradient(circle, rgba(168,85,247,.22) 0%, rgba(168,85,247,.08) 40%, transparent 70%)'
   };
-  filter: blur(40px);
-  opacity: 0.8;
-  animation: ${({$variant}) => $variant === 1 ? morphBlob1 : $variant === 2 ? morphBlob2 : morphBlob3}
-             ${({$variant}) => $variant === 1 ? 20 : $variant === 2 ? 25 : 22}s ease-in-out infinite;
+  filter: blur(50px);
+  opacity: 0.6;
+  animation: ${({$variant}) => $variant === 1 ? morphBlob1 : morphBlob2}
+             ${({$variant}) => $variant === 1 ? 20 : 25}s ease-in-out infinite;
+  will-change: transform;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -380,15 +306,12 @@ const Orb = styled.div<{ $x: number; $y: number; $size: number; $delay: number; 
   width: ${({$size}) => $size}px;
   height: ${({$size}) => $size}px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.8), rgba(99,102,241,.4));
-  box-shadow:
-    0 0 20px rgba(99,102,241,.6),
-    0 0 40px rgba(168,85,247,.3),
-    inset 0 0 10px rgba(255,255,255,.5);
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.6), rgba(99,102,241,.3));
+  box-shadow: 0 0 16px rgba(99,102,241,.4), 0 0 32px rgba(168,85,247,.2);
   animation: ${floatOrb} ${({$duration}) => $duration}s ease-in-out infinite;
   animation-delay: ${({$delay}) => $delay}s;
-  filter: blur(1px);
-  opacity: 0.5;
+  opacity: 0.4;
+  will-change: transform;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -406,18 +329,18 @@ const AIParticleField = styled.div`
 
 const AIParticle = styled.div<{ $duration: number; $delay: number; $drift: number }>`
   position: absolute;
-  width: 4px;
-  height: 4px;
+  width: 3px;
+  height: 3px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, rgba(99,102,241,0.8), rgba(168,85,247,0.4));
-  box-shadow: 0 0 8px rgba(99,102,241,0.6), 0 0 16px rgba(168,85,247,0.3);
+  background: rgba(99,102,241,0.6);
+  box-shadow: 0 0 6px rgba(99,102,241,0.5);
   animation: ${aiParticleFloat} ${({$duration}) => $duration}s linear ${({$delay}) => $delay}s infinite;
   --drift: ${({$drift}) => $drift}px;
   will-change: transform, opacity;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
-    opacity: 0.3;
+    opacity: 0.2;
   }
 `;
 
@@ -469,24 +392,25 @@ const MeshLayer = styled.div<{ $variant: 1 | 2 }>`
       ? `conic-gradient(
           from 0deg at 50% 50%,
           transparent 0deg,
-          rgba(99,102,241,.15) 90deg,
+          rgba(99,102,241,.1) 90deg,
           transparent 180deg,
-          rgba(168,85,247,.12) 270deg,
+          rgba(168,85,247,.08) 270deg,
           transparent 360deg
         )`
       : `conic-gradient(
           from 180deg at 50% 50%,
           transparent 0deg,
-          rgba(14,165,233,.12) 90deg,
+          rgba(14,165,233,.08) 90deg,
           transparent 180deg,
-          rgba(99,102,241,.15) 270deg,
+          rgba(99,102,241,.1) 270deg,
           transparent 360deg
         )`
   };
   animation: ${meshShift} ${({$variant}) => $variant === 1 ? 30 : 35}s ease-in-out infinite;
   animation-delay: ${({$variant}) => $variant === 1 ? 0 : 5}s;
   mix-blend-mode: screen;
-  filter: blur(60px);
+  filter: blur(80px);
+  will-change: transform;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -506,29 +430,28 @@ const MistingLayer = styled.div`
   justify-content: center;
 `;
 
-const MistCloud = styled.div<{ $variant: 1 | 2 | 3 }>`
+const MistCloud = styled.div<{ $variant: 1 | 2 }>`
   position: absolute;
   top: 50%;
   left: 50%;
-  width: ${({$variant}) => $variant === 1 ? '600px' : $variant === 2 ? '700px' : '550px'};
-  height: ${({$variant}) => $variant === 1 ? '600px' : $variant === 2 ? '700px' : '550px'};
+  width: ${({$variant}) => $variant === 1 ? '600px' : '700px'};
+  height: ${({$variant}) => $variant === 1 ? '600px' : '700px'};
   border-radius: 50%;
   background: ${({$variant}) =>
     $variant === 1
-      ? 'radial-gradient(circle, rgba(99,102,241,0.18) 0%, rgba(99,102,241,0.08) 30%, transparent 70%)'
-      : $variant === 2
-      ? 'radial-gradient(circle, rgba(168,85,247,0.15) 0%, rgba(168,85,247,0.06) 30%, transparent 70%)'
-      : 'radial-gradient(circle, rgba(14,165,233,0.12) 0%, rgba(14,165,233,0.05) 30%, transparent 70%)'
+      ? 'radial-gradient(circle, rgba(99,102,241,0.12) 0%, rgba(99,102,241,0.05) 30%, transparent 70%)'
+      : 'radial-gradient(circle, rgba(168,85,247,0.1) 0%, rgba(168,85,247,0.04) 30%, transparent 70%)'
   };
-  filter: blur(100px);
-  animation: ${({$variant}) => $variant === 1 ? mistPulse : $variant === 2 ? mistPulse2 : mistPulse3}
-             ${({$variant}) => $variant === 1 ? 8 : $variant === 2 ? 10 : 9}s ease-in-out infinite;
-  animation-delay: ${({$variant}) => $variant === 1 ? 0 : $variant === 2 ? 2 : 4}s;
+  filter: blur(80px);
+  animation: ${({$variant}) => $variant === 1 ? mistPulse : mistPulse2}
+             ${({$variant}) => $variant === 1 ? 8 : 10}s ease-in-out infinite;
+  animation-delay: ${({$variant}) => $variant === 1 ? 0 : 2}s;
   mix-blend-mode: screen;
+  will-change: transform, opacity;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
-    opacity: 0.08;
+    opacity: 0.06;
   }
 `;
 
@@ -552,13 +475,14 @@ const NeuralSVG = styled.svg`
 `;
 
 const NeuralNode = styled.circle<{ $delay: number }>`
-  fill: rgba(99,102,241,0.4);
-  animation: ${neuralPulse} 4s ease-in-out infinite, ${nodeGlow} 4s ease-in-out infinite;
+  fill: rgba(99,102,241,0.3);
+  animation: ${neuralPulse} 4s ease-in-out infinite;
   animation-delay: ${({$delay}) => $delay}s;
+  will-change: opacity;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
-    opacity: 0.3;
+    opacity: 0.2;
   }
 `;
 
@@ -584,32 +508,29 @@ const NeuralConnection = styled.line<{ $delay: number }>`
 const Card = styled.div`
   width: 100%; max-width: 420px; padding: 40px 44px 40px;
   background: rgba(4,4,12,.92);
-  backdrop-filter: blur(80px) saturate(240%);
-  -webkit-backdrop-filter: blur(80px) saturate(240%);
+  backdrop-filter: blur(60px) saturate(200%);
+  -webkit-backdrop-filter: blur(60px) saturate(200%);
   border-radius: 32px;
   position: relative; z-index: 10; text-align: center;
   animation: ${cardEnter} 0.9s cubic-bezier(0.16, 1, 0.3, 1), ${float} 6s ease-in-out infinite;
   animation-delay: 0s, 1s;
   box-shadow:
-    0 0 0 1px rgba(255,255,255,.15),
-    0 40px 100px rgba(0,0,0,.7),
-    0 0 180px rgba(99,102,241,.3),
-    inset 0 2px 0 rgba(255,255,255,.1),
-    inset 0 -1px 0 rgba(0,0,0,.3);
-  transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
-  transform-style: preserve-3d;
-  perspective: 1000px;
+    0 0 0 1px rgba(255,255,255,.12),
+    0 20px 60px rgba(0,0,0,.6),
+    0 0 120px rgba(99,102,241,.2),
+    inset 0 1px 0 rgba(255,255,255,.08);
+  transition: transform 0.3s ease-out;
   will-change: transform;
 
-  /* Animated gradient border - more vibrant and refined */
+  /* Optimized animated gradient border */
   &::before{
     content:''; position:absolute; inset:-2px; border-radius:34px; padding:2px;
     background: linear-gradient(
       135deg,
-      rgba(99,102,241,.9),
-      rgba(168,85,247,.8),
-      rgba(14,165,233,.8),
-      rgba(99,102,241,.9)
+      rgba(99,102,241,.7),
+      rgba(168,85,247,.6),
+      rgba(14,165,233,.6),
+      rgba(99,102,241,.7)
     );
     background-size: 300% 300%;
     animation: ${gradientShift} 8s ease infinite;
@@ -619,15 +540,13 @@ const Card = styled.div`
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events:none;
-    opacity:1;
+    opacity:0.8;
   }
 
-  /* Inner glow effect - enhanced with holographic feel */
+  /* Simplified inner glow */
   &::after{
     content:''; position:absolute; inset:0; border-radius:32px;
-    box-shadow:
-      inset 0 3px 0 rgba(255,255,255,.18),
-      inset 0 -2px 0 rgba(0,0,0,.6);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
     pointer-events:none;
   }
 
@@ -659,9 +578,9 @@ const AILogo = styled.div`
   align-items: center;
   justify-content: center;
   animation: ${breathe} 4s ease-in-out infinite;
-  will-change: transform;
+  will-change: opacity;
 
-  /* Outer glow ring - enhanced with multiple layers and more vibrant */
+  /* Optimized outer glow ring */
   &::before {
     content: '';
     position: absolute;
@@ -669,18 +588,16 @@ const AILogo = styled.div`
     border-radius: 50%;
     background: radial-gradient(
       circle,
-      rgba(99,102,241,.6) 0%,
-      rgba(168,85,247,.5) 25%,
-      rgba(14,165,233,.4) 50%,
-      rgba(99,102,241,.2) 75%,
-      transparent 100%
+      rgba(99,102,241,.4) 0%,
+      rgba(168,85,247,.3) 30%,
+      transparent 70%
     );
     animation: ${glowPulse} 3s ease-in-out infinite;
-    filter: blur(8px);
-    will-change: opacity, transform;
+    filter: blur(12px);
+    will-change: opacity;
   }
 
-  /* Core orb - larger and more vibrant with holographic effect */
+  /* Optimized core orb */
   &::after {
     content: '';
     position: absolute;
@@ -691,11 +608,9 @@ const AILogo = styled.div`
     background-size: 300% 300%;
     animation: ${gradientShift} 6s ease infinite;
     box-shadow:
-      0 0 60px rgba(99,102,241,.9),
-      0 0 120px rgba(168,85,247,.7),
-      0 0 180px rgba(14,165,233,.5),
-      inset 0 4px 12px rgba(255,255,255,.6),
-      inset 0 -4px 12px rgba(0,0,0,.4);
+      0 0 40px rgba(99,102,241,.7),
+      0 0 80px rgba(168,85,247,.4),
+      inset 0 2px 8px rgba(255,255,255,.4);
     will-change: background-position;
   }
 
@@ -898,7 +813,7 @@ const GuestButton = styled.button`
   font-size: 0.95rem;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all .4s cubic-bezier(0.16, 1, 0.3, 1), letter-spacing .3s ease;
+  transition: transform .3s ease-out, box-shadow .3s ease-out;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -907,14 +822,13 @@ const GuestButton = styled.button`
   opacity: 0;
   animation: ${fadeInUp} 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.8s forwards;
   box-shadow:
-    0 0 0 1px rgba(255,255,255,.2),
-    0 16px 40px rgba(99,102,241,.5),
-    0 0 80px rgba(99,102,241,.4),
-    inset 0 2px 0 rgba(255,255,255,.3),
-    inset 0 -1px 0 rgba(0,0,0,.2);
-  will-change: transform, box-shadow;
+    0 0 0 1px rgba(255,255,255,.15),
+    0 12px 32px rgba(99,102,241,.4),
+    0 0 60px rgba(99,102,241,.25),
+    inset 0 1px 0 rgba(255,255,255,.2);
+  will-change: transform;
 
-  /* Shimmer effect overlay - always visible */
+  /* Optimized shimmer effect */
   &::before {
     content: '';
     position: absolute;
@@ -922,59 +836,54 @@ const GuestButton = styled.button`
     background: linear-gradient(
       120deg,
       transparent 0%,
-      rgba(255,255,255,.35) 50%,
+      rgba(255,255,255,.25) 50%,
       transparent 100%
     );
     background-size: 200% 100%;
     animation: ${shimmer} 3.5s linear infinite;
-    opacity: 0.75;
-    transition: opacity .4s ease;
+    opacity: 0.6;
     pointer-events: none;
   }
 
-  /* Glow effect on hover */
+  /* Simplified glow effect */
   &::after {
     content: '';
     position: absolute;
-    inset: -6px;
-    border-radius: 22px;
+    inset: -4px;
+    border-radius: 20px;
     background: linear-gradient(135deg, #6366f1, #8b5cf6, #0ea5e9, #6366f1);
     background-size: 300% 300%;
     z-index: -1;
     opacity: 0;
-    filter: blur(24px);
-    transition: opacity .4s ease;
-    animation: ${gradientShift} 6s ease infinite;
+    filter: blur(16px);
+    transition: opacity .3s ease;
   }
 
   &:hover:not(:disabled) {
-    transform: translateY(-4px) scale(1.02);
+    transform: translateY(-3px);
     background-position: 100% 50%;
-    letter-spacing: 0.12em;
     box-shadow:
-      0 0 0 1px rgba(255,255,255,.35),
-      0 20px 50px rgba(99,102,241,.6),
-      0 0 100px rgba(99,102,241,.5),
-      inset 0 2px 0 rgba(255,255,255,.4),
-      inset 0 -1px 0 rgba(0,0,0,.3);
+      0 0 0 1px rgba(255,255,255,.25),
+      0 16px 40px rgba(99,102,241,.5),
+      0 0 80px rgba(99,102,241,.35),
+      inset 0 1px 0 rgba(255,255,255,.3);
 
-    &::before { opacity: 1; }
-    &::after { opacity: 1; }
+    &::after { opacity: 0.8; }
   }
 
   &:active:not(:disabled) {
-    transform: translateY(-2px) scale(1.01);
+    transform: translateY(-1px);
   }
 
   &:focus-visible {
     outline: none;
     box-shadow:
-      0 0 0 4px rgba(99,102,241,.7),
-      0 16px 40px rgba(99,102,241,.55);
+      0 0 0 3px rgba(99,102,241,.6),
+      0 12px 32px rgba(99,102,241,.4);
   }
 
   &:disabled {
-    opacity: .7;
+    opacity: .6;
     cursor: not-allowed;
     transform: none;
   }
@@ -1139,11 +1048,10 @@ const Login: React.FC = () => {
   const [ripples, setRipples] = useState<Array<{ id: number; x: number; y: number }>>([]);
   const [showParticles, setShowParticles] = useState(false);
 
-  // Pointer-parallax (cheap, throttled via rAF, disabled for reduced-motion)
+  // Refs for DOM elements and motion preferences
   const pageRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const rafRef = useRef<number | null>(null);
   const prefersReduced = useRef<boolean>(false);
 
   useEffect(() => {
@@ -1236,19 +1144,17 @@ const Login: React.FC = () => {
         <MeshLayer $variant={2} />
       </GradientMesh>
 
-      {/* Floating orb particles */}
+      {/* Optimized floating orb particles */}
       <FloatingOrbs aria-hidden="true">
-        <Orb $x={15} $y={20} $size={8} $delay={0} $duration={12} />
+        <Orb $x={15} $y={20} $size={7} $delay={0} $duration={12} />
         <Orb $x={85} $y={30} $size={6} $delay={1} $duration={15} />
-        <Orb $x={25} $y={70} $size={10} $delay={2} $duration={13} />
-        <Orb $x={75} $y={75} $size={7} $delay={3} $duration={14} />
-        <Orb $x={40} $y={15} $size={6} $delay={0.5} $duration={17} />
-        <Orb $x={60} $y={85} $size={9} $delay={2.8} $duration={15} />
+        <Orb $x={25} $y={70} $size={8} $delay={2} $duration={13} />
+        <Orb $x={75} $y={75} $size={6} $delay={3} $duration={14} />
       </FloatingOrbs>
 
-      {/* AI-inspired particle field - innovative background animation */}
+      {/* Optimized AI-inspired particle field */}
       <AIParticleField aria-hidden="true">
-        {[...Array(12)].map((_, i) => (
+        {[...Array(8)].map((_, i) => (
           <AIParticle
             key={`particle-${i}`}
             $duration={8 + Math.random() * 6}
@@ -1261,39 +1167,28 @@ const Login: React.FC = () => {
           />
         ))}
         {/* Orbital nodes for intelligent feel */}
-        <AIOrbitalNode style={{ left: '20%', top: '30%' }} />
-        <AIOrbitalNode style={{ left: '80%', top: '40%' }} />
-        <AIOrbitalNode style={{ left: '50%', top: '60%' }} />
+        <AIOrbitalNode style={{ left: '25%', top: '35%' }} />
+        <AIOrbitalNode style={{ left: '75%', top: '45%' }} />
       </AIParticleField>
 
-      {/* Neural Network Layer - Subtle animated network in background */}
+      {/* Optimized Neural Network Layer */}
       <NeuralNetworkLayer aria-hidden="true">
         <NeuralSVG viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
-          {/* Neural connections - lines between nodes */}
+          {/* Neural connections - reduced for performance */}
           <NeuralConnection x1="200" y1="150" x2="600" y2="200" $delay={0} />
           <NeuralConnection x1="600" y1="200" x2="1000" y2="250" $delay={0.5} />
           <NeuralConnection x1="1000" y1="250" x2="1400" y2="300" $delay={1} />
-          <NeuralConnection x1="1400" y1="300" x2="1720" y2="350" $delay={1.5} />
-
           <NeuralConnection x1="300" y1="600" x2="700" y2="650" $delay={0.3} />
           <NeuralConnection x1="700" y1="650" x2="1100" y2="700" $delay={0.8} />
-          <NeuralConnection x1="1100" y1="700" x2="1500" y2="750" $delay={1.3} />
 
-          {/* Cross connections for network effect */}
-          <NeuralConnection x1="200" y1="150" x2="300" y2="600" $delay={0.2} />
-          <NeuralConnection x1="1000" y1="250" x2="1100" y2="700" $delay={1.2} />
-
-          {/* Neural nodes - glowing circles at connection points */}
-          <NeuralNode cx="200" cy="150" r="4" $delay={0} />
-          <NeuralNode cx="600" cy="200" r="5" $delay={0.4} />
-          <NeuralNode cx="1000" cy="250" r="5" $delay={0.8} />
-          <NeuralNode cx="1400" cy="300" r="5" $delay={1.2} />
-          <NeuralNode cx="1720" cy="350" r="4" $delay={1.6} />
-
-          <NeuralNode cx="300" cy="600" r="5" $delay={0.3} />
-          <NeuralNode cx="700" cy="650" r="5" $delay={0.7} />
-          <NeuralNode cx="1100" cy="700" r="4" $delay={1.1} />
-          <NeuralNode cx="1500" cy="750" r="5" $delay={1.5} />
+          {/* Neural nodes - reduced count */}
+          <NeuralNode cx="200" cy="150" r="3" $delay={0} />
+          <NeuralNode cx="600" cy="200" r="4" $delay={0.4} />
+          <NeuralNode cx="1000" cy="250" r="4" $delay={0.8} />
+          <NeuralNode cx="1400" cy="300" r="4" $delay={1.2} />
+          <NeuralNode cx="300" cy="600" r="4" $delay={0.3} />
+          <NeuralNode cx="700" cy="650" r="4" $delay={0.7} />
+          <NeuralNode cx="1100" cy="700" r="3" $delay={1.1} />
         </NeuralSVG>
       </NeuralNetworkLayer>
 
