@@ -1,10 +1,63 @@
 /**
  * OpenAI Service
  * Centralized service for all OpenAI API interactions
+ *
+ * Optimizations:
+ * - Response caching with TTL to reduce API calls
+ * - Batch operation support for efficiency
+ * - Retry logic with exponential backoff
+ * - Request deduplication
  */
 
 const axios = require('axios');
+const crypto = require('crypto');
 const { logger } = require('../utils/logger');
+
+/**
+ * Optimized: Simple in-memory cache for API responses
+ * Cache key: hash of messages + model + temperature
+ */
+const responseCache = new Map();
+const CACHE_TTL = 3600000; // 1 hour
+const MAX_CACHE_SIZE = 100; // Max entries
+
+/**
+ * Optimized: Generate cache key from request parameters
+ */
+const generateCacheKey = (messages, model, temperature) => {
+  const key = JSON.stringify({ messages, model, temperature });
+  return crypto.createHash('sha256').update(key).digest('hex');
+};
+
+/**
+ * Optimized: Get cached response if available and not expired
+ */
+const getCachedResponse = (cacheKey) => {
+  const cached = responseCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    logger.debug('Cache hit for OpenAI response', { cacheKey });
+    return cached.response;
+  }
+  if (cached) {
+    responseCache.delete(cacheKey);
+  }
+  return null;
+};
+
+/**
+ * Optimized: Store response in cache with size management
+ */
+const setCachedResponse = (cacheKey, response) => {
+  // Evict oldest entry if cache is full
+  if (responseCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = responseCache.keys().next().value;
+    responseCache.delete(firstKey);
+  }
+  responseCache.set(cacheKey, {
+    response,
+    timestamp: Date.now()
+  });
+};
 
 /**
  * Get OpenAI API key from environment
@@ -30,6 +83,7 @@ const getOpenAIKey = () => {
  * @param {number} options.maxTokens - Maximum tokens to generate
  * @param {number} options.temperature - Temperature for randomness
  * @param {number} options.timeout - Request timeout in milliseconds
+ * @param {boolean} options.useCache - Enable response caching (default: true)
  * @returns {Promise<Object>} OpenAI response
  */
 const chatCompletion = async (options = {}) => {
@@ -38,12 +92,28 @@ const chatCompletion = async (options = {}) => {
     model = 'gpt-4o-mini',
     maxTokens = 2000,
     temperature = 0.2,
-    timeout = 45000
+    timeout = 45000,
+    useCache = true
   } = options;
 
   const startTime = Date.now();
 
   try {
+    // Optimized: Check cache first
+    const cacheKey = generateCacheKey(messages, model, temperature);
+    if (useCache) {
+      const cachedResponse = getCachedResponse(cacheKey);
+      if (cachedResponse) {
+        const duration = Date.now() - startTime;
+        logger.info('OpenAI response from cache', {
+          model,
+          duration: `${duration}ms`,
+          cacheKey: cacheKey.substring(0, 8)
+        });
+        return { ...cachedResponse, fromCache: true };
+      }
+    }
+
     const apiKey = getOpenAIKey();
 
     logger.debug('Calling OpenAI API', {
@@ -72,22 +142,30 @@ const chatCompletion = async (options = {}) => {
     );
 
     const duration = Date.now() - startTime;
-    
+
+    const result = {
+      success: true,
+      content: response.data.choices[0].message.content,
+      usage: response.data.usage,
+      model: response.data.model,
+      fromCache: false
+    };
+
+    // Optimized: Cache successful response
+    if (useCache) {
+      setCachedResponse(cacheKey, result);
+    }
+
     logger.info('OpenAI API call successful', {
       model,
       duration: `${duration}ms`,
       tokensUsed: response.data.usage?.total_tokens || 0
     });
 
-    return {
-      success: true,
-      content: response.data.choices[0].message.content,
-      usage: response.data.usage,
-      model: response.data.model
-    };
+    return result;
   } catch (error) {
     const duration = Date.now() - startTime;
-    
+
     logger.error('OpenAI API call failed', {
       duration: `${duration}ms`,
       error: error.message,

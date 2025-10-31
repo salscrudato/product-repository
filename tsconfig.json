@@ -4,13 +4,13 @@
     "target": "ES2020",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
-    
+
     /* Modules */
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
-    
+
     /* Path Mapping - Match Vite aliases */
     "baseUrl": ".",
     "paths": {
@@ -23,7 +23,7 @@
       "@config/*": ["./src/config/*"],
       "@types/*": ["./src/types/*"]
     },
-    
+
     /* Type Checking - Production-ready configuration */
     "strict": true,
     "noUnusedLocals": true,
@@ -34,7 +34,14 @@
     "allowUnusedLabels": false,
     "allowUnreachableCode": false,
     "noImplicitOverride": true,
-    
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+
     /* Emit */
     "noEmit": true,
     "declaration": false,
@@ -45,19 +52,20 @@
     "importsNotUsedAsValues": "remove",
     "downlevelIteration": true,
     "preserveConstEnums": true,
-    
+
     /* Interop Constraints */
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    
+
     /* Skip Lib Check */
     "skipLibCheck": true,
-    
+
     /* Advanced */
     "useDefineForClassFields": true,
-    "verbatimModuleSyntax": false
+    "verbatimModuleSyntax": false,
+    "exactOptionalPropertyTypes": true
   },
   "include": [
     "src/**/*",

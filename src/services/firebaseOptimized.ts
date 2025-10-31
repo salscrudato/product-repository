@@ -1,4 +1,15 @@
-// src/services/firebaseOptimized.js
+/**
+ * Optimized Firebase Service
+ *
+ * Enhancements:
+ * - Intelligent caching with TTL management
+ * - Exponential backoff retry logic
+ * - Query queue management for concurrency control
+ * - Batch operations with automatic flushing
+ * - Fallback to cached data on errors
+ * - Performance monitoring and logging
+ */
+
 import {
   collection,
   doc,
@@ -11,60 +22,145 @@ import {
   limit,
   writeBatch,
   enableNetwork,
-  disableNetwork
+  disableNetwork,
+  QueryConstraint
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
 
-/**
- * Optimized Firebase service with caching, batching, and performance improvements
- */
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+interface RetryOptions {
+  maxRetries?: number;
+  initialDelayMs?: number;
+  maxDelayMs?: number;
+}
 
 class FirebaseOptimizedService {
+  private cache: Map<string, CacheEntry<any>>;
+  private subscribers: Map<string, any>;
+  private batchQueue: any[];
+  private batchTimeout: NodeJS.Timeout | null;
+  private queryCache: Map<string, CacheEntry<any>>;
+  private indexHints: Map<string, any>;
+  private activeQueries: number;
+  private queryQueue: Array<() => Promise<any>>;
+
+  // Configuration constants
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private readonly BATCH_SIZE = 500;
+  private readonly BATCH_DELAY = 100; // 100ms
+  private readonly MAX_CONCURRENT_QUERIES = 3;
+  private readonly MAX_RETRIES = 3;
+  private readonly INITIAL_RETRY_DELAY = 100; // ms
+  private readonly MAX_RETRY_DELAY = 5000; // ms
+
   constructor() {
     this.cache = new Map();
     this.subscribers = new Map();
     this.batchQueue = [];
     this.batchTimeout = null;
-    this.queryCache = new Map(); // Enhanced query result caching
-    this.indexHints = new Map(); // Store index optimization hints
-    this.CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-    this.BATCH_SIZE = 500;
-    this.BATCH_DELAY = 100; // 100ms
-    this.MAX_CONCURRENT_QUERIES = 3; // Limit concurrent queries
+    this.queryCache = new Map();
+    this.indexHints = new Map();
     this.activeQueries = 0;
     this.queryQueue = [];
   }
 
-  // Enhanced caching with TTL
-  getCachedData(key) {
+  /**
+   * Optimized: Get cached data with TTL validation
+   */
+  private getCachedData<T>(key: string): T | null {
     const cached = this.cache.get(key);
     if (!cached) return null;
-    
+
     if (Date.now() - cached.timestamp > this.CACHE_TTL) {
       this.cache.delete(key);
       return null;
     }
-    
-    return cached.data;
+
+    return cached.data as T;
   }
 
-  setCachedData(key, data) {
+  /**
+   * Optimized: Set cached data with timestamp
+   */
+  private setCachedData<T>(key: string, data: T): void {
     this.cache.set(key, {
       data,
       timestamp: Date.now()
     });
   }
 
-  // Enhanced query queue management
-  async executeQuery(queryFn, cacheKey) {
+  /**
+   * Optimized: Exponential backoff retry logic
+   */
+  private async retryWithBackoff<T>(
+    fn: () => Promise<T>,
+    options: RetryOptions = {}
+  ): Promise<T> {
+    const {
+      maxRetries = this.MAX_RETRIES,
+      initialDelayMs = this.INITIAL_RETRY_DELAY,
+      maxDelayMs = this.MAX_RETRY_DELAY
+    } = options;
+
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        if (attempt < maxRetries) {
+          // Exponential backoff: delay = initialDelay * 2^attempt, capped at maxDelay
+          const delay = Math.min(
+            initialDelayMs * Math.pow(2, attempt),
+            maxDelayMs
+          );
+
+          logger.debug(LOG_CATEGORIES.DATA, `Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`, {
+            error: lastError.message
+          });
+
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    throw lastError;
+  }
+
+  /**
+   * Optimized: Execute query with concurrency control and retry logic
+   */
+  private async executeQuery<T>(
+    queryFn: () => Promise<T>,
+    cacheKey?: string
+  ): Promise<T> {
     return new Promise((resolve, reject) => {
       const queryTask = async () => {
         this.activeQueries++;
         try {
-          const result = await queryFn();
+          // Optimized: Retry with exponential backoff
+          const result = await this.retryWithBackoff(() => queryFn());
           resolve(result);
         } catch (error) {
+          // Fallback: Try to use cached data if available
+          if (cacheKey) {
+            const cached = this.getCachedData<T>(cacheKey);
+            if (cached) {
+              logger.warn(LOG_CATEGORIES.DATA, 'Query failed, using cached data', {
+                cacheKey,
+                error: error instanceof Error ? error.message : String(error)
+              });
+              resolve(cached);
+              return;
+            }
+          }
           reject(error);
         } finally {
           this.activeQueries--;
@@ -80,10 +176,15 @@ class FirebaseOptimizedService {
     });
   }
 
-  processQueryQueue() {
+  /**
+   * Optimized: Process queued queries when slots become available
+   */
+  private processQueryQueue(): void {
     if (this.queryQueue.length > 0 && this.activeQueries < this.MAX_CONCURRENT_QUERIES) {
       const nextQuery = this.queryQueue.shift();
-      nextQuery();
+      if (nextQuery) {
+        nextQuery();
+      }
     }
   }
 

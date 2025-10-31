@@ -1,6 +1,17 @@
+/**
+ * ErrorBoundary Component
+ *
+ * Enhancements:
+ * - Comprehensive error logging with context
+ * - Accessibility features (ARIA labels, keyboard navigation)
+ * - Development vs production error display
+ * - Error recovery with retry mechanism
+ */
+
 import React from 'react';
 import styled from 'styled-components';
 import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import logger, { LOG_CATEGORIES } from '@utils/logger';
 
 const ErrorContainer = styled.div`
   display: flex;
@@ -114,19 +125,28 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({ error, errorInfo, resetEr
   const isDevelopment = process.env.NODE_ENV === 'development';
 
   return (
-    <ErrorContainer>
-      <ErrorIcon>
+    <ErrorContainer role="alert" aria-live="assertive">
+      <ErrorIcon aria-hidden="true">
         <ExclamationTriangleIcon />
       </ErrorIcon>
 
-      <ErrorTitle>Something went wrong</ErrorTitle>
+      <ErrorTitle id="error-title">Something went wrong</ErrorTitle>
 
-      <ErrorMessage>
+      <ErrorMessage aria-describedby="error-title">
         We encountered an unexpected error. This has been logged and our team will investigate.
         Please try refreshing the page or contact support if the problem persists.
       </ErrorMessage>
 
-      <RetryButton onClick={resetError}>
+      {/* Optimized: Accessible retry button with keyboard support */}
+      <RetryButton
+        onClick={resetError}
+        aria-label="Retry the operation"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            resetError();
+          }
+        }}
+      >
         <ArrowPathIcon />
         Try Again
       </RetryButton>
@@ -177,17 +197,24 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    // Log error details
-    console.error('Error caught by ErrorBoundary:', error, errorInfo);
+    // Optimized: Comprehensive error logging with context
+    logger.error(LOG_CATEGORIES.ERROR, 'Error caught by ErrorBoundary', {
+      errorMessage: error.message,
+      errorStack: error.stack,
+      componentStack: errorInfo.componentStack,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent
+    }, error);
 
     this.setState({
       error,
       errorInfo
     });
 
-    // In production, you might want to send this to an error reporting service
+    // In production, send to error reporting service
     if (process.env.NODE_ENV === 'production') {
       // Example: Sentry.captureException(error, { contexts: { react: errorInfo } });
+      logger.warn(LOG_CATEGORIES.ERROR, 'Error in production - consider integrating error reporting service');
     }
   }
 

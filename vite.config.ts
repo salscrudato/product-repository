@@ -77,38 +77,6 @@ export default defineConfig({
   build: {
     outDir: 'build',
     sourcemap: 'hidden', // Generate source maps but don't reference them in production bundles
-    // Optimize chunk splitting
-    rollupOptions: {
-      output: {
-        manualChunks: (id: string) => {
-          // Vendor chunks
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-              return 'react-vendor';
-            }
-            if (id.includes('styled-components')) {
-              return 'ui-vendor';
-            }
-            if (id.includes('@heroicons') || id.includes('react-icons')) {
-              return 'icons-vendor';
-            }
-            if (id.includes('pdfjs-dist')) {
-              return 'pdfjs';
-            }
-            if (id.includes('axios') || id.includes('uuid') || id.includes('file-saver')) {
-              return 'data-vendor';
-            }
-            if (id.includes('xlsx') || id.includes('react-markdown') || id.includes('remark-gfm')) {
-              return 'data-vendor';
-            }
-            // Firebase gets its own chunk but let Vite handle it automatically
-            if (id.includes('firebase')) {
-              return 'firebase-vendor';
-            }
-          }
-        },
-      },
-    },
     // Increase chunk size warning limit (we have large dependencies)
     chunkSizeWarningLimit: 1000,
     // Minification
@@ -117,6 +85,57 @@ export default defineConfig({
       compress: {
         drop_console: true,
         drop_debugger: true,
+        passes: 2,
+      },
+      mangle: true,
+      format: {
+        comments: false,
+      },
+    },
+    // CSS code splitting
+    cssCodeSplit: true,
+    // Report compressed size
+    reportCompressedSize: true,
+    // Optimized: Enhanced chunk splitting for better caching and performance
+    rollupOptions: {
+      output: {
+        manualChunks: (id: string) => {
+          // Vendor chunks - organized by dependency type
+          if (id.includes('node_modules')) {
+            // Core React ecosystem
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+              return 'react-vendor';
+            }
+            // UI libraries
+            if (id.includes('styled-components')) {
+              return 'ui-vendor';
+            }
+            // Icons
+            if (id.includes('@heroicons') || id.includes('react-icons')) {
+              return 'icons-vendor';
+            }
+            // PDF processing (heavy, lazy-loaded)
+            if (id.includes('pdfjs-dist')) {
+              return 'pdfjs';
+            }
+            // Firebase (critical, separate chunk)
+            if (id.includes('firebase')) {
+              return 'firebase-vendor';
+            }
+            // Data utilities
+            if (id.includes('axios') || id.includes('uuid') || id.includes('file-saver')) {
+              return 'data-vendor';
+            }
+            // Document processing
+            if (id.includes('xlsx') || id.includes('react-markdown') || id.includes('remark-gfm')) {
+              return 'document-vendor';
+            }
+            // D3 and visualization (lazy-loaded)
+            if (id.includes('d3-') || id.includes('react-simple-maps')) {
+              return 'viz-vendor';
+            }
+          }
+        },
       },
     },
   },

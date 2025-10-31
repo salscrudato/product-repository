@@ -79,7 +79,7 @@ const VirtualizedGrid = memo(({
         overscanRowCount={overscanRowCount}
         overscanColumnCount={1}
       >
-        {Cell}
+        {(props) => <Cell {...props} />}
       </Grid>
     </GridContainer>
   );

@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { ProductProvider } from './context/ProductContext';
 import env from './config/env';
 
 // Register service worker for caching and offline support
@@ -17,7 +18,6 @@ if ('serviceWorker' in navigator && env.PROD) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 console.log('🔄 New content available, please refresh');
-                // Could show a notification to user here
               }
             });
           }
@@ -29,7 +29,7 @@ if ('serviceWorker' in navigator && env.PROD) {
   });
 }
 
-// make sure you have <div id="root"></div> in your public/index.html
+// Ensure root element exists
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error('Root element not found');
@@ -38,7 +38,10 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    {/* Optimized: ProductProvider eliminates prop drilling */}
+    <ProductProvider>
+      <App />
+    </ProductProvider>
   </React.StrictMode>
 );
 

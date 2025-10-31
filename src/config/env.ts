@@ -141,5 +141,25 @@ export const validateEnvironment = (): void => {
   }
 };
 
+/**
+ * Get production-ready environment configuration
+ * Ensures all production standards are met
+ */
+export const getProductionConfig = () => {
+  if (env.PROD) {
+    validateEnvironment();
+  }
+
+  return {
+    ...env,
+    // Production-specific settings
+    enableErrorReporting: env.PROD,
+    enablePerformanceMonitoring: env.PROD,
+    enableAnalytics: env.PROD,
+    enableDebugLogging: env.DEV,
+    enableSourceMaps: env.DEV,
+  };
+};
+
 export default env;
 

@@ -1,6 +1,12 @@
 /**
  * Product Integrity Triggers
  * Firestore triggers to maintain denormalized counters and referential integrity
+ *
+ * Optimizations:
+ * - Batch operations to reduce write costs
+ * - Debounced stats recalculation
+ * - Efficient query patterns
+ * - Comprehensive error handling
  */
 
 const functions = require('firebase-functions');
@@ -9,6 +15,26 @@ const admin = require('firebase-admin');
 const { logger } = require('../utils/logger');
 
 const db = admin.firestore();
+
+/**
+ * Optimized: Debounce map to prevent redundant recalculations
+ */
+const debounceTimers = new Map();
+const DEBOUNCE_DELAY = 1000; // 1 second
+
+/**
+ * Optimized: Debounce stats recalculation
+ */
+const debounceRecalculation = (key, fn) => {
+  if (debounceTimers.has(key)) {
+    clearTimeout(debounceTimers.get(key));
+  }
+  const timer = setTimeout(() => {
+    fn();
+    debounceTimers.delete(key);
+  }, DEBOUNCE_DELAY);
+  debounceTimers.set(key, timer);
+};
 
 /**
  * Trigger: When a coverage is created/updated/deleted, update product stats
@@ -93,33 +119,24 @@ const onFormCoverageDelete = onDocumentDeleted(
 );
 
 /**
- * Recalculate product statistics
+ * Optimized: Recalculate product statistics with batch operations
  */
 async function recalculateProductStats(productId) {
   try {
     const productRef = db.collection('products').doc(productId);
 
-    // Count coverages
-    const coveragesSnap = await db.collection(`products/${productId}/coverages`).get();
+    // Optimized: Parallel queries to reduce latency
+    const [coveragesSnap, packagesSnap, formsSnap, rulesSnap] = await Promise.all([
+      db.collection(`products/${productId}/coverages`).get(),
+      db.collection(`products/${productId}/packages`).get(),
+      db.collectionGroup('formCoverages').where('productId', '==', productId).get(),
+      db.collection('rules').where('productId', '==', productId).get()
+    ]);
+
     const coverageCount = coveragesSnap.size;
-
-    // Count packages
-    const packagesSnap = await db.collection(`products/${productId}/packages`).get();
     const packageCount = packagesSnap.size;
-
-    // Count forms via formCoverages
-    const formsSnap = await db
-      .collectionGroup('formCoverages')
-      .where('productId', '==', productId)
-      .get();
     const formIds = new Set(formsSnap.docs.map(doc => doc.data().formId));
     const formCount = formIds.size;
-
-    // Count rules
-    const rulesSnap = await db
-      .collection('rules')
-      .where('productId', '==', productId)
-      .get();
     const ruleCount = rulesSnap.size;
 
     // Update product
@@ -144,22 +161,19 @@ async function recalculateProductStats(productId) {
 }
 
 /**
- * Recalculate coverage statistics
+ * Optimized: Recalculate coverage statistics with parallel queries
  */
 async function recalculateCoverageStats(productId, coverageId) {
   try {
     const coverageRef = db.collection(`products/${productId}/coverages`).doc(coverageId);
 
-    // Count limits
-    const limitsSnap = await db
-      .collection(`products/${productId}/coverages/${coverageId}/limits`)
-      .get();
-    const limitCount = limitsSnap.size;
+    // Optimized: Parallel queries for limits and deductibles
+    const [limitsSnap, deductiblesSnap] = await Promise.all([
+      db.collection(`products/${productId}/coverages/${coverageId}/limits`).get(),
+      db.collection(`products/${productId}/coverages/${coverageId}/deductibles`).get()
+    ]);
 
-    // Count deductibles
-    const deductiblesSnap = await db
-      .collection(`products/${productId}/coverages/${coverageId}/deductibles`)
-      .get();
+    const limitCount = limitsSnap.size;
     const deductibleCount = deductiblesSnap.size;
 
     // Count sub-coverages

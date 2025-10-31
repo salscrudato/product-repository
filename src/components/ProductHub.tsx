@@ -1285,7 +1285,7 @@ Persona: You are an expert in P&C insurance products. Your task is to analyze th
 
 // Memoized ProductHub component for better performance
 const ProductHub = memo(() => {
-  const { products, loading, error } = useProducts({ enableCache: true, maxResults: 500 });
+  const { data: products, loading, error } = useProducts({ enableCache: true, maxResults: 500 });
   const [searchTerm, setSearchTerm] = useState('');
   const [rawSearch, setRawSearch] = useState('');
 

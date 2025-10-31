@@ -365,16 +365,27 @@ const HistoryWrapper: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  // Initialize bundle optimizations and performance monitoring
+  // Optimized: Initialize bundle optimizations and performance monitoring
   useEffect(() => {
-    logger.info(LOG_CATEGORIES.DATA, 'App initialization started');
+    logger.info(LOG_CATEGORIES.DATA, 'App initialization started', {
+      environment: env.NODE_ENV,
+      timestamp: new Date().toISOString()
+    });
 
     try {
+      // Initialize bundle optimizations for code splitting
       initBundleOptimizations();
       logger.info(LOG_CATEGORIES.DATA, 'Bundle optimizations initialized');
 
       // Performance monitor is automatically initialized on import
       logger.info(LOG_CATEGORIES.PERFORMANCE, 'Performance monitoring active');
+
+      // Log app version and environment
+      logger.debug(LOG_CATEGORIES.DATA, 'App environment', {
+        isDevelopment: env.DEV,
+        isProduction: env.PROD,
+        apiUrl: env.VITE_API_URL
+      });
     } catch (error) {
       logger.error(LOG_CATEGORIES.ERROR, 'App initialization failed', {
         environment: env.NODE_ENV

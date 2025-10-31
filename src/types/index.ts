@@ -1,6 +1,11 @@
 /**
  * Core Type Definitions for Insurance Product Hub
  * Centralized type definitions for the entire application
+ *
+ * Enhancements:
+ * - Normalized data structures with relational mappings
+ * - Strong typing with required fields and generics
+ * - Comprehensive audit trails and versioning
  */
 
 import { Timestamp } from 'firebase/firestore';
@@ -38,6 +43,12 @@ export interface Product {
   ruleCount?: number;
   /** Count of packages for this product */
   packageCount?: number;
+
+  // Relational mappings (normalized for scalability)
+  coverageIds?: string[];           // Array of coverage IDs linked to this product
+  formIds?: string[];               // Array of form IDs linked to this product
+  ruleIds?: string[];               // Array of rule IDs linked to this product
+  packageIds?: string[];            // Array of package IDs linked to this product
 
   // Audit Trail
   createdAt?: Timestamp | Date;
@@ -299,17 +310,20 @@ export interface Coverage {
   lineOfBusiness?: string;          // e.g., "Commercial Auto", "Homeowners"
   dependsOnCoverageId?: string[];   // Coverage IDs this depends on
 
-  // ========== Relationships & Counts ==========
-  formIds?: string[];  // Linked form IDs (denormalized for quick access)
-  ruleCount?: number;  // Cached count of rules for this coverage (computed)
-  /** Count of limits in this coverage (computed) */
-  limitCount?: number;
-  /** Count of deductibles in this coverage (computed) */
-  deductibleCount?: number;
-  /** Count of sub-coverages under this coverage (computed) */
-  subCoverageCount?: number;
-  /** Count of form mappings for this coverage (computed) */
-  formMappingCount?: number;
+  // ========== Relationships & Counts (Normalized) ==========
+  // Relational mappings for scalability
+  formIds?: string[];               // Linked form IDs (denormalized for quick access)
+  limitIds?: string[];              // Array of limit IDs in this coverage
+  deductibleIds?: string[];         // Array of deductible IDs in this coverage
+  subCoverageIds?: string[];        // Array of sub-coverage IDs under this coverage
+  ruleIds?: string[];               // Array of rule IDs for this coverage
+
+  // Cached counts (computed by Cloud Functions)
+  ruleCount?: number;               // Cached count of rules for this coverage (computed)
+  limitCount?: number;              // Count of limits in this coverage (computed)
+  deductibleCount?: number;         // Count of deductibles in this coverage (computed)
+  subCoverageCount?: number;        // Count of sub-coverages under this coverage (computed)
+  formMappingCount?: number;        // Count of form mappings for this coverage (computed)
 
   // ========== Metadata ==========
   createdAt?: Timestamp | Date;
