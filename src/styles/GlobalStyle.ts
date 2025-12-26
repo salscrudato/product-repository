@@ -283,38 +283,6 @@ export const GlobalStyle = createGlobalStyle`
     }
   }
 
-  /* ---------- Skip Link for Accessibility ---------- */
-  .skip-link {
-    position: absolute;
-    top: -40px;
-    left: 0;
-    background: ${({ theme }) => theme.colours.primary};
-    color: white;
-    padding: 8px 16px;
-    z-index: 10000;
-    text-decoration: none;
-    font-weight: 600;
-    border-radius: 0 0 8px 0;
-    transition: top 0.2s ease;
-  }
-
-  .skip-link:focus {
-    top: 0;
-  }
-
-  /* ---------- Screen Reader Only ---------- */
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-
   /* ---------- Subtle animated radial glow - Refined ---------- */
   body::before {
     content: '';

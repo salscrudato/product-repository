@@ -118,10 +118,8 @@ export const theme = {
     md: '16px',
     lg: '24px',
     xl: '32px',
-    xxl: '48px',
-    xxxl: '64px',
-    '2xl': '48px',
-    '3xl': '64px',
+    xxl: '48px',   // Alias: '2xl'
+    xxxl: '64px',  // Alias: '3xl'
     '4xl': '80px',
   },
 

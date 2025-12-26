@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { CoverageDeductible } from '@types';
-import { useCoverageDeductibles } from '@hooks/useCoverageDeductibles';
+import { useCoverageData } from '@hooks/useCoverageData';
 import { DeductibleTypeSelector } from '../selectors/DeductibleTypeSelector';
 import { validateCoverageDeductible, formatValidationResult } from '@services/validationService';
 
@@ -28,7 +28,7 @@ export const DeductiblesModal: React.FC<DeductiblesModalProps> = ({
   coverageName,
   onSave,
 }) => {
-  const { deductibles, loading, addDeductible, updateDeductible, deleteDeductible, setDefaultDeductible } = useCoverageDeductibles(productId, coverageId);
+  const { deductibles, loading, addDeductible, updateDeductible, deleteDeductible, setDefaultDeductible } = useCoverageData(productId, coverageId);
   const [editingDeductible, setEditingDeductible] = useState<Partial<CoverageDeductible> | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 

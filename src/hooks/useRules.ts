@@ -26,6 +26,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Rule, RuleType, RuleCategory, RuleStatus } from '../types';
+import { CACHE } from '../config/constants';
 
 interface UseRulesOptions {
   productId?: string;
@@ -51,13 +52,13 @@ interface UseRulesReturn {
   getActiveRules: () => Rule[];
 }
 
-// Cache for rules data
+// Cache for rules data (uses centralized CACHE config)
 const rulesCache = new Map<string, {
   data: Rule[];
   timestamp: number;
 }>();
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = CACHE.TTL_RULES;
 
 export function useRules(options: UseRulesOptions = {}): UseRulesReturn {
   const {

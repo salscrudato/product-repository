@@ -339,23 +339,7 @@ export interface Coverage {
   lastAuditLogId?: string;          // Reference to most recent audit log
 }
 
-/**
- * @deprecated SubCoverage is now just a Coverage with parentCoverageId set.
- * Use Coverage interface instead and filter by parentCoverageId.
- * This interface is kept for backward compatibility only.
- */
-export interface SubCoverage {
-  id: string;
-  parentCoverageId: string;  // Renamed from coverageId for clarity
-  productId: string;
-  name: string;
-  description?: string;
-  limits?: string[];
-  deductibles?: string[];
-  premium?: number;
-  createdAt?: Timestamp | Date;
-  updatedAt?: Timestamp | Date;
-}
+
 
 export interface CoverageFormData {
   productId: string;
@@ -495,15 +479,29 @@ export interface PricingStep {
   // Step Identification
   /** Name of the pricing step (e.g., "Base Rate", "Territory Factor", "Protection Class") */
   name: string;
+  /** Alternative name field for backward compatibility */
+  stepName?: string;
   description?: string;
 
-  // Execution
+  // Step Type & Execution
+  /** Type of pricing step: 'factor' applies a multiplier, 'operand' performs an operation */
+  stepType?: 'factor' | 'operand';
   /** Order in which this step executes (0, 1, 2, ...) */
   order: number;
   /** Scope of this step: 'product' applies to all coverages, 'coverage' applies to specific coverage */
   scope: 'product' | 'coverage';
   /** Coverage ID when scope='coverage' */
   targetId?: string;
+
+  // Factor Step Properties
+  /** Coverages this step applies to (for factor steps) */
+  coverages?: string[];
+  /** Numeric value for the step (e.g., factor multiplier) */
+  value?: number;
+
+  // Operand Step Properties
+  /** Mathematical operand for operand steps */
+  operand?: '+' | '-' | '*' | '/' | '=';
 
   // Rules
   /** Ordered list of pricing rule references */
@@ -618,6 +616,9 @@ export interface FormTemplate {
   updatedBy?: string;               // User who last updated this form
   changeReason?: string;            // Reason for last change
 }
+
+/** @deprecated Use FormTemplate instead. Alias for backward compatibility. */
+export type Form = FormTemplate;
 
 /**
  * FormCoverageMapping represents the many-to-many relationship between forms and coverages.
@@ -742,44 +743,7 @@ export interface Rule {
   changeReason?: string;
 }
 
-/**
- * @deprecated BusinessRule is being replaced by the simpler Rule interface.
- * This interface represents a more complex rule structure with conditions/actions arrays.
- * Kept for backward compatibility only.
- */
-export interface BusinessRule {
-  id: string;
-  productId: string;
-  name: string;
-  description?: string;
-  ruleType: 'eligibility' | 'underwriting' | 'validation' | 'calculation';
-  conditions: RuleCondition[];
-  actions: RuleAction[];
-  priority?: number;
-  isActive?: boolean;
-  createdAt?: Timestamp | Date;
-  updatedAt?: Timestamp | Date;
-}
 
-/**
- * @deprecated Part of deprecated BusinessRule interface
- */
-export interface RuleCondition {
-  field: string;
-  operator: 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'contains' | 'in' | 'between';
-  value: unknown;
-  logicalOperator?: 'AND' | 'OR';
-}
-
-/**
- * @deprecated Part of deprecated BusinessRule interface
- */
-export interface RuleAction {
-  type: 'set' | 'calculate' | 'validate' | 'reject' | 'approve';
-  target: string;
-  value?: unknown;
-  message?: string;
-}
 
 /**
  * Rule Template for quick rule creation
@@ -936,40 +900,6 @@ export interface FilterOptions {
 }
 
 // ============================================================================
-// Audit Log Types
-// ============================================================================
-
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'PUBLISH' | 'ARCHIVE' | 'RESTORE';
-
-export interface AuditLogEntry {
-  id: string;
-  entityType: 'Product' | 'Coverage' | 'Form' | 'Rule' | 'PricingStep' | 'StateApplicability';
-  entityId: string;
-  parentId?: string;  // For nested entities (e.g., productId for coverage)
-
-  // Action Details
-  action: AuditAction;
-  userId: string;
-  userEmail?: string;
-  timestamp: Timestamp | Date;
-
-  // Change Details
-  changes?: {
-    field: string;
-    oldValue?: unknown;
-    newValue?: unknown;
-  }[];
-
-  // Context
-  reason?: string;
-  ipAddress?: string;
-  userAgent?: string;
-
-  // Metadata
-  metadata?: Record<string, unknown>;
-}
-
-// ============================================================================
 // Utility Types
 // ============================================================================
 
@@ -987,18 +917,5 @@ export type AsyncResult<T, E = Error> = Promise<{ data: T; error: null } | { dat
 // Re-export Domain-Specific Types
 // ============================================================================
 
-// Rating Engine Types
-export * from './rating';
-
-// Compliance & Regulatory Types
-export * from './compliance';
-
-// Underwriting Types
-export * from './underwriting';
-
-// Analytics & Reporting Types
-export * from './analytics';
-
-// Version Control Types
-export * from './version';
-
+// Pricing Types
+export * from './pricing';

@@ -16,9 +16,3 @@ export * from '../bundleOptimization';
 // State guards
 export * from '../stateGuards';
 
-// Memoization utilities
-export * from './memoization';
-
-// Virtualization utilities
-export * from '../virtualization';
-

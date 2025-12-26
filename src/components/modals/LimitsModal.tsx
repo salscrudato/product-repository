@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { CoverageLimit } from '@types';
-import { useCoverageLimits } from '@hooks/useCoverageLimits';
+import { useCoverageData } from '@hooks/useCoverageData';
 import { LimitTypeSelector } from '../selectors/LimitTypeSelector';
 import { validateCoverageLimit, formatValidationResult } from '@services/validationService';
 
@@ -28,7 +28,7 @@ export const LimitsModal: React.FC<LimitsModalProps> = ({
   coverageName,
   onSave,
 }) => {
-  const { limits, loading, addLimit, updateLimit, deleteLimit, setDefaultLimit } = useCoverageLimits(productId, coverageId);
+  const { limits, loading, addLimit, updateLimit, deleteLimit, setDefaultLimit } = useCoverageData(productId, coverageId);
   const [editingLimit, setEditingLimit] = useState<Partial<CoverageLimit> | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 

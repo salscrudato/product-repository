@@ -8,6 +8,7 @@ import { db } from '../firebase';
 import { normalizeFirestoreData } from '../utils/firestoreHelpers';
 import type { Product } from '../types';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
+import { CACHE } from '../config/constants';
 
 interface UseProductResult {
   product: Product | null;
@@ -16,9 +17,9 @@ interface UseProductResult {
   refetch: () => void;
 }
 
-// Cache for individual products
+// Cache for individual products (uses centralized CACHE config)
 const productCache = new Map<string, { data: Product; timestamp: number }>();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = CACHE.TTL_PRODUCTS;
 
 export function useProduct(productId: string | null | undefined): UseProductResult {
   const [product, setProduct] = useState<Product | null>(null);

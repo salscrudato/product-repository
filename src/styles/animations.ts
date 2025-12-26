@@ -188,14 +188,18 @@ export const focusRingEffect = css`
   }
 `;
 
-// ============ Animation Timing Presets ============
+/**
+ * Animation Timing Presets
+ * NOTE: For complete timing/easing definitions, use theme.transitions from @/styles/theme.ts
+ * These are simplified re-exports for animation-specific use cases.
+ */
 export const timings = {
   instant: '100ms',
   fast: '150ms',
   normal: '220ms',
   slow: '300ms',
   slower: '400ms',
-};
+} as const;
 
 export const easings = {
   ease: 'ease',
@@ -206,5 +210,5 @@ export const easings = {
   springSubtle: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
   bounce: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
   smooth: 'cubic-bezier(0.4, 0, 0.2, 1)',
-};
+} as const;
 

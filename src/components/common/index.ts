@@ -36,14 +36,3 @@ export { Badge, StatusBadge, CountBadge } from './Badge';
 
 // Navigation
 export { CommandPalette, useCommandPalette } from './CommandPalette';
-export { KeyboardNavigableTable } from './KeyboardNavigableTable';
-
-// Micro-interactions and animations
-export {
-  FadeIn, FadeInUp, ScaleIn,
-  HighlightOnUpdate, ShakeOnError, SuccessPop,
-  hoverLiftEffect, pressEffect,
-  useHighlightOnChange, useShakeOnError, triggerHaptic,
-  fadeIn, fadeInUp, fadeInDown, scaleIn, pulse, shake, highlight, successPop, bounce
-} from './MicroInteractions';
-

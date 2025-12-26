@@ -27,8 +27,14 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
+import { CACHE } from '../config/constants';
 
-interface CacheEntry<T> {
+/**
+ * Simple cache entry for Firebase data
+ * Note: This is intentionally different from CacheService's CacheEntry
+ * which has additional metadata (ttl, hits, size) for advanced caching
+ */
+interface FirebaseCacheEntry<T> {
   data: T;
   timestamp: number;
 }
@@ -40,17 +46,17 @@ interface RetryOptions {
 }
 
 class FirebaseOptimizedService {
-  private cache: Map<string, CacheEntry<any>>;
+  private cache: Map<string, FirebaseCacheEntry<any>>;
   private subscribers: Map<string, any>;
   private batchQueue: any[];
   private batchTimeout: NodeJS.Timeout | null;
-  private queryCache: Map<string, CacheEntry<any>>;
+  private queryCache: Map<string, FirebaseCacheEntry<any>>;
   private indexHints: Map<string, any>;
   private activeQueries: number;
   private queryQueue: Array<() => Promise<any>>;
 
-  // Configuration constants
-  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  // Configuration constants - uses centralized CACHE config from constants.ts
+  private readonly CACHE_TTL = CACHE.TTL_PRODUCTS; // Default TTL from centralized config
   private readonly BATCH_SIZE = 500;
   private readonly BATCH_DELAY = 100; // 100ms
   private readonly MAX_CONCURRENT_QUERIES = 3;
@@ -224,7 +230,7 @@ class FirebaseOptimizedService {
     if (useCache && this.queryCache.has(cacheKey)) {
       const cachedQuery = this.queryCache.get(cacheKey);
       if (Date.now() - cachedQuery.timestamp < this.CACHE_TTL) {
-        console.log(`🎯 Query cache hit for ${collectionName}`);
+        logger.debug(LOG_CATEGORIES.CACHE, `Query cache hit for ${collectionName}`);
         return cachedQuery.data;
       }
     }
@@ -276,10 +282,10 @@ class FirebaseOptimizedService {
           });
         }
 
-        console.log(`🔥 Fetched ${data.length} documents from ${collectionName} in ${queryTime.toFixed(2)}ms`);
+        logger.debug(LOG_CATEGORIES.FIREBASE, `Fetched ${data.length} documents from ${collectionName}`, { queryTime });
         return data;
       } catch (error) {
-        console.error(`Error fetching ${collectionName}:`, error);
+        logger.error(LOG_CATEGORIES.FIREBASE, `Error fetching ${collectionName}`, { collectionName }, error as Error);
 
         // Provide index optimization hints
         if (error.code === 'failed-precondition' && error.message.includes('index')) {
@@ -313,18 +319,13 @@ class FirebaseOptimizedService {
 
   // Suggest index optimizations
   suggestIndexOptimization(collectionName, options, error) {
-    console.group('🔍 Index Optimization Suggestion');
-    console.log(`Collection: ${collectionName}`);
-    console.log('Query options:', options);
-    console.log('Error:', error.message);
-
-    // Extract suggested index from error message
     const indexMatch = error.message.match(/https:\/\/console\.firebase\.google\.com[^\s]+/);
-    if (indexMatch) {
-      console.log('🔗 Create index:', indexMatch[0]);
-    }
-
-    console.groupEnd();
+    logger.warn(LOG_CATEGORIES.FIREBASE, 'Index optimization needed', {
+      collectionName,
+      options,
+      error: error.message,
+      indexUrl: indexMatch ? indexMatch[0] : null
+    });
   }
 
   // Optimized document fetching
@@ -431,7 +432,7 @@ class FirebaseOptimizedService {
           callback(data, null);
         },
         (error) => {
-          console.error(`Subscription error for ${collectionName}:`, error);
+          logger.error(LOG_CATEGORIES.FIREBASE, `Subscription error for ${collectionName}`, { collectionName }, error as Error);
           callback(null, error);
         }
       );
@@ -439,7 +440,7 @@ class FirebaseOptimizedService {
       this.subscribers.set(subscriptionKey, unsubscribe);
       return unsubscribe;
     } catch (error) {
-      console.error(`Error setting up subscription for ${collectionName}:`, error);
+      logger.error(LOG_CATEGORIES.FIREBASE, `Error setting up subscription for ${collectionName}`, { collectionName }, error as Error);
       callback(null, error);
     }
   }
@@ -490,22 +491,22 @@ class FirebaseOptimizedService {
             batch.delete(ref);
             break;
           default:
-            console.warn('Unknown batch operation type:', type);
+            logger.warn(LOG_CATEGORIES.FIREBASE, 'Unknown batch operation type', { type });
         }
       });
 
       await batch.commit();
-      console.log(`✅ Batch executed: ${operations.length} operations`);
-      
+      logger.debug(LOG_CATEGORIES.FIREBASE, `Batch executed: ${operations.length} operations`, { count: operations.length });
+
       // Clear related cache entries
       operations.forEach(operation => {
         const { ref } = operation;
         const collectionName = ref.parent.id;
         this.clearCacheByPattern(collectionName);
       });
-      
+
     } catch (error) {
-      console.error('Batch execution failed:', error);
+      logger.error(LOG_CATEGORIES.FIREBASE, 'Batch execution failed', {}, error as Error);
       throw error;
     }
   }
@@ -513,33 +514,33 @@ class FirebaseOptimizedService {
   // Clear cache by pattern
   clearCacheByPattern(pattern) {
     const keysToDelete = [];
-    
+
     for (const key of this.cache.keys()) {
       if (key.includes(pattern)) {
         keysToDelete.push(key);
       }
     }
-    
+
     keysToDelete.forEach(key => this.cache.delete(key));
-    console.log(`🧹 Cleared ${keysToDelete.length} cache entries for pattern: ${pattern}`);
+    logger.debug(LOG_CATEGORIES.CACHE, `Cleared cache entries for pattern`, { pattern, count: keysToDelete.length });
   }
 
   // Network status management
   async goOffline() {
     try {
       await disableNetwork(db);
-      console.log('📴 Firebase offline mode enabled');
+      logger.info(LOG_CATEGORIES.FIREBASE, 'Firebase offline mode enabled');
     } catch (error) {
-      console.error('Error enabling offline mode:', error);
+      logger.error(LOG_CATEGORIES.FIREBASE, 'Error enabling offline mode', {}, error as Error);
     }
   }
 
   async goOnline() {
     try {
       await enableNetwork(db);
-      console.log('📶 Firebase online mode enabled');
+      logger.info(LOG_CATEGORIES.FIREBASE, 'Firebase online mode enabled');
     } catch (error) {
-      console.error('Error enabling online mode:', error);
+      logger.error(LOG_CATEGORIES.FIREBASE, 'Error enabling online mode', {}, error as Error);
     }
   }
 
@@ -548,22 +549,22 @@ class FirebaseOptimizedService {
     // Unsubscribe from all active subscriptions
     this.subscribers.forEach(unsubscribe => unsubscribe());
     this.subscribers.clear();
-    
+
     // Clear cache
     this.cache.clear();
-    
+
     // Clear batch timeout
     if (this.batchTimeout) {
       clearTimeout(this.batchTimeout);
       this.batchTimeout = null;
     }
-    
+
     // Execute any pending batch operations
     if (this.batchQueue.length > 0) {
       this.executeBatch();
     }
-    
-    console.log('🧹 Firebase service cleaned up');
+
+    logger.info(LOG_CATEGORIES.FIREBASE, 'Firebase service cleaned up');
   }
 
   // Get cache statistics

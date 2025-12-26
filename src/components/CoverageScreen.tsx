@@ -17,8 +17,7 @@ import {
 import { ref, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/firebase';
 import useCoverages from '@hooks/useCoverages';
-import { useCoverageLimits } from '@hooks/useCoverageLimits';
-import { useCoverageDeductibles } from '@hooks/useCoverageDeductibles';
+import { useCoverageData } from '@hooks/useCoverageData';
 import { useCoverageFormCounts } from '@hooks/useCoverageFormCounts';
 
 import { Button } from '../components/ui/Button';

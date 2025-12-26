@@ -199,9 +199,6 @@ export const useCoverageVersions = (productId: string | undefined, coverageId: s
   };
 };
 
-// Note: createVersionSnapshot has been moved to @utils/versioningUtils
-// Import it from there instead
-
 /**
  * Utility function to generate next version number
  */

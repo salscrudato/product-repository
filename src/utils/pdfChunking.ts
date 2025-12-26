@@ -1,11 +1,12 @@
 // src/utils/pdfChunking.js
 import { getDownloadURL, ref } from 'firebase/storage';
 import { storage } from '../firebase';
+import { CACHE } from '../config/constants';
 
-// PDF processing cache to avoid reprocessing
+// PDF processing cache to avoid reprocessing (uses centralized CACHE config)
 const pdfCache = new Map();
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
-const MAX_CACHE_SIZE = 50; // Maximum number of cached PDFs
+const CACHE_TTL = CACHE.TTL_FORMS; // 10 minutes - same as forms TTL
+const MAX_CACHE_SIZE = CACHE.MAX_CACHE_SIZE; // Maximum number of cached PDFs
 
 // Lazy load pdfjs to avoid bundle bloat
 let pdfjsLib = null;

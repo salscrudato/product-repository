@@ -12,12 +12,6 @@ export * from '../storage';
 // Product cloning
 export * from '../productClone';
 
-// Coverage data helpers
-export * from '../coverageDataHelpers';
-
-// Versioning utilities
-export * from '../versioningUtils';
-
 // Format utilities
 export * from '../format';
 

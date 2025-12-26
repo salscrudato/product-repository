@@ -14,6 +14,7 @@ import { db } from '../firebase';
 import { normalizeFirestoreData } from '../utils/firestoreHelpers';
 import { Product } from '../types';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
+import { CACHE } from '../config/constants';
 
 interface UseProductsOptions {
   enableCache?: boolean;
@@ -28,11 +29,11 @@ interface UseProductsResult<T> {
   refetch: () => void;
 }
 
-// Optimized: Cache with TTL management
+// Optimized: Cache with TTL management (uses centralized CACHE config)
 const productsCache = {
   data: null as Product[] | null,
   timestamp: null as number | null,
-  CACHE_DURATION: 5 * 60 * 1000 // 5 minutes
+  CACHE_DURATION: CACHE.TTL_PRODUCTS
 };
 
 /**

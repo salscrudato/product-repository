@@ -4,6 +4,7 @@
  */
 
 import logger, { LOG_CATEGORIES } from '@utils/logger';
+import { CACHE } from '../config/constants';
 
 /**
  * Cache entry with metadata
@@ -39,7 +40,7 @@ export class CacheService<T = any> {
   private misses: number = 0;
   private cleanupInterval: NodeJS.Timeout | null = null;
 
-  constructor(maxSize: number = 100, defaultTTL: number = 5 * 60 * 1000) {
+  constructor(maxSize: number = CACHE.MAX_CACHE_SIZE, defaultTTL: number = CACHE.TTL_PRODUCTS) {
     this.maxSize = maxSize;
     this.defaultTTL = defaultTTL;
     this.startCleanup();
@@ -228,17 +229,6 @@ export class CacheService<T = any> {
  * Global cache instances for different data types
  */
 export const cacheServices = {
-  products: new CacheService(50, 10 * 60 * 1000),      // 10 minutes
-  coverages: new CacheService(100, 10 * 60 * 1000),    // 10 minutes
-  forms: new CacheService(100, 10 * 60 * 1000),        // 10 minutes
-  ai: new CacheService(20, 30 * 60 * 1000),            // 30 minutes
-  general: new CacheService(100, 5 * 60 * 1000)        // 5 minutes
+  products: new CacheService(50, 10 * 60 * 1000)  // 10 minutes
 };
-
-/**
- * Cleanup all cache services
- */
-export function cleanupAllCaches(): void {
-  Object.values(cacheServices).forEach(cache => cache.destroy());
-}
 

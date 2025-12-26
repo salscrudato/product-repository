@@ -1,28 +1,12 @@
 /**
  * Comprehensive Logging System for Product Hub App
  * Provides structured logging for all user actions, API calls, data operations, and system events
- * Merged from: logger.ts, auditTrail.ts, performanceMonitor.ts
  *
  * Features:
  * - Structured logging with categories and levels
- * - Performance metrics tracking
- * - Audit trail logging
  * - Session storage for debugging
  * - Global error handlers
  */
-
-import {
-  collection,
-  addDoc,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  limit,
-  Timestamp,
-  serverTimestamp
-} from 'firebase/firestore';
-import { db } from '../firebase';
 
 // Log levels
 export const LOG_LEVELS = {
@@ -53,7 +37,8 @@ export const LOG_CATEGORIES = {
   NEWS: 'NEWS',
   EARNINGS: 'EARNINGS',
   CLAIMS: 'CLAIMS',
-  PERFORMANCE: 'PERFORMANCE'
+  PERFORMANCE: 'PERFORMANCE',
+  SECURITY: 'SECURITY'
 } as const;
 
 export type LogCategory = typeof LOG_CATEGORIES[keyof typeof LOG_CATEGORIES];
@@ -332,94 +317,6 @@ class Logger {
     URL.revokeObjectURL(url);
     
     this.info(LOG_CATEGORIES.EXPORT, 'Logs exported');
-  }
-}
-
-// ============================================================================
-// Audit Trail Interface and Methods (from auditTrail.ts)
-// ============================================================================
-
-export interface AuditLogEntry {
-  id?: string;
-  entityType: 'product' | 'coverage' | 'form' | 'rule' | 'pricingRule' | 'stateApplicability';
-  entityId: string;
-  productId?: string;
-  action: 'create' | 'update' | 'delete' | 'archive';
-  userId: string;
-  userName?: string;
-  changeReason?: string;
-  previousValues?: Record<string, unknown>;
-  newValues?: Record<string, unknown>;
-  changedFields?: string[];
-  timestamp?: Timestamp | Date;
-  metadata?: Record<string, unknown>;
-}
-
-/**
- * Log a change to an entity
- */
-export async function logAuditTrail(entry: AuditLogEntry): Promise<string> {
-  try {
-    const docRef = await addDoc(collection(db, 'auditTrail'), {
-      ...entry,
-      timestamp: serverTimestamp()
-    });
-    return docRef.id;
-  } catch (error) {
-    console.error('Error logging audit trail:', error);
-    throw error;
-  }
-}
-
-/**
- * Get audit trail for an entity
- */
-export async function getAuditTrail(
-  entityType: string,
-  entityId: string,
-  limitCount: number = 50
-): Promise<AuditLogEntry[]> {
-  try {
-    const q = query(
-      collection(db, 'auditTrail'),
-      where('entityType', '==', entityType),
-      where('entityId', '==', entityId),
-      orderBy('timestamp', 'desc'),
-      limit(limitCount)
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as AuditLogEntry));
-  } catch (error) {
-    console.error('Error fetching audit trail:', error);
-    return [];
-  }
-}
-
-/**
- * Get audit trail for a product (all entities)
- */
-export async function getProductAuditTrail(
-  productId: string,
-  limitCount: number = 100
-): Promise<AuditLogEntry[]> {
-  try {
-    const q = query(
-      collection(db, 'auditTrail'),
-      where('productId', '==', productId),
-      orderBy('timestamp', 'desc'),
-      limit(limitCount)
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as AuditLogEntry));
-  } catch (error) {
-    console.error('Error fetching product audit trail:', error);
-    return [];
   }
 }
 
