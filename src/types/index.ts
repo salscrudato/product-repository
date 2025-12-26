@@ -983,3 +983,22 @@ export type Optional<T> = T | undefined;
 
 export type AsyncResult<T, E = Error> = Promise<{ data: T; error: null } | { data: null; error: E }>;
 
+// ============================================================================
+// Re-export Domain-Specific Types
+// ============================================================================
+
+// Rating Engine Types
+export * from './rating';
+
+// Compliance & Regulatory Types
+export * from './compliance';
+
+// Underwriting Types
+export * from './underwriting';
+
+// Analytics & Reporting Types
+export * from './analytics';
+
+// Version Control Types
+export * from './version';
+

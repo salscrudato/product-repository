@@ -1,13 +1,13 @@
 /**
  * Enhanced Coverage Management Service
  * Handles coverage creation, hierarchy management, and auto-population of related data
+ *
+ * Now delegates to unified entityManagementService for core CRUD operations
  */
 
 import {
   collection,
   doc,
-  addDoc,
-  updateDoc,
   getDocs,
   getDoc,
   query,
@@ -18,6 +18,14 @@ import {
 import { db } from '../firebase';
 import { Coverage, CoverageLimit, CoverageDeductible } from '../types';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
+import {
+  createEntity,
+  updateEntity,
+  deleteEntity,
+  fetchEntity,
+  batchCreateNestedEntities,
+  fetchEntitiesByQuery
+} from './entityManagementService';
 
 export interface CoverageCreationOptions {
   productId: string;
@@ -58,67 +66,51 @@ class EnhancedCoverageManagementService {
         coverageCode: options.coverageCode,
         parentCoverageId: options.parentCoverageId,
         isOptional: options.isOptional || false,
-        states: options.states,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        states: options.states
       };
 
-      const coverageRef = await addDoc(
-        collection(db, `products/${options.productId}/coverages`),
-        coverageData
+      // Use unified service for coverage creation
+      const coverage = await createEntity<Coverage>(
+        `products/${options.productId}/coverages`,
+        coverageData,
+        'Coverage'
       );
 
-      const coverageId = coverageRef.id;
+      const coverageId = coverage.id;
 
       // Create limits if provided
       if (options.limits && options.limits.length > 0) {
-        const batch = writeBatch(db);
-        for (let i = 0; i < options.limits.length; i++) {
-          const limitRef = doc(
-            collection(db, `products/${options.productId}/coverages/${coverageId}/limits`)
-          );
-          batch.set(limitRef, {
-            ...options.limits[i],
-            coverageId,
-            productId: options.productId,
-            displayOrder: i,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          });
-        }
-        await batch.commit();
+        const limitsWithMetadata = options.limits.map(limit => ({
+          ...limit,
+          coverageId,
+          productId: options.productId
+        }));
+        await batchCreateNestedEntities(
+          `products/${options.productId}/coverages/${coverageId}`,
+          'limits',
+          limitsWithMetadata,
+          'Coverage Limits'
+        );
       }
 
       // Create deductibles if provided
       if (options.deductibles && options.deductibles.length > 0) {
-        const batch = writeBatch(db);
-        for (let i = 0; i < options.deductibles.length; i++) {
-          const deductibleRef = doc(
-            collection(db, `products/${options.productId}/coverages/${coverageId}/deductibles`)
-          );
-          batch.set(deductibleRef, {
-            ...options.deductibles[i],
-            coverageId,
-            productId: options.productId,
-            displayOrder: i,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          });
-        }
-        await batch.commit();
+        const deductiblesWithMetadata = options.deductibles.map(deductible => ({
+          ...deductible,
+          coverageId,
+          productId: options.productId
+        }));
+        await batchCreateNestedEntities(
+          `products/${options.productId}/coverages/${coverageId}`,
+          'deductibles',
+          deductiblesWithMetadata,
+          'Coverage Deductibles'
+        );
       }
 
-      logger.info(LOG_CATEGORIES.DATA, 'Coverage created successfully', {
-        coverageId,
-        productId: options.productId
-      });
-
-      return {
-        id: coverageId,
-        ...coverageData
-      } as Coverage;
+      return coverage;
     } catch (error) {
-      logger.error(LOG_CATEGORIES.ERROR, 'Coverage creation failed', 
+      logger.error(LOG_CATEGORIES.ERROR, 'Coverage creation failed',
         { productId: options.productId, name: options.name }, error as Error);
       throw error;
     }

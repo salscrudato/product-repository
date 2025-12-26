@@ -1,14 +1,13 @@
 /**
  * Enhanced Form Management Service
  * Handles form creation, association, and lifecycle management with auto-population
+ *
+ * Now delegates to unified entityManagementService for core CRUD operations
  */
 
 import {
   collection,
   doc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
   getDocs,
   getDoc,
   query,
@@ -20,6 +19,14 @@ import {
 import { db } from '../firebase';
 import { FormTemplate, FormCoverageMapping } from '../types';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
+import {
+  createEntity,
+  updateEntity,
+  deleteEntity,
+  fetchEntity,
+  batchCreateNestedEntities,
+  fetchEntitiesByQuery
+} from './entityManagementService';
 
 export interface FormCreationOptions {
   formNumber: string;
@@ -65,24 +72,19 @@ class EnhancedFormManagementService {
         effectiveDate: options.effectiveDate,
         expirationDate: options.expirationDate,
         productId: options.productId,
-        isActive: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        isActive: true
       };
 
-      const formRef = await addDoc(collection(db, 'forms'), formData);
-      
-      logger.info(LOG_CATEGORIES.DATA, 'Form created successfully', {
-        formId: formRef.id,
-        formNumber: options.formNumber
-      });
+      // Use unified service for form creation
+      const form = await createEntity<FormTemplate>(
+        'forms',
+        formData,
+        'Form'
+      );
 
-      return {
-        id: formRef.id,
-        ...formData
-      } as FormTemplate;
+      return form;
     } catch (error) {
-      logger.error(LOG_CATEGORIES.ERROR, 'Form creation failed', 
+      logger.error(LOG_CATEGORIES.ERROR, 'Form creation failed',
         { formNumber: options.formNumber }, error as Error);
       throw error;
     }

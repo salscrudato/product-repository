@@ -1406,11 +1406,11 @@ export default function CoverageScreen() {
                           <CardMetrics>
                             <MetricItem onClick={() => openLimitModal(parent)}>
                               <CurrencyDollarIcon />
-                              Limits {parent.limits?.length ? `(${parent.limits.length})` : '(0)'}
+                              Limits {parent.limitsCount ? `(${parent.limitsCount})` : '(0)'}
                             </MetricItem>
                             <MetricItem onClick={() => openDeductibleModal(parent)}>
                               <CurrencyDollarIcon />
-                              Deductibles {parent.deductibles?.length ? `(${parent.deductibles.length})` : '(0)'}
+                              Deductibles {parent.deductiblesCount ? `(${parent.deductiblesCount})` : '(0)'}
                             </MetricItem>
                             <MetricItem as={RouterLink} to={`/coverage-states/${productId}/${parent.id}`}>
                               <MapIcon />
@@ -1458,11 +1458,11 @@ export default function CoverageScreen() {
                               <CardMetrics>
                                 <MetricItem onClick={() => openLimitModal(child)}>
                                   <CurrencyDollarIcon />
-                                  Limits {child.limits?.length ? `(${child.limits.length})` : '(0)'}
+                                  Limits {child.limitsCount ? `(${child.limitsCount})` : '(0)'}
                                 </MetricItem>
                                 <MetricItem onClick={() => openDeductibleModal(child)}>
                                   <CurrencyDollarIcon />
-                                  Deductibles {child.deductibles?.length ? `(${child.deductibles.length})` : '(0)'}
+                                  Deductibles {child.deductiblesCount ? `(${child.deductiblesCount})` : '(0)'}
                                 </MetricItem>
                                 <MetricItem as={RouterLink} to={`/coverage-states/${productId}/${child.id}`}>
                                   <MapIcon />
@@ -1609,6 +1609,7 @@ export default function CoverageScreen() {
               setAddModalOpen(false);
               resetForm();
             }}
+            productId={productId}
             coverage={editingId ? {
               id: editingId,
               ...formState,

@@ -1,11 +1,38 @@
 import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from 'styled-components';
+import styled from 'styled-components';
 import { GlobalStyle } from './styles/GlobalStyle';
 import { theme } from './styles/theme';
 import ErrorBoundary from './components/ErrorBoundary';
 import { initBundleOptimizations, createOptimizedLazyComponent } from './utils/bundleOptimization';
 import { ConnectionStatus } from './components/ui/ConnectionStatus';
+import { PageLoadingSpinner } from './components/ui/LoadingSpinner';
+import { ToastProvider } from './components/common/Toast';
+import { StatusAnnouncerProvider } from './components/common/StatusAnnouncer';
+import { RouteProgressProvider } from './components/ui/RouteProgress';
+
+// Skip to content link for accessibility
+const SkipLink = styled.a`
+  position: absolute;
+  top: -40px;
+  left: 16px;
+  padding: 8px 16px;
+  background: ${({ theme }) => theme.colours.primary};
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  z-index: 10001;
+  text-decoration: none;
+  transition: top 0.2s ease;
+
+  &:focus {
+    top: 16px;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.4);
+  }
+`;
 
 import logger, { LOG_CATEGORIES } from './utils/logger';
 import env from './config/env';
@@ -17,19 +44,8 @@ import Login from './components/Login';
 import Home from './components/Home';
 import RequireAuth from './components/RequireAuth';
 
-// Loading component for lazy-loaded routes (must be defined before use)
-const LoadingSpinner: React.FC = () => (
-  <div style={{
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100vh',
-    fontSize: '16px',
-    color: '#6b7280'
-  }}>
-    Loading...
-  </div>
-);
+// Loading component for lazy-loaded routes - using proper PageLoadingSpinner
+const LoadingSpinner: React.FC = () => <PageLoadingSpinner label="Loading..." />;
 
 // ProductHub is lazy-loaded to avoid import conflict with bundleOptimization preloading
 const ProductHub = createOptimizedLazyComponent(
@@ -397,10 +413,17 @@ const App: React.FC = () => {
     <ErrorBoundary>
       <ThemeProvider theme={theme}>
         <GlobalStyle />
-        <ConnectionStatus />
-        <Router>
-          <HistoryWrapper />
-        </Router>
+        <SkipLink href="#main-content">Skip to main content</SkipLink>
+        <StatusAnnouncerProvider>
+          <ToastProvider>
+            <RouteProgressProvider>
+              <ConnectionStatus />
+              <Router>
+                <HistoryWrapper />
+              </Router>
+            </RouteProgressProvider>
+          </ToastProvider>
+        </StatusAnnouncerProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

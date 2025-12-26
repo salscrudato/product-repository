@@ -3,7 +3,7 @@
  * Section for managing endorsement-specific metadata
  */
 
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import styled from 'styled-components';
 import { EndorsementType } from '../../types';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
@@ -19,7 +19,7 @@ interface EndorsementMetadataSectionProps {
   }) => void;
 }
 
-export const EndorsementMetadataSection: React.FC<EndorsementMetadataSectionProps> = ({
+export const EndorsementMetadataSection = memo<EndorsementMetadataSectionProps>(({
   modifiesCoverageId,
   endorsementType,
   supersedes = [],
@@ -27,23 +27,24 @@ export const EndorsementMetadataSection: React.FC<EndorsementMetadataSectionProp
 }) => {
   const [newSupersedes, setNewSupersedes] = useState('');
 
-  const handleTypeChange = (type: EndorsementType) => {
+  // Memoized callbacks to prevent unnecessary re-renders
+  const handleCoverageChange = useCallback((value: string) => {
     onChange({
-      modifiesCoverageId,
-      endorsementType: type,
-      supersedes,
-    });
-  };
-
-  const handleModifiesChange = (coverageId: string) => {
-    onChange({
-      modifiesCoverageId: coverageId,
+      modifiesCoverageId: value,
       endorsementType,
       supersedes,
     });
-  };
+  }, [onChange, endorsementType, supersedes]);
 
-  const handleAddSupersedes = () => {
+  const handleTypeChange = useCallback((value: EndorsementType) => {
+    onChange({
+      modifiesCoverageId,
+      endorsementType: value,
+      supersedes,
+    });
+  }, [onChange, modifiesCoverageId, supersedes]);
+
+  const handleAddSupersedes = useCallback(() => {
     if (newSupersedes.trim() && !supersedes.includes(newSupersedes.trim())) {
       onChange({
         modifiesCoverageId,
@@ -52,15 +53,15 @@ export const EndorsementMetadataSection: React.FC<EndorsementMetadataSectionProp
       });
       setNewSupersedes('');
     }
-  };
+  }, [onChange, newSupersedes, modifiesCoverageId, endorsementType, supersedes]);
 
-  const handleRemoveSupersedes = (index: number) => {
+  const handleRemoveSupersedes = useCallback((index: number) => {
     onChange({
       modifiesCoverageId,
       endorsementType,
       supersedes: supersedes.filter((_, i) => i !== index),
     });
-  };
+  }, [onChange, modifiesCoverageId, endorsementType, supersedes]);
 
   return (
     <Container>
@@ -196,7 +197,7 @@ export const EndorsementMetadataSection: React.FC<EndorsementMetadataSectionProp
       </SubSection>
     </Container>
   );
-};
+});
 
 // Styled Components
 const Container = styled.div`

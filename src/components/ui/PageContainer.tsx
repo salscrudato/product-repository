@@ -28,7 +28,9 @@ const StyledPageContainer = styled.div<{ $withOverlay: boolean }>`
   `}
 `;
 
-const MainContent = styled.main`
+const MainContent = styled.main.attrs({
+  id: 'main-content',
+})`
   flex: 1;
   padding: 32px 32px 80px;
   max-width: 1400px;
@@ -42,9 +44,9 @@ const MainContent = styled.main`
   }
 `;
 
-export const PageContainer: React.FC<PageContainerProps> = ({ 
-  withOverlay = true, 
-  children 
+export const PageContainer: React.FC<PageContainerProps> = ({
+  withOverlay = true,
+  children
 }) => {
   return (
     <StyledPageContainer $withOverlay={withOverlay}>

@@ -1,6 +1,6 @@
 /**
  * AI Prompt Optimizer Service
- * 
+ *
  * Optimizes prompts for cost-efficiency, performance, and response quality.
  * Implements intelligent context compression, token optimization, and
  * query classification for efficient AI operations.
@@ -21,7 +21,8 @@ export type QueryType =
 interface ContextSummary {
   statistics: Record<string, any>;
   sampleData: Record<string, any>;
-  timestamp: number;
+  fullData?: Record<string, any>;
+  timestamp: number | string;
 }
 
 interface OptimizedPrompt {
@@ -33,7 +34,7 @@ interface OptimizedPrompt {
 }
 
 class AIPromptOptimizer {
-  private readonly MAX_CONTEXT_TOKENS = 2000;
+  private readonly MAX_CONTEXT_TOKENS = 12000; // Increased for full data
   private readonly MAX_INSTRUCTIONS_TOKENS = 1500;
   private readonly TOKENS_PER_WORD = 1.3;
 
@@ -82,24 +83,108 @@ class AIPromptOptimizer {
   }
 
   /**
-   * Compress context data to fit within token limits
+   * Build comprehensive context with full data
    */
   compressContext(contextSummary: ContextSummary): string {
-    const { statistics, sampleData } = contextSummary;
+    const { statistics, sampleData, fullData } = contextSummary;
 
-    // Build compressed context with only essential data
-    const compressed = {
-      stats: {
-        products: statistics.products?.total || 0,
-        coverages: statistics.coverages?.total || 0,
-        forms: statistics.forms?.total || 0,
-        tasks: statistics.tasks?.total || 0,
-      },
-      samples: sampleData,
-      timestamp: contextSummary.timestamp
-    };
+    // If we have full data, format it comprehensively
+    if (fullData) {
+      const contextParts: string[] = [];
 
-    return JSON.stringify(compressed);
+      // Products section
+      if (fullData.products?.length > 0) {
+        contextParts.push('=== PRODUCTS ===');
+        fullData.products.forEach((p: any, i: number) => {
+          contextParts.push(`${i + 1}. ${p.name || 'Unnamed'} (Code: ${p.productCode || 'N/A'})`);
+          if (p.description) contextParts.push(`   Description: ${p.description}`);
+          if (p.availableStates?.length) contextParts.push(`   States: ${p.availableStates.join(', ')}`);
+          if (p.category) contextParts.push(`   Category: ${p.category}`);
+        });
+      }
+
+      // Coverages section - FULL DATA
+      if (fullData.coverages?.length > 0) {
+        contextParts.push('\n=== COVERAGES ===');
+        fullData.coverages.forEach((c: any, i: number) => {
+          const name = c.coverageName || c.name || 'Unnamed Coverage';
+          const code = c.coverageCode || c.code || 'N/A';
+          contextParts.push(`${i + 1}. ${name} (Code: ${code})`);
+          if (c.description) contextParts.push(`   Description: ${c.description}`);
+          if (c.category) contextParts.push(`   Category: ${c.category}`);
+          if (c.parentCoverage) contextParts.push(`   Parent: ${c.parentCoverage}`);
+          if (c.limits) contextParts.push(`   Limits: ${JSON.stringify(c.limits)}`);
+          if (c.deductibles) contextParts.push(`   Deductibles: ${JSON.stringify(c.deductibles)}`);
+        });
+      }
+
+      // Forms section
+      if (fullData.forms?.length > 0) {
+        contextParts.push('\n=== FORMS ===');
+        fullData.forms.forEach((f: any, i: number) => {
+          const name = f.formName || f.name || 'Unnamed Form';
+          const number = f.formNumber || 'N/A';
+          contextParts.push(`${i + 1}. ${name} (Number: ${number})`);
+          if (f.description) contextParts.push(`   Description: ${f.description}`);
+          if (f.category) contextParts.push(`   Category: ${f.category}`);
+        });
+      }
+
+      // Rules section
+      if (fullData.rules?.length > 0) {
+        contextParts.push('\n=== RULES ===');
+        fullData.rules.forEach((r: any, i: number) => {
+          const name = r.ruleName || r.name || 'Unnamed Rule';
+          contextParts.push(`${i + 1}. ${name}`);
+          if (r.description) contextParts.push(`   Description: ${r.description}`);
+          if (r.category) contextParts.push(`   Category: ${r.category}`);
+        });
+      }
+
+      // Tasks section
+      if (fullData.tasks?.length > 0) {
+        contextParts.push('\n=== TASKS ===');
+        fullData.tasks.forEach((t: any, i: number) => {
+          contextParts.push(`${i + 1}. ${t.title || 'Unnamed Task'} [${t.status || 'unknown'}]`);
+          if (t.description) contextParts.push(`   Description: ${t.description}`);
+          if (t.priority) contextParts.push(`   Priority: ${t.priority}`);
+          if (t.phase) contextParts.push(`   Phase: ${t.phase}`);
+          if (t.dueDate) contextParts.push(`   Due: ${t.dueDate}`);
+        });
+      }
+
+      // Pricing section
+      if (fullData.pricingSteps?.length > 0) {
+        contextParts.push('\n=== PRICING STEPS ===');
+        fullData.pricingSteps.forEach((p: any, i: number) => {
+          contextParts.push(`${i + 1}. ${p.stepName || p.name || 'Step'} (Type: ${p.stepType || 'N/A'})`);
+          if (p.description) contextParts.push(`   Description: ${p.description}`);
+        });
+      }
+
+      // Data Dictionary section
+      if (fullData.dataDictionary?.length > 0) {
+        contextParts.push('\n=== DATA DICTIONARY ===');
+        fullData.dataDictionary.slice(0, 50).forEach((d: any, i: number) => {
+          contextParts.push(`${i + 1}. ${d.fieldName || d.name || 'Field'}: ${d.description || d.definition || 'N/A'}`);
+        });
+        if (fullData.dataDictionary.length > 50) {
+          contextParts.push(`   ... and ${fullData.dataDictionary.length - 50} more fields`);
+        }
+      }
+
+      contextParts.push(`\n=== SUMMARY ===`);
+      contextParts.push(`Total Products: ${fullData.products?.length || 0}`);
+      contextParts.push(`Total Coverages: ${fullData.coverages?.length || 0}`);
+      contextParts.push(`Total Forms: ${fullData.forms?.length || 0}`);
+      contextParts.push(`Total Rules: ${fullData.rules?.length || 0}`);
+      contextParts.push(`Total Tasks: ${fullData.tasks?.length || 0}`);
+
+      return contextParts.join('\n');
+    }
+
+    // Fallback to statistics-only if no full data
+    return `Statistics: Products: ${statistics.products?.total || 0}, Coverages: ${statistics.coverages?.total || 0}, Forms: ${statistics.forms?.total || 0}, Tasks: ${statistics.tasks?.total || 0}`;
   }
 
   /**
@@ -113,42 +198,60 @@ class AIPromptOptimizer {
    * Build optimized system prompt
    */
   buildSystemPrompt(queryType: QueryType): string {
-    const basePrompt = `You are an elite AI assistant for P&C insurance product management.
-Your expertise: Product Management, Business Intelligence, Regulatory Compliance, Strategic Consulting, Data Science.
-Respond with actionable, data-driven insights. Be concise and structured.`;
+    const basePrompt = `You are an expert AI assistant for a P&C insurance product management system.
+
+CRITICAL INSTRUCTIONS:
+1. The DATA PROVIDED BELOW contains the ACTUAL data from the user's system
+2. ALWAYS use this data to answer questions - do not say "I don't have access" or "no data available"
+3. When asked about coverages, products, forms, rules, or tasks - REFER TO THE DATA BELOW
+4. Be concise, accurate, and helpful
+5. If the data shows items, list them clearly
+6. If asked "what coverages do I have" - list ALL coverages from the data`;
 
     const typeSpecificPrompts: Record<QueryType, string> = {
       product_analysis: `${basePrompt}
-Focus: Product positioning, market coverage, competitive analysis, form completeness.
-Format: Use bullet points and comparisons. Highlight strengths and opportunities.`,
+
+QUERY TYPE: Product Analysis
+Focus on product details, market coverage, and form completeness.
+List specific products and their attributes from the data.`,
 
       coverage_analysis: `${basePrompt}
-Focus: Coverage hierarchy, limits, deductibles, gaps, competitive positioning.
-Format: Organize by coverage type. Include specific recommendations.`,
+
+QUERY TYPE: Coverage Analysis
+Focus on listing and explaining coverages from the provided data.
+Include coverage names, codes, categories, and descriptions.
+If asked "what coverages", list ALL coverages in the data.`,
 
       pricing_analysis: `${basePrompt}
-Focus: Rate structure, profitability, competitive positioning, optimization opportunities.
-Format: Present data-driven insights. Include specific rate recommendations.`,
+
+QUERY TYPE: Pricing Analysis
+Focus on pricing steps, rate structures, and cost factors from the data.`,
 
       compliance_check: `${basePrompt}
-Focus: Regulatory requirements, filing status, compliance gaps, deadline tracking.
-Format: Organize by state/jurisdiction. Flag critical issues.`,
+
+QUERY TYPE: Compliance Check
+Focus on rules, regulations, and compliance requirements from the data.`,
 
       task_management: `${basePrompt}
-Focus: Task status, bottlenecks, timeline risks, resource allocation, priorities.
-Format: Use priority levels. Highlight critical path items.`,
+
+QUERY TYPE: Task Management
+Focus on tasks, their status, priorities, and deadlines from the data.`,
 
       strategic_insight: `${basePrompt}
-Focus: Portfolio optimization, market opportunities, competitive threats, innovation priorities.
-Format: Synthesize across domains. Provide strategic recommendations.`,
+
+QUERY TYPE: Strategic Analysis
+Synthesize insights across products, coverages, and rules.`,
 
       data_query: `${basePrompt}
-Focus: Accurate data retrieval, clear formatting, contextual interpretation.
-Format: Use tables/lists. Provide data quality notes.`,
+
+QUERY TYPE: Data Query
+Answer with specific data from the system. List items clearly.
+Use the exact data provided - do not fabricate information.`,
 
       general: `${basePrompt}
-Focus: Comprehensive, helpful responses across all domains.
-Format: Adapt to user needs. Suggest related topics.`
+
+QUERY TYPE: General Question
+Answer using the data provided. Be helpful and thorough.`
     };
 
     return typeSpecificPrompts[queryType];
@@ -169,22 +272,30 @@ Format: Adapt to user needs. Suggest related topics.`
       });
     }
 
-    return `SYSTEM STATE:\n${compressed}`;
+    return `
+================================================================================
+USER'S SYSTEM DATA (USE THIS DATA TO ANSWER QUESTIONS)
+================================================================================
+
+${compressed}
+
+================================================================================
+END OF SYSTEM DATA
+================================================================================`;
   }
 
   /**
    * Build query-specific instructions
    */
   buildInstructions(queryType: QueryType, query: string): string {
-    const baseInstructions = `Query: "${query}"
-Classification: ${queryType.replace('_', ' ').toUpperCase()}
+    const baseInstructions = `
+USER QUESTION: "${query}"
 
-RESPONSE GUIDELINES:
-1. Be concise and actionable
-2. Use data from the system state
-3. Provide specific recommendations
-4. Structure with clear headings
-5. Include relevant metrics or examples`;
+INSTRUCTIONS:
+- Answer based ONLY on the data provided above
+- If the user asks "what do I have" or "list my", refer to the data sections above
+- Be specific - use names, codes, and details from the data
+- Keep response concise but complete`;
 
     return baseInstructions;
   }

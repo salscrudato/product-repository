@@ -134,6 +134,10 @@ export default defineConfig({
             if (id.includes('d3-') || id.includes('react-simple-maps')) {
               return 'viz-vendor';
             }
+            // AI and LLM related (lazy-loaded)
+            if (id.includes('openai') || id.includes('langchain') || id.includes('ai')) {
+              return 'ai-vendor';
+            }
           }
         },
       },

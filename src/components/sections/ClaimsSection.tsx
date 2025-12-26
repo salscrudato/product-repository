@@ -3,7 +3,7 @@
  * Section for managing claims-related settings
  */
 
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import styled from 'styled-components';
 
 interface ClaimsSectionProps {
@@ -15,24 +15,25 @@ interface ClaimsSectionProps {
   }) => void;
 }
 
-export const ClaimsSection: React.FC<ClaimsSectionProps> = ({
+export const ClaimsSection = memo<ClaimsSectionProps>(({
   claimsReportingPeriod,
   hasSubrogationRights = true,
   onChange,
 }) => {
-  const handleReportingPeriodChange = (value: number | undefined) => {
+  // Memoized callbacks to prevent unnecessary re-renders
+  const handleReportingPeriodChange = useCallback((value: number | undefined) => {
     onChange({
       claimsReportingPeriod: value,
       hasSubrogationRights,
     });
-  };
+  }, [onChange, hasSubrogationRights]);
 
-  const handleSubrogationChange = (checked: boolean) => {
+  const handleSubrogationChange = useCallback((checked: boolean) => {
     onChange({
       claimsReportingPeriod,
       hasSubrogationRights: checked,
     });
-  };
+  }, [onChange, claimsReportingPeriod]);
 
   return (
     <Container>
@@ -158,7 +159,7 @@ export const ClaimsSection: React.FC<ClaimsSectionProps> = ({
       </SubSection>
     </Container>
   );
-};
+});
 
 // Styled Components
 const Container = styled.div`

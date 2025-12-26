@@ -17,7 +17,3 @@ export * from './data';
 
 // UI utilities
 export * from './ui';
-
-// Backward compatibility - deprecated utilities
-export * from './ruleValidation';
-

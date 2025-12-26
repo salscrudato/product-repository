@@ -3,7 +3,7 @@
  * Section for managing underwriting requirements and eligibility criteria
  */
 
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import styled from 'styled-components';
 import { PlusIcon, TrashIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 
@@ -20,7 +20,7 @@ interface UnderwritingSectionProps {
   }) => void;
 }
 
-export const UnderwritingSection: React.FC<UnderwritingSectionProps> = ({
+export const UnderwritingSection = memo<UnderwritingSectionProps>(({
   requiresUnderwriterApproval = false,
   eligibilityCriteria = [],
   requiredCoverages = [],
@@ -31,16 +31,17 @@ export const UnderwritingSection: React.FC<UnderwritingSectionProps> = ({
   const [newRequired, setNewRequired] = useState('');
   const [newIncompatible, setNewIncompatible] = useState('');
 
-  const handleToggleApproval = (checked: boolean) => {
+  // Memoized callbacks to prevent unnecessary re-renders
+  const handleToggleApproval = useCallback((checked: boolean) => {
     onChange({
       requiresUnderwriterApproval: checked,
       eligibilityCriteria,
       requiredCoverages,
       incompatibleCoverages,
     });
-  };
+  }, [onChange, eligibilityCriteria, requiredCoverages, incompatibleCoverages]);
 
-  const handleAddCriterion = () => {
+  const handleAddCriterion = useCallback(() => {
     if (newCriterion.trim()) {
       onChange({
         requiresUnderwriterApproval,
@@ -50,18 +51,18 @@ export const UnderwritingSection: React.FC<UnderwritingSectionProps> = ({
       });
       setNewCriterion('');
     }
-  };
+  }, [onChange, newCriterion, requiresUnderwriterApproval, eligibilityCriteria, requiredCoverages, incompatibleCoverages]);
 
-  const handleRemoveCriterion = (index: number) => {
+  const handleRemoveCriterion = useCallback((index: number) => {
     onChange({
       requiresUnderwriterApproval,
       eligibilityCriteria: eligibilityCriteria.filter((_, i) => i !== index),
       requiredCoverages,
       incompatibleCoverages,
     });
-  };
+  }, [onChange, requiresUnderwriterApproval, eligibilityCriteria, requiredCoverages, incompatibleCoverages]);
 
-  const handleAddRequired = () => {
+  const handleAddRequired = useCallback(() => {
     if (newRequired.trim()) {
       onChange({
         requiresUnderwriterApproval,
@@ -71,18 +72,18 @@ export const UnderwritingSection: React.FC<UnderwritingSectionProps> = ({
       });
       setNewRequired('');
     }
-  };
+  }, [onChange, newRequired, requiresUnderwriterApproval, eligibilityCriteria, requiredCoverages, incompatibleCoverages]);
 
-  const handleRemoveRequired = (index: number) => {
+  const handleRemoveRequired = useCallback((index: number) => {
     onChange({
       requiresUnderwriterApproval,
       eligibilityCriteria,
       requiredCoverages: requiredCoverages.filter((_, i) => i !== index),
       incompatibleCoverages,
     });
-  };
+  }, [onChange, requiresUnderwriterApproval, eligibilityCriteria, requiredCoverages, incompatibleCoverages]);
 
-  const handleAddIncompatible = () => {
+  const handleAddIncompatible = useCallback(() => {
     if (newIncompatible.trim()) {
       onChange({
         requiresUnderwriterApproval,
@@ -92,16 +93,16 @@ export const UnderwritingSection: React.FC<UnderwritingSectionProps> = ({
       });
       setNewIncompatible('');
     }
-  };
+  }, [onChange, newIncompatible, requiresUnderwriterApproval, eligibilityCriteria, requiredCoverages, incompatibleCoverages]);
 
-  const handleRemoveIncompatible = (index: number) => {
+  const handleRemoveIncompatible = useCallback((index: number) => {
     onChange({
       requiresUnderwriterApproval,
       eligibilityCriteria,
       requiredCoverages,
       incompatibleCoverages: incompatibleCoverages.filter((_, i) => i !== index),
     });
-  };
+  }, [onChange, requiresUnderwriterApproval, eligibilityCriteria, requiredCoverages, incompatibleCoverages]);
 
   return (
     <Container>
@@ -238,7 +239,7 @@ export const UnderwritingSection: React.FC<UnderwritingSectionProps> = ({
       </SubSection>
     </Container>
   );
-};
+});
 
 // Styled Components
 const Container = styled.div`

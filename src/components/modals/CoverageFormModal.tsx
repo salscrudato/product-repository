@@ -24,6 +24,7 @@ interface CoverageFormModalProps {
   coverage?: Partial<Coverage>;
   onSave: (coverage: Partial<Coverage>) => Promise<void>;
   title?: string;
+  productId?: string;
 }
 
 export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
@@ -32,6 +33,7 @@ export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
   coverage,
   onSave,
   title = 'Coverage Details',
+  productId,
 }) => {
   const [formData, setFormData] = useState<Partial<Coverage>>(coverage || {});
   const [saving, setSaving] = useState(false);
@@ -48,8 +50,9 @@ export const CoverageFormModal: React.FC<CoverageFormModalProps> = ({
   if (!isOpen) return null;
 
   const handleSave = async () => {
-    // Validate before saving
-    const validationResult = validateCoverage(formData);
+    // Validate before saving - include productId in validation
+    const dataToValidate = { ...formData, productId };
+    const validationResult = validateCoverage(dataToValidate);
 
     if (!validationResult.isValid) {
       setValidationErrors(validationResult.errors.map(e => e.message));

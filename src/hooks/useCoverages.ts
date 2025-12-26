@@ -28,7 +28,7 @@ export default function useCoverages(productId) {
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState(null);
 
-  // Helper function to enrich coverages with linked forms
+  // Helper function to enrich coverages with linked forms and subcollection counts
   const enrichCoveragesWithForms = useCallback(async (coveragesList) => {
     try {
       // Fetch all form-coverage links for this product
@@ -49,11 +49,39 @@ export default function useCoverages(productId) {
         formsByCoverage[coverageId].push(formId);
       });
 
-      // Enrich each coverage with its linked form IDs
-      return coveragesList.map(coverage => ({
-        ...coverage,
-        formIds: formsByCoverage[coverage.id] || []
-      }));
+      // Enrich each coverage with its linked form IDs and subcollection counts
+      const enrichedCoverages = await Promise.all(
+        coveragesList.map(async (coverage) => {
+          try {
+            // Count limits from subcollection
+            const limitsSnap = await getDocs(
+              collection(db, `products/${productId}/coverages/${coverage.id}/limits`)
+            );
+
+            // Count deductibles from subcollection
+            const deductiblesSnap = await getDocs(
+              collection(db, `products/${productId}/coverages/${coverage.id}/deductibles`)
+            );
+
+            return {
+              ...coverage,
+              formIds: formsByCoverage[coverage.id] || [],
+              limitsCount: limitsSnap.size,
+              deductiblesCount: deductiblesSnap.size
+            };
+          } catch (err) {
+            console.error(`Error enriching coverage ${coverage.id}:`, err);
+            return {
+              ...coverage,
+              formIds: formsByCoverage[coverage.id] || [],
+              limitsCount: 0,
+              deductiblesCount: 0
+            };
+          }
+        })
+      );
+
+      return enrichedCoverages;
     } catch (err) {
       console.error('Error enriching coverages with forms:', err);
       return coveragesList;

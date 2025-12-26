@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import {
   SparklesIcon,
   TrashIcon,
   PaperAirplaneIcon,
   UserCircleIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  ArrowPathIcon,
+  ClipboardDocumentIcon,
+  CheckIcon
 } from '@heroicons/react/24/solid';
 import MainNavigation from './ui/Navigation';
 import { EnhancedChatMessage } from './ui/EnhancedChatMessage';
@@ -19,6 +22,74 @@ import { AI_MODELS, AI_PARAMETERS } from '../config/aiConfig';
 import firebaseOptimized from '../services/firebaseOptimized';
 import aiPromptOptimizer from '../services/aiPromptOptimizer';
 import responseFormatter from '../services/responseFormatter';
+
+// ============================================================================
+// Animations
+// ============================================================================
+
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const slideInLeft = keyframes`
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+`;
+
+const slideInRight = keyframes`
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+`;
+
+const pulseGlow = keyframes`
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(99, 102, 241, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(99, 102, 241, 0.3);
+  }
+`;
+
+const typingDots = keyframes`
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
+  30% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+`;
+
+const scaleIn = keyframes`
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+`;
 
 // Types for chat messages
 interface ChatMessage {
@@ -193,19 +264,8 @@ const CenteredContainer = styled.div`
 const MessageGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  animation: fadeIn 0.3s ease-in;
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+  gap: 14px;
+  animation: ${fadeInUp} 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 `;
 
 const UserMessage = styled.div`
@@ -213,41 +273,56 @@ const UserMessage = styled.div`
   gap: 12px;
   align-items: flex-start;
   justify-content: flex-end;
+  animation: ${slideInRight} 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 
   .avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: ${({ theme }) => theme.isDarkMode ? '#475569' : '#e2e8f0'};
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #475569, #334155);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     order: 2;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transition: transform 0.2s ease;
 
     svg {
-      width: 20px;
-      height: 20px;
-      color: ${({ theme }) => theme.isDarkMode ? '#94a3b8' : '#64748b'};
+      width: 18px;
+      height: 18px;
+      color: #e2e8f0;
     }
   }
 
+  &:hover .avatar {
+    transform: scale(1.05);
+  }
+
   .content {
-    background: ${({ theme }) => theme.isDarkMode ? '#1e293b' : '#f1f5f9'};
-    color: ${({ theme }) => theme.isDarkMode ? '#e2e8f0' : '#1e293b'};
-    padding: 12px 16px;
-    border-radius: 18px;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    padding: 14px 18px;
+    border-radius: 18px 18px 4px 18px;
     max-width: 70%;
     font-size: 15px;
-    line-height: 1.5;
+    line-height: 1.65;
     word-wrap: break-word;
     order: 1;
+    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.2), 0 4px 20px rgba(99, 102, 241, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  &:hover .content {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25), 0 6px 24px rgba(99, 102, 241, 0.15);
   }
 
   @media (max-width: 768px) {
     .content {
       max-width: 85%;
       font-size: 14px;
+      padding: 12px 16px;
     }
   }
 `;
@@ -256,34 +331,94 @@ const AssistantMessage = styled.div`
   display: flex;
   gap: 12px;
   align-items: flex-start;
+  animation: ${slideInLeft} 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 
   .avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
     background: linear-gradient(135deg, #6366f1, #8b5cf6);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.25);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 
     svg {
-      width: 18px;
-      height: 18px;
+      width: 17px;
+      height: 17px;
       color: white;
     }
+  }
+
+  &:hover .avatar {
+    transform: scale(1.05);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
   }
 
   .content {
     flex: 1;
     max-width: 85%;
+    background: ${({ theme }) => theme.isDarkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.98)'};
+    border: 1px solid ${({ theme }) => theme.isDarkMode ? '#334155' : 'rgba(226, 232, 240, 0.8)'};
+    border-radius: 4px 18px 18px 18px;
+    padding: 16px 20px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05), 0 4px 20px rgba(0, 0, 0, 0.03);
     color: ${({ theme }) => theme.isDarkMode ? '#e2e8f0' : '#1e293b'};
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+
+  &:hover .content {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 6px 24px rgba(0, 0, 0, 0.04);
+    border-color: ${({ theme }) => theme.isDarkMode ? '#475569' : 'rgba(99, 102, 241, 0.2)'};
+  }
+
+  .message-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid ${({ theme }) => theme.isDarkMode ? '#334155' : 'rgba(226, 232, 240, 0.8)'};
   }
 
   @media (max-width: 768px) {
     .content {
       max-width: 90%;
+      padding: 14px 16px;
     }
+  }
+`;
+
+const ActionButton = styled.button<{ $active?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.isDarkMode ? '#334155' : '#e2e8f0'};
+  background: ${({ $active, theme }) =>
+    $active
+      ? 'rgba(34, 197, 94, 0.1)'
+      : (theme.isDarkMode ? 'rgba(51, 65, 85, 0.5)' : 'rgba(248, 250, 252, 0.8)')};
+  color: ${({ $active, theme }) =>
+    $active
+      ? '#22c55e'
+      : (theme.isDarkMode ? '#94a3b8' : '#64748b')};
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  &:hover {
+    background: ${({ theme }) => theme.isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(241, 245, 249, 1)'};
+    border-color: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
   }
 `;
 
@@ -316,26 +451,36 @@ const InputWrapper = styled.div`
 
 const InputField = styled.textarea`
   flex: 1;
-  padding: 12px 16px;
-  border: 1px solid ${({ theme }) => theme.isDarkMode ? '#334155' : '#e2e8f0'};
-  border-radius: 12px;
+  padding: 14px 18px;
+  border: 1.5px solid ${({ theme }) => theme.isDarkMode ? '#334155' : 'rgba(226, 232, 240, 0.8)'};
+  border-radius: 14px;
   font-size: 15px;
   font-family: inherit;
   resize: none;
-  min-height: 48px;
+  min-height: 52px;
   max-height: 200px;
-  background: ${({ theme }) => theme.isDarkMode ? '#1e293b' : '#ffffff'};
+  background: ${({ theme }) => theme.isDarkMode ? '#1e293b' : 'rgba(255, 255, 255, 0.98)'};
   color: ${({ theme }) => theme.isDarkMode ? '#e2e8f0' : '#1e293b'};
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+  &:hover:not(:focus):not(:disabled) {
+    border-color: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
+  }
 
   &:focus {
     outline: none;
     border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
   }
 
   &::placeholder {
     color: ${({ theme }) => theme.isDarkMode ? '#64748b' : '#94a3b8'};
+    transition: color 0.2s ease;
+  }
+
+  &:focus::placeholder {
+    color: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
   }
 
   &:disabled {
@@ -345,44 +490,57 @@ const InputField = styled.textarea`
 
   @media (max-width: 768px) {
     font-size: 14px;
-    padding: 10px 14px;
+    padding: 12px 16px;
+    min-height: 48px;
   }
 `;
 
 const SendButton = styled.button`
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   border: none;
   color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
 
   svg {
     width: 20px;
     height: 20px;
+    transition: transform 0.2s ease;
   }
 
   &:hover:not(:disabled) {
-    background: linear-gradient(135deg, #5b5bf6, #7c3aed);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    background: linear-gradient(135deg, #5b5bf6 0%, #7c3aed 100%);
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+
+    svg {
+      transform: translateX(2px);
+    }
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
   }
 
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: not-allowed;
     transform: none;
+    filter: grayscale(0.2);
   }
 
   @media (max-width: 768px) {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
 
     svg {
       width: 18px;
@@ -468,18 +626,20 @@ const SystemStatus = styled.div<{ $isReady: boolean }>`
 
 const LoadingIndicator = styled.div`
   display: flex;
-  gap: 12px;
+  gap: 14px;
   align-items: flex-start;
+  animation: ${fadeInUp} 0.3s ease-out;
 
   .avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
     background: linear-gradient(135deg, #6366f1, #8b5cf6);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    animation: ${pulseGlow} 2s infinite;
 
     svg {
       width: 18px;
@@ -488,24 +648,44 @@ const LoadingIndicator = styled.div`
     }
   }
 
+  .typing-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: ${({ theme }) => theme.isDarkMode ? 'rgba(30, 41, 59, 0.8)' : 'rgba(255, 255, 255, 0.95)'};
+    border: 1px solid ${({ theme }) => theme.isDarkMode ? '#334155' : '#e2e8f0'};
+    border-radius: 4px 20px 20px 20px;
+    padding: 16px 20px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  .typing-text {
+    font-size: 13px;
+    color: ${({ theme }) => theme.isDarkMode ? '#94a3b8' : '#64748b'};
+    font-weight: 500;
+  }
+
   .dots {
     display: flex;
     gap: 6px;
-    padding: 12px 16px;
 
     span {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
-      animation: bounce 1.4s infinite ease-in-out both;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      animation: ${typingDots} 1.4s infinite ease-in-out;
 
       &:nth-child(1) {
-        animation-delay: -0.32s;
+        animation-delay: 0s;
       }
 
       &:nth-child(2) {
-        animation-delay: -0.16s;
+        animation-delay: 0.2s;
+      }
+
+      &:nth-child(3) {
+        animation-delay: 0.4s;
       }
     }
   }
@@ -532,6 +712,7 @@ export default function Home() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -545,6 +726,17 @@ export default function Home() {
   const [formCoverages, setFormCoverages] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
+
+  // Copy message to clipboard
+  const handleCopyMessage = useCallback(async (messageId: string, content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessageId(messageId);
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (error) {
+      logger.error(LOG_CATEGORIES.ERROR, 'Failed to copy message', { error });
+    }
+  }, []);
 
 
 
@@ -687,7 +879,7 @@ export default function Home() {
         }
       },
 
-      // Sample data for context (limited to avoid token overflow)
+      // Sample data for backward compatibility
       sampleData: {
         products: safeProducts.slice(0, 3).map(p => ({
           name: p.name,
@@ -704,6 +896,18 @@ export default function Home() {
           phase: t.phase,
           priority: t.priority
         }))
+      },
+
+      // FULL DATA - Include all data for comprehensive AI context
+      fullData: {
+        products: safeProducts,
+        coverages: safeCoverages,
+        forms: safeForms,
+        rules: safeRules,
+        pricingSteps: safePricingSteps,
+        dataDictionary: safeDataDictionary,
+        formCoverages: safeFormCoverages,
+        tasks: safeTasks
       }
     };
 
@@ -756,10 +960,10 @@ export default function Home() {
     logger.logUserAction('Home chat query submitted', {
       queryLength: query.length,
       queryType,
-      hasProducts: products.length > 0,
-      hasCoverages: coverages.length > 0,
-      hasForms: forms.length > 0,
-      hasRules: rules.length > 0,
+      hasProducts: (products || []).length > 0,
+      hasCoverages: (coverages || []).length > 0,
+      hasForms: (forms || []).length > 0,
+      hasRules: (rules || []).length > 0,
       timestamp: new Date().toISOString()
     });
 
@@ -931,7 +1135,7 @@ export default function Home() {
         )}
       </SystemStatus>
 
-      <MainContent $isEmpty={isEmpty}>
+      <MainContent id="main-content" $isEmpty={isEmpty}>
         {isEmpty ? (
           /* Centered Empty State with Input */
           <CenteredContainer>
@@ -999,6 +1203,25 @@ export default function Home() {
                           metadata={message.metadata}
                           showMetadata={true}
                         />
+                        <div className="message-actions">
+                          <ActionButton
+                            onClick={() => handleCopyMessage(message.id, message.content)}
+                            $active={copiedMessageId === message.id}
+                            title={copiedMessageId === message.id ? 'Copied!' : 'Copy message'}
+                          >
+                            {copiedMessageId === message.id ? (
+                              <>
+                                <CheckIcon />
+                                Copied
+                              </>
+                            ) : (
+                              <>
+                                <ClipboardDocumentIcon />
+                                Copy
+                              </>
+                            )}
+                          </ActionButton>
+                        </div>
                       </div>
                     </AssistantMessage>
                   )}
@@ -1010,10 +1233,13 @@ export default function Home() {
                   <div className="avatar">
                     <SparklesIcon />
                   </div>
-                  <div className="dots">
-                    <span></span>
-                    <span></span>
-                    <span></span>
+                  <div className="typing-container">
+                    <div className="typing-text">Analyzing your request...</div>
+                    <div className="dots">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
                   </div>
                 </LoadingIndicator>
               )}

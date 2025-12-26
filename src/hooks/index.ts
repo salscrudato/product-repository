@@ -6,9 +6,13 @@
 // Data hooks
 export { default as useCoverages } from './useCoverages';
 export { default as useProducts } from './useProducts';
+export { default as useProduct } from './useProduct';
+export { default as useForms } from './useForms';
 export { default as useRules } from './useRules';
-export { default as useCoverageLimits } from './useCoverageLimits';
-export { default as useCoverageDeductibles } from './useCoverageDeductibles';
+export { useCoverageData } from './useCoverageData';
+// Deprecated: Use useCoverageData instead
+export { useCoverageLimits } from './useCoverageLimits';
+export { useCoverageDeductibles } from './useCoverageDeductibles';
 export { default as useCoverageFormCounts } from './useCoverageFormCounts';
 export { default as useCoveragePackages } from './useCoveragePackages';
 export { default as useCoverageVersions } from './useCoverageVersions';

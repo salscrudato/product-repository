@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import styled from 'styled-components';
 import { CoveragePackage, Coverage } from '../../types';
 import { PencilIcon, TrashIcon, SparklesIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
@@ -12,7 +12,7 @@ interface PackageCardProps {
   isSelected?: boolean;
 }
 
-export const PackageCard: React.FC<PackageCardProps> = ({
+export const PackageCard = memo<PackageCardProps>(({
   package: pkg,
   coverages,
   onEdit,
@@ -20,6 +20,16 @@ export const PackageCard: React.FC<PackageCardProps> = ({
   onSelect,
   isSelected,
 }) => {
+  // Memoized event handlers to prevent unnecessary re-renders
+  const handleEdit = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit?.();
+  }, [onEdit]);
+
+  const handleDelete = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete?.();
+  }, [onDelete]);
   const packageCoverages = coverages.filter((c) => pkg.coverageIds.includes(c.id));
   
   const getPackageTypeColor = (type: string) => {
@@ -51,14 +61,14 @@ export const PackageCard: React.FC<PackageCardProps> = ({
           {(onEdit || onDelete) && (
             <CardActions>
               {onEdit && (
-                <IconButton onClick={(e) => { e.stopPropagation(); onEdit(); }} title="Edit">
+                <IconButton onClick={handleEdit} title="Edit">
                   <PencilIcon width={16} height={16} />
                 </IconButton>
               )}
               {onDelete && (
-                <IconButton 
-                  className="danger" 
-                  onClick={(e) => { e.stopPropagation(); onDelete(); }} 
+                <IconButton
+                  className="danger"
+                  onClick={handleDelete}
                   title="Delete"
                 >
                   <TrashIcon width={16} height={16} />
@@ -114,7 +124,7 @@ export const PackageCard: React.FC<PackageCardProps> = ({
       )}
     </Card>
   );
-};
+});
 
 const Card = styled.div<{ $selected?: boolean }>`
   background: white;

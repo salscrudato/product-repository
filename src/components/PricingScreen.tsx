@@ -38,6 +38,7 @@ import {
 import styled, { keyframes } from 'styled-components';
 import { TextInput } from '../components/ui/Input';
 import PremiumCalculator from './pricing/PremiumCalculator';
+import RatingAlgorithmBuilder from './pricing/RatingAlgorithmBuilder';
 
 /* ========== MODERN STYLED COMPONENTS ========== */
 
@@ -1492,66 +1493,32 @@ function operandGlyph(op) {
           showBackButton
           onBackClick={() => navigate(-1)}
         />
-        <Card>
-          <FiltersBar>
-            <FormGroup>
-              <label>Select Coverage</label>
-              <FilterWrapper>
-                <FunnelIcon width={16} height={16} style={{ color: '#6B7280' }} />
-                <TextInput
-                  as="select"
-                  value={selectedCoverage || ''}
-                  onChange={e => setSelectedCoverage(e.target.value || null)}
-                >
-                  {coverageOptions.map(o => (
-                    <option key={o.value} value={o.value || ''}>{o.label}</option>
-                  ))}
-                </TextInput>
-              </FilterWrapper>
-            </FormGroup>
-
-            <FormGroup>
-              <label>Select State</label>
-              <FilterWrapper>
-                <MapIcon width={16} height={16} style={{ color: '#6B7280' }} />
-                <TextInput
-                  as="select"
-                  multiple
-                  value={selectedStates}
-                  onChange={e => setSelectedStates(Array.from(e.target.selectedOptions, option => option.value))}
-                  style={{ minHeight: '100px' }}
-                >
-                  {stateOptions.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </TextInput>
-              </FilterWrapper>
-            </FormGroup>
-
-
-          </FiltersBar>
-
-          {steps.length ? (
-            <>
-              <PremiumCalculator
-                steps={filteredSteps}
-                selectedCoverage={selectedCoverage}
-                selectedStates={selectedStates}
-              />
-              {renderCalculationPreview()}
-            </>
-          ) : (
-            <p style={{ color: '#6B7280' }}>Start by adding a step to build your pricing model.</p>
-          )}
-        </Card>
-        <Button onClick={openAddModal} style={{ marginBottom: 24 }} aria-label="Add new step">Add Step</Button>
-        <OperandGroup>
-          {['+', '-', '*', '/', '='].map(op => (
-            <Button key={op} onClick={() => addOperand(op)}>
-              {op}
-            </Button>
-          ))}
-        </OperandGroup>
+        {/* Rating Algorithm Builder - New Visual Interface */}
+        <RatingAlgorithmBuilder
+          steps={filteredSteps}
+          coverages={coverages}
+          onStepsChange={setSteps}
+          onAddStep={openAddModal}
+          onEditStep={(step) => openEditModal(step)}
+          onDeleteStep={async (stepId) => {
+            if (window.confirm("Are you sure you want to delete this step?")) {
+              await handleDeleteStep(stepId);
+            }
+          }}
+          onUpdateStepValue={handleValueUpdate}
+          onReorderSteps={async (stepId, direction) => {
+            const idx = steps.findIndex(s => s.id === stepId);
+            if (idx !== -1) {
+              await moveStep(stepId, idx, direction);
+            }
+          }}
+          onAddOperand={addOperand}
+          onOpenCoverageModal={openCovModal}
+          onOpenStatesModal={openStatesModal}
+          selectedCoverage={selectedCoverage}
+          selectedStates={selectedStates}
+          isLoading={loading}
+        />
         {modalOpen && (
           <StepModal
             onClose={() => setModalOpen(false)}

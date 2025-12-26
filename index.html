@@ -9,9 +9,15 @@
     <!-- Preconnect to external domains for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 
     <!-- Load Inter font with font-display: swap for better performance -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Preload critical chunks for faster initial load -->
+    <link rel="preload" as="script" href="/assets/react-vendor.js">
+    <link rel="preload" as="script" href="/assets/firebase-vendor.js">
+    <link rel="preload" as="script" href="/assets/index.js">
 
     <!-- Security headers (X-Frame-Options must be set via HTTP headers, not meta tags) -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
