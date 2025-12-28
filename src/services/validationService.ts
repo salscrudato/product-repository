@@ -106,42 +106,148 @@ export function validateProduct(product: Partial<Product>): ValidationResult {
 // Coverage Validation
 // ============================================================================
 
-export function validateCoverage(coverage: Partial<Coverage>): ValidationResult {
+/**
+ * Validation options for coverage
+ */
+export interface CoverageValidationOptions {
+  mode: 'draft' | 'publish';
+}
+
+/**
+ * Extended validation result with completeness scoring
+ */
+export interface CoverageValidationResult extends ValidationResult {
+  completenessScore: number;
+  missingRequiredFields: string[];
+  readyToPublish: boolean;
+}
+
+/**
+ * Required fields for publishing a coverage
+ */
+const COVERAGE_REQUIRED_FOR_PUBLISH = [
+  'name',
+  'coverageCode',
+  'productId',
+];
+
+/**
+ * Fields that contribute to completeness scoring
+ */
+const COVERAGE_COMPLETENESS_FIELDS: { field: string; weight: number; label: string }[] = [
+  { field: 'name', weight: 15, label: 'Coverage Name' },
+  { field: 'coverageCode', weight: 10, label: 'Coverage Code' },
+  { field: 'description', weight: 10, label: 'Description' },
+  { field: 'coverageKind', weight: 5, label: 'Coverage Kind' },
+  { field: 'coverageCategory', weight: 5, label: 'Coverage Category' },
+  { field: 'coverageTrigger', weight: 8, label: 'Coverage Trigger' },
+  { field: 'valuationMethod', weight: 8, label: 'Valuation Method' },
+  { field: 'coinsurancePercentage', weight: 7, label: 'Coinsurance' },
+  { field: 'availabilityStates', weight: 10, label: 'Availability States' },
+  { field: 'territoryType', weight: 5, label: 'Territory Type' },
+  { field: 'claimsReportingPeriod', weight: 5, label: 'Claims Reporting Period' },
+  { field: 'hasSubrogationRights', weight: 4, label: 'Subrogation Rights' },
+  { field: 'eligibilityCriteria', weight: 4, label: 'Eligibility Criteria' },
+  { field: 'scopeOfCoverage', weight: 4, label: 'Scope of Coverage' },
+];
+
+/**
+ * Calculate completeness score for a coverage
+ */
+export function calculateCoverageCompleteness(coverage: Partial<Coverage>): {
+  score: number;
+  filledFields: string[];
+  missingFields: string[];
+} {
+  let totalWeight = 0;
+  let earnedWeight = 0;
+  const filledFields: string[] = [];
+  const missingFields: string[] = [];
+
+  for (const { field, weight, label } of COVERAGE_COMPLETENESS_FIELDS) {
+    totalWeight += weight;
+    const value = (coverage as Record<string, unknown>)[field];
+
+    const isFilled = value !== undefined && value !== null && value !== '' &&
+      !(Array.isArray(value) && value.length === 0);
+
+    if (isFilled) {
+      earnedWeight += weight;
+      filledFields.push(label);
+    } else {
+      missingFields.push(label);
+    }
+  }
+
+  return {
+    score: Math.round((earnedWeight / totalWeight) * 100),
+    filledFields,
+    missingFields
+  };
+}
+
+/**
+ * Validate coverage with draft/publish mode support
+ */
+export function validateCoverage(
+  coverage: Partial<Coverage>,
+  options: CoverageValidationOptions = { mode: 'publish' }
+): CoverageValidationResult {
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
+  const missingRequiredFields: string[] = [];
+  const { mode } = options;
 
-  // Required fields
+  // Calculate completeness
+  const completeness = calculateCoverageCompleteness(coverage);
+
+  // Required fields (only enforced in publish mode)
   if (!coverage.name || coverage.name.trim().length === 0) {
-    errors.push({
-      field: 'name',
-      message: 'Coverage name is required',
-      severity: 'error',
-      code: 'COVERAGE_NAME_REQUIRED'
-    });
+    if (mode === 'publish') {
+      errors.push({
+        field: 'name',
+        message: 'Coverage name is required',
+        severity: 'error',
+        code: 'COVERAGE_NAME_REQUIRED'
+      });
+    }
+    missingRequiredFields.push('name');
   }
 
   if (!coverage.productId) {
-    errors.push({
-      field: 'productId',
-      message: 'Product ID is required',
-      severity: 'error',
-      code: 'PRODUCT_ID_REQUIRED'
-    });
+    if (mode === 'publish') {
+      errors.push({
+        field: 'productId',
+        message: 'Product ID is required',
+        severity: 'error',
+        code: 'PRODUCT_ID_REQUIRED'
+      });
+    }
+    missingRequiredFields.push('productId');
   }
 
-  // Coverage code validation
-  if (coverage.coverageCode && !/^[A-Z0-9-]+$/.test(coverage.coverageCode)) {
+  // Coverage code - required for publish
+  if (!coverage.coverageCode || coverage.coverageCode.trim().length === 0) {
+    if (mode === 'publish') {
+      errors.push({
+        field: 'coverageCode',
+        message: 'Coverage code is required for publishing',
+        severity: 'error',
+        code: 'COVERAGE_CODE_REQUIRED'
+      });
+    }
+    missingRequiredFields.push('coverageCode');
+  } else if (!/^[A-Z0-9-]+$/i.test(coverage.coverageCode)) {
+    // Format validation (always applies)
     warnings.push({
       field: 'coverageCode',
-      message: 'Coverage code should contain only uppercase letters, numbers, and hyphens',
+      message: 'Coverage code should contain only letters, numbers, and hyphens',
       severity: 'warning',
       code: 'INVALID_COVERAGE_CODE_FORMAT'
     });
   }
 
-
-
-  // Coinsurance validation
+  // Business rule validations (apply to both modes)
   if (coverage.coinsurancePercentage !== undefined) {
     if (coverage.coinsurancePercentage < 0 || coverage.coinsurancePercentage > 100) {
       errors.push({
@@ -153,7 +259,6 @@ export function validateCoverage(coverage: Partial<Coverage>): ValidationResult 
     }
   }
 
-  // Waiting period validation
   if (coverage.waitingPeriod !== undefined && coverage.waitingPeriod < 0) {
     errors.push({
       field: 'waitingPeriod',
@@ -163,7 +268,6 @@ export function validateCoverage(coverage: Partial<Coverage>): ValidationResult 
     });
   }
 
-  // Claims reporting period validation
   if (coverage.claimsReportingPeriod !== undefined && coverage.claimsReportingPeriod < 0) {
     errors.push({
       field: 'claimsReportingPeriod',
@@ -173,12 +277,67 @@ export function validateCoverage(coverage: Partial<Coverage>): ValidationResult 
     });
   }
 
+  // Coverage kind validation
+  const validKinds = ['coverage', 'endorsement', 'exclusion', 'notice', 'condition'];
+  if (coverage.coverageKind && !validKinds.includes(coverage.coverageKind)) {
+    errors.push({
+      field: 'coverageKind',
+      message: `Invalid coverage kind: ${coverage.coverageKind}`,
+      severity: 'error',
+      code: 'INVALID_COVERAGE_KIND'
+    });
+  }
 
+  // Endorsement-specific validation
+  if (coverage.coverageKind === 'endorsement' && !coverage.modifiesCoverageId) {
+    warnings.push({
+      field: 'modifiesCoverageId',
+      message: 'Endorsements should specify which coverage they modify',
+      severity: 'warning',
+      code: 'ENDORSEMENT_MISSING_TARGET'
+    });
+  }
+
+  // Claims-made specific validation
+  if (coverage.coverageTrigger === 'claimsMade' && !coverage.claimsReportingPeriod) {
+    warnings.push({
+      field: 'claimsReportingPeriod',
+      message: 'Claims-made coverage should specify a claims reporting period',
+      severity: 'warning',
+      code: 'CLAIMS_MADE_MISSING_REPORTING_PERIOD'
+    });
+  }
+
+  // ACV specific validation
+  if (coverage.valuationMethod === 'ACV' && !coverage.depreciationMethod) {
+    warnings.push({
+      field: 'depreciationMethod',
+      message: 'ACV valuation should specify a depreciation method',
+      severity: 'warning',
+      code: 'ACV_MISSING_DEPRECIATION_METHOD'
+    });
+  }
 
   return {
     isValid: errors.length === 0,
     errors,
-    warnings
+    warnings,
+    completenessScore: completeness.score,
+    missingRequiredFields,
+    readyToPublish: errors.length === 0 && missingRequiredFields.length === 0
+  };
+}
+
+/**
+ * Legacy validateCoverage function signature for backward compatibility
+ * @deprecated Use validateCoverage with options instead
+ */
+export function validateCoverageBasic(coverage: Partial<Coverage>): ValidationResult {
+  const result = validateCoverage(coverage, { mode: 'publish' });
+  return {
+    isValid: result.isValid,
+    errors: result.errors,
+    warnings: result.warnings
   };
 }
 

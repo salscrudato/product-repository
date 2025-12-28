@@ -87,8 +87,6 @@ export default function ProductExplorer() {
   const [selectedCoverage,setSelCoverage] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // location variable removed - unused
-
   /* fetch everything once */
   useEffect(()=>{
     (async()=>{

@@ -20,6 +20,7 @@ interface UseProductsOptions {
   enableCache?: boolean;
   maxResults?: number;
   orderBy?: string;
+  includeArchived?: boolean;
 }
 
 interface UseProductsResult<T> {
@@ -43,7 +44,7 @@ const productsCache = {
 export default function useProducts<T extends Product = Product>(
   options: UseProductsOptions = {}
 ): UseProductsResult<T> {
-  const { enableCache = true, maxResults = 1000, orderBy: orderByField = 'name' } = options;
+  const { enableCache = true, maxResults = 1000, orderBy: orderByField = 'name', includeArchived = false } = options;
   const [products, setProducts] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -59,6 +60,14 @@ export default function useProducts<T extends Product = Product>(
 
     return query(collection(db, 'products'), ...constraints);
   }, [maxResults, orderByField]);
+
+  // Filter out archived products from the results (unless includeArchived is true)
+  const filterArchivedProducts = useCallback((productsData: T[]): T[] => {
+    if (includeArchived) {
+      return productsData;
+    }
+    return productsData.filter(p => !p.archived);
+  }, [includeArchived]);
 
   // Optimized: Refetch callback with memoization
   const refetch = useCallback(() => {
@@ -98,18 +107,22 @@ export default function useProducts<T extends Product = Product>(
             } as T;
           });
 
-          setProducts(productsData);
+          // Filter out archived products
+          const filteredProducts = filterArchivedProducts(productsData);
+
+          setProducts(filteredProducts);
           setLoading(false);
           setError(null);
 
           // Update cache
           if (enableCache) {
-            productsCache.data = productsData;
+            productsCache.data = filteredProducts;
             productsCache.timestamp = Date.now();
           }
 
           logger.debug(LOG_CATEGORIES.DATA, 'Products fetched successfully', {
-            count: productsData.length
+            count: filteredProducts.length,
+            totalCount: productsData.length
           });
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err));
@@ -133,7 +146,7 @@ export default function useProducts<T extends Product = Product>(
         unsubscribeRef.current = null;
       }
     };
-  }, [productsQuery, enableCache]);
+  }, [productsQuery, enableCache, filterArchivedProducts]);
 
   // Cleanup on unmount
   useEffect(() => {

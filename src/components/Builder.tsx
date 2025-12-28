@@ -5,15 +5,44 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import styled from 'styled-components';
 import {
   WrenchScrewdriverIcon,
-  DocumentDuplicateIcon,
-  MagnifyingGlassIcon,
-  ChevronDownIcon
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/solid';
 import { useNavigate } from 'react-router-dom';
 import MainNavigation from '@components/ui/Navigation';
 import EnhancedHeader from '@components/ui/EnhancedHeader';
 import ConfirmationModal from '@components/ui/ConfirmationModal';
-import { cloneProduct } from '@utils/productClone';
+
+/* ---------- Type Definitions ---------- */
+interface CoverageItem {
+  id: string;
+  name?: string;
+  coverageName?: string;
+  coverageCode?: string;
+  category?: string;
+  productId: string;
+  parentCoverageId?: string | null;
+  scopeOfCoverage?: string;
+  states?: string[];
+}
+
+interface CoverageDetails {
+  subCoverages: Array<{ id: string; [key: string]: unknown }>;
+  limits: Array<{ id: string; [key: string]: unknown }>;
+  deductibles: Array<{ id: string; [key: string]: unknown }>;
+  linkedFormIds: string[];
+}
+
+interface SelectedCoveragesMap {
+  [coverageId: string]: CoverageItem;
+}
+
+interface CoverageDetailsMap {
+  [coverageId: string]: CoverageDetails;
+}
+
+interface ProductsMap {
+  [productId: string]: string;
+}
 
 /* ---------- Styled Components (reused from ProductBuilder) ---------- */
 const Page = styled.div`
@@ -179,11 +208,11 @@ const CoverageCardsGrid = styled.div`
   }
 `;
 
-const CoverageCard = styled.div`
+const CoverageCard = styled.div<{ $selected?: boolean }>`
   padding: 16px;
-  border: 1px solid ${props => props.selected ? '#6366f1' : 'rgba(226, 232, 240, 0.6)'};
+  border: 1px solid ${props => props.$selected ? '#6366f1' : 'rgba(226, 232, 240, 0.6)'};
   border-radius: 12px;
-  background: ${props => props.selected ? 'rgba(99, 102, 241, 0.05)' : 'white'};
+  background: ${props => props.$selected ? 'rgba(99, 102, 241, 0.05)' : 'white'};
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
@@ -195,7 +224,7 @@ const CoverageCard = styled.div`
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 
-  ${props => props.selected && `
+  ${props => props.$selected && `
     box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
   `}
 `;
@@ -247,10 +276,10 @@ const FormCount = styled.span`
   border-radius: 8px;
 `;
 
-const SelectButton = styled.button`
+const SelectButton = styled.button<{ $selected?: boolean }>`
   padding: 4px 12px;
-  background: ${props => props.selected ? '#6366f1' : 'transparent'};
-  color: ${props => props.selected ? 'white' : '#6366f1'};
+  background: ${props => props.$selected ? '#6366f1' : 'transparent'};
+  color: ${props => props.$selected ? 'white' : '#6366f1'};
   border: 1px solid #6366f1;
   border-radius: 6px;
   font-size: 11px;
@@ -259,7 +288,7 @@ const SelectButton = styled.button`
   transition: all 0.2s ease;
 
   &:hover {
-    background: ${props => props.selected ? '#4f46e5' : 'rgba(99, 102, 241, 0.1)'};
+    background: ${props => props.$selected ? '#4f46e5' : 'rgba(99, 102, 241, 0.1)'};
   }
 `;
 
@@ -475,12 +504,10 @@ const CreateButton = styled.button`
 `;
 
 const Builder = () => {
-  const [coverages, setCoverages] = useState([]);
-  const [forms, setForms] = useState([]);
-  const [products, setProducts] = useState({});
-  const [selectedCoverages, setSelectedCoverages] = useState({});
-  const [coverageDetails, setCoverageDetails] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [coverages, setCoverages] = useState<CoverageItem[]>([]);
+  const [products, setProducts] = useState<ProductsMap>({});
+  const [selectedCoverages, setSelectedCoverages] = useState<SelectedCoveragesMap>({});
+  const [coverageDetails, setCoverageDetails] = useState<CoverageDetailsMap>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProductFilter, setSelectedProductFilter] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
@@ -490,7 +517,7 @@ const Builder = () => {
   const [formNumber, setFormNumber] = useState('');
   const [productCode, setProductCode] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
-  const [file, setFile] = useState(null);
+  const [file, setFile] = useState<File | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
@@ -499,38 +526,38 @@ const Builder = () => {
   // Fetch data on mount
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
       try {
         const productsSnap = await getDocs(collection(db, 'products'));
-        const productMap = {};
-        productsSnap.docs.forEach(doc => {
-          productMap[doc.id] = doc.data().name;
+        const productMap: ProductsMap = {};
+        productsSnap.docs.forEach(docSnap => {
+          const data = docSnap.data();
+          // Only include non-archived products
+          if (!data.archived) {
+            productMap[docSnap.id] = data.name;
+          }
         });
         setProducts(productMap);
 
         const coveragesSnap = await getDocs(collectionGroup(db, 'coverages'));
-        const coverageList = coveragesSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          productId: doc.ref.parent.parent.id,
-        }));
+        const coverageList: CoverageItem[] = coveragesSnap.docs
+          .map(docSnap => ({
+            id: docSnap.id,
+            ...docSnap.data(),
+            productId: docSnap.ref.parent.parent?.id || '',
+          } as CoverageItem))
+          // Filter out coverages from archived products
+          .filter(coverage => productMap[coverage.productId]);
         setCoverages(coverageList);
-
-        const formsSnap = await getDocs(collection(db, 'forms'));
-        const formList = formsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setForms(formList);
       } catch (error) {
         console.error('Error fetching data:', error);
         alert('Failed to load data. Please try again.');
-      } finally {
-        setLoading(false);
       }
     };
     fetchData();
   }, []);
 
   // Fetch coverage details including sub-coverages, limits, deductibles, and forms
-  const fetchCoverageDetails = async (coverageId, productId) => {
+  const fetchCoverageDetails = async (coverageId: string, productId: string) => {
     try {
       // Get sub-coverages
       const subCoveragesSnap = await getDocs(
@@ -539,27 +566,27 @@ const Builder = () => {
           where('parentCoverageId', '==', coverageId)
         )
       );
-      const subCoverages = subCoveragesSnap.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+      const subCoverages = subCoveragesSnap.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
       }));
 
       // Get limits
       const limitsSnap = await getDocs(
         collection(db, `products/${productId}/coverages/${coverageId}/limits`)
       );
-      const limits = limitsSnap.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+      const limits = limitsSnap.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
       }));
 
       // Get deductibles
       const deductiblesSnap = await getDocs(
         collection(db, `products/${productId}/coverages/${coverageId}/deductibles`)
       );
-      const deductibles = deductiblesSnap.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+      const deductibles = deductiblesSnap.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
       }));
 
       // Get linked forms
@@ -570,7 +597,7 @@ const Builder = () => {
           where('productId', '==', productId)
         )
       );
-      const linkedFormIds = formsSnap.docs.map(doc => doc.data().formId);
+      const linkedFormIds = formsSnap.docs.map(docSnap => docSnap.data().formId);
 
       setCoverageDetails(prev => ({
         ...prev,
@@ -587,13 +614,13 @@ const Builder = () => {
   };
 
   const filteredCoverages = coverages.filter(c => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch = !searchTerm ||
       (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (c.coverageCode || '').toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesProduct = !selectedProductFilter || c.productId === selectedProductFilter;
     const matchesCategory = !selectedCategoryFilter || c.category === selectedCategoryFilter;
-    
+
     return matchesSearch && matchesProduct && matchesCategory;
   });
 
@@ -602,9 +629,9 @@ const Builder = () => {
     name: products[pid] || 'Unknown'
   }));
 
-  const uniqueCategories = [...new Set(coverages.map(c => c.category).filter(Boolean))];
+  const uniqueCategories = [...new Set(coverages.map(c => c.category).filter(Boolean))] as string[];
 
-  const handleSmartCoverageSelect = async (coverage) => {
+  const handleSmartCoverageSelect = async (coverage: CoverageItem) => {
     setSelectedCoverages(prev => {
       const newSelected = { ...prev };
       if (newSelected[coverage.id]) {
@@ -624,7 +651,7 @@ const Builder = () => {
     });
   };
 
-  const handleRemoveCoverage = (coverageId) => {
+  const handleRemoveCoverage = (coverageId: string) => {
     setSelectedCoverages(prev => {
       const newSelected = { ...prev };
       delete newSelected[coverageId];
@@ -641,6 +668,12 @@ const Builder = () => {
   const handleCreateProduct = async () => {
     if (!newProductName || !formNumber || !effectiveDate || Object.keys(selectedCoverages).length === 0) {
       alert('Please fill in all required fields and select at least one coverage.');
+      return;
+    }
+
+    // Validate 4-digit year
+    if (!/^\d{4}$/.test(effectiveDate)) {
+      alert('Please enter a valid 4-digit year (e.g., 2024).');
       return;
     }
 
@@ -672,10 +705,10 @@ const Builder = () => {
       const newProductId = productRef.id;
 
       // Create coverages for new product (with sub-coverages, limits, and deductibles)
-      const newCoverageIds = {};
+      const newCoverageIds: { [key: string]: string } = {};
 
       // Helper function to recursively clone a coverage and all its related data
-      const cloneCoverage = async (sourceCoverageId, sourceProductId, newProductId, parentCoverageId = null) => {
+      const cloneCoverage = async (sourceCoverageId: string, sourceProductId: string, targetProductId: string, parentCoverageId: string | null = null): Promise<string | null> => {
         // Get source coverage data
         const sourceCoverageRef = doc(db, `products/${sourceProductId}/coverages`, sourceCoverageId);
         const sourceCoverageSnap = await getDoc(sourceCoverageRef);
@@ -685,7 +718,7 @@ const Builder = () => {
 
         // Create new coverage
         const newCoverageRef = await addDoc(
-          collection(db, `products/${newProductId}/coverages`),
+          collection(db, `products/${targetProductId}/coverages`),
           {
             name: sourceCoverageData.name || 'Unnamed Coverage',
             coverageCode: sourceCoverageData.coverageCode || '',
@@ -703,7 +736,7 @@ const Builder = () => {
         if (limitsSnap.docs.length > 0) {
           const batch = writeBatch(db);
           limitsSnap.docs.forEach(limitDoc => {
-            const limitRef = doc(collection(db, `products/${newProductId}/coverages/${newCoverageId}/limits`));
+            const limitRef = doc(collection(db, `products/${targetProductId}/coverages/${newCoverageId}/limits`));
             batch.set(limitRef, limitDoc.data());
           });
           await batch.commit();
@@ -714,7 +747,7 @@ const Builder = () => {
         if (deductiblesSnap.docs.length > 0) {
           const batch = writeBatch(db);
           deductiblesSnap.docs.forEach(deductibleDoc => {
-            const deductibleRef = doc(collection(db, `products/${newProductId}/coverages/${newCoverageId}/deductibles`));
+            const deductibleRef = doc(collection(db, `products/${targetProductId}/coverages/${newCoverageId}/deductibles`));
             batch.set(deductibleRef, deductibleDoc.data());
           });
           await batch.commit();
@@ -722,7 +755,7 @@ const Builder = () => {
 
         // Clone states
         if (sourceCoverageData.states && sourceCoverageData.states.length > 0) {
-          await updateDoc(doc(db, `products/${newProductId}/coverages`, newCoverageId), {
+          await updateDoc(doc(db, `products/${targetProductId}/coverages`, newCoverageId), {
             states: sourceCoverageData.states
           });
         }
@@ -735,7 +768,7 @@ const Builder = () => {
           )
         );
         for (const subCoverageDoc of subCoveragesSnap.docs) {
-          await cloneCoverage(subCoverageDoc.id, sourceProductId, newProductId, newCoverageId);
+          await cloneCoverage(subCoverageDoc.id, sourceProductId, targetProductId, newCoverageId);
         }
 
         return newCoverageId;
@@ -743,9 +776,13 @@ const Builder = () => {
 
       // Clone all selected coverages
       for (const coverageId in selectedCoverages) {
-        const sourceProductId = selectedCoverages[coverageId].productId;
-        const newCoverageId = await cloneCoverage(coverageId, sourceProductId, newProductId);
-        newCoverageIds[coverageId] = newCoverageId;
+        const coverage = selectedCoverages[coverageId];
+        if (coverage) {
+          const newCoverageId = await cloneCoverage(coverageId, coverage.productId, newProductId);
+          if (newCoverageId) {
+            newCoverageIds[coverageId] = newCoverageId;
+          }
+        }
       }
 
       // Clone pricing steps from source product
@@ -896,7 +933,7 @@ const Builder = () => {
                 return (
                   <CoverageCard
                     key={coverage.id}
-                    selected={isSelected}
+                    $selected={isSelected}
                     onClick={() => handleSmartCoverageSelect(coverage)}
                   >
                     <CoverageCardHeader>
@@ -915,7 +952,7 @@ const Builder = () => {
 
                     <CoverageCardActions>
                       <FormCount>0 forms</FormCount>
-                      <SelectButton selected={isSelected}>
+                      <SelectButton $selected={isSelected}>
                         {isSelected ? 'Selected' : 'Select'}
                       </SelectButton>
                     </CoverageCardActions>
@@ -974,11 +1011,16 @@ const Builder = () => {
                   </FormGroup>
 
                   <FormGroup>
-                    <FormLabel>Effective Date *</FormLabel>
+                    <FormLabel>Year *</FormLabel>
                     <FormInput
-                      type="date"
+                      type="text"
+                      placeholder="e.g., 2024"
+                      maxLength={4}
                       value={effectiveDate}
-                      onChange={(e) => setEffectiveDate(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        setEffectiveDate(value);
+                      }}
                     />
                   </FormGroup>
 

@@ -1,196 +1,141 @@
 /**
  * Unified AI Response Component
  *
- * Consolidates AIResponseFormatter and EnhancedAIResponse into a single,
- * optimized component for rendering AI responses with markdown support.
+ * Professional, ChatGPT-style response formatter that handles any AI response
+ * with robust markdown support, syntax highlighting, and clean typography.
  */
 
-import { memo, useState } from 'react';
+import { memo, useCallback } from 'react';
 import styled from 'styled-components';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import type { Components } from 'react-markdown';
 
 // ============================================================================
-// Styled Components
+// Styled Components - Clean, ChatGPT-inspired design
 // ============================================================================
 
 const ResponseContainer = styled.div`
   width: 100%;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  line-height: 1.7;
-  color: #1e293b;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%);
-  border-radius: 16px;
-  padding: 28px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
-  backdrop-filter: blur(10px);
+  line-height: 1.6;
+  color: ${({ theme }) => theme.isDarkMode ? '#e4e4e7' : '#18181b'};
 
-  /* Typography */
-  h1, h2 {
-    margin: 28px 0 16px 0;
-    font-weight: 700;
-    font-size: 22px;
-    color: #0f172a;
-    line-height: 1.3;
-    letter-spacing: -0.02em;
-    padding-bottom: 10px;
-    border-bottom: 2px solid rgba(99, 102, 241, 0.15);
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-
-    &:first-child {
-      margin-top: 0;
-    }
-  }
-
-  h3 {
-    margin: 22px 0 12px 0;
-    font-weight: 600;
-    font-size: 18px;
-    color: #1e293b;
-    line-height: 1.4;
-    letter-spacing: -0.01em;
-
-    &:first-child {
-      margin-top: 0;
-    }
-  }
-
-  h4 {
-    margin: 18px 0 10px 0;
-    font-weight: 600;
-    font-size: 16px;
-    color: #334155;
-    line-height: 1.4;
-  }
-
+  /* Paragraphs */
   p {
-    margin: 14px 0;
+    margin: 0 0 1em 0;
     font-size: 15px;
-    line-height: 1.8;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    hyphens: auto;
-    color: #334155;
+    line-height: 1.7;
 
     &:last-child {
       margin-bottom: 0;
     }
+  }
+
+  /* Headings */
+  h1, h2, h3, h4, h5, h6 {
+    margin: 1.5em 0 0.75em 0;
+    font-weight: 600;
+    line-height: 1.3;
+    color: ${({ theme }) => theme.isDarkMode ? '#fafafa' : '#09090b'};
 
     &:first-child {
       margin-top: 0;
     }
   }
 
+  h1 { font-size: 1.5em; }
+  h2 { font-size: 1.35em; }
+  h3 { font-size: 1.2em; }
+  h4 { font-size: 1.1em; }
+  h5, h6 { font-size: 1em; }
+
   /* Lists */
   ul, ol {
-    margin: 18px 0;
-    padding-left: 32px;
+    margin: 0.75em 0;
+    padding-left: 1.5em;
+  }
 
-    li {
-      margin: 12px 0;
-      line-height: 1.8;
-      color: #334155;
-      position: relative;
+  li {
+    margin: 0.4em 0;
+    line-height: 1.6;
 
-      &::marker {
-        color: #6366f1;
-        font-weight: 700;
-      }
+    > ul, > ol {
+      margin: 0.25em 0;
+    }
 
-      /* Nested lists */
-      ul, ol {
-        margin: 10px 0;
-        padding-left: 28px;
-      }
+    > p {
+      margin: 0.25em 0;
     }
   }
 
   ul {
-    li {
-      padding-left: 8px;
+    list-style-type: disc;
+
+    ul {
+      list-style-type: circle;
+
+      ul {
+        list-style-type: square;
+      }
     }
   }
 
   ol {
-    li::marker {
-      font-weight: 700;
-      font-size: 15px;
-    }
+    list-style-type: decimal;
   }
 
-  /* Code */
+  /* Inline code */
   code {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
-    color: #6366f1;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace;
-    font-size: 14px;
-    font-weight: 600;
-    word-break: break-all;
-    border: 1px solid rgba(99, 102, 241, 0.15);
-    box-shadow: 0 1px 3px rgba(99, 102, 241, 0.05);
+    background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'};
+    color: ${({ theme }) => theme.isDarkMode ? '#f472b6' : '#be185d'};
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', monospace;
+    font-size: 0.875em;
+    font-weight: 500;
   }
 
+  /* Code blocks */
   pre {
-    background: linear-gradient(135deg, rgba(248, 250, 252, 0.98) 0%, rgba(241, 245, 249, 0.95) 100%);
-    border: 1px solid rgba(226, 232, 240, 0.9);
-    border-radius: 12px;
-    padding: 20px;
-    margin: 20px 0;
-    overflow: auto;
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace;
-    font-size: 14px;
-    line-height: 1.6;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), inset 0 1px 2px rgba(0, 0, 0, 0.02);
+    background: ${({ theme }) => theme.isDarkMode ? '#1e1e1e' : '#f4f4f5'};
+    border-radius: 8px;
+    padding: 16px;
+    margin: 1em 0;
+    overflow-x: auto;
+    border: 1px solid ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'};
 
     code {
       background: none;
+      color: ${({ theme }) => theme.isDarkMode ? '#d4d4d8' : '#3f3f46'};
       padding: 0;
-      border-radius: 0;
-      border: none;
-      color: #475569;
-      white-space: pre-wrap;
-      font-weight: 400;
-      box-shadow: none;
+      font-size: 0.85em;
+      line-height: 1.6;
+      white-space: pre;
+      display: block;
     }
   }
 
   /* Tables */
   table {
     width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    margin: 20px 0;
+    border-collapse: collapse;
+    margin: 1em 0;
     font-size: 14px;
-    border-radius: 10px;
+    border: 1px solid ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
+    border-radius: 8px;
     overflow: hidden;
-    border: 1px solid rgba(226, 232, 240, 0.9);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    background: rgba(255, 255, 255, 0.6);
 
     th, td {
-      padding: 14px 18px;
+      padding: 10px 14px;
       text-align: left;
-      border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+      border-bottom: 1px solid ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};
     }
 
     th {
-      font-weight: 700;
-      color: #1e293b;
-      background: linear-gradient(135deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.9) 100%);
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-    }
-
-    td {
-      color: #475569;
-      background: rgba(255, 255, 255, 0.4);
+      font-weight: 600;
+      background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'};
+      color: ${({ theme }) => theme.isDarkMode ? '#fafafa' : '#09090b'};
     }
 
     tr:last-child td {
@@ -198,340 +143,177 @@ const ResponseContainer = styled.div`
     }
 
     tbody tr:hover {
-      background: rgba(99, 102, 241, 0.04);
-
-      td {
-        background: rgba(99, 102, 241, 0.04);
-      }
+      background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'};
     }
   }
 
   /* Blockquotes */
   blockquote {
-    border-left: 4px solid #6366f1;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(139, 92, 246, 0.04) 100%);
-    padding: 18px 24px;
-    margin: 20px 0;
-    border-radius: 10px;
-    font-style: italic;
-    color: #475569;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
-    position: relative;
-
-    &::before {
-      content: '"';
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      font-size: 48px;
-      color: rgba(99, 102, 241, 0.15);
-      font-family: Georgia, serif;
-      line-height: 1;
-    }
+    border-left: 3px solid ${({ theme }) => theme.isDarkMode ? '#6366f1' : '#6366f1'};
+    background: ${({ theme }) => theme.isDarkMode ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.05)'};
+    padding: 12px 16px;
+    margin: 1em 0;
+    border-radius: 0 6px 6px 0;
+    color: ${({ theme }) => theme.isDarkMode ? '#a1a1aa' : '#52525b'};
 
     p {
-      margin: 10px 0;
-      padding-left: 20px;
-
-      &:first-child {
-        margin-top: 0;
-      }
-
-      &:last-child {
-        margin-bottom: 0;
-      }
+      margin: 0;
     }
   }
 
   /* Links */
   a {
     color: #6366f1;
-    text-decoration: underline;
-    text-decoration-color: rgba(99, 102, 241, 0.3);
-    text-underline-offset: 3px;
-    text-decoration-thickness: 2px;
-    word-break: break-word;
-    font-weight: 600;
-    transition: all 0.2s ease;
+    text-decoration: none;
+    font-weight: 500;
+    transition: opacity 0.15s ease;
 
     &:hover {
-      color: #4f46e5;
-      text-decoration-color: rgba(79, 70, 229, 0.6);
-      background: rgba(99, 102, 241, 0.05);
-      padding: 2px 4px;
-      border-radius: 4px;
+      text-decoration: underline;
+      opacity: 0.85;
     }
   }
 
   /* Strong and emphasis */
   strong {
-    font-weight: 700;
-    color: #0f172a;
+    font-weight: 600;
+    color: ${({ theme }) => theme.isDarkMode ? '#fafafa' : '#09090b'};
   }
 
   em {
     font-style: italic;
-    color: #64748b;
   }
 
   /* Horizontal rules */
   hr {
     border: none;
-    height: 2px;
-    background: linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.3) 50%, transparent 100%);
-    margin: 32px 0;
+    height: 1px;
+    background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
+    margin: 1.5em 0;
+  }
+
+  /* Task lists (checkboxes) */
+  input[type="checkbox"] {
+    margin-right: 8px;
+    accent-color: #6366f1;
+  }
+
+  /* Images */
+  img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 1em 0;
   }
 
   @media (max-width: 768px) {
-    padding: 20px;
-    border-radius: 12px;
-
-    h1, h2 {
-      font-size: 19px;
-    }
-
-    h3 {
-      font-size: 17px;
-    }
-
-    h4 {
-      font-size: 15px;
-    }
-
-    p {
+    p, li {
       font-size: 14px;
     }
 
     pre {
-      padding: 16px;
+      padding: 12px;
       font-size: 13px;
-    }
-
-    ul, ol {
-      padding-left: 24px;
     }
 
     table {
       font-size: 13px;
 
       th, td {
-        padding: 10px 12px;
+        padding: 8px 10px;
       }
     }
   }
 `;
 
-const MetadataContainer = styled.div`
-  margin-top: 24px;
-  padding: 24px;
-  background: linear-gradient(135deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.85) 100%);
-  border-radius: 14px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.02);
-  backdrop-filter: blur(10px);
-`;
+// ============================================================================
+// Types
+// ============================================================================
 
-const MetadataToggle = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 12px;
-  background: none;
-  border: none;
-  color: #64748b;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 0;
-  transition: all 0.2s ease;
+interface ResponseData {
+  answer?: string;
+  [key: string]: unknown;
+}
 
-  &:hover {
-    color: #475569;
-  }
+interface UnifiedAIResponseProps {
+  content?: string;
+  data?: ResponseData;
+}
 
-  span:first-child {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+// ============================================================================
+// Custom Components for ReactMarkdown
+// ============================================================================
 
-    &::before {
-      content: '📊';
-      font-size: 20px;
+const createMarkdownComponents = (): Components => ({
+  // Ensure proper paragraph rendering
+  p: ({ children }) => <p>{children}</p>,
+
+  // Ensure proper list rendering
+  ul: ({ children }) => <ul>{children}</ul>,
+  ol: ({ children }) => <ol>{children}</ol>,
+  li: ({ children }) => <li>{children}</li>,
+
+  // Code blocks with language detection
+  code: ({ className, children, ...props }) => {
+    const match = /language-(\w+)/.exec(className || '');
+    const isInline = !className;
+
+    if (isInline) {
+      return <code {...props}>{children}</code>;
     }
-  }
 
-  span:last-child {
-    font-size: 14px;
-    color: #94a3b8;
-  }
-`;
+    return (
+      <code className={className} data-language={match?.[1]} {...props}>
+        {children}
+      </code>
+    );
+  },
 
-const MetadataContent = styled.div`
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 2px solid rgba(99, 102, 241, 0.15);
+  // Tables
+  table: ({ children }) => <table>{children}</table>,
+  thead: ({ children }) => <thead>{children}</thead>,
+  tbody: ({ children }) => <tbody>{children}</tbody>,
+  tr: ({ children }) => <tr>{children}</tr>,
+  th: ({ children }) => <th>{children}</th>,
+  td: ({ children }) => <td>{children}</td>,
 
-  .metadata-section {
-    margin-bottom: 20px;
-    padding: 18px 20px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.7) 100%);
-    border-radius: 10px;
-    border-left: 4px solid #6366f1;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-
-  .metadata-label {
-    font-size: 12px;
-    font-weight: 700;
-    color: #6366f1;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-
-    &::before {
-      content: '▸';
-      font-size: 14px;
-    }
-  }
-
-  .metadata-text {
-    font-size: 14px;
-    color: #475569;
-    line-height: 1.7;
-  }
-`;
-
-const ExecutionInfo = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 20px;
-  padding: 14px 18px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(139, 92, 246, 0.04) 100%);
-  border-radius: 10px;
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.08);
-
-  .badge {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.12) 100%);
-    color: #6366f1;
-    padding: 7px 14px;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    border: 1px solid rgba(99, 102, 241, 0.2);
-  }
-
-  .time-info {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #64748b;
-
-    span:first-child {
-      font-size: 16px;
-    }
-  }
-`;
+  // Links open in new tab for external URLs
+  a: ({ href, children }) => {
+    const isExternal = href?.startsWith('http');
+    return (
+      <a
+        href={href}
+        target={isExternal ? '_blank' : undefined}
+        rel={isExternal ? 'noopener noreferrer' : undefined}
+      >
+        {children}
+      </a>
+    );
+  },
+});
 
 // ============================================================================
 // Main Component
 // ============================================================================
 
-export const UnifiedAIResponse = memo(({ content, data }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
-
-  // Determine what to render
-  const shouldRenderStructured = data && (data.ensembleMode || data.ensembleMetadata);
+export const UnifiedAIResponse = memo(({ content, data }: UnifiedAIResponseProps) => {
   const contentToRender = content || data?.answer || '';
 
-  // If structured data, render enhanced version
-  if (shouldRenderStructured && data) {
-    return (
-      <div>
-        {/* Main Response */}
-        <ResponseContainer>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {data.answer}
-          </ReactMarkdown>
-        </ResponseContainer>
+  // Memoize components to prevent re-creation on each render
+  const components = useCallback(() => createMarkdownComponents(), [])();
 
-        {/* Ensemble Metadata (if available) */}
-        {data.ensembleMetadata && (
-          <MetadataContainer>
-            <MetadataToggle onClick={() => setIsExpanded(!isExpanded)}>
-              <span>View Analysis Details</span>
-              <span>{isExpanded ? '▼' : '▶'}</span>
-            </MetadataToggle>
+  // Clean and normalize content
+  const normalizedContent = contentToRender
+    .replace(/\n{3,}/g, '\n\n') // Collapse multiple newlines
+    .trim();
 
-            {isExpanded && (
-              <MetadataContent>
-                {data.ensembleMetadata.scientificAnalyst && (
-                  <div className="metadata-section">
-                    <div className="metadata-label">Scientific Analysis</div>
-                    <div className="metadata-text">
-                      {data.ensembleMetadata.scientificAnalyst}
-                    </div>
-                  </div>
-                )}
-
-                {data.ensembleMetadata.creativeAdvisor && (
-                  <div className="metadata-section">
-                    <div className="metadata-label">Creative Perspective</div>
-                    <div className="metadata-text">
-                      {data.ensembleMetadata.creativeAdvisor}
-                    </div>
-                  </div>
-                )}
-
-                {data.ensembleMetadata.devilsAdvocate && (
-                  <div className="metadata-section">
-                    <div className="metadata-label">Critical Analysis</div>
-                    <div className="metadata-text">
-                      {data.ensembleMetadata.devilsAdvocate}
-                    </div>
-                  </div>
-                )}
-              </MetadataContent>
-            )}
-          </MetadataContainer>
-        )}
-
-        {/* Execution Info */}
-        {(data.executionTime || data.ensembleMode) && (
-          <ExecutionInfo>
-            {data.ensembleMode && (
-              <span className="badge">Ensemble Mode</span>
-            )}
-            {data.executionTime && (
-              <div className="time-info">
-                <span>⏱</span>
-                <span>{data.executionTime}</span>
-              </div>
-            )}
-          </ExecutionInfo>
-        )}
-      </div>
-    );
-  }
-
-  // Simple markdown rendering for regular content
   return (
     <ResponseContainer>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-        {contentToRender}
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={components}
+      >
+        {normalizedContent}
       </ReactMarkdown>
     </ResponseContainer>
   );

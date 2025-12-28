@@ -1,6 +1,7 @@
 // src/services/claimsAnalysisService.js
 import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
+import type { FormChunk } from '../utils/pdfChunking';
 
 const CLAIMS_ANALYSIS_SYSTEM_PROMPT = `
 You are an expert P&C insurance claims analyst. Your role is to analyze claim scenarios against insurance policy forms and determine coverage.
@@ -143,6 +144,11 @@ TOTAL SECTIONS: ${formChunks.length}
   }
 }
 
+interface ConversationMessage {
+  role: string;
+  content: string;
+}
+
 /**
  * Analyze claim with intelligent chunking for multiple documents
  * @param {string} claimDescription - Description of the claim scenario
@@ -150,7 +156,11 @@ TOTAL SECTIONS: ${formChunks.length}
  * @param {Array} conversationHistory - Previous conversation
  * @returns {Promise<string>} - Combined analysis response
  */
-export async function analyzeClaimWithChunking(claimDescription, formChunks, conversationHistory = []) {
+export async function analyzeClaimWithChunking(
+  claimDescription: string,
+  formChunks: FormChunk[],
+  conversationHistory: ConversationMessage[] = []
+): Promise<string> {
   console.log(`Starting analysis with ${formChunks.length} form chunks`);
 
   // Filter out error chunks for initial processing

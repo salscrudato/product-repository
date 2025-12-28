@@ -21,22 +21,55 @@ import logger, { LOG_CATEGORIES } from '../utils/logger';
 import LoadingSpinner from './ui/LoadingSpinner';
 import { EmptyState } from './ui/EmptyState';
 
+/* ---------- Type Definitions ---------- */
+interface MessageErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface MessageErrorBoundaryState {
+  hasError: boolean;
+}
+
+interface ClaimsErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ClaimsErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+interface FormItem {
+  id: string;
+  formName?: string;
+  formNumber?: string;
+  category?: string;
+  downloadUrl?: string;
+  [key: string]: unknown;
+}
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
 // Error boundary component for message content
-class MessageErrorBoundary extends React.Component {
-  constructor(props) {
+class MessageErrorBoundary extends React.Component<MessageErrorBoundaryProps, MessageErrorBoundaryState> {
+  constructor(props: MessageErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(_error) {
+  static getDerivedStateFromError(_error: Error): MessageErrorBoundaryState {
     return { hasError: true };
   }
 
-  componentDidCatch(error, errorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     logger.error(LOG_CATEGORIES.ERROR, 'Message rendering error', { errorInfo }, error);
   }
 
-  render() {
+  override render(): React.ReactNode {
     if (this.state.hasError) {
       return (
         <div style={{
@@ -59,21 +92,21 @@ class MessageErrorBoundary extends React.Component {
 }
 
 // Top-level error boundary for the entire component
-class ClaimsAnalysisErrorBoundary extends React.Component {
-  constructor(props) {
+class ClaimsAnalysisErrorBoundary extends React.Component<ClaimsErrorBoundaryProps, ClaimsErrorBoundaryState> {
+  constructor(props: ClaimsErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error): ClaimsErrorBoundaryState {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error, errorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     logger.error(LOG_CATEGORIES.ERROR, 'Claims Analysis component error', { errorInfo }, error);
   }
 
-  render() {
+  override render(): React.ReactNode {
     if (this.state.hasError) {
       return (
         <div style={{
@@ -141,6 +174,70 @@ const spin = keyframes`
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
+`;
+
+const slideIn = keyframes`
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
+/* ---------- Claims Stats Dashboard ---------- */
+const ClaimsStatsDashboard = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  animation: ${slideIn} 0.4s ease-out;
+`;
+
+const ClaimsStatCard = styled.div<{ $color?: string }>`
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: ${({ $color }) => $color || 'linear-gradient(90deg, #6366f1, #8b5cf6)'};
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+    border-color: transparent;
+  }
+`;
+
+const ClaimsStatValue = styled.div`
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+`;
+
+const ClaimsStatLabel = styled.div`
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
+  }
 `;
 
 /* ---------- Styled Components ---------- */
@@ -234,14 +331,14 @@ const FormsList = styled.div`
   overflow-y: auto;
 `;
 
-const FormItem = styled.div`
+const FormItemStyled = styled.div<{ $selected?: boolean }>`
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 16px;
-  border: 2px solid ${props => props.selected ? '#6366f1' : 'rgba(226, 232, 240, 0.6)'};
+  border: 2px solid ${props => props.$selected ? '#6366f1' : 'rgba(226, 232, 240, 0.6)'};
   border-radius: 12px;
-  background: ${props => props.selected ? 'rgba(99, 102, 241, 0.05)' : 'rgba(255, 255, 255, 0.8)'};
+  background: ${props => props.$selected ? 'rgba(99, 102, 241, 0.05)' : 'rgba(255, 255, 255, 0.8)'};
   cursor: pointer;
   transition: all 0.2s ease;
 
@@ -252,12 +349,12 @@ const FormItem = styled.div`
   }
 `;
 
-const FormRadio = styled.div`
+const FormRadio = styled.div<{ $checked?: boolean }>`
   width: 20px;
   height: 20px;
-  border: 2px solid ${props => props.checked ? '#6366f1' : '#d1d5db'};
+  border: 2px solid ${props => props.$checked ? '#6366f1' : '#d1d5db'};
   border-radius: 50%;
-  background: ${props => props.checked ? '#6366f1' : 'transparent'};
+  background: ${props => props.$checked ? '#6366f1' : 'transparent'};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -270,7 +367,7 @@ const FormRadio = styled.div`
     height: 8px;
     border-radius: 50%;
     background: white;
-    opacity: ${props => props.checked ? 1 : 0};
+    opacity: ${props => props.$checked ? 1 : 0};
     transition: opacity 0.2s ease;
   }
 `;
@@ -321,26 +418,26 @@ const Message = styled.div`
   animation: ${fadeIn} 0.3s ease;
 `;
 
-const MessageHeader = styled.div`
+const MessageHeader = styled.div<{ $isUser?: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
   font-size: 12px;
   font-weight: 600;
-  color: ${props => props.isUser ? '#6366f1' : '#059669'};
+  color: ${props => props.$isUser ? '#6366f1' : '#059669'};
   text-transform: uppercase;
   letter-spacing: 0.05em;
 `;
 
-const MessageContent = styled.div`
-  background: ${props => props.isUser ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(248, 250, 252, 0.8)'};
-  color: ${props => props.isUser ? 'white' : '#1e293b'};
+const MessageContent = styled.div<{ $isUser?: boolean }>`
+  background: ${props => props.$isUser ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(248, 250, 252, 0.8)'};
+  color: ${props => props.$isUser ? 'white' : '#1e293b'};
   padding: 20px 24px;
   border-radius: 16px;
   font-size: 14px;
   line-height: 1.7;
-  border: ${props => props.isUser ? 'none' : '1px solid rgba(226, 232, 240, 0.6)'};
+  border: ${props => props.$isUser ? 'none' : '1px solid rgba(226, 232, 240, 0.6)'};
   max-height: 70vh;
   overflow-y: auto;
 
@@ -349,8 +446,8 @@ const MessageContent = styled.div`
     margin: 20px 0 12px 0;
     font-weight: 700;
     font-size: 18px;
-    color: ${props => props.isUser ? 'white' : '#1e293b'};
-    border-bottom: 2px solid ${props => props.isUser ? 'rgba(255,255,255,0.3)' : 'rgba(99, 102, 241, 0.2)'};
+    color: ${props => props.$isUser ? 'white' : '#1e293b'};
+    border-bottom: 2px solid ${props => props.$isUser ? 'rgba(255,255,255,0.3)' : 'rgba(99, 102, 241, 0.2)'};
     padding-bottom: 8px;
   }
 
@@ -358,14 +455,14 @@ const MessageContent = styled.div`
     margin: 16px 0 8px 0;
     font-weight: 600;
     font-size: 16px;
-    color: ${props => props.isUser ? 'rgba(255,255,255,0.95)' : '#475569'};
+    color: ${props => props.$isUser ? 'rgba(255,255,255,0.95)' : '#475569'};
   }
 
   h4 {
     margin: 12px 0 6px 0;
     font-weight: 600;
     font-size: 14px;
-    color: ${props => props.isUser ? 'rgba(255,255,255,0.9)' : '#64748b'};
+    color: ${props => props.$isUser ? 'rgba(255,255,255,0.9)' : '#64748b'};
   }
 
   p {
@@ -383,17 +480,17 @@ const MessageContent = styled.div`
     line-height: 1.6;
   }
 
-  strong, **strong** {
+  strong {
     font-weight: 700;
-    color: ${props => props.isUser ? 'white' : '#1e293b'};
+    color: ${props => props.$isUser ? 'white' : '#1e293b'};
   }
 
   /* Code and emphasis */
   code {
-    background: ${props => props.isUser ? 'rgba(255,255,255,0.2)' : 'rgba(99, 102, 241, 0.1)'};
+    background: ${props => props.$isUser ? 'rgba(255,255,255,0.2)' : 'rgba(99, 102, 241, 0.1)'};
     padding: 2px 6px;
     border-radius: 4px;
-    font-family: 'Monaco', 'Menlo', monospace;
+    font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 13px;
   }
 
@@ -408,8 +505,8 @@ const MessageContent = styled.div`
 
   /* Coverage determination styling */
   h2:first-child {
-    background: ${props => props.isUser ? 'rgba(255,255,255,0.2)' : 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.1))'};
-    color: ${props => props.isUser ? 'white' : '#059669'};
+    background: ${props => props.$isUser ? 'rgba(255,255,255,0.2)' : 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.1))'};
+    color: ${props => props.$isUser ? 'white' : '#059669'};
     padding: 12px 16px;
     border-radius: 8px;
     border: none;
@@ -483,22 +580,22 @@ const InlineLoadingSpinner = styled.div`
 
 
 function ClaimsAnalysisComponent() {
-  const [forms, setForms] = useState([]);
-  const [filteredForms, setFilteredForms] = useState([]);
-  const [selectedForm, setSelectedForm] = useState(null);
+  const [forms, setForms] = useState<FormItem[]>([]);
+  const [filteredForms, setFilteredForms] = useState<FormItem[]>([]);
+  const [selectedForm, setSelectedForm] = useState<FormItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const messagesEndRef = useRef(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load forms on component mount
   useEffect(() => {
     try {
       loadForms();
     } catch (error) {
-      logger.error(LOG_CATEGORIES.ERROR, 'Error in loadForms useEffect', {}, error);
+      logger.error(LOG_CATEGORIES.ERROR, 'Error in loadForms useEffect', {}, error instanceof Error ? error : undefined);
     }
   }, []);
 
@@ -515,7 +612,7 @@ function ClaimsAnalysisComponent() {
         setFilteredForms(forms);
       } else {
         const query = searchQuery.toLowerCase();
-        const filtered = forms.filter(form => {
+        const filtered = forms.filter((form: FormItem) => {
           if (!form || typeof form !== 'object') return false;
           return (
             (form.formName || '').toLowerCase().includes(query) ||
@@ -526,7 +623,7 @@ function ClaimsAnalysisComponent() {
         setFilteredForms(filtered);
       }
     } catch (error) {
-      logger.error(LOG_CATEGORIES.ERROR, 'Error in filter useEffect', {}, error);
+      logger.error(LOG_CATEGORIES.ERROR, 'Error in filter useEffect', {}, error instanceof Error ? error : undefined);
       setFilteredForms([]);
     }
   }, [forms, searchQuery]);
@@ -536,7 +633,7 @@ function ClaimsAnalysisComponent() {
     try {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     } catch (error) {
-      logger.error(LOG_CATEGORIES.ERROR, 'Error in scroll useEffect', {}, error);
+      logger.error(LOG_CATEGORIES.ERROR, 'Error in scroll useEffect', {}, error instanceof Error ? error : undefined);
     }
   }, [messages]);
 
@@ -548,15 +645,15 @@ function ClaimsAnalysisComponent() {
       // Add timeout to prevent hanging
       const formsSnapshot = await Promise.race([
         getDocs(collection(db, 'forms')),
-        new Promise((_, reject) =>
+        new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Firestore timeout')), 10000)
         )
       ]);
 
-      const formsData = formsSnapshot.docs.map(doc => {
-        const data = doc.data();
+      const formsData: FormItem[] = formsSnapshot.docs.map(docSnap => {
+        const data = docSnap.data();
         return {
-          id: doc.id,
+          id: docSnap.id,
           formName: data.formName || '',
           formNumber: data.formNumber || '',
           category: data.category || '',
@@ -575,7 +672,7 @@ function ClaimsAnalysisComponent() {
       setForms(formsWithPDF);
       setFilteredForms(formsWithPDF);
     } catch (error) {
-      logger.error(LOG_CATEGORIES.ERROR, 'Error loading forms', {}, error);
+      logger.error(LOG_CATEGORIES.ERROR, 'Error loading forms', {}, error instanceof Error ? error : undefined);
       // Set empty arrays to prevent undefined errors
       setForms([]);
       setFilteredForms([]);
@@ -584,7 +681,7 @@ function ClaimsAnalysisComponent() {
     }
   };
 
-  const selectForm = (form) => {
+  const selectForm = (form: FormItem) => {
     setSelectedForm(prev => {
       // If clicking the same form, deselect it
       if (prev && prev.id === form.id) {
@@ -603,8 +700,8 @@ function ClaimsAnalysisComponent() {
     setIsAnalyzing(true);
 
     // Add user message to chat
-    const newUserMessage = {
-      role: 'user',
+    const newUserMessage: ChatMessage = {
+      role: 'user' as const,
       content: userMessage,
       timestamp: new Date()
     };
@@ -612,7 +709,7 @@ function ClaimsAnalysisComponent() {
     try {
       setMessages(prev => [...prev, newUserMessage]);
     } catch (error) {
-      logger.error(LOG_CATEGORIES.ERROR, 'Error adding user message', {}, error);
+      logger.error(LOG_CATEGORIES.ERROR, 'Error adding user message', {}, error instanceof Error ? error : undefined);
       setIsAnalyzing(false);
       return;
     }
@@ -627,7 +724,7 @@ function ClaimsAnalysisComponent() {
       logger.info(LOG_CATEGORIES.AI, 'Processing form for analysis...');
       const formChunks = await Promise.race([
         processFormsForAnalysis([selectedForm]),
-        new Promise((_, reject) =>
+        new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Form processing timeout')), 90000)
         )
       ]);
@@ -639,8 +736,8 @@ function ClaimsAnalysisComponent() {
       logger.info(LOG_CATEGORIES.AI, `Processed ${formChunks.length} form chunks`);
 
       // Get conversation history (excluding current message)
-      const conversationHistory = messages.map(msg => ({
-        role: msg.role,
+      const conversationHistory: Array<{ role: string; content: string }> = messages.map(msg => ({
+        role: msg.role as string,
         content: msg.content || ''
       })).filter(msg => msg.content.trim());
 
@@ -648,7 +745,7 @@ function ClaimsAnalysisComponent() {
       logger.info(LOG_CATEGORIES.AI, 'Analyzing claim...');
       const analysis = await Promise.race([
         analyzeClaimWithChunking(userMessage, formChunks, conversationHistory),
-        new Promise((_, reject) =>
+        new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Analysis timeout')), 120000)
         )
       ]);
@@ -660,34 +757,34 @@ function ClaimsAnalysisComponent() {
       logger.info(LOG_CATEGORIES.AI, 'Analysis completed successfully');
 
       // Add AI response to chat
-      const aiMessage = {
-        role: 'assistant',
+      const aiMessage: ChatMessage = {
+        role: 'assistant' as const,
         content: analysis,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, aiMessage]);
 
     } catch (error) {
-      logger.error(LOG_CATEGORIES.ERROR, 'Error analyzing claim', {}, error);
+      logger.error(LOG_CATEGORIES.ERROR, 'Error analyzing claim', {}, error instanceof Error ? error : undefined);
 
       // Create a safe error message
-      const errorMessage = {
-        role: 'assistant',
-        content: `I apologize, but I encountered an error while analyzing your claim: ${error.message || 'Unknown error'}. Please try again or contact support if the issue persists.`,
+      const errorMessage: ChatMessage = {
+        role: 'assistant' as const,
+        content: `I apologize, but I encountered an error while analyzing your claim: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again or contact support if the issue persists.`,
         timestamp: new Date()
       };
 
       try {
         setMessages(prev => [...prev, errorMessage]);
       } catch (setError) {
-        logger.error(LOG_CATEGORIES.ERROR, 'Error setting error message', {}, setError);
+        logger.error(LOG_CATEGORIES.ERROR, 'Error setting error message', {}, setError instanceof Error ? setError : undefined);
       }
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -722,6 +819,38 @@ function ClaimsAnalysisComponent() {
           icon={ChatBubbleLeftRightIcon}
         />
 
+        {/* Claims Stats Dashboard */}
+        <ClaimsStatsDashboard>
+          <ClaimsStatCard $color="linear-gradient(90deg, #6366f1, #8b5cf6)">
+            <ClaimsStatValue>{forms.length}</ClaimsStatValue>
+            <ClaimsStatLabel>
+              <DocumentTextIcon />
+              Available Forms
+            </ClaimsStatLabel>
+          </ClaimsStatCard>
+          <ClaimsStatCard $color="linear-gradient(90deg, #10b981, #059669)">
+            <ClaimsStatValue>{forms.filter(f => f.downloadUrl).length}</ClaimsStatValue>
+            <ClaimsStatLabel>
+              <DocumentTextIcon />
+              With PDFs
+            </ClaimsStatLabel>
+          </ClaimsStatCard>
+          <ClaimsStatCard $color="linear-gradient(90deg, #f59e0b, #d97706)">
+            <ClaimsStatValue>{messages.filter(m => m.role === 'user').length}</ClaimsStatValue>
+            <ClaimsStatLabel>
+              <ChatBubbleLeftRightIcon />
+              Questions Asked
+            </ClaimsStatLabel>
+          </ClaimsStatCard>
+          <ClaimsStatCard $color="linear-gradient(90deg, #06b6d4, #0891b2)">
+            <ClaimsStatValue>{messages.filter(m => m.role === 'assistant').length}</ClaimsStatValue>
+            <ClaimsStatLabel>
+              <ChatBubbleLeftRightIcon />
+              Analyses Provided
+            </ClaimsStatLabel>
+          </ClaimsStatCard>
+        </ClaimsStatsDashboard>
+
         <ContentGrid>
           {/* Forms Selection Panel */}
           <Panel>
@@ -744,13 +873,14 @@ function ClaimsAnalysisComponent() {
               <FormsList>
                 {Array.isArray(filteredForms) && filteredForms.map(form => {
                   if (!form || !form.id) return null;
+                  const isSelected = !!(selectedForm && selectedForm.id === form.id);
                   return (
-                    <FormItem
+                    <FormItemStyled
                       key={form.id}
-                      selected={selectedForm && selectedForm.id === form.id}
+                      $selected={isSelected}
                       onClick={() => selectForm(form)}
                     >
-                      <FormRadio checked={selectedForm && selectedForm.id === form.id} />
+                      <FormRadio $checked={isSelected} />
                       <FormInfo>
                         <FormName>
                           {form.formName || form.formNumber || 'Unnamed Form'}
@@ -760,7 +890,7 @@ function ClaimsAnalysisComponent() {
                           {form.category || 'Unknown Category'}
                         </FormMeta>
                       </FormInfo>
-                    </FormItem>
+                    </FormItemStyled>
                   );
                 })}
               </FormsList>
@@ -794,14 +924,15 @@ function ClaimsAnalysisComponent() {
                   ) : (
                     Array.isArray(messages) && messages.map((message, index) => {
                       if (!message || typeof message !== 'object') return null;
+                      const isUserMessage = message.role === 'user';
                       return (
                         <Message key={index}>
-                          <MessageHeader isUser={message.role === 'user'}>
-                            {message.role === 'user' ? 'You' : 'Claims Analyst AI'}
+                          <MessageHeader $isUser={isUserMessage}>
+                            {isUserMessage ? 'You' : 'Claims Analyst AI'}
                           </MessageHeader>
                           <MessageErrorBoundary>
-                            <MessageContent isUser={message.role === 'user'}>
-                              {message.role === 'user' ? (
+                            <MessageContent $isUser={isUserMessage}>
+                              {isUserMessage ? (
                                 <div style={{ whiteSpace: 'pre-wrap' }}>
                                   {message.content || ''}
                                 </div>
@@ -816,8 +947,8 @@ function ClaimsAnalysisComponent() {
                   )}
                   {isAnalyzing && (
                     <Message>
-                      <MessageHeader>Claims Analyst AI</MessageHeader>
-                      <MessageContent>
+                      <MessageHeader $isUser={false}>Claims Analyst AI</MessageHeader>
+                      <MessageContent $isUser={false}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <InlineLoadingSpinner />
                           Analyzing claim against selected form...

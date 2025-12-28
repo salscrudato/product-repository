@@ -13,7 +13,7 @@ import MainNavigation from '@components/ui/Navigation';
 import EnhancedHeader from '@components/ui/EnhancedHeader';
 import { WrenchScrewdriverIcon } from '@heroicons/react/24/solid';
 import MarkdownRenderer from '@utils/markdownParser';
-import { sanitizeMarkdown, sanitizeMarkdownWithLimit } from '@utils/markdownSanitizer';
+import { sanitizeMarkdownWithLimit } from '@utils/markdownSanitizer';
 import { withTimeout, DEFAULT_AI_RETRY_OPTIONS } from '@utils/aiTimeout';
 import { AI_MODELS, AI_PARAMETERS } from '@config/aiConfig';
 
@@ -316,15 +316,22 @@ const AIBuilder = () => {
         const productsSnap = await getDocs(collection(db, 'products'));
         const productMap: Record<string, string> = {};
         productsSnap.docs.forEach(doc => {
-          productMap[doc.id] = doc.data().name;
+          const data = doc.data();
+          // Only include non-archived products
+          if (!data.archived) {
+            productMap[doc.id] = data.name;
+          }
         });
 
         const coveragesSnap = await getDocs(collectionGroup(db, 'coverages'));
-        const coverageList = coveragesSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          productId: doc.ref.parent.parent?.id || '',
-        }));
+        const coverageList = coveragesSnap.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            productId: doc.ref.parent.parent?.id || '',
+          }))
+          // Filter out coverages from archived products
+          .filter(coverage => productMap[coverage.productId]);
 
         const formsSnap = await getDocs(collection(db, 'forms'));
         const formList = formsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));

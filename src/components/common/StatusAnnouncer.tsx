@@ -27,12 +27,6 @@ const ScreenReaderOnly = styled.div`
 
 type Politeness = 'polite' | 'assertive';
 
-interface Announcement {
-  id: number;
-  message: string;
-  politeness: Politeness;
-}
-
 interface StatusAnnouncerContextType {
   announce: (message: string, politeness?: Politeness) => void;
 }

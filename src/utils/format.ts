@@ -3,7 +3,7 @@
  * Centralized formatting functions for display and presentation
  */
 
-import { FormTemplate, Coverage, Product } from '@types';
+import type { FormTemplate } from '../types';
 
 /**
  * Get display name for a form

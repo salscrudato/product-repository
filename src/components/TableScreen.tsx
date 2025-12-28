@@ -327,7 +327,6 @@ function TableScreen() {
   const navigate = useNavigate();
   const [step, setStep] = useState(null);
   const [dimensions, setDimensions] = useState([]);
-  // (search state and key handler effect removed)
   const [newDimension, setNewDimension] = useState({ name: '', values: [], technicalCode: '' });
   const [selectedDimensions, setSelectedDimensions] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');

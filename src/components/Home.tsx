@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled, { keyframes } from 'styled-components';
 import {
   SparklesIcon,
   TrashIcon,
-  PaperAirplaneIcon,
-  UserCircleIcon,
+  ArrowUpIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  ArrowPathIcon,
   ClipboardDocumentIcon,
   CheckIcon
 } from '@heroicons/react/24/solid';
@@ -80,16 +78,7 @@ const typingDots = keyframes`
   }
 `;
 
-const scaleIn = keyframes`
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-`;
+
 
 // Types for chat messages
 interface ChatMessage {
@@ -167,14 +156,14 @@ const MainContent = styled.main<{ $isEmpty: boolean }>`
 const ChatContainer = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 24px 16px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 0;
 
-  /* Custom scrollbar */
+  /* Custom scrollbar - minimal */
   &::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
   }
 
   &::-webkit-scrollbar-track {
@@ -182,12 +171,12 @@ const ChatContainer = styled.div`
   }
 
   &::-webkit-scrollbar-thumb {
-    background: ${({ theme }) => theme.isDarkMode ? '#334155' : '#e2e8f0'};
-    border-radius: 4px;
+    background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'};
+    border-radius: 3px;
   }
 
   &::-webkit-scrollbar-thumb:hover {
-    background: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
+    background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)'};
   }
 
   @media (max-width: 768px) {
@@ -264,129 +253,102 @@ const CenteredContainer = styled.div`
 const MessageGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  animation: ${fadeInUp} 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  gap: 8px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  animation: ${fadeInUp} 0.3s ease-out;
 `;
 
 const UserMessage = styled.div`
   display: flex;
-  gap: 12px;
-  align-items: flex-start;
   justify-content: flex-end;
-  animation: ${slideInRight} 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-
-  .avatar {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #475569, #334155);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    order: 2;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    transition: transform 0.2s ease;
-
-    svg {
-      width: 18px;
-      height: 18px;
-      color: #e2e8f0;
-    }
-  }
-
-  &:hover .avatar {
-    transform: scale(1.05);
-  }
+  padding: 8px 0;
+  animation: ${slideInRight} 0.25s ease-out;
 
   .content {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    color: white;
-    padding: 14px 18px;
-    border-radius: 18px 18px 4px 18px;
-    max-width: 70%;
+    background: ${({ theme }) => theme.isDarkMode ? '#3b82f6' : '#3b82f6'};
+    color: #ffffff;
+    padding: 12px 16px;
+    border-radius: 20px;
+    max-width: 75%;
     font-size: 15px;
-    line-height: 1.65;
+    line-height: 1.6;
     word-wrap: break-word;
-    order: 1;
-    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.2), 0 4px 20px rgba(99, 102, 241, 0.1);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-
-  &:hover .content {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25), 0 6px 24px rgba(99, 102, 241, 0.15);
   }
 
   @media (max-width: 768px) {
     .content {
-      max-width: 85%;
+      max-width: 90%;
       font-size: 14px;
-      padding: 12px 16px;
+      padding: 10px 14px;
     }
   }
 `;
 
 const AssistantMessage = styled.div`
   display: flex;
-  gap: 12px;
+  gap: 16px;
   align-items: flex-start;
-  animation: ${slideInLeft} 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding: 16px 0;
+  animation: ${slideInLeft} 0.25s ease-out;
 
   .avatar {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: ${({ theme }) => theme.isDarkMode
+      ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
+      : 'linear-gradient(135deg, #6366f1, #8b5cf6)'};
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.25);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-top: 2px;
 
     svg {
-      width: 17px;
-      height: 17px;
+      width: 14px;
+      height: 14px;
       color: white;
     }
   }
 
-  &:hover .avatar {
-    transform: scale(1.05);
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
-  }
-
   .content {
     flex: 1;
-    max-width: 85%;
-    background: ${({ theme }) => theme.isDarkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.98)'};
-    border: 1px solid ${({ theme }) => theme.isDarkMode ? '#334155' : 'rgba(226, 232, 240, 0.8)'};
-    border-radius: 4px 18px 18px 18px;
+    min-width: 0;
+    background: ${({ theme }) => theme.isDarkMode ? 'rgba(30, 41, 59, 0.6)' : '#f8f9fa'};
+    color: ${({ theme }) => theme.isDarkMode ? '#ececec' : '#1a1a1a'};
     padding: 16px 20px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05), 0 4px 20px rgba(0, 0, 0, 0.03);
-    color: ${({ theme }) => theme.isDarkMode ? '#e2e8f0' : '#1e293b'};
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-  }
-
-  &:hover .content {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 6px 24px rgba(0, 0, 0, 0.04);
-    border-color: ${({ theme }) => theme.isDarkMode ? '#475569' : 'rgba(99, 102, 241, 0.2)'};
+    border-radius: 4px 20px 20px 20px;
   }
 
   .message-actions {
     display: flex;
-    gap: 8px;
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid ${({ theme }) => theme.isDarkMode ? '#334155' : 'rgba(226, 232, 240, 0.8)'};
+    gap: 4px;
+    margin-top: 12px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  &:hover .message-actions {
+    opacity: 1;
   }
 
   @media (max-width: 768px) {
-    .content {
-      max-width: 90%;
-      padding: 14px 16px;
+    gap: 12px;
+
+    .avatar {
+      width: 24px;
+      height: 24px;
+
+      svg {
+        width: 12px;
+        height: 12px;
+      }
+    }
+
+    .message-actions {
+      opacity: 1;
     }
   }
 `;
@@ -394,22 +356,20 @@ const AssistantMessage = styled.div`
 const ActionButton = styled.button<{ $active?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid ${({ theme }) => theme.isDarkMode ? '#334155' : '#e2e8f0'};
-  background: ${({ $active, theme }) =>
-    $active
-      ? 'rgba(34, 197, 94, 0.1)'
-      : (theme.isDarkMode ? 'rgba(51, 65, 85, 0.5)' : 'rgba(248, 250, 252, 0.8)')};
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
   color: ${({ $active, theme }) =>
     $active
-      ? '#22c55e'
-      : (theme.isDarkMode ? '#94a3b8' : '#64748b')};
+      ? '#10b981'
+      : (theme.isDarkMode ? '#9b9b9b' : '#666666')};
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 
   svg {
     width: 14px;
@@ -417,23 +377,22 @@ const ActionButton = styled.button<{ $active?: boolean }>`
   }
 
   &:hover {
-    background: ${({ theme }) => theme.isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(241, 245, 249, 1)'};
-    border-color: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
+    background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'};
+    color: ${({ $active, theme }) =>
+      $active
+        ? '#10b981'
+        : (theme.isDarkMode ? '#e0e0e0' : '#1a1a1a')};
   }
 `;
 
 const InputContainer = styled.div<{ $isCentered: boolean }>`
-  ${({ $isCentered }) => !$isCentered && `
-    border-top: 1px solid ${({ theme }: any) => theme.isDarkMode ? '#1e293b' : '#e2e8f0'};
-  `}
   padding: 16px 24px;
-  background: ${({ $isCentered, theme }) =>
-    $isCentered ? 'transparent' : (theme.isDarkMode ? '#0f172a' : '#ffffff')};
+  background: transparent;
 
   /* Center the input when no chat history */
   ${({ $isCentered }) => $isCentered && `
     width: 100%;
-    max-width: 700px;
+    max-width: 800px;
   `}
 
   @media (max-width: 768px) {
@@ -442,27 +401,28 @@ const InputContainer = styled.div<{ $isCentered: boolean }>`
 `;
 
 const InputWrapper = styled.div`
-  max-width: 900px;
+  max-width: 100%;
   margin: 0 auto;
+  position: relative;
   display: flex;
-  gap: 12px;
-  align-items: flex-end;
+  align-items: center;
 `;
 
 const InputField = styled.textarea`
-  flex: 1;
-  padding: 14px 18px;
+  width: 100%;
+  padding: 16px 56px 16px 20px;
   border: 1.5px solid ${({ theme }) => theme.isDarkMode ? '#334155' : 'rgba(226, 232, 240, 0.8)'};
-  border-radius: 14px;
+  border-radius: 28px;
   font-size: 15px;
   font-family: inherit;
   resize: none;
-  min-height: 52px;
+  min-height: 56px;
   max-height: 200px;
   background: ${({ theme }) => theme.isDarkMode ? '#1e293b' : 'rgba(255, 255, 255, 0.98)'};
   color: ${({ theme }) => theme.isDarkMode ? '#e2e8f0' : '#1e293b'};
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
 
   &:hover:not(:focus):not(:disabled) {
     border-color: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
@@ -490,15 +450,20 @@ const InputField = styled.textarea`
 
   @media (max-width: 768px) {
     font-size: 14px;
-    padding: 12px 16px;
-    min-height: 48px;
+    padding: 14px 52px 14px 18px;
+    min-height: 52px;
+    border-radius: 26px;
   }
 `;
 
 const SendButton = styled.button`
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   border: none;
   color: white;
@@ -507,44 +472,41 @@ const SendButton = styled.button`
   align-items: center;
   justify-content: center;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
 
   svg {
-    width: 20px;
-    height: 20px;
-    transition: transform 0.2s ease;
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.5;
   }
 
   &:hover:not(:disabled) {
     background: linear-gradient(135deg, #5b5bf6 0%, #7c3aed 100%);
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
-
-    svg {
-      transform: translateX(2px);
-    }
+    transform: translateY(-50%) scale(1.08);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
   }
 
   &:active:not(:disabled) {
-    transform: translateY(0) scale(0.98);
+    transform: translateY(-50%) scale(0.95);
     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
   }
 
   &:disabled {
-    opacity: 0.45;
+    opacity: 0.4;
     cursor: not-allowed;
-    transform: none;
-    filter: grayscale(0.2);
+    transform: translateY(-50%);
+    background: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
+    box-shadow: none;
   }
 
   @media (max-width: 768px) {
-    width: 48px;
-    height: 48px;
+    width: 34px;
+    height: 34px;
+    right: 9px;
 
     svg {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
     }
   }
 `;
@@ -600,7 +562,7 @@ const SystemStatus = styled.div<{ $isReady: boolean }>`
   gap: 8px;
   padding: 8px 12px;
   border-radius: 8px;
-  background: ${({ $isReady, theme }) =>
+  background: ${({ $isReady }) =>
     $isReady
       ? 'rgba(34, 197, 94, 0.1)'
       : 'rgba(249, 115, 22, 0.1)'};
@@ -747,8 +709,9 @@ export default function Home() {
         setDataLoading(true);
 
         // Use optimized Firebase service with caching
+        // Note: Coverages are subcollections under products, so we use collectionGroup
         const [coverageList, formList, rulesList, pricingList, dictList, formCoverageList, taskList] = await Promise.all([
-          firebaseOptimized.getCollection('coverages', { useCache: true }),
+          firebaseOptimized.getCollectionGroup('coverages', { useCache: true }),
           firebaseOptimized.getCollection('forms', { useCache: true }),
           firebaseOptimized.getCollection('rules', { useCache: true }),
           firebaseOptimized.getCollection('pricingSteps', { useCache: true }),
@@ -765,10 +728,14 @@ export default function Home() {
         setFormCoverages(formCoverageList || []);
         setTasks(taskList || []);
 
-        logger.debug(LOG_CATEGORIES.CACHE, 'Context data loaded', {
+        // Log context data loading for debugging
+        console.log('📊 Context data loaded:', {
           coverages: coverageList?.length || 0,
           forms: formList?.length || 0,
           rules: rulesList?.length || 0,
+          pricingSteps: pricingList?.length || 0,
+          dataDictionary: dictList?.length || 0,
+          formCoverages: formCoverageList?.length || 0,
           tasks: taskList?.length || 0
         });
 
@@ -914,36 +881,13 @@ export default function Home() {
     return summary;
   }, [products, coverages, forms, rules, pricingSteps, dataDictionary, formCoverages, tasks]);
 
-  // Store full context data for detailed queries (not sent in every request)
-  const fullContextData = useDeepMemo(() => {
-    const safeProducts = products || [];
-    const safeCoverages = coverages || [];
-    const safeForms = forms || [];
-    const safeRules = rules || [];
-    const safePricingSteps = pricingSteps || [];
-    const safeDataDictionary = dataDictionary || [];
-    const safeFormCoverages = formCoverages || [];
-    const safeTasks = tasks || [];
-
-    return {
-      products: safeProducts,
-      coverages: safeCoverages,
-      forms: safeForms,
-      rules: safeRules,
-      pricingSteps: safePricingSteps,
-      dataDictionary: safeDataDictionary,
-      formCoverages: safeFormCoverages,
-      tasks: safeTasks
-    };
-  }, [products, coverages, forms, rules, pricingSteps, dataDictionary, formCoverages, tasks]);
-
   // Use optimized query classification from service
   const classifyQuery = useCallback((query: string): QueryType => {
     return aiPromptOptimizer.classifyQuery(query);
   }, []);
 
   // Build optimized prompt using AI Prompt Optimizer service
-  const buildEnhancedPrompt = useCallback((query: string, queryType: QueryType) => {
+  const buildEnhancedPrompt = useCallback((query: string, _queryType: QueryType) => {
     const optimizedPrompt = aiPromptOptimizer.buildOptimizedPrompt(query, contextSummary);
     return aiPromptOptimizer.formatForAPI(optimizedPrompt);
   }, [contextSummary]);
@@ -1174,7 +1118,7 @@ export default function Home() {
                   disabled={!isSystemReady || isLoading || !inputValue.trim()}
                   title="Send message"
                 >
-                  <PaperAirplaneIcon />
+                  <ArrowUpIcon />
                 </SendButton>
               </InputWrapper>
             </InputContainer>
@@ -1187,9 +1131,6 @@ export default function Home() {
                 <MessageGroup key={message.id}>
                   {message.role === 'user' ? (
                     <UserMessage>
-                      <div className="avatar">
-                        <UserCircleIcon />
-                      </div>
                       <div className="content">{message.content}</div>
                     </UserMessage>
                   ) : (
@@ -1201,7 +1142,7 @@ export default function Home() {
                         <EnhancedChatMessage
                           content={message.content}
                           metadata={message.metadata}
-                          showMetadata={true}
+                          showMetadata={false}
                         />
                         <div className="message-actions">
                           <ActionButton
@@ -1210,15 +1151,9 @@ export default function Home() {
                             title={copiedMessageId === message.id ? 'Copied!' : 'Copy message'}
                           >
                             {copiedMessageId === message.id ? (
-                              <>
-                                <CheckIcon />
-                                Copied
-                              </>
+                              <CheckIcon />
                             ) : (
-                              <>
-                                <ClipboardDocumentIcon />
-                                Copy
-                              </>
+                              <ClipboardDocumentIcon />
                             )}
                           </ActionButton>
                         </div>
@@ -1266,7 +1201,7 @@ export default function Home() {
                   disabled={!isSystemReady || isLoading || !inputValue.trim()}
                   title="Send message"
                 >
-                  <PaperAirplaneIcon />
+                  <ArrowUpIcon />
                 </SendButton>
               </InputWrapper>
             </InputContainer>

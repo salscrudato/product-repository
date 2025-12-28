@@ -49,8 +49,6 @@ const validateConfig = (): void => {
     console.error('❌ Missing Firebase configuration:', missing);
     throw new Error(`Missing required Firebase config: ${missing.join(', ')}`);
   }
-
-  console.log('✅ Firebase configuration validated');
 };
 
 // Initialize Firebase
@@ -58,7 +56,6 @@ let app: FirebaseApp;
 try {
   validateConfig();
   app = initializeApp(firebaseConfig as Record<string, string>);
-  console.log('✅ Firebase app initialized');
 } catch (error) {
   console.error('❌ Firebase initialization failed:', error);
   throw error;
@@ -83,34 +80,20 @@ const USE_EMULATORS = env.USE_FIREBASE_EMULATORS &&
                       window.location.hostname === 'localhost';
 
 if (USE_EMULATORS) {
-  console.log('🔧 Connecting to Firebase Emulators...');
-
   try {
-    // Connect to Firestore emulator
     connectFirestoreEmulator(db, 'localhost', 8080);
-    console.log('✅ Connected to Firestore Emulator (localhost:8080)');
-
-    // Connect to Auth emulator
     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-    console.log('✅ Connected to Auth Emulator (localhost:9099)');
-
-    // Connect to Functions emulator
     connectFunctionsEmulator(functions, 'localhost', 5001);
-    console.log('✅ Connected to Functions Emulator (localhost:5001)');
-
-    // Connect to Storage emulator
     connectStorageEmulator(storage, 'localhost', 9199);
-    console.log('✅ Connected to Storage Emulator (localhost:9199)');
+    console.log('🔧 Firebase: Connected to emulators (Firestore:8080, Auth:9099, Functions:5001, Storage:9199)');
   } catch (error) {
     const err = error as Error;
-    console.warn('⚠️ Emulator connection failed (may already be connected):', err.message);
+    console.warn('⚠️ Firebase: Emulator connection failed:', err.message);
   }
 } else {
-  console.log('🌐 Using production Firebase services');
+  // Single consolidated log for production Firebase
+  console.log('✅ Firebase: Initialized with persistent cache');
 }
-
-// Firestore persistence is now configured via initializeFirestore with persistentLocalCache
-console.log('✅ Firestore initialized with multi-tab persistent cache');
 
 // Export app instance for advanced use cases
 export default app;

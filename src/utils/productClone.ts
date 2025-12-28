@@ -9,7 +9,6 @@ import {
   getDoc,
   getDocs,
   addDoc,
-  updateDoc,
   deleteDoc,
   writeBatch,
   query,
@@ -17,7 +16,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/firebase';
-import { Product, Coverage, CoverageLimit, CoverageDeductible } from '@types';
+import type { Product, Coverage } from '../types';
 import logger, { LOG_CATEGORIES } from './logger';
 
 interface CloneResult {

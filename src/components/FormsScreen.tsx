@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, memo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { db } from '@/firebase';
 import {
@@ -10,8 +10,9 @@ import { getFormDisplayName } from '@utils/format';
 import {
   TrashIcon, DocumentTextIcon, PlusIcon, XMarkIcon,
   LinkIcon, PencilIcon, MagnifyingGlassIcon,
-  Squares2X2Icon, ArrowLeftIcon, MapIcon, FunnelIcon
+  Squares2X2Icon
 } from '@heroicons/react/24/solid';
+import { CoverageSnapshot } from '@components/common/CoverageSnapshot';
 
 
 
@@ -20,6 +21,7 @@ import { TextInput } from '@components/ui/Input';
 import MainNavigation from '@components/ui/Navigation';
 import { PageContainer, PageContent } from '@components/ui/PageContainer';
 import EnhancedHeader from '@components/ui/EnhancedHeader';
+
 
 import {
   Overlay, Modal, ModalHeader, ModalTitle, CloseBtn
@@ -60,127 +62,6 @@ const OverlayFixed = styled(Overlay)`
 `;
 
 /* ---------- Modern Styled Components ---------- */
-
-// Container - Clean gradient background without color overlay
-const ModernContainer = styled.div`
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
-  position: relative;
-`;
-
-// Main Content - Modern layout
-const MainContent = styled.div`
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 32px 24px;
-  position: relative;
-  z-index: 1;
-`;
-
-// Header Section - Simple layout with back button and title
-const HeaderSection = styled.div`
-  display: flex;
-  align-items: center;
-  margin-bottom: 32px;
-  gap: 16px;
-`;
-
-const BackButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border: none;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-
-  &:hover {
-    background: rgba(99, 102, 241, 0.1);
-    color: #6366f1;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.2);
-  }
-
-  svg {
-    width: 20px;
-    height: 20px;
-  }
-`;
-
-const TitleContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-`;
-
-// Page Title - Modern typography with dark grey color
-const PageTitle = styled.h1`
-  font-size: 24px;
-  font-weight: 700;
-  color: #374151;
-  margin: 0;
-  letter-spacing: -0.025em;
-
-  @media (max-width: 768px) {
-    font-size: 20px;
-  }
-`;
-
-
-
-// Search Container - Centered modern design
-const SearchContainer = styled.div`
-  position: relative;
-  max-width: 600px;
-  margin: 0 auto 48px;
-  display: flex;
-  justify-content: center;
-`;
-
-const SearchInput = styled(TextInput)`
-  width: 100%;
-  padding: 20px 24px 20px 56px;
-  font-size: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-  font-weight: 400;
-
-  &:focus {
-    border-color: #6366f1;
-    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.2), 0 0 0 4px rgba(99, 102, 241, 0.1);
-    background: rgba(255, 255, 255, 0.95);
-    transform: translateY(-2px);
-  }
-
-  &::placeholder {
-    color: #94a3b8;
-    font-weight: 400;
-  }
-`;
-
-const SearchIcon = styled(MagnifyingGlassIcon)`
-  position: absolute;
-  left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 20px;
-  height: 20px;
-  color: #6366f1;
-  pointer-events: none;
-`;
 
 // Filters Bar - Similar to pricing screen
 const FiltersBar = styled.div`
@@ -475,12 +356,7 @@ const ExclusionCoverage = styled.div`
   font-style: italic;
 `;
 
-const NoExclusions = styled.div`
-  font-size: 13px;
-  color: #9ca3af;
-  font-style: italic;
-  padding: 8px 0;
-`;
+
 
 const CardMetrics = styled.div`
   display: grid;
@@ -521,6 +397,70 @@ const MetricItem = styled.div`
 
 
 
+// Forms Stats Dashboard
+const slideIn = keyframes`
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
+const FormsStatsDashboard = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  animation: ${slideIn} 0.4s ease-out;
+`;
+
+const FormsStatCard = styled.div<{ $color?: string }>`
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: ${({ $color }) => $color || 'linear-gradient(90deg, #6366f1, #8b5cf6)'};
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+    border-color: transparent;
+  }
+`;
+
+const FormsStatValue = styled.div`
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+`;
+
+const FormsStatLabel = styled.div`
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
+  }
+`;
+
 // Empty State
 const EmptyState = styled.div`
   text-align: center;
@@ -555,6 +495,11 @@ export default function FormsScreen() {
   const [products, setProducts] = useState([]);
   const [coverages, setCoverages] = useState([]);
   const [coverageExclusions, setCoverageExclusions] = useState({}); // Map of coverageId -> exclusions array
+
+  /* coverage snapshot state - for when viewing forms for a specific coverage */
+  const [selectedCoverageData, setSelectedCoverageData] = useState<any>(null);
+  const [parentCoverageData, setParentCoverageData] = useState<any>(null);
+  const [coverageRulesCount, setCoverageRulesCount] = useState(0);
 
   // --- filter/search state for modals
   const [coverageSearch, setCoverageSearch] = useState('');
@@ -717,6 +662,43 @@ export default function FormsScreen() {
     };
     fetchAll();
   }, [productId]);
+
+  /* Fetch coverage snapshot data when viewing forms for a specific coverage */
+  useEffect(() => {
+    const fetchCoverageSnapshot = async () => {
+      if (!productId || !coverageId) {
+        setSelectedCoverageData(null);
+        setParentCoverageData(null);
+        return;
+      }
+
+      try {
+        // Fetch the coverage
+        const coverageRef = doc(db, `products/${productId}/coverages`, coverageId);
+        const coverageSnap = await getDoc(coverageRef);
+        if (coverageSnap.exists()) {
+          const coverageData = { id: coverageSnap.id, ...coverageSnap.data() };
+          setSelectedCoverageData(coverageData);
+
+          // Fetch parent coverage if exists
+          if (coverageData.parentCoverageId) {
+            const parentRef = doc(db, `products/${productId}/coverages`, coverageData.parentCoverageId);
+            const parentSnap = await getDoc(parentRef);
+            if (parentSnap.exists()) {
+              setParentCoverageData({ id: parentSnap.id, ...parentSnap.data() });
+            }
+          }
+
+          // Fetch rules count for this coverage
+          const rulesSnap = await getDocs(collection(db, `products/${productId}/coverages/${coverageId}/rules`));
+          setCoverageRulesCount(rulesSnap.size);
+        }
+      } catch (err) {
+        console.error('Error fetching coverage snapshot data:', err);
+      }
+    };
+    fetchCoverageSnapshot();
+  }, [productId, coverageId]);
 
   /* maps */
   const productMap = useMemo(() =>
@@ -1041,8 +1023,6 @@ export default function FormsScreen() {
         ? `Forms for ${productMap[productId]}`
         : 'Forms';
 
-  const productName = productId && productMap[productId] ? productMap[productId] : 'Product';
-
   return (
     <PageContainer>
       <MainNavigation />
@@ -1059,6 +1039,66 @@ export default function FormsScreen() {
             onChange: (e) => setRawSearch(e.target.value)
           }}
         />
+
+        {/* Coverage Context Snapshot - show when viewing forms for a specific coverage */}
+        {coverageId && selectedCoverageData && (
+          <div style={{ marginBottom: 24 }}>
+            <CoverageSnapshot
+              name={selectedCoverageData.name}
+              coverageCode={selectedCoverageData.coverageCode}
+              isOptional={selectedCoverageData.isOptional}
+              productName={productMap[productId]}
+              parentCoverageName={parentCoverageData?.name}
+              statesCount={(selectedCoverageData.states || []).length}
+              formsCount={filteredForms.length}
+              rulesCount={coverageRulesCount}
+              triggerLabel={selectedCoverageData.coverageTrigger}
+              valuationLabel={selectedCoverageData.valuationMethod}
+              territoryLabel={selectedCoverageData.territory}
+              coinsuranceLabel={selectedCoverageData.coinsurance}
+              waitingPeriodLabel={selectedCoverageData.waitingPeriod}
+            />
+          </div>
+        )}
+
+        {/* Forms Stats Dashboard */}
+        <FormsStatsDashboard>
+          <FormsStatCard $color="linear-gradient(90deg, #6366f1, #8b5cf6)">
+            <FormsStatValue>{forms.length}</FormsStatValue>
+            <FormsStatLabel>
+              <DocumentTextIcon />
+              Total Forms
+            </FormsStatLabel>
+          </FormsStatCard>
+          <FormsStatCard $color="linear-gradient(90deg, #3b82f6, #6366f1)">
+            <FormsStatValue>{forms.filter(f => f.category === 'Base Coverage Form').length}</FormsStatValue>
+            <FormsStatLabel>
+              <DocumentTextIcon />
+              Base Forms
+            </FormsStatLabel>
+          </FormsStatCard>
+          <FormsStatCard $color="linear-gradient(90deg, #10b981, #059669)">
+            <FormsStatValue>{forms.filter(f => f.category === 'Endorsement').length}</FormsStatValue>
+            <FormsStatLabel>
+              <PlusIcon />
+              Endorsements
+            </FormsStatLabel>
+          </FormsStatCard>
+          <FormsStatCard $color="linear-gradient(90deg, #f59e0b, #d97706)">
+            <FormsStatValue>{forms.filter(f => f.category === 'Exclusion').length}</FormsStatValue>
+            <FormsStatLabel>
+              <XMarkIcon />
+              Exclusions
+            </FormsStatLabel>
+          </FormsStatCard>
+          <FormsStatCard $color="linear-gradient(90deg, #06b6d4, #0891b2)">
+            <FormsStatValue>{forms.filter(f => f.downloadUrl).length}</FormsStatValue>
+            <FormsStatLabel>
+              <LinkIcon />
+              With PDFs
+            </FormsStatLabel>
+          </FormsStatCard>
+        </FormsStatsDashboard>
 
         {/* Filters Bar */}
         <FiltersBar>

@@ -255,7 +255,7 @@ const FormulaVisualization = styled.div`
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;
-  font-family: 'Monaco', 'Courier New', monospace;
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 14px;
   line-height: 1.8;
   color: #1e293b;
@@ -357,7 +357,7 @@ export const PremiumCalculator: React.FC<PremiumCalculatorProps> = ({
     const calculationSteps: CalculationStep[] = [];
     let stepNumber = 0;
 
-    filteredSteps.forEach((step, index) => {
+    filteredSteps.forEach((step) => {
       if (step.stepType === 'factor') {
         const value = step.value || 0;
         const previousTotal = result;

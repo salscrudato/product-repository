@@ -23,6 +23,8 @@ export interface Product {
   /** Product category (e.g., 'Commercial Property', 'BOP', 'Auto') */
   category?: string;
   status?: 'active' | 'inactive' | 'draft';
+  /** Whether this product is archived (soft delete) */
+  archived?: boolean;
 
   // State Availability
   states?: string[];                // State codes where product is available (e.g., ['CA', 'NY', 'TX'])
@@ -94,7 +96,14 @@ export type DeductibleType =
 
 
 // Coverage Trigger Types
-export type CoverageTrigger = 'occurrence' | 'claimsMade' | 'hybrid';
+export type CoverageTrigger =
+  | 'occurrence'      // Standard occurrence-based trigger
+  | 'claimsMade'      // Claims-made trigger
+  | 'hybrid'          // Combination of occurrence and claims-made
+  | 'manifestation'   // Coverage triggered when injury/damage manifests
+  | 'exposure'        // Coverage triggered when exposure to cause occurs
+  | 'continuous'      // Coverage triggered over continuous period
+  | 'injuryInFact';   // Coverage triggered when actual injury occurs
 
 // Valuation Methods
 export type ValuationMethod = 'ACV' | 'RC' | 'agreedValue' | 'marketValue' | 'functionalRC' | 'statedAmount';
@@ -110,6 +119,120 @@ export type EndorsementType = 'broadening' | 'restrictive' | 'clarifying' | 'add
 
 // Premium Basis
 export type PremiumBasis = 'flat' | 'perUnit' | 'rated' | 'manual';
+
+// ========== NEW: Coverage Kind & Draft Types ==========
+
+/**
+ * CoverageKind distinguishes the nature of the coverage item
+ * - coverage: Standard insurance coverage providing protection
+ * - endorsement: Modifies or extends an existing coverage
+ * - exclusion: Specifically excludes certain risks
+ * - notice: Informational notice or disclosure
+ * - condition: Policy condition affecting coverage
+ */
+export type CoverageKind = 'coverage' | 'endorsement' | 'exclusion' | 'notice' | 'condition';
+
+/**
+ * Draft status for coverage creation workflow
+ */
+export type CoverageDraftStatus = 'draft' | 'published';
+
+/**
+ * Source of coverage creation
+ */
+export type CoverageDraftSource = 'manual' | 'ai' | 'template' | 'clone' | 'form_import';
+
+/**
+ * Coverage draft stored in products/{productId}/coverageDrafts/{draftId}
+ */
+export interface CoverageDraft {
+  id: string;
+  productId: string;
+
+  // Draft state
+  draft: Partial<Coverage>;
+  status: CoverageDraftStatus;
+  source: CoverageDraftSource;
+
+  // Template/clone reference
+  sourceTemplateId?: string;
+  sourceCloneId?: string;
+  sourceFormId?: string;
+
+  // Completeness tracking
+  completenessScore?: number;
+  missingRequiredFields?: string[];
+  validationWarnings?: string[];
+
+  // Last AI interaction
+  lastAIPatchAt?: Timestamp | Date;
+  aiPatchHistory?: Array<{
+    patchedAt: Timestamp | Date;
+    fieldsChanged: string[];
+    messageId?: string;
+  }>;
+
+  // Metadata
+  createdAt: Timestamp | Date;
+  updatedAt: Timestamp | Date;
+  createdBy?: string;
+  updatedBy?: string;
+}
+
+/**
+ * Conversation message for coverage copilot
+ * Stored in products/{productId}/coverageDrafts/{draftId}/messages/{messageId}
+ */
+export interface CoverageCopilotMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  createdAt: Timestamp | Date;
+
+  // AI response metadata
+  patch?: Partial<Coverage>;
+  questions?: Array<{
+    id: string;
+    text: string;
+    fieldHints?: string[];
+  }>;
+  suggestions?: string[];
+  warnings?: string[];
+}
+
+/**
+ * AI response from coverageAssistant cloud function
+ */
+export interface CoverageCopilotResponse {
+  assistant_message: string;
+  patch: Partial<Coverage>;
+  questions: Array<{
+    id: string;
+    text: string;
+    fieldHints?: string[];
+  }>;
+  missing_required_for_publish: string[];
+  suggested_template_ids?: string[];
+  near_matches?: Array<{
+    coverageId: string;
+    name: string;
+    similarity: number;
+    why: string;
+  }>;
+  warnings?: string[];
+}
+
+/**
+ * Coverage similarity match for duplicate detection
+ */
+export interface CoverageSimilarityMatch {
+  coverageId: string;
+  name: string;
+  coverageCode?: string;
+  similarity: number;
+  why: string;
+  matchedFields: string[];
+}
 
 /**
  * CoverageLimit represents a structured limit for a coverage
@@ -229,6 +352,12 @@ export interface Coverage {
   type?: string;
   isOptional?: boolean;
 
+  /**
+   * Kind of coverage item - distinguishes standard coverages from endorsements, exclusions, etc.
+   * Default: 'coverage'
+   */
+  coverageKind?: CoverageKind;
+
   // ========== Coverage Scope ==========
   scopeOfCoverage?: string;
   perilsCovered?: string[];
@@ -277,9 +406,20 @@ export interface Coverage {
 
   // ========== Territory ==========
   territoryType?: TerritoryType;
-  states?: string[];  // State availability
+  /**
+   * @deprecated Use availabilityStates for product availability.
+   * states field maintained for backward compatibility.
+   * For policy territory clauses, use territoryType + includedTerritories/excludedTerritories.
+   */
+  states?: string[];
   excludedTerritories?: string[];
   includedTerritories?: string[];
+
+  /**
+   * Product availability by state - which states this coverage is available for sale
+   * Preferred over legacy 'states' field for new coverages.
+   */
+  availabilityStates?: string[];
 
   // ========== Endorsement Metadata ==========
   modifiesCoverageId?: string;      // Which coverage this endorsement modifies
@@ -290,8 +430,28 @@ export interface Coverage {
   requiresUnderwriterApproval?: boolean;
   eligibilityCriteria?: string[];
   prohibitedClasses?: string[];     // Business classes that can't buy this
-  requiredCoverages?: string[];     // Must be purchased with these
-  incompatibleCoverages?: string[]; // Can't be purchased with these
+
+  /**
+   * @deprecated Use requiredCoverageIds for ID-based references
+   * Kept for backward compatibility - contains coverage names
+   */
+  requiredCoverages?: string[];
+
+  /**
+   * @deprecated Use incompatibleCoverageIds for ID-based references
+   * Kept for backward compatibility - contains coverage names
+   */
+  incompatibleCoverages?: string[];
+
+  /**
+   * Coverage IDs that must be purchased with this coverage (preferred over requiredCoverages)
+   */
+  requiredCoverageIds?: string[];
+
+  /**
+   * Coverage IDs that cannot be purchased with this coverage (preferred over incompatibleCoverages)
+   */
+  incompatibleCoverageIds?: string[];
 
   // ========== Claims ==========
   claimsReportingPeriod?: number;   // Days to report claim

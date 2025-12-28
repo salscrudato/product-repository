@@ -10,6 +10,7 @@ import { Button } from '@components/ui/Button';
 import { TextInput } from '@components/ui/Input';
 import { ArrowLeftIcon, MapIcon } from '@heroicons/react/24/solid';
 import MainNavigation from '@components/ui/Navigation';
+
 import { createDirtyState, updateDirtyState, resetDirtyState, buildSaveConfirmation } from '@utils/stateGuards';
 
 
@@ -115,6 +116,69 @@ const Spinner = styled.div`
   margin: 100px auto;
 `;
 
+// States Stats Dashboard
+const slideIn = keyframes`
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
+const StatesStatsDashboard = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  animation: ${slideIn} 0.4s ease-out;
+`;
+
+const StatesStatCard = styled.div<{ $color?: string }>`
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: ${({ $color }) => $color || 'linear-gradient(90deg, #6366f1, #8b5cf6)'};
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+    border-color: transparent;
+  }
+`;
+
+const StatesStatValue = styled.div`
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+`;
+
+const StatesStatLabel = styled.div`
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
+  }
+`;
 
 // --- NEW UI BITS --------------------------------------------------
 const Panel = styled.div`
@@ -368,6 +432,39 @@ function StatesScreen() {
             </PageTitle>
           </TitleContainer>
         </HeaderSection>
+
+        {/* States Stats Dashboard */}
+        <StatesStatsDashboard>
+          <StatesStatCard $color="linear-gradient(90deg, #6366f1, #8b5cf6)">
+            <StatesStatValue>{selectedStates.length}</StatesStatValue>
+            <StatesStatLabel>
+              <MapIcon />
+              Selected States
+            </StatesStatLabel>
+          </StatesStatCard>
+          <StatesStatCard $color="linear-gradient(90deg, #10b981, #059669)">
+            <StatesStatValue>{allStates.length - selectedStates.length}</StatesStatValue>
+            <StatesStatLabel>
+              <MapIcon />
+              Available to Add
+            </StatesStatLabel>
+          </StatesStatCard>
+          <StatesStatCard $color="linear-gradient(90deg, #f59e0b, #d97706)">
+            <StatesStatValue>{Math.round((selectedStates.length / allStates.length) * 100)}%</StatesStatValue>
+            <StatesStatLabel>
+              <MapIcon />
+              US Coverage
+            </StatesStatLabel>
+          </StatesStatCard>
+          <StatesStatCard $color={dirtyState.isDirty ? "linear-gradient(90deg, #ef4444, #dc2626)" : "linear-gradient(90deg, #06b6d4, #0891b2)"}>
+            <StatesStatValue>{dirtyState.isDirty ? 'Yes' : 'No'}</StatesStatValue>
+            <StatesStatLabel>
+              <MapIcon />
+              Unsaved Changes
+            </StatesStatLabel>
+          </StatesStatCard>
+        </StatesStatsDashboard>
+
         <div style={{ display:'flex', flexDirection:'row', gap:24, alignItems:'flex-start', position:'relative' }}>
           {/* MAP AREA (grows) */}
           <div style={{ flex:'1 1 auto', background:'#ffffff', borderRadius:12, padding:20, boxShadow:'0 4px 12px rgba(0,0,0,0.1)', marginBottom:24 }}>

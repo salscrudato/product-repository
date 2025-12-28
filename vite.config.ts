@@ -4,52 +4,59 @@ import { visualizer } from 'rollup-plugin-visualizer';
 import path from 'path';
 import { copyFileSync } from 'fs';
 
+// Build plugins array
+const plugins = [
+  react({
+    // Include .js files for JSX transformation
+    include: ['**/*.jsx', '**/*.js', '**/*.tsx', '**/*.ts'],
+    // Babel configuration for styled-components
+    babel: {
+      plugins: [
+        [
+          'babel-plugin-styled-components',
+          {
+            displayName: true,
+            fileName: true,
+            ssr: false,
+            minify: true,
+            transpileTemplateLiterals: true,
+            pure: true,
+          },
+        ],
+      ],
+    },
+  }),
+  // Copy PDF.js worker file to build directory
+  {
+    name: 'copy-pdf-worker',
+    closeBundle() {
+      const workerSrc = path.resolve(__dirname, 'node_modules/pdfjs-dist/build/pdf.worker.min.mjs');
+      const workerDest = path.resolve(__dirname, 'build/pdf.worker.min.mjs');
+      try {
+        copyFileSync(workerSrc, workerDest);
+        console.log('✅ PDF.js worker file copied to build directory');
+      } catch (error) {
+        console.error('❌ Failed to copy PDF.js worker file:', error);
+      }
+    },
+  },
+];
+
+// Add bundle analyzer in analyze mode
+if (process.env.ANALYZE) {
+  plugins.push(
+    visualizer({
+      open: true,
+      gzipSize: true,
+      brotliSize: true,
+      filename: 'dist/stats.html',
+    })
+  );
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    react({
-      // Include .js files for JSX transformation
-      include: ['**/*.jsx', '**/*.js', '**/*.tsx', '**/*.ts'],
-      // Babel configuration for styled-components
-      babel: {
-        plugins: [
-          [
-            'babel-plugin-styled-components',
-            {
-              displayName: true,
-              fileName: true,
-              ssr: false,
-              minify: true,
-              transpileTemplateLiterals: true,
-              pure: true,
-            },
-          ],
-        ],
-      },
-    }),
-    // Bundle analyzer (only in analyze mode)
-    process.env.ANALYZE &&
-      visualizer({
-        open: true,
-        gzipSize: true,
-        brotliSize: true,
-        filename: 'dist/stats.html',
-      }),
-    // Copy PDF.js worker file to build directory
-    {
-      name: 'copy-pdf-worker',
-      closeBundle() {
-        const workerSrc = path.resolve(__dirname, 'node_modules/pdfjs-dist/build/pdf.worker.min.mjs');
-        const workerDest = path.resolve(__dirname, 'build/pdf.worker.min.mjs');
-        try {
-          copyFileSync(workerSrc, workerDest);
-          console.log('✅ PDF.js worker file copied to build directory');
-        } catch (error) {
-          console.error('❌ Failed to copy PDF.js worker file:', error);
-        }
-      },
-    },
-  ].filter(Boolean),
+  plugins,
 
   // Path resolution
   resolve: {
@@ -99,7 +106,7 @@ export default defineConfig({
     // Optimized: Enhanced chunk splitting for better caching and performance
     rollupOptions: {
       output: {
-        manualChunks: (id: string) => {
+        manualChunks: (id: string): string | undefined => {
           // Vendor chunks - organized by dependency type
           if (id.includes('node_modules')) {
             // Core React ecosystem
@@ -139,6 +146,7 @@ export default defineConfig({
               return 'ai-vendor';
             }
           }
+          return undefined;
         },
       },
     },

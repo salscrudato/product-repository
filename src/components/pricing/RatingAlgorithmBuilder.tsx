@@ -58,6 +58,7 @@ export interface RatingAlgorithmBuilderProps {
   onAddOperand: (operand: string) => void;
   onOpenCoverageModal: (step: RatingStep) => void;
   onOpenStatesModal: (step: RatingStep) => void;
+  onOpenTable?: (step: RatingStep) => void;
   selectedCoverage?: string | null;
   selectedStates?: string[];
   isLoading?: boolean;
@@ -1421,7 +1422,7 @@ const FormulaPreview = styled.div`
   background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
   border-radius: 12px;
   margin: 0 20px 20px;
-  font-family: 'JetBrains Mono', 'Monaco', 'Courier New', monospace;
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 13px;
   color: #e2e8f0;
   overflow-x: auto;
@@ -1500,7 +1501,7 @@ const formatCurrency = (value: number): string => {
 
 export const RatingAlgorithmBuilder: React.FC<RatingAlgorithmBuilderProps> = ({
   steps,
-  coverages,
+  coverages: _coverages,
   onAddStep,
   onEditStep,
   onDeleteStep,
@@ -1509,9 +1510,10 @@ export const RatingAlgorithmBuilder: React.FC<RatingAlgorithmBuilderProps> = ({
   onAddOperand,
   onOpenCoverageModal,
   onOpenStatesModal,
-  selectedCoverage,
-  selectedStates = [],
-  isLoading = false,
+  onOpenTable,
+  selectedCoverage: _selectedCoverage,
+  selectedStates: _selectedStates = [],
+  isLoading: _isLoading = false,
 }) => {
   const [editingValueId, setEditingValueId] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
@@ -1738,7 +1740,10 @@ export const RatingAlgorithmBuilder: React.FC<RatingAlgorithmBuilderProps> = ({
                         <StepName>
                           {step.stepName || 'Unnamed Step'}
                           {step.table && (
-                            <TableBadge onClick={() => onEditStep(step)} title="Table-driven step">
+                            <TableBadge
+                              onClick={() => onOpenTable ? onOpenTable(step) : onEditStep(step)}
+                              title="View/Edit Table"
+                            >
                               <TableCellsIcon />
                               {step.table}
                             </TableBadge>

@@ -1,17 +1,16 @@
 /**
  * Typography - Unified typography components with design token integration
- * 
+ *
  * Provides consistent typography across the application with proper
  * semantic HTML, accessibility, and design system compliance.
  */
 
-import React from 'react';
 import styled, { css } from 'styled-components';
 
 // Base styles shared across typography components
 const baseStyles = css`
   margin: 0;
-  font-family: ${({ theme }) => theme.fontFamily};
+  font-family: ${({ theme }) => theme.font};
 `;
 
 // Heading variants
@@ -119,7 +118,7 @@ export const Caption = styled.span`
 // Code/mono text
 export const Code = styled.code`
   ${baseStyles}
-  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 13px;
   padding: 2px 6px;
   background: ${({ theme }) => theme.colours.backgroundSubtle};

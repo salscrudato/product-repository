@@ -77,7 +77,7 @@ class ResponseFormatter {
   /**
    * Detect section type from content
    */
-  private detectSectionType(title: string, content: string): ResponseSection['type'] {
+  private detectSectionType(title: string, _content: string): ResponseSection['type'] {
     const lowerTitle = title.toLowerCase();
 
     if (lowerTitle.includes('insight') || lowerTitle.includes('recommendation')) {

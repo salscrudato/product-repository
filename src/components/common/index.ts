@@ -1,6 +1,6 @@
 /**
  * Common Components Index
- * 
+ *
  * Central export for all common/shared UI components.
  * Import from '@/components/common' for convenience.
  */
@@ -10,16 +10,19 @@ export { StatusAnnouncerProvider, useStatusAnnouncer } from './StatusAnnouncer';
 export { ToastProvider, useToast } from './Toast';
 
 // Loading and Progress
-export { 
-  Skeleton, 
-  SkeletonText, 
-  SkeletonHeading, 
-  SkeletonAvatar, 
+export {
+  Skeleton,
+  SkeletonText,
+  SkeletonHeading,
+  SkeletonAvatar,
   SkeletonButton,
   SkeletonCard,
   SkeletonTable,
   SkeletonCardList,
-  SkeletonForm
+  SkeletonForm,
+  SkeletonProductCard,
+  SkeletonStats,
+  SkeletonPageHeader
 } from './Skeleton';
 export { ProgressBar, StepProgress } from './ProgressBar';
 
@@ -32,7 +35,78 @@ export {
 } from './Typography';
 
 // Badges
-export { Badge, StatusBadge, CountBadge } from './Badge';
+export { Badge, StatusBadge, CountBadge as BadgeCount } from './Badge';
+
+// Summary/snapshot components
+export { CoverageSnapshot } from './CoverageSnapshot';
 
 // Navigation
 export { CommandPalette, useCommandPalette } from './CommandPalette';
+
+// Design System
+export {
+  // Animations
+  fadeInUp,
+  fadeIn,
+  scaleIn,
+  slideDown,
+  slideUp,
+  pulse,
+  shimmer,
+  spin,
+  glow,
+  ripple,
+  // Colors
+  colors,
+  gradients,
+  // Statistics Dashboard
+  StatsDashboard,
+  StatCard,
+  StatValue,
+  StatLabel,
+  StatTrend,
+  // Card Components
+  EnhancedCard,
+  CardHeader,
+  CardTitle,
+  CardSubtitle,
+  CardContent,
+  CardFooter,
+  CardActions,
+  // Buttons
+  IconButton,
+  // Badges
+  TypeBadge,
+  CountBadge,
+  // Empty State
+  EmptyStateContainer,
+  EmptyStateIcon,
+  EmptyStateTitle,
+  EmptyStateDescription,
+  // Loading
+  LoadingSpinner,
+  LoadingContainer,
+  LoadingText,
+  // Action Bar
+  ActionBar,
+  ActionBarCount,
+  ActionBarButton,
+  // Slider
+  SliderContainer,
+  SliderTrack,
+  SliderFill,
+  SliderThumb,
+  SliderLabels,
+  // Quick Amounts
+  QuickAmountContainer,
+  QuickAmountButton,
+  // Section Header
+  SectionHeader,
+  SectionTitle,
+  SectionSubtitle,
+  // Filters
+  FilterChipsContainer,
+  FilterChip,
+  // Gradient
+  GradientBar
+} from './DesignSystem';

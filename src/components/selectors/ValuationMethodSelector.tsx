@@ -51,11 +51,6 @@ export const ValuationMethodSelector: React.FC<ValuationMethodSelectorProps> = (
 }) => {
   return (
     <Container>
-      <Label>Valuation Method</Label>
-      <HelpText>
-        Determines how property losses are valued for claim settlement
-      </HelpText>
-
       <Select
         value={value || ''}
         onChange={(e) => onChange(e.target.value as ValuationMethod)}
@@ -78,56 +73,6 @@ export const ValuationMethodSelector: React.FC<ValuationMethodSelectorProps> = (
           </InfoDescription>
         </SelectedInfo>
       )}
-
-      {value === 'ACV' && (
-        <InfoBox>
-          <InfoTitle>ACV Calculation</InfoTitle>
-          <InfoText>
-            <strong>ACV = Replacement Cost - Depreciation</strong>
-            <br /><br />
-            Depreciation is typically calculated based on:
-            <ul>
-              <li>Age of the property</li>
-              <li>Condition and maintenance</li>
-              <li>Expected useful life</li>
-              <li>Obsolescence factors</li>
-            </ul>
-          </InfoText>
-        </InfoBox>
-      )}
-
-      {value === 'RC' && (
-        <InfoBox>
-          <InfoTitle>Replacement Cost Note</InfoTitle>
-          <InfoText>
-            RC policies often require the insured to actually replace the property to receive full 
-            replacement cost. Otherwise, ACV may be paid initially with the difference paid upon 
-            completion of repairs/replacement.
-          </InfoText>
-        </InfoBox>
-      )}
-
-      {value === 'agreedValue' && (
-        <InfoBox>
-          <InfoTitle>Agreed Value Note</InfoTitle>
-          <InfoText>
-            Agreed value eliminates disputes over property value at time of loss. The agreed value 
-            is typically established through appraisal and documented in the policy. No coinsurance 
-            penalty applies.
-          </InfoText>
-        </InfoBox>
-      )}
-
-      {value === 'functionalRC' && (
-        <InfoBox>
-          <InfoTitle>Functional Replacement Cost Note</InfoTitle>
-          <InfoText>
-            Used when exact replacement is impractical or unnecessary. For example, replacing plaster 
-            walls with drywall, or outdated building materials with modern equivalents that serve the 
-            same function.
-          </InfoText>
-        </InfoBox>
-      )}
     </Container>
   );
 };
@@ -137,18 +82,6 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
-`;
-
-const Label = styled.label`
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-`;
-
-const HelpText = styled.span`
-  font-size: 13px;
-  color: #6b7280;
-  font-style: italic;
 `;
 
 const Select = styled.select`
@@ -188,33 +121,5 @@ const InfoDescription = styled.div`
   font-size: 13px;
   color: #6b7280;
   line-height: 1.5;
-`;
-
-const InfoBox = styled.div`
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 6px;
-  padding: 12px;
-  margin-top: 8px;
-`;
-
-const InfoText = styled.div`
-  font-size: 13px;
-  color: #1e3a8a;
-  line-height: 1.6;
-
-  strong {
-    color: #1e40af;
-    font-weight: 600;
-  }
-
-  ul {
-    margin: 8px 0 0 0;
-    padding-left: 20px;
-  }
-
-  li {
-    margin: 4px 0;
-  }
 `;
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -9,14 +9,9 @@ import {
   InformationCircleIcon,
   PlusIcon,
   MinusIcon,
-  MagnifyingGlassIcon,
   ChevronUpIcon,
   ChevronDownIcon,
-  FunnelIcon,
-  MapIcon,
-  ArrowLeftIcon,
   CurrencyDollarIcon,
-  // ShieldCheckIcon - removed unused import
 } from '@heroicons/react/24/solid';
 import { ArrowDownTrayIcon as DownloadIcon20, ArrowUpTrayIcon as UploadIcon20 } from '@heroicons/react/20/solid';
 
@@ -24,6 +19,7 @@ import { Button } from '../components/ui/Button';
 import MainNavigation from '../components/ui/Navigation';
 import { PageContainer, PageContent } from '../components/ui/PageContainer';
 import EnhancedHeader from '../components/ui/EnhancedHeader';
+
 import {
   Table,
   THead as TableHead,
@@ -37,7 +33,6 @@ import {
 } from '../components/ui/Table';
 import styled, { keyframes } from 'styled-components';
 import { TextInput } from '../components/ui/Input';
-import PremiumCalculator from './pricing/PremiumCalculator';
 import RatingAlgorithmBuilder from './pricing/RatingAlgorithmBuilder';
 
 /* ========== MODERN STYLED COMPONENTS ========== */
@@ -52,18 +47,6 @@ const slideIn = keyframes`
     opacity: 1;
     transform: translateY(0);
   }
-`;
-
-const fadeIn = keyframes`
-  from { opacity: 0; }
-  to { opacity: 1; }
-`;
-
-// Modern Container with responsive design
-const ModernContainer = styled.div`
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
-  position: relative;
 `;
 
 // Ensures any button/link used inside table cells fills the cell width and centers its text
@@ -109,13 +92,6 @@ const StateGrid = styled.div`
   background: #F9FAFB;
 `;
 
-const FilterWrapper = styled.div`
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: 400px; /* Made wider for coverage dropdown */
-`;
-
 const OptionLabel = styled.label`
   display: flex;
   align-items: center;
@@ -133,19 +109,6 @@ const SelectAllContainer = styled.div`
 
 // State filter options
 const usStates = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
-const stateOptions = usStates.map(s => ({ value: s, label: s }));
-
-// ----- ExportBtn styled button (copied from CoverageScreen) -----
-const ExportBtn = styled(Button)`
-  margin: 0;
-  padding: 8px 18px;
-  font-size: 14px;
-  background: linear-gradient(135deg,#7C5CFF 0%,#AA5CFF 48%,#C15CFF 100%);
-  color:#fff;
-  box-shadow:0 3px 8px rgba(124,92,255,.3);
-  &:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(124,92,255,.45);}
-  &:active{transform:none;box-shadow:0 3px 8px rgba(124,92,255,.3);}
-`;
 
 // Main styled components
 const MainContent = styled.div`
@@ -428,7 +391,74 @@ const Actions = styled.div`
   margin-top: 16px;
 `;
 
+// Pricing Stats Dashboard
+const PricingStatsDashboard = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  animation: ${slideIn} 0.4s ease-out;
+`;
 
+const PricingStatCard = styled.div<{ $color?: string }>`
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: ${({ $color }) => $color || 'linear-gradient(90deg, #6366f1, #8b5cf6)'};
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+    border-color: transparent;
+  }
+`;
+
+const PricingStatValue = styled.div`
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+`;
+
+const PricingStatLabel = styled.div`
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
+  }
+`;
+
+const PricingStatTrend = styled.span<{ $positive?: boolean }>`
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  background: ${({ $positive }) => $positive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'};
+  color: ${({ $positive }) => $positive ? '#059669' : '#dc2626'};
+`;
 
 // StepModal Component
 function StepModal({ onClose, onSubmit, editingStep, coverages, dataCodes }) {
@@ -1493,7 +1523,8 @@ function operandGlyph(op) {
           showBackButton
           onBackClick={() => navigate(-1)}
         />
-        {/* Rating Algorithm Builder - New Visual Interface */}
+
+        {/* Rating Algorithm Builder */}
         <RatingAlgorithmBuilder
           steps={filteredSteps}
           coverages={coverages}
@@ -1515,6 +1546,7 @@ function operandGlyph(op) {
           onAddOperand={addOperand}
           onOpenCoverageModal={openCovModal}
           onOpenStatesModal={openStatesModal}
+          onOpenTable={(step) => navigate(`/table/${productId}/${step.id}`)}
           selectedCoverage={selectedCoverage}
           selectedStates={selectedStates}
           isLoading={loading}

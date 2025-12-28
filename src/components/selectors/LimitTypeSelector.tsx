@@ -250,7 +250,7 @@ const Input = styled.input`
 `;
 
 const AmountInput = styled(Input)`
-  font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 16px;
   font-weight: 500;
 `;

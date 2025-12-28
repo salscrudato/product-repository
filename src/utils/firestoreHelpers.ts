@@ -13,7 +13,7 @@ type TimestampLike = Timestamp | Date | string | null | undefined;
  * Check if a value is a Firestore Timestamp
  */
 export const isFirestoreTimestamp = (value: unknown): value is Timestamp => {
-  return value && typeof value === 'object' && 'seconds' in value && 'nanoseconds' in value;
+  return Boolean(value && typeof value === 'object' && 'seconds' in value && 'nanoseconds' in value);
 };
 
 /**

@@ -25,8 +25,28 @@ const TRIGGER_OPTIONS: { value: CoverageTrigger; label: string; description: str
   },
   {
     value: 'hybrid',
-    label: 'Hybrid (Claims-Made with Occurrence Features)',
+    label: 'Hybrid',
     description: 'Combination of claims-made and occurrence triggers with specific conditions'
+  },
+  {
+    value: 'manifestation',
+    label: 'Manifestation',
+    description: 'Coverage triggered when the injury or damage first becomes apparent or manifests'
+  },
+  {
+    value: 'exposure',
+    label: 'Exposure',
+    description: 'Coverage triggered when exposure to the cause of loss first occurs'
+  },
+  {
+    value: 'continuous',
+    label: 'Continuous Trigger',
+    description: 'Coverage applies across all policies in effect during the continuous period of exposure or injury'
+  },
+  {
+    value: 'injuryInFact',
+    label: 'Injury-in-Fact',
+    description: 'Coverage triggered when the actual injury or damage occurs, regardless of when discovered'
   },
 ];
 
@@ -36,21 +56,16 @@ export const CoverageTriggerSelector: React.FC<CoverageTriggerSelectorProps> = (
 }) => {
   return (
     <Container>
-      <Label>Coverage Trigger</Label>
-      <HelpText>
-        Determines when coverage applies - based on when the incident occurred or when the claim is made
-      </HelpText>
-
       <OptionsContainer>
         {TRIGGER_OPTIONS.map((option) => (
-          <RadioOption key={option.value}>
-            <RadioInput
-              type="radio"
-              name="coverageTrigger"
-              value={option.value}
-              checked={value === option.value}
-              onChange={() => onChange(option.value)}
-            />
+          <RadioOption
+            key={option.value}
+            $selected={value === option.value}
+            onClick={() => onChange(option.value)}
+          >
+            <RadioCircle $selected={value === option.value}>
+              {value === option.value && <RadioDot />}
+            </RadioCircle>
             <RadioLabel>
               <RadioTitle>{option.label}</RadioTitle>
               <RadioDescription>{option.description}</RadioDescription>
@@ -58,27 +73,6 @@ export const CoverageTriggerSelector: React.FC<CoverageTriggerSelectorProps> = (
           </RadioOption>
         ))}
       </OptionsContainer>
-
-      {value === 'claimsMade' && (
-        <InfoBox>
-          <InfoTitle>Claims-Made Coverage Note</InfoTitle>
-          <InfoText>
-            Claims-made policies typically require an Extended Reporting Period (ERP) or "tail coverage" 
-            to cover claims made after the policy expires for incidents that occurred during the policy period.
-          </InfoText>
-        </InfoBox>
-      )}
-
-      {value === 'hybrid' && (
-        <InfoBox>
-          <InfoTitle>Hybrid Trigger Note</InfoTitle>
-          <InfoText>
-            Hybrid triggers combine elements of both occurrence and claims-made coverage. Common in 
-            professional liability and environmental coverage. Specific terms should be documented in 
-            policy conditions.
-          </InfoText>
-        </InfoBox>
-      )}
     </Container>
   );
 };
@@ -87,19 +81,7 @@ export const CoverageTriggerSelector: React.FC<CoverageTriggerSelectorProps> = (
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
-`;
-
-const Label = styled.label`
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-`;
-
-const HelpText = styled.span`
-  font-size: 13px;
-  color: #6b7280;
-  font-style: italic;
+  gap: 8px;
 `;
 
 const OptionsContainer = styled.div`
@@ -108,33 +90,42 @@ const OptionsContainer = styled.div`
   gap: 12px;
 `;
 
-const RadioOption = styled.div`
+const RadioOption = styled.div<{ $selected: boolean }>`
   display: flex;
   align-items: flex-start;
   gap: 12px;
   padding: 16px;
-  border: 2px solid #e5e7eb;
+  border: 2px solid ${({ $selected }) => $selected ? '#3b82f6' : '#e5e7eb'};
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+  background: ${({ $selected }) => $selected ? '#eff6ff' : 'transparent'};
 
   &:hover {
     border-color: #3b82f6;
-    background: #f9fafb;
-  }
-
-  &:has(input:checked) {
-    border-color: #3b82f6;
-    background: #eff6ff;
+    background: ${({ $selected }) => $selected ? '#eff6ff' : '#f9fafb'};
   }
 `;
 
-const RadioInput = styled.input`
+const RadioCircle = styled.div<{ $selected: boolean }>`
   width: 20px;
   height: 20px;
-  margin-top: 2px;
-  cursor: pointer;
+  border-radius: 50%;
+  border: 2px solid ${({ $selected }) => $selected ? '#3b82f6' : '#d1d5db'};
+  background: ${({ $selected }) => $selected ? '#3b82f6' : 'white'};
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  margin-top: 2px;
+  transition: all 0.2s ease;
+`;
+
+const RadioDot = styled.div`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: white;
 `;
 
 const RadioLabel = styled.div`
@@ -142,7 +133,6 @@ const RadioLabel = styled.div`
   flex-direction: column;
   gap: 4px;
   flex: 1;
-  cursor: pointer;
 `;
 
 const RadioTitle = styled.div`
@@ -156,25 +146,3 @@ const RadioDescription = styled.div`
   color: #6b7280;
   line-height: 1.5;
 `;
-
-const InfoBox = styled.div`
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 6px;
-  padding: 12px;
-  margin-top: 8px;
-`;
-
-const InfoTitle = styled.div`
-  font-size: 13px;
-  font-weight: 600;
-  color: #1e40af;
-  margin-bottom: 4px;
-`;
-
-const InfoText = styled.div`
-  font-size: 13px;
-  color: #1e3a8a;
-  line-height: 1.5;
-`;
-

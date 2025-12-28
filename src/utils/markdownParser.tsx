@@ -1,7 +1,7 @@
 // Simple markdown parser for AI responses
 // Handles basic formatting like **bold**, *italic*, bullet points, etc.
 
-import React, { ReactNode } from 'react';
+import React, { ReactNode, ReactElement } from 'react';
 import styled from 'styled-components';
 
 const FormattedText = styled.div`
@@ -58,7 +58,7 @@ const FormattedText = styled.div`
     background: #f3f4f6;
     padding: 2px 4px;
     border-radius: 4px;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-family: 'SF Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace;
     font-size: 0.9em;
     color: #6366f1;
   }
@@ -123,11 +123,11 @@ export function parseMarkdown(text: string): ReactNode[] | null {
 
     // Headers
     const headerMatch = trimmedLine.match(/^(#{1,6})\s+(.+)$/);
-    if (headerMatch) {
+    if (headerMatch && headerMatch[1] && headerMatch[2]) {
       flushParagraph();
       flushList();
       const level = headerMatch[1].length;
-      const HeaderTag = `h${level}` as keyof JSX.IntrinsicElements;
+      const HeaderTag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
       elements.push(
         React.createElement(
           HeaderTag,
@@ -140,7 +140,7 @@ export function parseMarkdown(text: string): ReactNode[] | null {
 
     // List items
     const listMatch = trimmedLine.match(/^[-*+]\s+(.+)$/);
-    if (listMatch) {
+    if (listMatch && listMatch[1]) {
       flushParagraph();
       if (!inList) {
         inList = true;
@@ -222,7 +222,7 @@ interface MarkdownRendererProps {
   [key: string]: any;
 }
 
-export function MarkdownRenderer({ children, ...props }: MarkdownRendererProps): JSX.Element {
+export function MarkdownRenderer({ children, ...props }: MarkdownRendererProps): ReactElement {
   const parsedContent = parseMarkdown(children);
   
   return (

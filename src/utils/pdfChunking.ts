@@ -1,12 +1,88 @@
-// src/utils/pdfChunking.js
+// src/utils/pdfChunking.ts
+/**
+ * PDF Chunking Utility - Insurance-Aware Document Processing
+ *
+ * OPTIMIZED VERSION - Enhanced for P&C Insurance Forms:
+ * - Insurance-specific section detection (coverages, exclusions, conditions)
+ * - Hierarchical document understanding
+ * - Semantic boundary preservation
+ * - Metadata extraction for better context
+ * - Parallel processing with rate limiting
+ */
+
 import { getDownloadURL, ref } from 'firebase/storage';
 import { storage } from '../firebase';
 import { CACHE } from '../config/constants';
+import logger, { LOG_CATEGORIES } from './logger';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface ChunkMetadata {
+  formId: string;
+  formName: string;
+  formNumber?: string;
+  category?: string;
+  chunkIndex: number;
+  totalChunks: number;
+  sectionType?: InsuranceSectionType;
+  importance?: 'critical' | 'high' | 'medium' | 'low';
+  originalLength?: number;
+  warning?: boolean;
+  error?: boolean;
+}
+
+export interface FormChunk extends ChunkMetadata {
+  text: string;
+}
+
+export type InsuranceSectionType =
+  | 'declarations'
+  | 'insuring_agreement'
+  | 'definitions'
+  | 'exclusions'
+  | 'conditions'
+  | 'endorsement'
+  | 'coverage'
+  | 'limits'
+  | 'deductibles'
+  | 'general';
+
+// ============================================================================
+// Configuration
+// ============================================================================
 
 // PDF processing cache to avoid reprocessing (uses centralized CACHE config)
 const pdfCache = new Map();
 const CACHE_TTL = CACHE.TTL_FORMS; // 10 minutes - same as forms TTL
 const MAX_CACHE_SIZE = CACHE.MAX_CACHE_SIZE; // Maximum number of cached PDFs
+
+// Insurance-specific section patterns with importance levels
+const INSURANCE_SECTION_PATTERNS: Array<{
+  pattern: RegExp;
+  type: InsuranceSectionType;
+  importance: 'critical' | 'high' | 'medium' | 'low';
+}> = [
+  // Critical sections - affect coverage determination
+  { pattern: /^(INSURING\s+AGREEMENT|COVERAGE\s+AGREEMENT)/i, type: 'insuring_agreement', importance: 'critical' },
+  { pattern: /^EXCLUSIONS?(\s|$)/i, type: 'exclusions', importance: 'critical' },
+  { pattern: /^(COVERAGE\s+[A-Z]|SECTION\s+[IVX]+\s*[-–]\s*COVERAGE)/i, type: 'coverage', importance: 'critical' },
+
+  // High importance - affect policy terms
+  { pattern: /^CONDITIONS?(\s|$)/i, type: 'conditions', importance: 'high' },
+  { pattern: /^DEFINITIONS?(\s|$)/i, type: 'definitions', importance: 'high' },
+  { pattern: /^(LIMITS?\s+OF\s+(LIABILITY|INSURANCE)|COVERAGE\s+LIMITS?)/i, type: 'limits', importance: 'high' },
+  { pattern: /^DEDUCTIBLES?(\s|$)/i, type: 'deductibles', importance: 'high' },
+
+  // Medium importance - endorsements and modifications
+  { pattern: /^ENDORSEMENT(\s|$)/i, type: 'endorsement', importance: 'medium' },
+  { pattern: /^(THIS\s+ENDORSEMENT\s+MODIFIES|POLICY\s+CHANGE)/i, type: 'endorsement', importance: 'medium' },
+
+  // Lower importance - declarations and general
+  { pattern: /^DECLARATIONS?(\s|$)/i, type: 'declarations', importance: 'medium' },
+  { pattern: /^(SECTION|PART)\s+[A-Z0-9]/i, type: 'general', importance: 'low' }
+];
 
 // Lazy load pdfjs to avoid bundle bloat
 let pdfjsLib = null;
@@ -272,51 +348,95 @@ export function chunkText(text, maxTokens = 3000, overlap = 200) {
 }
 
 /**
- * Intelligently chunk insurance form text based on structure and content
- * @param {string} text - Insurance form text to chunk
- * @param {Object} form - Form metadata for context
- * @returns {Array<string>} - Array of intelligently chunked text
+ * Detect insurance section type from text
  */
-export function chunkInsuranceFormText(text, form = {}) {
+function detectSectionType(text: string): { type: InsuranceSectionType; importance: 'critical' | 'high' | 'medium' | 'low' } | null {
+  const firstLine = text.split('\n')[0]?.trim() || '';
+
+  for (const { pattern, type, importance } of INSURANCE_SECTION_PATTERNS) {
+    if (pattern.test(firstLine)) {
+      return { type, importance };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extract key insurance terms from text for metadata
+ */
+function extractKeyTerms(text: string): string[] {
+  const terms: string[] = [];
+  const lowerText = text.toLowerCase();
+
+  // Coverage-related terms
+  if (lowerText.includes('bodily injury')) terms.push('bodily_injury');
+  if (lowerText.includes('property damage')) terms.push('property_damage');
+  if (lowerText.includes('personal injury')) terms.push('personal_injury');
+  if (lowerText.includes('medical payments')) terms.push('medical_payments');
+  if (lowerText.includes('uninsured motorist')) terms.push('uninsured_motorist');
+  if (lowerText.includes('comprehensive')) terms.push('comprehensive');
+  if (lowerText.includes('collision')) terms.push('collision');
+
+  // Limit-related terms
+  if (/\$[\d,]+/.test(text)) terms.push('has_limits');
+  if (lowerText.includes('per occurrence')) terms.push('per_occurrence');
+  if (lowerText.includes('aggregate')) terms.push('aggregate');
+
+  // Exclusion indicators
+  if (lowerText.includes('does not apply')) terms.push('exclusion_indicator');
+  if (lowerText.includes('we will not')) terms.push('exclusion_indicator');
+  if (lowerText.includes('not covered')) terms.push('exclusion_indicator');
+
+  return terms;
+}
+
+/**
+ * Intelligently chunk insurance form text based on structure and content
+ * OPTIMIZED: Uses insurance-specific patterns for better semantic chunking
+ *
+ * @param text - Insurance form text to chunk
+ * @param form - Form metadata for context
+ * @returns Array of intelligently chunked text with metadata
+ */
+export function chunkInsuranceFormText(text: string, form: { formName?: string; id?: string } = {}): string[] {
   // For shorter forms, return as single chunk
   if (text.length < 8000) {
     return [text];
   }
 
-  // Insurance form section markers (common patterns)
-  const sectionMarkers = [
-    /^(SECTION|PART|COVERAGE|ENDORSEMENT|EXCLUSION|CONDITION|DEFINITION)\s+[A-Z0-9]/gmi,
-    /^[A-Z]\.\s+/gm, // A. B. C. style sections
-    /^\d+\.\s+/gm,   // 1. 2. 3. style sections
-    /^[IVX]+\.\s+/gm, // Roman numerals
-    /^COVERAGE\s+[A-Z]/gmi,
-    /^EXCLUSIONS?/gmi,
-    /^CONDITIONS?/gmi,
-    /^DEFINITIONS?/gmi
-  ];
-
-  // Try to split by natural insurance form sections first
-  let chunks = [];
+  const chunks: string[] = [];
   let currentChunk = '';
+  let currentSectionType: InsuranceSectionType = 'general';
   const lines = text.split('\n');
 
   for (const line of lines) {
-    const isNewSection = sectionMarkers.some(marker => marker.test(line));
+    // Check if this line starts a new insurance section
+    const sectionInfo = detectSectionType(line);
+    const isNewSection = sectionInfo !== null;
 
     // If we hit a new section and current chunk is substantial, start new chunk
-    if (isNewSection && currentChunk.length > 2000) {
+    if (isNewSection && currentChunk.length > 1500) {
       if (currentChunk.trim()) {
         chunks.push(currentChunk.trim());
       }
       currentChunk = line + '\n';
+      currentSectionType = sectionInfo?.type || 'general';
     } else {
       currentChunk += line + '\n';
     }
 
-    // If current chunk gets too large, force a split
-    if (currentChunk.length > 12000) {
-      chunks.push(currentChunk.trim());
-      currentChunk = '';
+    // If current chunk gets too large, force a split at a sentence boundary
+    if (currentChunk.length > 10000) {
+      // Try to find a good split point (end of sentence)
+      const splitPoint = findSentenceBoundary(currentChunk, 8000);
+      if (splitPoint > 0) {
+        chunks.push(currentChunk.substring(0, splitPoint).trim());
+        currentChunk = currentChunk.substring(splitPoint);
+      } else {
+        chunks.push(currentChunk.trim());
+        currentChunk = '';
+      }
     }
   }
 
@@ -327,15 +447,14 @@ export function chunkInsuranceFormText(text, form = {}) {
 
   // If we didn't get good natural splits, fall back to word-based chunking
   if (chunks.length === 1 && chunks[0].length > 12000) {
-    console.log(`Falling back to word-based chunking for form ${form.formName || form.id}`);
-    return chunkText(text, 4000, 300); // Larger chunks with more overlap for insurance forms
+    logger.debug(LOG_CATEGORIES.AI, `Falling back to word-based chunking for form ${form.formName || form.id}`);
+    return chunkText(text, 4000, 300);
   }
 
   // Ensure no chunk is too large
-  const finalChunks = [];
+  const finalChunks: string[] = [];
   for (const chunk of chunks) {
     if (chunk.length > 15000) {
-      // Split large chunks further
       const subChunks = chunkText(chunk, 4000, 300);
       finalChunks.push(...subChunks);
     } else {
@@ -347,133 +466,161 @@ export function chunkInsuranceFormText(text, form = {}) {
 }
 
 /**
- * Process multiple forms and create chunks with metadata
- * @param {Array} forms - Array of form objects with filePath or downloadUrl
- * @param {number} maxConcurrent - Maximum concurrent PDF processing (default: 3)
- * @returns {Promise<Array>} - Array of chunks with form metadata
+ * Find a sentence boundary near the target position
  */
-export async function processFormsForAnalysis(forms, maxConcurrent = 3) {
+function findSentenceBoundary(text: string, targetPos: number): number {
+  // Look for sentence endings near the target position
+  const searchStart = Math.max(0, targetPos - 500);
+  const searchEnd = Math.min(text.length, targetPos + 500);
+  const searchText = text.substring(searchStart, searchEnd);
+
+  // Find sentence endings (. ! ?) followed by space or newline
+  const sentenceEndPattern = /[.!?]\s+/g;
+  let lastMatch = -1;
+  let match;
+
+  while ((match = sentenceEndPattern.exec(searchText)) !== null) {
+    const absolutePos = searchStart + match.index + match[0].length;
+    if (absolutePos <= targetPos + 200) {
+      lastMatch = absolutePos;
+    }
+  }
+
+  return lastMatch;
+}
+
+/**
+ * Enhanced chunking with metadata for insurance forms
+ * Returns chunks with section type and importance information
+ */
+export function chunkInsuranceFormWithMetadata(
+  text: string,
+  form: { formName?: string; id?: string; formNumber?: string; category?: string }
+): FormChunk[] {
+  const textChunks = chunkInsuranceFormText(text, form);
+
+  return textChunks.map((chunk, index) => {
+    const sectionInfo = detectSectionType(chunk);
+    const keyTerms = extractKeyTerms(chunk);
+
+    return {
+      text: chunk,
+      formId: form.id || 'unknown',
+      formName: form.formName || form.formNumber || 'Unnamed Form',
+      formNumber: form.formNumber,
+      category: form.category,
+      chunkIndex: index,
+      totalChunks: textChunks.length,
+      sectionType: sectionInfo?.type || 'general',
+      importance: sectionInfo?.importance || 'medium',
+      originalLength: text.length
+    };
+  });
+}
+
+/**
+ * Process multiple forms and create chunks with metadata
+ * OPTIMIZED: Uses parallel processor with rate limiting and better error handling
+ *
+ * @param forms - Array of form objects with filePath or downloadUrl
+ * @param maxConcurrent - Maximum concurrent PDF processing (default: 3)
+ * @param onProgress - Optional progress callback
+ * @returns Promise<Array> - Array of chunks with form metadata
+ */
+export async function processFormsForAnalysis(
+  forms: Array<{ id: string; formName?: string; formNumber?: string; category?: string; filePath?: string; downloadUrl?: string }>,
+  maxConcurrent = 3,
+  onProgress?: (completed: number, total: number) => void
+): Promise<FormChunk[]> {
   if (!Array.isArray(forms) || forms.length === 0) {
-    console.warn('No forms provided for analysis');
+    logger.warn(LOG_CATEGORIES.AI, 'No forms provided for analysis');
     return [];
   }
 
-  const allChunks = [];
-  console.log(`Processing ${forms.length} forms for analysis...`);
+  const allChunks: FormChunk[] = [];
+  logger.info(LOG_CATEGORIES.AI, `Processing ${forms.length} forms for analysis`);
 
-  // Process forms in batches to prevent overwhelming the system
-  const batches = [];
+  // Process a single form
+  const processForm = async (form: typeof forms[0]): Promise<FormChunk[] | null> => {
+    if (!form || !form.id) {
+      logger.warn(LOG_CATEGORIES.AI, 'Invalid form object', { form });
+      return null;
+    }
+
+    try {
+      // Determine the source for PDF extraction
+      const source = form.filePath || form.downloadUrl;
+      if (!source) {
+        logger.warn(LOG_CATEGORIES.AI, `Form ${form.id} has no filePath or downloadUrl`);
+        return null;
+      }
+
+      // Extract text with enhanced error handling
+      const text = await extractPdfText(source, 30000);
+
+      // Validate extracted text
+      if (!text || text.trim().length < 50) {
+        logger.warn(LOG_CATEGORIES.AI, `Insufficient text extracted from form ${form.id}`, {
+          length: text?.length || 0
+        });
+        return [{
+          text: `[Warning: Form ${form.formName || form.id} contains minimal text content. This may indicate a scanned document.]`,
+          formId: form.id,
+          formName: form.formName || form.formNumber || 'Unnamed Form',
+          formNumber: form.formNumber,
+          category: form.category,
+          chunkIndex: 0,
+          totalChunks: 1,
+          sectionType: 'general',
+          importance: 'low',
+          warning: true
+        }];
+      }
+
+      // Use enhanced chunking with metadata
+      return chunkInsuranceFormWithMetadata(text, form);
+    } catch (error) {
+      logger.error(LOG_CATEGORIES.AI, `Failed to process form ${form.id}`, { error });
+      return [{
+        text: `[Error: Could not process form ${form.formName || form.id}: ${error instanceof Error ? error.message : 'Unknown error'}]`,
+        formId: form.id,
+        formName: form.formName || form.formNumber || 'Unnamed Form',
+        formNumber: form.formNumber,
+        category: form.category,
+        chunkIndex: 0,
+        totalChunks: 1,
+        sectionType: 'general',
+        importance: 'low',
+        error: true
+      }];
+    }
+  };
+
+  // Process forms in batches
+  let completed = 0;
+  const batches: typeof forms[] = [];
   for (let i = 0; i < forms.length; i += maxConcurrent) {
     batches.push(forms.slice(i, i + maxConcurrent));
   }
 
-  for (const [batchIndex, batch] of batches.entries()) {
-    console.log(`Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} forms)`);
+  for (const batch of batches) {
+    const batchResults = await Promise.allSettled(batch.map(processForm));
 
-    const batchPromises = batch.map(async (form) => {
-      if (!form || !form.id) {
-        console.warn('Invalid form object:', form);
-        return null;
-      }
-
-      try {
-        let text = '';
-        console.log(`Processing form: ${form.formName || form.id}`);
-
-        // Determine the source for PDF extraction
-        let source = null;
-        if (form.filePath) {
-          console.log(`Extracting text from filePath: ${form.filePath}`);
-          source = form.filePath;
-        } else if (form.downloadUrl) {
-          console.log(`Extracting text from downloadUrl: ${form.downloadUrl}`);
-          source = form.downloadUrl;
-        } else {
-          console.warn(`Form ${form.id} has no filePath or downloadUrl`);
-          return null;
-        }
-
-        // Extract text with enhanced error handling
-        text = await extractPdfText(source, 30000); // 30 second timeout per form
-
-        // Validate extracted text
-        if (!text || text.trim().length < 50) {
-          console.warn(`Insufficient text extracted from form ${form.id}: ${text?.length || 0} characters`);
-          return [{
-            text: `[Warning: Form ${form.formName || form.id} contains minimal text content (${text?.length || 0} characters). This may indicate a scanned document or processing issue.]`,
-            formId: form.id,
-            formName: form.formName || form.formNumber || 'Unnamed Form',
-            formNumber: form.formNumber,
-            category: form.category,
-            chunkIndex: 0,
-            totalChunks: 1,
-            warning: true
-          }];
-        }
-
-        // Create intelligent chunks for insurance forms
-        const chunks = chunkInsuranceFormText(text, form);
-        console.log(`Created ${chunks.length} chunks for form ${form.id} (${text.length} characters)`);
-
-        return chunks.map((chunk, index) => ({
-          text: chunk,
-          formId: form.id,
-          formName: form.formName || form.formNumber || 'Unnamed Form',
-          formNumber: form.formNumber,
-          category: form.category,
-          chunkIndex: index,
-          totalChunks: chunks.length,
-          originalLength: text.length
-        }));
-      } catch (error) {
-        console.error(`Failed to process form ${form.id}:`, error);
-        // Return error chunk to indicate the form couldn't be processed
-        return [{
-          text: `[Error: Could not process form ${form.formName || form.id}: ${error.message}]`,
-          formId: form.id,
-          formName: form.formName || form.formNumber || 'Unnamed Form',
-          formNumber: form.formNumber,
-          category: form.category,
-          chunkIndex: 0,
-          totalChunks: 1,
-          error: true
-        }];
-      }
-    });
-
-    // Wait for batch to complete
-    const batchResults = await Promise.allSettled(batchPromises);
-
-    // Process results
-    batchResults.forEach((result, index) => {
+    batchResults.forEach((result) => {
+      completed++;
       if (result.status === 'fulfilled' && result.value) {
-        if (Array.isArray(result.value)) {
-          allChunks.push(...result.value);
-        }
-      } else if (result.status === 'rejected') {
-        const form = batch[index];
-        console.error(`Batch processing failed for form ${form?.id}:`, result.reason);
-        // Add error chunk for failed promise
-        allChunks.push({
-          text: `[Error: Processing failed for form ${form?.formName || form?.id}: ${result.reason?.message || 'Unknown error'}]`,
-          formId: form?.id || 'unknown',
-          formName: form?.formName || form?.formNumber || 'Unnamed Form',
-          formNumber: form?.formNumber,
-          category: form?.category,
-          chunkIndex: 0,
-          totalChunks: 1,
-          error: true
-        });
+        allChunks.push(...result.value);
       }
+      onProgress?.(completed, forms.length);
     });
 
-    // Small delay between batches to prevent overwhelming the system
-    if (batchIndex < batches.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    // Small delay between batches
+    if (completed < forms.length) {
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
 
-  console.log(`Total chunks created: ${allChunks.length}`);
+  logger.info(LOG_CATEGORIES.AI, `Total chunks created: ${allChunks.length}`);
   return allChunks;
 }
 

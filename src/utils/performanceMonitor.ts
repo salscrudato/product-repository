@@ -73,7 +73,7 @@ export class PerformanceMonitor {
       startTime,
       endTime,
       category,
-      metadata
+      ...(metadata !== undefined && { metadata })
     };
 
     // Store metric
@@ -158,10 +158,10 @@ export class PerformanceMonitor {
       count: metrics.length,
       totalDuration,
       avgDuration: totalDuration / metrics.length,
-      minDuration: durations[0],
-      maxDuration: durations[durations.length - 1],
-      p95Duration: durations[Math.floor(durations.length * 0.95)],
-      p99Duration: durations[Math.floor(durations.length * 0.99)]
+      minDuration: durations[0] ?? 0,
+      maxDuration: durations[durations.length - 1] ?? 0,
+      p95Duration: durations[Math.floor(durations.length * 0.95)] ?? 0,
+      p99Duration: durations[Math.floor(durations.length * 0.99)] ?? 0
     };
   }
 

@@ -147,9 +147,84 @@ const analyzeClaim = functions.https.onCall(
   }, 'analyzeClaim')
 );
 
+/**
+ * Suggest coverage names based on partial input
+ * Uses AI to dynamically generate relevant P&C insurance coverage suggestions
+ */
+const suggestCoverageNames = functions.https.onCall(
+  withErrorHandling(async (data, context) => {
+    requireAuth(context);
+    rateLimitAI(context);
+
+    const { query, lineOfBusiness = 'property', existingNames = [] } = data;
+
+    if (!query || query.length < 2) {
+      return { suggestions: [] };
+    }
+
+    logger.info('Coverage name suggestion requested', {
+      userId: context.auth.uid,
+      query,
+      lineOfBusiness
+    });
+
+    // Build a focused prompt for coverage name suggestions
+    const systemPrompt = `You are an expert P&C insurance product specialist. Generate relevant insurance coverage name suggestions based on the user's partial input.
+
+Line of Business: ${lineOfBusiness}
+${existingNames.length > 0 ? `Existing coverages (avoid duplicates): ${existingNames.join(', ')}` : ''}
+
+Rules:
+1. Return only standard P&C insurance coverage names
+2. Suggestions should complete or relate to the user's input
+3. Be specific and professional (e.g., "Building & Structures Coverage" not just "Building")
+4. Include common variations and related coverages
+5. Return 5-8 suggestions, most relevant first
+6. Format: Return ONLY a JSON array of strings, no explanations`;
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Suggest coverage names matching: "${query}"` }
+    ];
+
+    const result = await openaiService.generateChatResponse(
+      messages,
+      'gpt-4o-mini', // Use fast, cheap model for suggestions
+      100, // Low max tokens
+      0.3 // Low temperature for consistent results
+    );
+
+    // Parse the response
+    let suggestions = [];
+    try {
+      const content = result.content || result.choices?.[0]?.message?.content || '[]';
+      // Clean up the response - sometimes GPT adds markdown
+      const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      suggestions = JSON.parse(cleaned);
+
+      // Filter out any that match existing names
+      suggestions = suggestions.filter(
+        s => !existingNames.some(e => e.toLowerCase() === s.toLowerCase())
+      );
+    } catch (parseError) {
+      logger.warn('Failed to parse AI suggestions', { error: parseError.message, content: result.content });
+      suggestions = [];
+    }
+
+    logger.info('Coverage name suggestions generated', {
+      userId: context.auth.uid,
+      count: suggestions.length,
+      tokensUsed: result.usage?.total_tokens
+    });
+
+    return { suggestions };
+  }, 'suggestCoverageNames')
+);
+
 module.exports = {
   generateProductSummary,
   generateChatResponse,
-  analyzeClaim
+  analyzeClaim,
+  suggestCoverageNames
 };
 

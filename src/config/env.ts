@@ -49,6 +49,9 @@ export interface EnvConfig {
   // News API
   NEWSDATA_KEY: string | undefined;
 
+  // API URL
+  VITE_API_URL: string | undefined;
+
   // Node environment
   NODE_ENV: string;
 
@@ -75,6 +78,9 @@ export const env: EnvConfig = {
 
   // News API
   NEWSDATA_KEY: getEnv('NEWSDATA_KEY'),
+
+  // API URL
+  VITE_API_URL: getEnv('API_URL'),
 
   // Node environment
   NODE_ENV: typeof import.meta !== 'undefined' && import.meta.env

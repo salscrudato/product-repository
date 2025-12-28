@@ -12,6 +12,7 @@
 
 import {
   collection,
+  collectionGroup,
   doc,
   getDocs,
   getDoc,
@@ -208,20 +209,13 @@ class FirebaseOptimizedService {
 
     const cacheKey = `${collectionName}_${JSON.stringify(options)}`;
 
-    logger.logFirebaseOperation('getCollection', collectionName, null, {
-      options,
-      cacheKey,
-      useCache
-    });
+    // Silently track Firebase operation (batched logging in logger)
+    logger.logFirebaseOperation('getCollection', collectionName);
 
     // Check cache first
     if (useCache) {
       const cached = this.getCachedData(cacheKey);
       if (cached) {
-        logger.debug(LOG_CATEGORIES.CACHE, `Cache hit for ${collectionName}`, {
-          collectionName,
-          resultCount: cached.length
-        });
         return cached;
       }
     }
@@ -230,7 +224,6 @@ class FirebaseOptimizedService {
     if (useCache && this.queryCache.has(cacheKey)) {
       const cachedQuery = this.queryCache.get(cacheKey);
       if (Date.now() - cachedQuery.timestamp < this.CACHE_TTL) {
-        logger.debug(LOG_CATEGORIES.CACHE, `Query cache hit for ${collectionName}`);
         return cachedQuery.data;
       }
     }
@@ -282,9 +275,9 @@ class FirebaseOptimizedService {
           });
         }
 
-        logger.debug(LOG_CATEGORIES.FIREBASE, `Fetched ${data.length} documents from ${collectionName}`, { queryTime });
         return data;
       } catch (error) {
+        // Only log errors, not successful fetches
         logger.error(LOG_CATEGORIES.FIREBASE, `Error fetching ${collectionName}`, { collectionName }, error as Error);
 
         // Provide index optimization hints
@@ -292,6 +285,48 @@ class FirebaseOptimizedService {
           this.suggestIndexOptimization(collectionName, options, error);
         }
 
+        throw error;
+      }
+    };
+
+    return this.executeQuery(queryFn, cacheKey);
+  }
+
+  // Collection group query for subcollections (e.g., all coverages across all products)
+  async getCollectionGroup(collectionName, options = {}) {
+    const { useCache = true } = options;
+    const cacheKey = `collectionGroup_${collectionName}_${JSON.stringify(options)}`;
+
+    logger.logFirebaseOperation('getCollectionGroup', collectionName);
+
+    // Check cache first
+    if (useCache) {
+      const cached = this.getCachedData(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    const queryFn = async () => {
+      try {
+        const groupQuery = collectionGroup(db, collectionName);
+        const snapshot = await getDocs(groupQuery);
+
+        const data = snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+          // Include parent path info for context
+          _parentPath: docSnap.ref.parent.parent?.path || null,
+          _productId: docSnap.ref.parent.parent?.id || null
+        }));
+
+        if (useCache) {
+          this.setCachedData(cacheKey, data);
+        }
+
+        return data;
+      } catch (error) {
+        logger.error(LOG_CATEGORIES.FIREBASE, `Error fetching collection group ${collectionName}`, { collectionName }, error as Error);
         throw error;
       }
     };
@@ -330,21 +365,14 @@ class FirebaseOptimizedService {
 
   // Optimized document fetching
   async getDocument(collectionName, docId, useCache = true) {
-    const startTime = Date.now();
     const cacheKey = `${collectionName}_${docId}`;
 
-    logger.logFirebaseOperation('getDocument', collectionName, docId, {
-      useCache,
-      cacheKey
-    });
+    // Silently track Firebase operation (batched logging in logger)
+    logger.logFirebaseOperation('getDocument', collectionName, docId);
 
     if (useCache) {
       const cached = this.getCachedData(cacheKey);
       if (cached) {
-        logger.debug(LOG_CATEGORIES.CACHE, `Cache hit for ${collectionName}/${docId}`, {
-          collectionName,
-          docId
-        });
         return cached;
       }
     }
@@ -354,12 +382,6 @@ class FirebaseOptimizedService {
       const docSnap = await getDoc(docRef);
 
       if (!docSnap.exists()) {
-        const duration = Date.now() - startTime;
-        logger.warn(LOG_CATEGORIES.FIREBASE, `Document not found: ${collectionName}/${docId}`, {
-          collectionName,
-          docId,
-          duration
-        });
         return null;
       }
 
@@ -369,18 +391,11 @@ class FirebaseOptimizedService {
         this.setCachedData(cacheKey, data);
       }
 
-      logger.debug(LOG_CATEGORIES.FIREBASE, `Document fetched: ${collectionName}/${docId}`, {
-        collectionName,
-        docId
-      });
-
       return data;
     } catch (error) {
-      const duration = Date.now() - startTime;
       logger.error(LOG_CATEGORIES.FIREBASE, `Error fetching document ${docId}`, {
         collectionName,
-        docId,
-        duration
+        docId
       }, error);
       throw error;
     }
@@ -496,7 +511,6 @@ class FirebaseOptimizedService {
       });
 
       await batch.commit();
-      logger.debug(LOG_CATEGORIES.FIREBASE, `Batch executed: ${operations.length} operations`, { count: operations.length });
 
       // Clear related cache entries
       operations.forEach(operation => {
@@ -522,14 +536,12 @@ class FirebaseOptimizedService {
     }
 
     keysToDelete.forEach(key => this.cache.delete(key));
-    logger.debug(LOG_CATEGORIES.CACHE, `Cleared cache entries for pattern`, { pattern, count: keysToDelete.length });
   }
 
   // Network status management
   async goOffline() {
     try {
       await disableNetwork(db);
-      logger.info(LOG_CATEGORIES.FIREBASE, 'Firebase offline mode enabled');
     } catch (error) {
       logger.error(LOG_CATEGORIES.FIREBASE, 'Error enabling offline mode', {}, error as Error);
     }
@@ -538,7 +550,6 @@ class FirebaseOptimizedService {
   async goOnline() {
     try {
       await enableNetwork(db);
-      logger.info(LOG_CATEGORIES.FIREBASE, 'Firebase online mode enabled');
     } catch (error) {
       logger.error(LOG_CATEGORIES.FIREBASE, 'Error enabling online mode', {}, error as Error);
     }
@@ -563,8 +574,6 @@ class FirebaseOptimizedService {
     if (this.batchQueue.length > 0) {
       this.executeBatch();
     }
-
-    logger.info(LOG_CATEGORIES.FIREBASE, 'Firebase service cleaned up');
   }
 
   // Get cache statistics

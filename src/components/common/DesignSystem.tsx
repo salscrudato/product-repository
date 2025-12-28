@@ -1,0 +1,655 @@
+/**
+ * DesignSystem - Shared design tokens and components
+ * 
+ * Provides consistent styling across all pages with:
+ * - Animation keyframes
+ * - Color system
+ * - Shared styled components
+ * - Statistics dashboard components
+ * - Enhanced modal components
+ */
+
+import styled, { keyframes, css } from 'styled-components';
+
+// ============ Animation Keyframes ============
+
+export const fadeInUp = keyframes`
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
+export const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
+
+export const scaleIn = keyframes`
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+`;
+
+export const slideDown = keyframes`
+  from { opacity: 0; max-height: 0; transform: translateY(-8px); }
+  to { opacity: 1; max-height: 2000px; transform: translateY(0); }
+`;
+
+export const slideUp = keyframes`
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
+export const pulse = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+`;
+
+export const shimmer = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`;
+
+export const spin = keyframes`
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+`;
+
+export const ripple = keyframes`
+  0% { transform: scale(0); opacity: 1; }
+  100% { transform: scale(4); opacity: 0; }
+`;
+
+export const glow = keyframes`
+  0%, 100% { box-shadow: 0 0 5px rgba(99, 102, 241, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); }
+`;
+
+// ============ Color System ============
+
+export const colors = {
+  primary: '#6366f1',
+  primaryDark: '#4f46e5',
+  primaryLight: '#818cf8',
+  secondary: '#8b5cf6',
+  success: '#10b981',
+  successDark: '#059669',
+  warning: '#f59e0b',
+  warningDark: '#d97706',
+  error: '#ef4444',
+  errorDark: '#dc2626',
+  info: '#06b6d4',
+  infoDark: '#0891b2',
+  
+  gray50: '#f8fafc',
+  gray100: '#f1f5f9',
+  gray200: '#e2e8f0',
+  gray300: '#cbd5e1',
+  gray400: '#94a3b8',
+  gray500: '#64748b',
+  gray600: '#475569',
+  gray700: '#334155',
+  gray800: '#1e293b',
+  gray900: '#0f172a',
+};
+
+export const gradients = {
+  primary: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+  success: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+  warning: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+  info: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+  error: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+  background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%)',
+};
+
+// ============ Statistics Dashboard ============
+
+export const StatsDashboard = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+  animation: ${fadeInUp} 0.4s ease-out;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+`;
+
+export const StatCard = styled.div<{ $color?: string; $clickable?: boolean }>`
+  background: white;
+  border-radius: 16px;
+  padding: 20px 24px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  ${({ $clickable }) => $clickable && 'cursor: pointer;'}
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: ${({ $color }) => $color || gradients.primary};
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+`;
+
+export const StatValue = styled.div`
+  font-size: 32px;
+  font-weight: 700;
+  color: ${colors.gray800};
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+`;
+
+export const StatLabel = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: ${colors.gray500};
+  margin-top: 4px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
+  }
+`;
+
+export const StatTrend = styled.span<{ $positive?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: ${({ $positive }) => $positive ? colors.success : colors.error};
+  margin-top: 8px;
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+`;
+
+// ============ Enhanced Card Components ============
+
+export const EnhancedCard = styled.div<{ $variant?: 'default' | 'elevated' | 'outlined'; $delay?: number }>`
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: ${({ $variant }) =>
+    $variant === 'elevated'
+      ? '0 8px 24px rgba(0, 0, 0, 0.08)'
+      : '0 4px 16px rgba(0, 0, 0, 0.04)'};
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: ${fadeInUp} 0.35s ease-out backwards;
+  animation-delay: ${({ $delay }) => ($delay || 0) * 0.05}s;
+  position: relative;
+  overflow: hidden;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.4);
+  }
+`;
+
+export const CardHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+`;
+
+export const CardTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  color: ${colors.gray800};
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+
+export const CardSubtitle = styled.p`
+  font-size: 14px;
+  color: ${colors.gray500};
+  margin: 4px 0 0 0;
+`;
+
+export const CardContent = styled.div`
+  flex: 1;
+`;
+
+export const CardFooter = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
+`;
+
+export const CardActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+// ============ Icon Button ============
+
+export const IconButton = styled.button<{ $variant?: 'default' | 'ghost' | 'danger' }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  ${({ $variant }) => {
+    switch ($variant) {
+      case 'danger':
+        return css`
+          background: rgba(239, 68, 68, 0.1);
+          color: ${colors.error};
+          &:hover {
+            background: rgba(239, 68, 68, 0.2);
+            transform: scale(1.05);
+          }
+        `;
+      case 'ghost':
+        return css`
+          background: transparent;
+          color: ${colors.gray500};
+          &:hover {
+            background: rgba(99, 102, 241, 0.1);
+            color: ${colors.primary};
+          }
+        `;
+      default:
+        return css`
+          background: rgba(99, 102, 241, 0.1);
+          color: ${colors.primary};
+          &:hover {
+            background: rgba(99, 102, 241, 0.2);
+            transform: scale(1.05);
+          }
+        `;
+    }
+  }}
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
+
+// ============ Badge Components ============
+
+export const TypeBadge = styled.span<{ $color?: string }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: ${({ $color }) => $color ? `${$color}15` : 'rgba(99, 102, 241, 0.1)'};
+  color: ${({ $color }) => $color || colors.primary};
+  border: 1px solid ${({ $color }) => $color ? `${$color}30` : 'rgba(99, 102, 241, 0.2)'};
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
+export const CountBadge = styled.span<{ $variant?: 'default' | 'success' | 'warning' | 'error' }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+
+  ${({ $variant }) => {
+    switch ($variant) {
+      case 'success':
+        return css`
+          background: rgba(16, 185, 129, 0.15);
+          color: ${colors.successDark};
+        `;
+      case 'warning':
+        return css`
+          background: rgba(245, 158, 11, 0.15);
+          color: ${colors.warningDark};
+        `;
+      case 'error':
+        return css`
+          background: rgba(239, 68, 68, 0.15);
+          color: ${colors.errorDark};
+        `;
+      default:
+        return css`
+          background: rgba(100, 116, 139, 0.1);
+          color: ${colors.gray600};
+        `;
+    }
+  }}
+`;
+
+// ============ Empty State ============
+
+export const EmptyStateContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 40px;
+  text-align: center;
+  animation: ${fadeIn} 0.5s ease-out;
+`;
+
+export const EmptyStateIcon = styled.div<{ $color?: string }>`
+  width: 80px;
+  height: 80px;
+  border-radius: 24px;
+  background: ${({ $color }) => $color ? `${$color}10` : 'rgba(99, 102, 241, 0.1)'};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+
+  svg {
+    width: 40px;
+    height: 40px;
+    color: ${({ $color }) => $color || colors.primary};
+    opacity: 0.8;
+  }
+`;
+
+export const EmptyStateTitle = styled.h3`
+  font-size: 20px;
+  font-weight: 600;
+  color: ${colors.gray800};
+  margin: 0 0 8px 0;
+`;
+
+export const EmptyStateDescription = styled.p`
+  font-size: 15px;
+  color: ${colors.gray500};
+  margin: 0 0 24px 0;
+  max-width: 400px;
+  line-height: 1.5;
+`;
+
+// ============ Loading Spinner ============
+
+export const LoadingSpinner = styled.div<{ $size?: number; $color?: string }>`
+  width: ${({ $size }) => $size || 24}px;
+  height: ${({ $size }) => $size || 24}px;
+  border: 2.5px solid rgba(99, 102, 241, 0.2);
+  border-top-color: ${({ $color }) => $color || colors.primary};
+  border-radius: 50%;
+  animation: ${spin} 0.8s linear infinite;
+`;
+
+export const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 16px;
+`;
+
+export const LoadingText = styled.span`
+  font-size: 14px;
+  color: ${colors.gray500};
+  font-weight: 500;
+`;
+
+// ============ Action Bar for Bulk Operations ============
+
+export const ActionBar = styled.div<{ $visible?: boolean }>`
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) ${({ $visible }) => $visible ? 'translateY(0)' : 'translateY(100px)'};
+  background: white;
+  border-radius: 16px;
+  padding: 12px 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 100;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: ${({ $visible }) => $visible ? 1 : 0};
+  pointer-events: ${({ $visible }) => $visible ? 'auto' : 'none'};
+`;
+
+export const ActionBarCount = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${colors.gray700};
+  padding-right: 16px;
+  border-right: 1px solid ${colors.gray200};
+`;
+
+export const ActionBarButton = styled.button<{ $variant?: 'default' | 'danger' }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  ${({ $variant }) => $variant === 'danger' ? css`
+    background: rgba(239, 68, 68, 0.1);
+    color: ${colors.error};
+    &:hover { background: rgba(239, 68, 68, 0.2); }
+  ` : css`
+    background: rgba(99, 102, 241, 0.1);
+    color: ${colors.primary};
+    &:hover { background: rgba(99, 102, 241, 0.2); }
+  `}
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+// ============ Slider Component ============
+
+export const SliderContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+export const SliderTrack = styled.div`
+  position: relative;
+  height: 8px;
+  background: ${colors.gray100};
+  border-radius: 4px;
+  cursor: pointer;
+`;
+
+export const SliderFill = styled.div<{ $percentage: number; $color?: string }>`
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: ${({ $percentage }) => $percentage}%;
+  background: ${({ $color }) => $color || gradients.primary};
+  border-radius: 4px;
+  transition: width 0.2s ease;
+`;
+
+export const SliderThumb = styled.div<{ $percentage: number }>`
+  position: absolute;
+  top: 50%;
+  left: ${({ $percentage }) => $percentage}%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  background: white;
+  border: 2px solid ${colors.primary};
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: grab;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: translate(-50%, -50%) scale(1.15);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  }
+
+  &:active {
+    cursor: grabbing;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+`;
+
+export const SliderLabels = styled.div`
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: ${colors.gray400};
+`;
+
+// ============ Quick Amount Buttons ============
+
+export const QuickAmountContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+`;
+
+export const QuickAmountButton = styled.button<{ $active?: boolean }>`
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1.5px solid ${({ $active }) => $active ? colors.primary : colors.gray200};
+  background: ${({ $active }) => $active ? 'rgba(99, 102, 241, 0.1)' : 'white'};
+  color: ${({ $active }) => $active ? colors.primary : colors.gray600};
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${colors.primary};
+    background: rgba(99, 102, 241, 0.05);
+  }
+`;
+
+// ============ Section Header ============
+
+export const SectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+`;
+
+export const SectionTitle = styled.h2`
+  font-size: 20px;
+  font-weight: 700;
+  color: ${colors.gray800};
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+
+export const SectionSubtitle = styled.p`
+  font-size: 14px;
+  color: ${colors.gray500};
+  margin: 4px 0 0 0;
+`;
+
+// ============ Filter Chips ============
+
+export const FilterChipsContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+`;
+
+export const FilterChip = styled.button<{ $active?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1.5px solid ${({ $active }) => $active ? colors.primary : colors.gray200};
+  background: ${({ $active }) => $active ? 'rgba(99, 102, 241, 0.1)' : 'white'};
+  color: ${({ $active }) => $active ? colors.primary : colors.gray600};
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${colors.primary};
+    background: rgba(99, 102, 241, 0.05);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+// ============ Gradient Bar ============
+
+export const GradientBar = styled.div<{ $gradient?: string }>`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: ${({ $gradient }) => $gradient || gradients.primary};
+  border-radius: 16px 16px 0 0;
+`;
+

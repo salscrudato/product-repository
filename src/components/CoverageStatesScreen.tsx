@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp, collection, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import styled, { keyframes } from 'styled-components';
 import { Page, Container, PageHeader, Title } from '@components/ui/Layout';
 import { Button } from '@components/ui/Button';
 import { TextInput } from '@components/ui/Input';
+import { CoverageSnapshot } from '@components/common/CoverageSnapshot';
 
 const spin = keyframes`
   0% { transform: rotate(0deg); }
@@ -102,11 +103,14 @@ export default function CoverageStatesScreen() {
   const navigate = useNavigate();
   const [coverage, setCoverage] = useState(null);
   const [product, setProduct] = useState(null);
+  const [parentCoverage, setParentCoverage] = useState(null);
   const [availableStates, setAvailableStates] = useState([]);
   const [selectedStates, setSelectedStates] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [newState, setNewState] = useState('');
   const [loading, setLoading] = useState(true);
+  const [formsCount, setFormsCount] = useState(0);
+  const [rulesCount, setRulesCount] = useState(0);
 
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const searchRef = useRef(null);
@@ -204,11 +208,20 @@ export default function CoverageStatesScreen() {
         if (coverageData.parentCoverageId) {
           const parentDoc = await getDoc(doc(db, `products/${productId}/coverages`, coverageData.parentCoverageId));
           if (parentDoc.exists()) {
+            setParentCoverage({ id: parentDoc.id, ...parentDoc.data() });
             setAvailableStates(parentDoc.data().states || []);
           }
         } else {
           setAvailableStates(productData.availableStates || []);
         }
+
+        // Fetch forms count
+        const formsSnap = await getDocs(collection(db, `products/${productId}/coverages/${coverageId}/forms`));
+        setFormsCount(formsSnap.size);
+
+        // Fetch rules count
+        const rulesSnap = await getDocs(collection(db, `products/${productId}/coverages/${coverageId}/rules`));
+        setRulesCount(rulesSnap.size);
       } catch (error) {
         console.error('Error fetching data:', error);
         alert('Failed to load data.');
@@ -282,6 +295,26 @@ export default function CoverageStatesScreen() {
           <Title>State Availability for {coverage.name}</Title>
           <Button variant="ghost" onClick={() => navigate(-1)}>Back</Button>
         </PageHeader>
+
+        {/* Coverage Context Snapshot */}
+        <div style={{ marginBottom: 24 }}>
+          <CoverageSnapshot
+            name={coverage.name}
+            coverageCode={coverage.coverageCode}
+            isOptional={coverage.isOptional}
+            productName={product.name}
+            parentCoverageName={parentCoverage?.name}
+            statesCount={selectedStates.length}
+            formsCount={formsCount}
+            rulesCount={rulesCount}
+            triggerLabel={coverage.coverageTrigger}
+            valuationLabel={coverage.valuationMethod}
+            territoryLabel={coverage.territory}
+            coinsuranceLabel={coverage.coinsurance}
+            waitingPeriodLabel={coverage.waitingPeriod}
+          />
+        </div>
+
         <div style={{ display:'flex', flexWrap:'wrap', gap:24 }}>
           {/* Map */}
           <div style={{ flex:'1 1 50%', background:'#fff', borderRadius:12, padding:20, boxShadow:'0 4px 12px rgba(0,0,0,0.1)' }}>

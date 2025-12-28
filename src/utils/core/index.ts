@@ -12,3 +12,8 @@ export * from '../aiTimeout';
 // PDF chunking
 export * from '../pdfChunking';
 
+// Performance monitoring
+export * from '../performanceMonitor';
+
+// Parallel processing
+export * from '../parallelProcessor';

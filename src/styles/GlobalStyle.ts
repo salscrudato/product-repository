@@ -27,21 +27,26 @@ export const GlobalStyle = createGlobalStyle`
     scroll-behavior: smooth;
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
-    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+    /* Apple-style font feature settings for elegant typography */
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1, 'cv01' 1, 'cv02' 1;
+    font-optical-sizing: auto;
   }
 
   body {
     margin: 0;
+    /* Apple-inspired system font stack */
     font-family: ${({ theme }) => theme.font};
     font-size: ${({ theme }) => theme.typography.body.size};
     line-height: ${({ theme }) => theme.typography.body.lineHeight};
-    letter-spacing: -0.01em;
+    letter-spacing: ${({ theme }) => theme.typography.body.letterSpacing};
+    font-weight: 400;
     background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 50%, #f8fafc 100%);
     color: ${({ theme }) => theme.colours.text};
+    /* Apple-style font rendering for crisp, elegant text */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    font-feature-settings: 'kern' 1, 'liga' 1;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
     overflow-x: hidden;
     min-height: 100vh;
   }
@@ -162,36 +167,63 @@ export const GlobalStyle = createGlobalStyle`
     scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
   }
 
-  /* ---------- Typography Reset - Enhanced ---------- */
+  /* ---------- Typography Reset - Apple-Inspired ---------- */
   h1, h2, h3, h4, h5, h6 {
     margin: 0;
+    font-family: ${({ theme }) => theme.fontDisplay};
     font-weight: 600;
-    line-height: 1.25;
+    line-height: 1.2;
     color: ${({ theme }) => theme.colours.text};
-    letter-spacing: -0.02em;
+    letter-spacing: -0.022em;
   }
 
   h1 {
-    font-size: 2.25rem;
-    font-weight: 700;
-    letter-spacing: -0.03em;
+    font-size: ${({ theme }) => theme.typography.h1.size};
+    font-weight: ${({ theme }) => theme.typography.h1.weight};
+    line-height: ${({ theme }) => theme.typography.h1.lineHeight};
+    letter-spacing: ${({ theme }) => theme.typography.h1.letterSpacing};
   }
 
   h2 {
-    font-size: 1.75rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
+    font-size: ${({ theme }) => theme.typography.h2.size};
+    font-weight: ${({ theme }) => theme.typography.h2.weight};
+    line-height: ${({ theme }) => theme.typography.h2.lineHeight};
+    letter-spacing: ${({ theme }) => theme.typography.h2.letterSpacing};
   }
 
   h3 {
-    font-size: 1.375rem;
-    font-weight: 600;
-    letter-spacing: -0.015em;
+    font-size: ${({ theme }) => theme.typography.h3.size};
+    font-weight: ${({ theme }) => theme.typography.h3.weight};
+    line-height: ${({ theme }) => theme.typography.h3.lineHeight};
+    letter-spacing: ${({ theme }) => theme.typography.h3.letterSpacing};
+  }
+
+  h4 {
+    font-size: ${({ theme }) => theme.typography.h4.size};
+    font-weight: ${({ theme }) => theme.typography.h4.weight};
+    line-height: ${({ theme }) => theme.typography.h4.lineHeight};
+    letter-spacing: ${({ theme }) => theme.typography.h4.letterSpacing};
+  }
+
+  h5 {
+    font-size: ${({ theme }) => theme.typography.h5.size};
+    font-weight: ${({ theme }) => theme.typography.h5.weight};
+    line-height: ${({ theme }) => theme.typography.h5.lineHeight};
+    letter-spacing: ${({ theme }) => theme.typography.h5.letterSpacing};
   }
 
   p {
     margin: 0;
     color: ${({ theme }) => theme.colours.textSecondary};
+    font-size: ${({ theme }) => theme.typography.body.size};
+    line-height: ${({ theme }) => theme.typography.body.lineHeight};
+  }
+
+  /* Small/caption text */
+  small {
+    font-size: ${({ theme }) => theme.typography.small.size};
+    line-height: ${({ theme }) => theme.typography.small.lineHeight};
+    letter-spacing: ${({ theme }) => theme.typography.small.letterSpacing};
   }
 
   /* ---------- Links - Enhanced ---------- */
@@ -411,5 +443,33 @@ export const GlobalStyle = createGlobalStyle`
 
   .interactive-card:active {
     transform: translateY(0);
+  }
+
+  /* ---------- Wizard Animations ---------- */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.2s ease-out forwards;
   }
 `;

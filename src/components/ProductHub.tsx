@@ -3,14 +3,15 @@ import styled from 'styled-components';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
 import { PageContainer, PageContent } from './ui/PageContainer';
-import { Breadcrumb } from './ui/Breadcrumb';
 import {
   collection,
   addDoc,
   deleteDoc,
   doc,
   updateDoc,
-
+  getDocs,
+  query,
+  where
 } from 'firebase/firestore';
 import { db, storage, functions } from '@/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -24,13 +25,15 @@ import {
   Squares2X2Icon,
   TableCellsIcon,
   CubeIcon,
-  XMarkIcon
+  XMarkIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/solid';
 import DataDictionaryModal from './DataDictionaryModal';
 import ConfirmationModal from './ui/ConfirmationModal';
 import useProducts from '@hooks/useProducts';
 import MarkdownRenderer from '@utils/markdownParser';
 import ProductCard from './ui/ProductCard';
+import { normalizeFirestoreData } from '@utils/firestoreHelpers';
 import VirtualizedGrid from './ui/VirtualizedGrid';
 import { debounce } from '@utils/performance';
 import { extractPdfText } from '@utils/pdfChunking';
@@ -98,33 +101,6 @@ const HeaderActionButton = styled.button.withConfig({
   svg {
     width: 16px;
     height: 16px;
-  }
-`;
-
-// Header Container
-const HeaderContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 32px;
-  position: relative;
-  width: 100%;
-
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: stretch;
-
-    > div:last-child {
-      position: static !important;
-      display: flex;
-      gap: 12px;
-      width: 100%;
-
-      button {
-        flex: 1;
-      }
-    }
   }
 `;
 
@@ -334,89 +310,6 @@ const BulkActionButton = styled.button`
   }
 `;
 
-// Quick Tips
-const QuickTips = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-top: 24px;
-  padding: 24px;
-  background: rgba(248, 250, 252, 0.8);
-  border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-`;
-
-const TipCard = styled.div`
-  padding: 16px;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid rgba(226, 232, 240, 0.4);
-  font-size: 13px;
-  color: #4b5563;
-  line-height: 1.6;
-
-  strong {
-    display: block;
-    color: #6366f1;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-`;
-
-// Templates Section
-const TemplatesSection = styled.div`
-  margin-top: 32px;
-  padding: 24px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
-  border-radius: 12px;
-  border: 1px solid rgba(99, 102, 241, 0.1);
-`;
-
-const TemplatesTitle = styled.h3`
-  font-size: 16px;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const TemplatesGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-`;
-
-const TemplateCard = styled.button`
-  padding: 16px;
-  background: white;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
-
-  &:hover {
-    border-color: rgba(99, 102, 241, 0.3);
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
-    transform: translateY(-1px);
-  }
-
-  strong {
-    display: block;
-    color: #6366f1;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-
-  small {
-    display: block;
-    color: #9ca3af;
-    font-size: 12px;
-  }
-`;
-
 // AI Suggestions Banner
 const SuggestionsBanner = styled.div`
   padding: 16px;
@@ -527,13 +420,123 @@ const ActionGroup = styled.div`
   align-items: center;
 `;
 
-// View Toggle
-const ViewToggle = styled.div`
+// Unified Command Bar - Apple-inspired search + actions header
+const CommandBar = styled.div`
   display: flex;
-  background: rgba(255, 255, 255, 0.9);
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 32px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.2) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+`;
+
+const CommandBarLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const CommandBarCenter = styled.div`
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  max-width: 640px;
+  min-width: 320px;
+`;
+
+const CommandBarRight = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const SearchWrapper = styled.div`
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+`;
+
+const SearchInputStyled = styled.input`
+  width: 100%;
+  padding: 12px 16px 12px 44px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 12px;
+  font-size: 14px;
+  font-weight: 450;
+  color: #1a1a1a;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: -0.01em;
+
+  &::placeholder {
+    color: #8e8e93;
+    font-weight: 400;
+  }
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.08);
+  }
+
+  &:focus {
+    outline: none;
+    background: #ffffff;
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  }
+`;
+
+const SearchIconWrapper = styled.div`
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #8e8e93;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+`;
+
+const ViewToggleGroup = styled.div`
+  display: flex;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.04);
   padding: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
 `;
 
 const ViewToggleButton = styled.button.withConfig({
@@ -541,54 +544,66 @@ const ViewToggleButton = styled.button.withConfig({
 })<{ active?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
   border: none;
   border-radius: 8px;
-  background: ${({ active }) => active ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' : 'transparent'};
-  color: ${({ active }) => active ? '#ffffff' : '#64748b'};
-  font-size: 14px;
+  background: ${({ active }) => active ? '#ffffff' : 'transparent'};
+  color: ${({ active }) => active ? '#1a1a1a' : '#6b7280'};
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  box-shadow: ${({ active }) => active ? '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)' : 'none'};
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
 
   &:hover {
-    background: ${({ active }) => active ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' : 'rgba(99, 102, 241, 0.1)'};
-    color: ${({ active }) => active ? '#ffffff' : '#6366f1'};
+    background: ${({ active }) => active ? '#ffffff' : 'rgba(255,255,255,0.6)'};
+    color: ${({ active }) => active ? '#1a1a1a' : '#4b5563'};
+  }
+
+  &:active {
+    transform: scale(0.98);
   }
 `;
 
-// View Toggle Bar
-const ViewToggleBar = styled.div`
+const AddProductButton = styled.button`
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  gap: 16px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  padding: 16px 24px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  max-width: 1400px;
-  margin-left: auto;
-  margin-right: auto;
-
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-`;
-
-const ViewToggleGroup = styled.div`
-  display: flex;
   gap: 8px;
-  background: rgba(226, 232, 240, 0.3);
-  padding: 4px;
-  border-radius: 8px;
-  border: 1px solid rgba(226, 232, 240, 0.5);
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+    background: linear-gradient(135deg, #5b5ce6 0%, #7c4dff 100%);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+  }
 `;
 
 const ProductsGrid = styled.div`
@@ -1136,8 +1151,6 @@ const FormError = styled.div`
 `;
 
 /* ---------- summary modal components ---------- */
-// Unused summary styled components removed to fix ESLint warnings
-
 /* ---------- details modal components ---------- */
 const DetailsList = styled.div`
   padding: 0 24px 24px;
@@ -1223,9 +1236,6 @@ const ChatSendButton = styled.button`
   }
 `;
 
-/* ---------- rules modal components ---------- */
-// Unused rules styled components removed to fix ESLint warnings
-
 /* ---------- system prompts ---------- */
 const SYSTEM_INSTRUCTIONS = `
 Persona: You are an expert in P&C insurance products. Your task is to analyze the provided insurance document text and extract key information into a structured JSON format.
@@ -1285,7 +1295,8 @@ Persona: You are an expert in P&C insurance products. Your task is to analyze th
 
 // Memoized ProductHub component for better performance
 const ProductHub = memo(() => {
-  const { data: products, loading, error } = useProducts({ enableCache: true, maxResults: 500 });
+  // Fetch all products including archived
+  const { data: products, loading, error } = useProducts({ enableCache: true, maxResults: 500, includeArchived: true });
   const [searchTerm, setSearchTerm] = useState('');
   const [rawSearch, setRawSearch] = useState('');
 
@@ -1340,22 +1351,6 @@ const ProductHub = memo(() => {
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
-  };
-
-  // Product templates
-  const templates = [
-    { name: 'Commercial Property', code: 'CP', description: 'Standard commercial property insurance' },
-    { name: 'General Liability', code: 'GL', description: 'General liability coverage' },
-    { name: 'Workers Compensation', code: 'WC', description: 'Workers compensation insurance' },
-    { name: 'Professional Liability', code: 'PL', description: 'Professional liability coverage' },
-  ];
-
-  const handleUseTemplate = (template: typeof templates[0]) => {
-    setName(template.name);
-    setProductCode(template.code);
-    setFormNumber(`${template.code}0010`);
-    setModalOpen(true);
-    showToast(`Template "${template.name}" loaded`, 'info');
   };
 
   // Get AI suggestions for products
@@ -1436,8 +1431,9 @@ const ProductHub = memo(() => {
   }, [modalOpen, summaryModalOpen, detailsModalOpen, chatModalOpen, dictModalOpen]);
 
   // Optimized product filtering with enhanced search, status, and sorting
+  // Always show archived products after active ones
   const filtered = useMemo(() => {
-    let result = products;
+    let result = [...products];
 
     // Apply search filter
     if (searchTerm) {
@@ -1454,8 +1450,12 @@ const ProductHub = memo(() => {
       result = result.filter(p => (p.status || 'active') === filterStatus);
     }
 
-    // Apply sorting
-    result = [...result].sort((a, b) => {
+    // Separate active and archived products
+    const activeProducts = result.filter(p => !p.archived);
+    const archivedProducts = result.filter(p => p.archived);
+
+    // Apply sorting to each group separately
+    const sortFn = (a, b) => {
       switch (sortBy) {
         case 'date':
           return (b.updatedAt?.getTime?.() || 0) - (a.updatedAt?.getTime?.() || 0);
@@ -1465,9 +1465,10 @@ const ProductHub = memo(() => {
         default:
           return (a.name || '').localeCompare(b.name || '');
       }
-    });
+    };
 
-    return result;
+    // Sort each group and combine with active first, then archived
+    return [...activeProducts.sort(sortFn), ...archivedProducts.sort(sortFn)];
   }, [products, searchTerm, filterStatus, sortBy]);
 
   // Export products as JSON
@@ -1505,7 +1506,7 @@ const ProductHub = memo(() => {
     setModalOpen(true);
   }, []);
 
-  const handleDelete = useCallback((id) => {
+  const handleArchive = useCallback((id) => {
     setDeleteProductId(id);
     setConfirmDeleteOpen(true);
   }, []);
@@ -1516,20 +1517,28 @@ const ProductHub = memo(() => {
     setIsDeleting(true);
     try {
       const product = products.find(p => p.id === deleteProductId);
-      await deleteDoc(doc(db, 'products', deleteProductId));
+      const isArchiving = !product?.archived;
 
-      // Log audit event
-      await logAuditEvent('DELETE', 'PRODUCT', deleteProductId, {
-        entityName: product?.name,
-        reason: 'User-initiated deletion'
+      await updateDoc(doc(db, 'products', deleteProductId), {
+        archived: isArchiving,
+        updatedAt: new Date()
       });
 
-      showToast(`Product "${product?.name}" deleted successfully`, 'success');
+      // Log audit event
+      await logAuditEvent(isArchiving ? 'ARCHIVE' : 'UNARCHIVE', 'PRODUCT', deleteProductId, {
+        entityName: product?.name,
+        reason: 'User-initiated action'
+      });
+
+      showToast(
+        `Product "${product?.name}" ${isArchiving ? 'archived' : 'unarchived'} successfully`,
+        'success'
+      );
       setConfirmDeleteOpen(false);
       setDeleteProductId(null);
     } catch (error) {
-      console.error('Delete failed:', error);
-      showToast('Failed to delete product. Please try again.', 'error');
+      console.error('Archive action failed:', error);
+      showToast('Failed to update product. Please try again.', 'error');
     } finally {
       setIsDeleting(false);
     }
@@ -1663,8 +1672,6 @@ const ProductHub = memo(() => {
     }
   };
 
-  // openRulesModal function removed - unused
-
   const resetForm = () => {
     setEditingId(null);
     setName('');
@@ -1674,19 +1681,17 @@ const ProductHub = memo(() => {
     setFile(null);
   };
 
-  const formatMMYY = value => {
-    const digits = value.replace(/\D/g, '').slice(0, 4);
-    if (digits.length < 3) return digits;
-    return digits.slice(0, 2) + '/' + digits.slice(2);
+  const formatYear = value => {
+    return value.replace(/\D/g, '').slice(0, 4);
   };
 
   const validateForm = () => {
     const errors = {};
     if (!name?.trim()) errors.name = 'Product name is required';
     if (!formNumber?.trim()) errors.formNumber = 'Form number is required';
-    if (!effectiveDate?.trim()) errors.effectiveDate = 'Effective date is required';
-    if (effectiveDate && !/^\d{2}\/\d{2}$/.test(effectiveDate)) {
-      errors.effectiveDate = 'Please use MM/YY format';
+    if (!effectiveDate?.trim()) errors.effectiveDate = 'Year is required';
+    if (effectiveDate && !/^\d{4}$/.test(effectiveDate)) {
+      errors.effectiveDate = 'Please enter a 4-digit year (e.g., 2024)';
     }
     return errors;
   };
@@ -1833,18 +1838,60 @@ const ProductHub = memo(() => {
       <MainNavigation />
 
       <PageContent>
-        <HeaderContainer>
-          <EnhancedHeader
-            title="Product Hub"
-            subtitle={`Explore and manage ${filtered.length} active product line${filtered.length !== 1 ? 's' : ''}`}
-            icon={CubeIcon}
-            searchProps={{
-              placeholder: "Search by product name, form number, or code...",
-              value: rawSearch,
-              onChange: (e) => setRawSearch(e.target.value)
-            }}
-          />
-        </HeaderContainer>
+        {/* Page Header */}
+        <EnhancedHeader
+          title="Product Hub"
+          subtitle={`Explore and manage ${filtered.length} active product line${filtered.length !== 1 ? 's' : ''}`}
+          icon={CubeIcon}
+        />
+
+        {/* Command Bar with Search, Toggle, and Add */}
+        <CommandBar>
+          <CommandBarLeft>
+            <ViewToggleGroup>
+              <ViewToggleButton
+                active={viewMode === 'cards'}
+                onClick={() => setViewMode('cards')}
+                title="Card view"
+                aria-label="Switch to card view"
+              >
+                <Squares2X2Icon />
+                Cards
+              </ViewToggleButton>
+              <ViewToggleButton
+                active={viewMode === 'table'}
+                onClick={() => setViewMode('table')}
+                title="Table view"
+                aria-label="Switch to table view"
+              >
+                <TableCellsIcon />
+                Table
+              </ViewToggleButton>
+            </ViewToggleGroup>
+          </CommandBarLeft>
+
+          <CommandBarCenter>
+            <SearchWrapper>
+              <SearchIconWrapper>
+                <MagnifyingGlassIcon />
+              </SearchIconWrapper>
+              <SearchInputStyled
+                type="text"
+                placeholder="Search products..."
+                value={rawSearch}
+                onChange={(e) => setRawSearch(e.target.value)}
+                aria-label="Search by product name, form number, or code"
+              />
+            </SearchWrapper>
+          </CommandBarCenter>
+
+          <CommandBarRight>
+            <AddProductButton onClick={() => setModalOpen(true)}>
+              <PlusIcon />
+              Add Product
+            </AddProductButton>
+          </CommandBarRight>
+        </CommandBar>
 
         {/* Bulk Actions Toolbar */}
         {selectedProducts.size > 0 && (
@@ -1859,34 +1906,6 @@ const ProductHub = memo(() => {
           </BulkActionsToolbar>
         )}
 
-        {/* View Toggle Bar */}
-        <ViewToggleBar>
-          <ViewToggleGroup>
-            <ViewToggleButton
-              active={viewMode === 'cards'}
-              onClick={() => setViewMode('cards')}
-              title="Card view"
-              aria-label="Switch to card view"
-            >
-              <Squares2X2Icon />
-              Cards
-            </ViewToggleButton>
-            <ViewToggleButton
-              active={viewMode === 'table'}
-              onClick={() => setViewMode('table')}
-              title="Table view"
-              aria-label="Switch to table view"
-            >
-              <TableCellsIcon />
-              Table
-            </ViewToggleButton>
-          </ViewToggleGroup>
-          <HeaderActionButton onClick={() => setModalOpen(true)}>
-            <PlusIcon />
-            Add Product
-          </HeaderActionButton>
-        </ViewToggleBar>
-
         {filtered.length > 0 ? (
           viewMode === 'cards' ? (
             // Use virtualization for large lists (>20 items) for better performance
@@ -1898,7 +1917,7 @@ const ProductHub = memo(() => {
                     key={product.id}
                     product={product}
                     onEdit={handleEdit}
-                    onDelete={handleDelete}
+                    onArchive={handleArchive}
                     onOpenDetails={handleOpenDetails}
                     onSummary={handleSummary}
                     onChat={openChat}
@@ -1916,7 +1935,7 @@ const ProductHub = memo(() => {
                     key={product.id}
                     product={product}
                     onEdit={handleEdit}
-                    onDelete={handleDelete}
+                    onArchive={handleArchive}
                     onOpenDetails={handleOpenDetails}
                     onSummary={handleSummary}
                     onChat={openChat}
@@ -1964,10 +1983,12 @@ const ProductHub = memo(() => {
                           <IconButton onClick={() => handleOpenDetails(product)}>
                             <InformationCircleIcon width={14} height={14} />
                           </IconButton>
-                          <IconButton onClick={() => handleEdit(product)}>
-                            <PencilIcon width={14} height={14} />
-                          </IconButton>
-                          <IconButton className="danger" onClick={() => handleDelete(product.id)}>
+                          {!product.archived && (
+                            <IconButton onClick={() => handleEdit(product)}>
+                              <PencilIcon width={14} height={14} />
+                            </IconButton>
+                          )}
+                          <IconButton className="danger" onClick={() => handleArchive(product.id)}>
                             <TrashIcon width={14} height={14} />
                           </IconButton>
                         </TableActions>
@@ -1990,44 +2011,6 @@ const ProductHub = memo(() => {
               }
               variant="default"
             />
-            {!searchTerm && products.length === 0 && (
-              <>
-                <QuickTips>
-                  <TipCard>
-                    <strong>📋 Create Product</strong>
-                    Click "Add Product" to create a new insurance product with forms and coverages.
-                  </TipCard>
-                  <TipCard>
-                    <strong>⚡ Quick Shortcut</strong>
-                    Press Cmd+N to quickly create a new product from anywhere.
-                  </TipCard>
-                  <TipCard>
-                    <strong>🔍 Search & Filter</strong>
-                    Use search and filters to find products by name, form number, or code.
-                  </TipCard>
-                  <TipCard>
-                    <strong>💬 AI Assistant</strong>
-                    Use the Summary and Chat features to analyze product forms with AI.
-                  </TipCard>
-                </QuickTips>
-
-                <TemplatesSection>
-                  <TemplatesTitle>⚡ Quick Start with Templates</TemplatesTitle>
-                  <TemplatesGrid>
-                    {templates.map(template => (
-                      <TemplateCard
-                        key={template.code}
-                        onClick={() => handleUseTemplate(template)}
-                        title={`Create product from ${template.name} template`}
-                      >
-                        <strong>{template.name}</strong>
-                        <small>{template.description}</small>
-                      </TemplateCard>
-                    ))}
-                  </TemplatesGrid>
-                </TemplatesSection>
-              </>
-            )}
           </div>
         )}
       </PageContent>
@@ -2095,13 +2078,14 @@ const ProductHub = memo(() => {
 
               <FormField>
                 <FormLabel>
-                  Effective Date
+                  Year
                   {formErrors.effectiveDate && <FormLabelHint style={{ color: '#dc2626' }}>✕ {formErrors.effectiveDate}</FormLabelHint>}
                 </FormLabel>
                 <FormInput
-                  placeholder="MM/YY"
+                  placeholder="e.g., 2024"
+                  maxLength={4}
                   value={effectiveDate}
-                  onChange={e => { setEffectiveDate(formatMMYY(e.target.value)); if (formErrors.effectiveDate) setFormErrors(prev => ({ ...prev, effectiveDate: '' })); }}
+                  onChange={e => { setEffectiveDate(formatYear(e.target.value)); if (formErrors.effectiveDate) setFormErrors(prev => ({ ...prev, effectiveDate: '' })); }}
                   style={{ borderColor: formErrors.effectiveDate ? '#dc2626' : undefined }}
                 />
               </FormField>
@@ -2337,21 +2321,27 @@ const ProductHub = memo(() => {
         onClose={() => setDictModalOpen(false)}
       />
 
-      {/* Delete Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={confirmDeleteOpen}
-        title="Delete Product"
-        message={`Are you sure you want to delete "${products.find(p => p.id === deleteProductId)?.name || 'this product'}"? This action cannot be undone.`}
-        confirmText="Delete"
-        cancelText="Cancel"
-        isDangerous={true}
-        isLoading={isDeleting}
-        onConfirm={handleConfirmDelete}
-        onCancel={() => {
-          setConfirmDeleteOpen(false);
-          setDeleteProductId(null);
-        }}
-      />
+      {/* Archive/Unarchive Confirmation Modal */}
+      {(() => {
+        const product = products.find(p => p.id === deleteProductId);
+        const isArchiving = !product?.archived;
+        return (
+          <ConfirmationModal
+            isOpen={confirmDeleteOpen}
+            title={isArchiving ? "Archive Product" : "Unarchive Product"}
+            message={`Are you sure you want to ${isArchiving ? 'archive' : 'unarchive'} "${product?.name || 'this product'}"? ${isArchiving ? 'Archived products will not appear in search or AI features.' : 'This product will be available again in search and AI features.'}`}
+            confirmText={isArchiving ? "Archive" : "Unarchive"}
+            cancelText="Cancel"
+            isDangerous={isArchiving}
+            isLoading={isDeleting}
+            onConfirm={handleConfirmDelete}
+            onCancel={() => {
+              setConfirmDeleteOpen(false);
+              setDeleteProductId(null);
+            }}
+          />
+        );
+      })()}
 
       {/* Toast Notifications */}
       <ToastContainer>

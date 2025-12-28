@@ -1,6 +1,6 @@
 // src/components/DataDictionaryModal.js
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 // Firestore imports for real-time subscription and mutations
 import {

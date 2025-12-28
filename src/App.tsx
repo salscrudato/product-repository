@@ -37,6 +37,8 @@ const SkipLink = styled.a`
 import logger, { LOG_CATEGORIES } from './utils/logger';
 import env from './config/env';
 
+
+
 /* public */
 import Login from './components/Login';
 
@@ -137,9 +139,6 @@ const QuoteSandbox = createOptimizedLazyComponent(
 const HistoryWrapper: React.FC = () => {
   return (
     <>
-      {/* Floating "history" button (bottom‑right) */}
-      {/* hide on login route */}
-
       {/* Primary route tree */}
       <Routes>
         {/* public */}
@@ -380,28 +379,19 @@ const HistoryWrapper: React.FC = () => {
   );
 };
 
+// Track initialization to prevent duplicate logs in StrictMode
+let appInitialized = false;
+
 const App: React.FC = () => {
   // Optimized: Initialize bundle optimizations and performance monitoring
   useEffect(() => {
-    logger.info(LOG_CATEGORIES.DATA, 'App initialization started', {
-      environment: env.NODE_ENV,
-      timestamp: new Date().toISOString()
-    });
+    if (appInitialized) return;
+    appInitialized = true;
 
     try {
-      // Initialize bundle optimizations for code splitting
       initBundleOptimizations();
-      logger.info(LOG_CATEGORIES.DATA, 'Bundle optimizations initialized');
-
-      // Performance monitor is automatically initialized on import
-      logger.info(LOG_CATEGORIES.PERFORMANCE, 'Performance monitoring active');
-
-      // Log app version and environment
-      logger.debug(LOG_CATEGORIES.DATA, 'App environment', {
-        isDevelopment: env.DEV,
-        isProduction: env.PROD,
-        apiUrl: env.VITE_API_URL
-      });
+      // Single consolidated log for app initialization
+      console.log(`🚀 App initialized (${env.NODE_ENV})`);
     } catch (error) {
       logger.error(LOG_CATEGORIES.ERROR, 'App initialization failed', {
         environment: env.NODE_ENV

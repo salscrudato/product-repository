@@ -502,19 +502,6 @@ const CheckboxLabel = styled.label`
   cursor: pointer;
 `;
 
-const InfoBox = styled.div`
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 6px;
-  padding: 12px;
-`;
-
-const InfoText = styled.div`
-  font-size: 13px;
-  color: #1e3a8a;
-  line-height: 1.5;
-`;
-
 const ValidationErrorBox = styled.div`
   background: #fef2f2;
   border: 2px solid #dc2626;

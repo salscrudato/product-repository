@@ -18,8 +18,8 @@ const PackagesScreen: React.FC = () => {
   const [showBuilder, setShowBuilder] = useState(false);
   const [editingPackage, setEditingPackage] = useState<CoveragePackage | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
-  const [showRecommendations, setShowRecommendations] = useState(false);
-  const [selectedCoverageIds, setSelectedCoverageIds] = useState<string[]>([]);
+  const [showRecommendations] = useState(false);
+  const [selectedCoverageIds] = useState<string[]>([]);
 
   // Load coverages
   useEffect(() => {

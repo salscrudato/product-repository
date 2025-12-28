@@ -8,17 +8,15 @@ export { default as useCoverages } from './useCoverages';
 export { default as useProducts } from './useProducts';
 export { default as useProduct } from './useProduct';
 export { default as useForms } from './useForms';
-export { default as useRules } from './useRules';
 export { useCoverageData } from './useCoverageData';
-export { default as useCoverageFormCounts } from './useCoverageFormCounts';
-export { default as useCoveragePackages } from './useCoveragePackages';
-export { default as useCoverageVersions } from './useCoverageVersions';
+export { useCoverageFormCounts } from './useCoverageFormCounts';
+export { useCoveragePackages } from './useCoveragePackages';
+
+// Coverage Copilot hooks
+export { default as useCoverageDraft } from './useCoverageDraft';
 
 // Firebase hooks
 export { default as useFirebaseConnection } from './useFirebaseConnection';
-
-// Auth hooks
-export { default as useRole } from './useRole';
 
 // Memoization hooks
 export { default as useAdvancedMemo } from './useAdvancedMemo';

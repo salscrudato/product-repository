@@ -19,11 +19,6 @@ export const WaitingPeriodInput: React.FC<WaitingPeriodInputProps> = ({
 }) => {
   return (
     <Container>
-      <Label>Waiting Period</Label>
-      <HelpText>
-        Time period that must elapse before coverage begins or before certain benefits are available
-      </HelpText>
-
       <InputRow>
         <NumberInput
           type="number"
@@ -46,19 +41,9 @@ export const WaitingPeriodInput: React.FC<WaitingPeriodInputProps> = ({
 
       {value && (
         <DisplayValue>
-          Waiting Period: {value} {unit}
+          {value} {unit}
         </DisplayValue>
       )}
-
-      <InfoBox>
-        <InfoTitle>Common Waiting Periods</InfoTitle>
-        <InfoList>
-          <InfoItem><strong>Health Insurance:</strong> 30-90 days for pre-existing conditions</InfoItem>
-          <InfoItem><strong>Disability Insurance:</strong> 30-180 days elimination period</InfoItem>
-          <InfoItem><strong>Flood Insurance:</strong> 30 days from purchase</InfoItem>
-          <InfoItem><strong>Workers' Compensation:</strong> 3-7 days for disability benefits</InfoItem>
-        </InfoList>
-      </InfoBox>
     </Container>
   );
 };
@@ -68,18 +53,6 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
-`;
-
-const Label = styled.label`
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-`;
-
-const HelpText = styled.span`
-  font-size: 13px;
-  color: #6b7280;
-  font-style: italic;
 `;
 
 const InputRow = styled.div`
@@ -132,39 +105,3 @@ const DisplayValue = styled.div`
   color: #374151;
   font-weight: 500;
 `;
-
-const InfoBox = styled.div`
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 12px;
-  margin-top: 8px;
-`;
-
-const InfoTitle = styled.div`
-  font-size: 13px;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 8px;
-`;
-
-const InfoList = styled.ul`
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-`;
-
-const InfoItem = styled.li`
-  font-size: 13px;
-  color: #6b7280;
-  line-height: 1.5;
-
-  strong {
-    color: #374151;
-    font-weight: 600;
-  }
-`;
-

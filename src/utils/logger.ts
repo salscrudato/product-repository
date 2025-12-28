@@ -67,13 +67,18 @@ class Logger {
   private sessionId: string;
   private userId: string | null;
   private startTime: number;
+  private firebaseOpCounts: Map<string, number>;
+  private lastFirebaseLogTime: number;
 
   constructor() {
     this.isEnabled = true;
-    this.logLevel = process.env.NODE_ENV === 'production' ? LOG_LEVELS.INFO : LOG_LEVELS.DEBUG;
+    // In production, only show WARN and above; in dev, show INFO and above (not DEBUG for cleaner console)
+    this.logLevel = process.env.NODE_ENV === 'production' ? LOG_LEVELS.WARN : LOG_LEVELS.INFO;
     this.sessionId = this.generateSessionId();
     this.userId = null;
     this.startTime = Date.now();
+    this.firebaseOpCounts = new Map();
+    this.lastFirebaseLogTime = 0;
   }
 
   private generateSessionId(): string {
@@ -111,14 +116,15 @@ class Logger {
       data: this.sanitizeData(data),
       url: window.location.href,
       userAgent: navigator.userAgent,
-      ...(error && { 
-        error: {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        }
-      })
     };
+
+    if (error) {
+      logEntry.error = {
+        name: error.name,
+        message: error.message,
+        ...(error.stack !== undefined && { stack: error.stack })
+      };
+    }
 
     return logEntry;
   }
@@ -238,15 +244,27 @@ class Logger {
   logFirebaseOperation(
     operation: string,
     collection: string,
-    docId: string | null = null,
-    data: Record<string, unknown> = {}
+    _docId: string | null = null,
+    _data: Record<string, unknown> = {}
   ): void {
-    this.info(LOG_CATEGORIES.FIREBASE, `Firebase ${operation}`, {
-      operation,
-      collection,
-      docId,
-      data: this.sanitizeData(data)
-    });
+    // Batch similar Firebase operations to reduce console noise
+    const key = `${operation}_${collection}`;
+    const count = (this.firebaseOpCounts.get(key) || 0) + 1;
+    this.firebaseOpCounts.set(key, count);
+
+    const now = Date.now();
+    // Only log aggregated counts every 2 seconds or on first call
+    if (count === 1 || now - this.lastFirebaseLogTime > 2000) {
+      this.lastFirebaseLogTime = now;
+
+      // Log summary of all operations
+      if (this.firebaseOpCounts.size > 0) {
+        const summary: Record<string, number> = {};
+        this.firebaseOpCounts.forEach((v, k) => { summary[k] = v; });
+        this.debug(LOG_CATEGORIES.FIREBASE, 'Firebase operations', { operations: summary });
+        this.firebaseOpCounts.clear();
+      }
+    }
   }
 
   logFormSubmission(

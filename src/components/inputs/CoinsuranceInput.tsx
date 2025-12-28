@@ -21,11 +21,6 @@ export const CoinsuranceInput: React.FC<CoinsuranceInputProps> = ({
 }) => {
   return (
     <Container>
-      <Label>Coinsurance Requirement</Label>
-      <HelpText>
-        Minimum percentage of property value that must be insured to avoid penalty at time of loss
-      </HelpText>
-
       <InputRow>
         <PercentageInput
           type="number"
@@ -65,43 +60,8 @@ export const CoinsuranceInput: React.FC<CoinsuranceInputProps> = ({
 
       {percentage && (
         <DisplayValue>
-          Coinsurance: {percentage}% {hasPenalty ? '(with penalty)' : '(no penalty)'}
+          {percentage}% {hasPenalty ? '(with penalty)' : '(no penalty)'}
         </DisplayValue>
-      )}
-
-      <InfoBox>
-        <InfoTitle>How Coinsurance Works</InfoTitle>
-        <InfoText>
-          <strong>Coinsurance Clause:</strong> Requires the insured to maintain insurance equal to a 
-          specified percentage of the property's value.
-          <br /><br />
-          <strong>Example (80% Coinsurance):</strong>
-          <ul>
-            <li>Property Value: $1,000,000</li>
-            <li>Required Insurance: $800,000 (80%)</li>
-            <li>Actual Insurance: $600,000</li>
-            <li>Loss Amount: $400,000</li>
-          </ul>
-          <br />
-          <strong>Penalty Calculation:</strong>
-          <br />
-          Payment = Loss × (Actual Insurance ÷ Required Insurance)
-          <br />
-          Payment = $400,000 × ($600,000 ÷ $800,000) = $300,000
-          <br /><br />
-          The insured receives only $300,000 instead of $400,000 due to under-insurance.
-        </InfoText>
-      </InfoBox>
-
-      {!hasPenalty && (
-        <WarningBox>
-          <WarningTitle>⚠️ No Penalty Warning</WarningTitle>
-          <WarningText>
-            Disabling the coinsurance penalty means the insured can maintain less than the required 
-            percentage without penalty. This increases risk exposure and should only be used for 
-            specific coverage types or endorsements.
-          </WarningText>
-        </WarningBox>
       )}
     </Container>
   );
@@ -112,18 +72,6 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
-`;
-
-const Label = styled.label`
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-`;
-
-const HelpText = styled.span`
-  font-size: 13px;
-  color: #6b7280;
-  font-style: italic;
 `;
 
 const InputRow = styled.div`
@@ -204,60 +152,3 @@ const DisplayValue = styled.div`
   color: #374151;
   font-weight: 500;
 `;
-
-const InfoBox = styled.div`
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 12px;
-  margin-top: 8px;
-`;
-
-const InfoTitle = styled.div`
-  font-size: 13px;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 8px;
-`;
-
-const InfoText = styled.div`
-  font-size: 13px;
-  color: #6b7280;
-  line-height: 1.6;
-
-  strong {
-    color: #374151;
-    font-weight: 600;
-  }
-
-  ul {
-    margin: 8px 0;
-    padding-left: 20px;
-  }
-
-  li {
-    margin: 4px 0;
-  }
-`;
-
-const WarningBox = styled.div`
-  background: #fef3c7;
-  border: 1px solid #fbbf24;
-  border-radius: 6px;
-  padding: 12px;
-  margin-top: 8px;
-`;
-
-const WarningTitle = styled.div`
-  font-size: 13px;
-  font-weight: 600;
-  color: #92400e;
-  margin-bottom: 4px;
-`;
-
-const WarningText = styled.div`
-  font-size: 13px;
-  color: #78350f;
-  line-height: 1.5;
-`;
-

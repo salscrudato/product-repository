@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styled, { keyframes, css } from 'styled-components';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
-import { UserIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { UserIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, Bars3Icon, XMarkIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import logger, { LOG_CATEGORIES } from '../../utils/logger';
 import { Tooltip } from './Tooltip';
 
@@ -35,81 +35,196 @@ const fadeIn = keyframes`
   to { opacity: 1; }
 `;
 
-const underlineExpand = keyframes`
-  from {
-    width: 0;
-  }
-  to {
-    width: 100%;
-  }
+const shimmer = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 `;
 
-/* ---------- Skip Link for Accessibility ---------- */
-const SkipLink = styled.a`
-  position: absolute;
-  top: -100px;
-  left: 16px;
-  background: ${({ theme }) => theme.colours.primary};
-  color: white;
-  padding: 12px 24px;
-  border-radius: 0 0 8px 8px;
-  font-weight: 600;
-  font-size: 14px;
-  text-decoration: none;
-  z-index: 10000;
-  transition: top 0.2s ease;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+const pulse = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+`;
 
-  &:focus {
-    top: 0;
-    outline: none;
-  }
+const gradientFlow = keyframes`
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 `;
 
 /* ---------- styled components ---------- */
-const NavigationWrapper = styled.div`
+const NavigationWrapper = styled.div<{ $scrolled?: boolean }>`
   position: sticky;
   top: 0;
   z-index: 100;
-  transition: box-shadow 0.3s ease;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.95));
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-  ${props => props.$scrolled && `
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  ${props => props.$scrolled && css`
+    box-shadow:
+      0 1px 0 rgba(0, 0, 0, 0.04),
+      0 4px 24px rgba(0, 0, 0, 0.06);
+    background: rgba(255, 255, 255, 0.92);
   `}
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(99, 102, 241, 0.15) 20%,
+      rgba(139, 92, 246, 0.2) 50%,
+      rgba(99, 102, 241, 0.15) 80%,
+      transparent 100%
+    );
+    opacity: ${props => props.$scrolled ? 1 : 0.5};
+    transition: opacity 0.3s ease;
+  }
 `;
 
 const Navigation = styled.nav`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 32px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  padding: 8px 40px;
   position: relative;
   z-index: 10;
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
-  transition: background 0.3s ease, border-color 0.3s ease;
+  gap: 32px;
 
-  @media (max-width: 1024px) {
-    padding: 12px 24px;
+  @media (max-width: 1200px) {
+    padding: 8px 24px;
+    gap: 20px;
   }
 
   @media (max-width: 768px) {
-    padding: 10px 16px;
+    padding: 8px 16px;
   }
 `;
 
-const NavList = styled.ul<{ $mobileOpen?: boolean }>`
+/* ---------- Logo & Brand ---------- */
+const LogoSection = styled(Link)`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  padding: 6px 8px;
+  margin: -6px -8px;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.04);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+`;
+
+const LogoIcon = styled.div`
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+  background-size: 200% 200%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow:
+    0 2px 8px rgba(99, 102, 241, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+
+  ${LogoSection}:hover & {
+    animation: ${gradientFlow} 3s ease infinite;
+    box-shadow:
+      0 4px 16px rgba(99, 102, 241, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  @media (max-width: 768px) {
+    width: 32px;
+    height: 32px;
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+`;
+
+const LogoText = styled.div`
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+
+  @media (max-width: 640px) {
+    display: none;
+  }
+`;
+
+const LogoBrand = styled.span`
+  font-weight: 600;
+  font-size: 15px;
+  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+
+  @media (max-width: 900px) {
+    font-size: 14px;
+  }
+`;
+
+const LogoTagline = styled.span`
+  font-size: 9px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 1px;
+`;
+
+/* ---------- Nav List ---------- */
+const NavList = styled.ul`
   display: flex;
   list-style: none;
   margin: 0;
-  padding: 0;
-  gap: 8px;
+  padding: 5px 6px;
+  gap: 2px;
+  background: rgba(241, 245, 249, 0.7);
+  border-radius: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  flex: 1;
+  justify-content: center;
+  max-width: 800px;
+
+  @media (max-width: 1200px) {
+    max-width: 680px;
+  }
 
   @media (max-width: 1024px) {
-    gap: 4px;
+    gap: 0;
+    padding: 4px;
+    max-width: 580px;
   }
 
   @media (max-width: 768px) {
@@ -122,12 +237,12 @@ const NavItem = styled.li``;
 /* ---------- Mobile Menu Components ---------- */
 const MobileMenuButton = styled.button`
   display: none;
-  background: none;
-  border: none;
+  background: rgba(241, 245, 249, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.6);
   padding: 8px;
   cursor: pointer;
   color: #64748b;
-  border-radius: 8px;
+  border-radius: 10px;
   transition: all 0.2s ease;
 
   @media (max-width: 768px) {
@@ -137,18 +252,24 @@ const MobileMenuButton = styled.button`
   }
 
   &:hover {
-    background: rgba(99, 102, 241, 0.08);
-    color: #1e293b;
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.2);
+    color: #6366f1;
+    transform: scale(1.02);
+  }
+
+  &:active {
+    transform: scale(0.98);
   }
 
   &:focus-visible {
-    outline: 2px solid rgba(99, 102, 241, 0.4);
-    outline-offset: 2px;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
   }
 
   svg {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
   }
 `;
 
@@ -162,10 +283,11 @@ const MobileMenuOverlay = styled.div<{ $isOpen: boolean }>`
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     z-index: 998;
-    animation: ${fadeIn} 0.2s ease-out;
+    animation: ${fadeIn} 0.25s ease-out;
   }
 `;
 
@@ -178,13 +300,17 @@ const MobileMenu = styled.div<{ $isOpen: boolean }>`
     top: 0;
     right: 0;
     bottom: 0;
-    width: 280px;
+    width: 300px;
     max-width: 85vw;
-    background: white;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     flex-direction: column;
     z-index: 999;
-    animation: ${slideIn} 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.15);
+    animation: ${slideIn} 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow:
+      -16px 0 48px rgba(0, 0, 0, 0.12),
+      -4px 0 16px rgba(0, 0, 0, 0.06);
     overflow-y: auto;
   }
 `;
@@ -193,180 +319,114 @@ const MobileMenuHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  background: linear-gradient(to bottom, white, rgba(248, 250, 252, 0.5));
 `;
 
-const MobileMenuTitle = styled.span`
-  font-weight: 600;
-  font-size: 16px;
+const MobileMenuTitle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+
+const MobileLogoIcon = styled.div`
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+`;
+
+const MobileMenuBrand = styled.span`
+  font-weight: 700;
+  font-size: 15px;
   color: #1e293b;
+  letter-spacing: -0.01em;
 `;
 
 const MobileCloseButton = styled.button`
-  background: none;
-  border: none;
+  background: rgba(241, 245, 249, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.6);
   padding: 8px;
   cursor: pointer;
   color: #64748b;
-  border-radius: 8px;
+  border-radius: 10px;
   transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(99, 102, 241, 0.08);
-    color: #1e293b;
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
   }
 
   &:focus-visible {
-    outline: 2px solid rgba(99, 102, 241, 0.4);
-    outline-offset: 2px;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
   }
 
   svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
   }
 `;
 
 const MobileNavList = styled.ul`
   list-style: none;
   margin: 0;
-  padding: 12px 0;
+  padding: 16px 12px;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 `;
 
 const MobileNavItem = styled.li``;
 
 const MobileNavLink = styled(Link)<{ $isActive?: boolean }>`
-  display: block;
-  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
   text-decoration: none;
   color: ${({ $isActive }) => $isActive ? '#6366f1' : '#374151'};
   font-weight: ${({ $isActive }) => $isActive ? '600' : '500'};
   font-size: 15px;
+  border-radius: 12px;
   transition: all 0.2s ease;
-  border-left: 3px solid ${({ $isActive }) => $isActive ? '#6366f1' : 'transparent'};
-  background: ${({ $isActive }) => $isActive ? 'rgba(99, 102, 241, 0.08)' : 'transparent'};
+  background: ${({ $isActive }) => $isActive ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%)' : 'transparent'};
+  position: relative;
+
+  ${({ $isActive }) => $isActive && css`
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 24px;
+      background: linear-gradient(180deg, #6366f1, #8b5cf6);
+      border-radius: 0 4px 4px 0;
+    }
+  `}
 
   &:hover {
     background: rgba(99, 102, 241, 0.08);
     color: #6366f1;
-  }
-
-  &:focus-visible {
-    outline: none;
-    background: rgba(99, 102, 241, 0.12);
-    border-left-color: #6366f1;
-  }
-`;
-
-const MobileMenuFooter = styled.div`
-  padding: 16px 20px;
-  border-top: 1px solid rgba(226, 232, 240, 0.8);
-  background: rgba(248, 250, 252, 0.8);
-`;
-
-const NavLink = styled(Link)`
-  text-decoration: none;
-  color: #64748b;
-  font-weight: 500;
-  font-size: 14px;
-  padding: 10px 18px;
-  border-radius: 10px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  letter-spacing: -0.005em;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border: 1.5px solid transparent;
-
-  &:hover {
-    color: #1e293b;
-    background: rgba(99, 102, 241, 0.06);
-    transform: translateY(-1px);
-    border-color: rgba(99, 102, 241, 0.1);
-
-    &::after {
-      transform: scaleX(1);
-      opacity: 1;
-    }
+    transform: translateX(4px);
   }
 
   &:active {
-    transform: translateY(0) scale(0.98);
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    bottom: 6px;
-    left: 50%;
-    transform: translateX(-50%) scaleX(0);
-    height: 2px;
-    width: 40%;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
-    border-radius: 2px;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-    opacity: 0;
-  }
-
-  &.active {
-    color: #6366f1;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.08) 100%);
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15), inset 0 0 0 1.5px rgba(99, 102, 241, 0.2);
-    font-weight: 600;
-    border-color: transparent;
-
-    &::after {
-      transform: translateX(-50%) scaleX(1);
-      opacity: 1;
-      width: 50%;
-    }
-
-    &:hover {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.14) 0%, rgba(139, 92, 246, 0.1) 100%);
-      transform: translateY(-1px);
-    }
-  }
-
-  @media (max-width: 1024px) {
-    font-size: 13px;
-    padding: 8px 14px;
-  }
-`;
-
-/* ---------- Profile Components ---------- */
-const ProfileSection = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  position: relative;
-`;
-
-const ProfileButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: none;
-  border: 1.5px solid transparent;
-  padding: 6px 10px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: #64748b;
-  font-weight: 500;
-
-  &:hover {
-    background: rgba(99, 102, 241, 0.06);
-    color: #1e293b;
-    transform: translateY(-1px);
-    border-color: rgba(99, 102, 241, 0.1);
-  }
-
-  &:active {
-    transform: translateY(0) scale(0.98);
+    transform: translateX(2px) scale(0.99);
   }
 
   &:focus-visible {
@@ -375,46 +435,196 @@ const ProfileButton = styled.button`
   }
 `;
 
-const UserAvatar = styled.div`
-  width: 34px;
-  height: 34px;
+const MobileMenuFooter = styled.div`
+  padding: 20px 24px;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
+  background: linear-gradient(to top, rgba(248, 250, 252, 0.9), white);
+`;
+
+const NavLink = styled(Link)`
+  text-decoration: none;
+  color: #6b7280;
+  font-weight: 500;
+  font-size: 14px;
+  padding: 9px 16px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+
+  &:hover {
+    color: #1f2937;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &.active {
+    color: #111827;
+    background: white;
+    font-weight: 600;
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.08),
+      0 2px 8px rgba(0, 0, 0, 0.04);
+
+    &::before {
+      content: '';
+      position: absolute;
+      bottom: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 18px;
+      height: 3px;
+      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+      border-radius: 2px;
+    }
+
+    &:hover {
+      box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.1),
+        0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+  }
+
+  @media (max-width: 1200px) {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  @media (max-width: 1024px) {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+`;
+
+/* ---------- Profile Components ---------- */
+const ProfileSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    gap: 8px;
+  }
+`;
+
+const ProfileButton = styled.button<{ $isOpen?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: ${props => props.$isOpen ? 'rgba(99, 102, 241, 0.08)' : 'rgba(241, 245, 249, 0.6)'};
+  border: 1px solid ${props => props.$isOpen ? 'rgba(99, 102, 241, 0.2)' : 'rgba(226, 232, 240, 0.6)'};
+  padding: 5px 12px 5px 5px;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #475569;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.2);
+    color: #1e293b;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  }
+
+  @media (max-width: 768px) {
+    padding: 4px;
+    border-radius: 12px;
+
+    span {
+      display: none;
+    }
+  }
+`;
+
+const UserAvatar = styled.div`
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+  background-size: 200% 200%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: 600;
-  font-size: 14px;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 2px 6px rgba(99, 102, 241, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+  position: relative;
 
-  ${ProfileButton}:hover & {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.3)) border-box;
+    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.2s ease;
   }
+
+  ${ProfileButton}:hover &::after {
+    opacity: 1;
+  }
+`;
+
+const ProfileName = styled.span`
+  font-size: 13px;
+  font-weight: 500;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const ProfileDropdown = styled.div`
   position: absolute;
-  top: 100%;
+  top: calc(100% + 8px);
   right: 0;
-  margin-top: 8px;
-  min-width: 220px;
+  min-width: 240px;
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.12),
+    0 8px 24px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
   z-index: 1000;
-  animation: ${slideDown} 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: ${slideDown} 0.25s cubic-bezier(0.22, 1, 0.36, 1);
   overflow: hidden;
 `;
 
 const DropdownHeader = styled.div`
-  padding: 16px;
+  padding: 16px 20px;
   border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.8), white);
 `;
 
 const UserInfo = styled.div`
@@ -425,29 +635,34 @@ const UserInfo = styled.div`
 
 const UserDetails = styled.div`
   flex: 1;
+  min-width: 0;
 `;
 
 const UserName = styled.div`
   font-weight: 600;
   color: #1e293b;
   font-size: 14px;
+  line-height: 1.3;
 `;
 
 const UserEmail = styled.div`
   font-size: 12px;
   color: #64748b;
   margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const DropdownSection = styled.div`
-  padding: 8px 0;
+  padding: 8px;
 `;
 
 const DropdownItem = styled.button`
   width: 100%;
   background: none;
   border: none;
-  padding: 10px 16px;
+  padding: 10px 12px;
   text-align: left;
   font-size: 14px;
   cursor: pointer;
@@ -455,43 +670,53 @@ const DropdownItem = styled.button`
   align-items: center;
   gap: 10px;
   color: #475569;
+  border-radius: 10px;
   transition: all 0.15s ease;
   position: relative;
 
   &:hover {
-    background: rgba(99, 102, 241, 0.06);
+    background: rgba(99, 102, 241, 0.08);
     color: #1e293b;
-    padding-left: 20px;
 
     svg {
-      opacity: 1;
+      color: #6366f1;
       transform: scale(1.1);
     }
   }
 
   &:active {
-    background: rgba(99, 102, 241, 0.1);
+    background: rgba(99, 102, 241, 0.12);
+    transform: scale(0.98);
   }
 
   &:focus-visible {
     outline: none;
-    background: rgba(99, 102, 241, 0.08);
-    box-shadow: inset 3px 0 0 #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
   }
 
   svg {
-    width: 16px;
-    height: 16px;
-    opacity: 0.6;
+    width: 18px;
+    height: 18px;
+    color: #94a3b8;
     transition: all 0.15s ease;
     flex-shrink: 0;
   }
 `;
 
+const DropdownItemLabel = styled.span`
+  flex: 1;
+`;
+
+const DropdownItemHint = styled.span`
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+`;
+
 const Divider = styled.div`
   height: 1px;
-  background: rgba(226, 232, 240, 0.6);
-  margin: 4px 0;
+  background: linear-gradient(90deg, transparent, rgba(226, 232, 240, 0.8), transparent);
+  margin: 4px 16px;
 `;
 
 /* ---------- Navigation Items Config ---------- */
@@ -691,11 +916,19 @@ export default function MainNavigation() {
 
   return (
     <>
-      {/* Skip to main content link for accessibility */}
-      <SkipLink href="#main-content">Skip to main content</SkipLink>
-
       <NavigationWrapper $scrolled={scrolled}>
         <Navigation role="navigation" aria-label="Main navigation">
+          {/* Logo & Brand */}
+          <LogoSection to="/" aria-label="Home">
+            <LogoIcon>
+              <SparklesIcon />
+            </LogoIcon>
+            <LogoText>
+              <LogoBrand>Product Reinvention Hub</LogoBrand>
+              <LogoTagline>P&C Insurance</LogoTagline>
+            </LogoText>
+          </LogoSection>
+
           {/* Desktop Navigation */}
           <NavList>
             {navItems.map((item) => (
@@ -727,13 +960,12 @@ export default function MainNavigation() {
           <ProfileSection data-profile-menu>
             <ProfileButton
               onClick={() => setProfileOpen(!profileOpen)}
+              $isOpen={profileOpen}
               aria-expanded={profileOpen}
               aria-haspopup="true"
             >
               <UserAvatar>{getUserInitials()}</UserAvatar>
-              <span style={{ fontSize: '14px', fontWeight: '500' }}>
-                {getUserName()}
-              </span>
+              <ProfileName>{getUserName()}</ProfileName>
             </ProfileButton>
 
             {profileOpen && (
@@ -753,15 +985,15 @@ export default function MainNavigation() {
                     onClick={() => console.info('Profile view - Coming soon')}
                     role="menuitem"
                   >
-                    <UserIcon width={16} height={16} />
-                    View Profile
+                    <UserIcon />
+                    <DropdownItemLabel>View Profile</DropdownItemLabel>
                   </DropdownItem>
                   <DropdownItem
                     onClick={() => console.info('Account settings - Coming soon')}
                     role="menuitem"
                   >
-                    <Cog6ToothIcon width={16} height={16} />
-                    Account Settings
+                    <Cog6ToothIcon />
+                    <DropdownItemLabel>Account Settings</DropdownItemLabel>
                   </DropdownItem>
                 </DropdownSection>
 
@@ -769,8 +1001,8 @@ export default function MainNavigation() {
 
                 <DropdownSection>
                   <DropdownItem onClick={handleSignOut} role="menuitem">
-                    <ArrowLeftOnRectangleIcon width={16} height={16} />
-                    Sign Out
+                    <ArrowLeftOnRectangleIcon />
+                    <DropdownItemLabel>Sign Out</DropdownItemLabel>
                   </DropdownItem>
                 </DropdownSection>
               </ProfileDropdown>
@@ -796,7 +1028,12 @@ export default function MainNavigation() {
         aria-label="Navigation menu"
       >
         <MobileMenuHeader>
-          <MobileMenuTitle>Menu</MobileMenuTitle>
+          <MobileMenuTitle>
+            <MobileLogoIcon>
+              <SparklesIcon />
+            </MobileLogoIcon>
+            <MobileMenuBrand>Reinvention Hub</MobileMenuBrand>
+          </MobileMenuTitle>
           <MobileCloseButton
             onClick={() => setMobileMenuOpen(false)}
             aria-label="Close navigation menu"

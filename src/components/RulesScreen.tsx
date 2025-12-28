@@ -3,7 +3,8 @@ import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import styled from 'styled-components';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { CoverageSnapshot } from '@components/common/CoverageSnapshot';
 import {
   PlusIcon,
   TrashIcon,
@@ -29,7 +30,74 @@ import MainNavigation from '../components/ui/Navigation';
 import { PageContainer, PageContent } from '../components/ui/PageContainer';
 import EnhancedHeader from '../components/ui/EnhancedHeader';
 
+
 /* ---------- Modern Styled Components ---------- */
+import { keyframes } from 'styled-components';
+
+// Animations
+const slideIn = keyframes`
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
+// Rules Stats Dashboard
+const RulesStatsDashboard = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  animation: ${slideIn} 0.4s ease-out;
+`;
+
+const RulesStatCard = styled.div<{ $color?: string }>`
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: ${({ $color }) => $color || 'linear-gradient(90deg, #6366f1, #8b5cf6)'};
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+    border-color: transparent;
+  }
+`;
+
+const RulesStatValue = styled.div`
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+`;
+
+const RulesStatLabel = styled.div`
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
+  }
+`;
 
 // Main Container
 const Container = styled.div`
@@ -466,7 +534,7 @@ const SectionContent = styled.div`
   line-height: 1.5;
 
   &.code {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     background: rgba(248, 250, 252, 0.8);
     padding: 8px 12px;
     border-radius: 6px;
@@ -863,6 +931,10 @@ export default function RulesScreen() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
   const [selectedCoverageName, setSelectedCoverageName] = useState('');
+  const [selectedCoverageData, setSelectedCoverageData] = useState<any>(null);
+  const [parentCoverageData, setParentCoverageData] = useState<any>(null);
+  const [coverageFormsCount, setCoverageFormsCount] = useState(0);
+  const [coverageStatesCount, setCoverageStatesCount] = useState(0);
 
   // Enhanced form state with comprehensive rule structure
   const [formData, setFormData] = useState({
@@ -928,13 +1000,28 @@ export default function RulesScreen() {
           loadPricingStepsForProduct(preselectedProductId);
         }
 
-        // If we have a preselected coverage, load its name
+        // If we have a preselected coverage, load full coverage data for snapshot
         if (preselectedProductId && preselectedCoverageId) {
-          const coverageDoc = await doc(db, `products/${preselectedProductId}/coverages`, preselectedCoverageId);
-          const coverageSnap = await getDocs(collection(db, `products/${preselectedProductId}/coverages`));
-          const coverage = coverageSnap.docs.find(d => d.id === preselectedCoverageId);
-          if (coverage) {
-            setSelectedCoverageName(coverage.data().name || 'Unknown Coverage');
+          const coverageDocRef = doc(db, `products/${preselectedProductId}/coverages`, preselectedCoverageId);
+          const coverageSnap = await getDoc(coverageDocRef);
+          if (coverageSnap.exists()) {
+            const coverageData = { id: coverageSnap.id, ...coverageSnap.data() };
+            setSelectedCoverageName(coverageData.name || 'Unknown Coverage');
+            setSelectedCoverageData(coverageData);
+            setCoverageStatesCount((coverageData.states || []).length);
+
+            // Load parent coverage if exists
+            if (coverageData.parentCoverageId) {
+              const parentRef = doc(db, `products/${preselectedProductId}/coverages`, coverageData.parentCoverageId);
+              const parentSnap = await getDoc(parentRef);
+              if (parentSnap.exists()) {
+                setParentCoverageData({ id: parentSnap.id, ...parentSnap.data() });
+              }
+            }
+
+            // Load forms count for this coverage
+            const formsSnap = await getDocs(collection(db, `products/${preselectedProductId}/coverages/${preselectedCoverageId}/forms`));
+            setCoverageFormsCount(formsSnap.size);
           }
         }
       } catch (error) {
@@ -1274,6 +1361,66 @@ export default function RulesScreen() {
             onChange: (e) => setSearchTerm(e.target.value)
           }}
         />
+
+        {/* Coverage Context Snapshot - show when viewing rules for a specific coverage */}
+        {preselectedCoverageId && selectedCoverageData && (
+          <div style={{ marginBottom: 24 }}>
+            <CoverageSnapshot
+              name={selectedCoverageData.name}
+              coverageCode={selectedCoverageData.coverageCode}
+              isOptional={selectedCoverageData.isOptional}
+              productName={getProductName(preselectedProductId)}
+              parentCoverageName={parentCoverageData?.name}
+              statesCount={coverageStatesCount}
+              formsCount={coverageFormsCount}
+              rulesCount={filteredRules.length}
+              triggerLabel={selectedCoverageData.coverageTrigger}
+              valuationLabel={selectedCoverageData.valuationMethod}
+              territoryLabel={selectedCoverageData.territory}
+              coinsuranceLabel={selectedCoverageData.coinsurance}
+              waitingPeriodLabel={selectedCoverageData.waitingPeriod}
+            />
+          </div>
+        )}
+
+        {/* Rules Stats Dashboard */}
+        <RulesStatsDashboard>
+          <RulesStatCard $color="linear-gradient(90deg, #6366f1, #8b5cf6)">
+            <RulesStatValue>{rules.length}</RulesStatValue>
+            <RulesStatLabel>
+              <Cog6ToothIcon />
+              Total Rules
+            </RulesStatLabel>
+          </RulesStatCard>
+          <RulesStatCard $color="linear-gradient(90deg, #10b981, #059669)">
+            <RulesStatValue>{rules.filter(r => r.status === 'Active').length}</RulesStatValue>
+            <RulesStatLabel>
+              <ShieldCheckIcon />
+              Active Rules
+            </RulesStatLabel>
+          </RulesStatCard>
+          <RulesStatCard $color="linear-gradient(90deg, #f59e0b, #d97706)">
+            <RulesStatValue>{rules.filter(r => r.ruleType === 'Coverage').length}</RulesStatValue>
+            <RulesStatLabel>
+              <ShieldCheckIcon />
+              Coverage Rules
+            </RulesStatLabel>
+          </RulesStatCard>
+          <RulesStatCard $color="linear-gradient(90deg, #8b5cf6, #7c3aed)">
+            <RulesStatValue>{rules.filter(r => r.ruleType === 'Pricing').length}</RulesStatValue>
+            <RulesStatLabel>
+              <CurrencyDollarIcon />
+              Pricing Rules
+            </RulesStatLabel>
+          </RulesStatCard>
+          <RulesStatCard $color="linear-gradient(90deg, #06b6d4, #0891b2)">
+            <RulesStatValue>{rules.filter(r => r.ruleType === 'Forms').length}</RulesStatValue>
+            <RulesStatLabel>
+              <DocumentTextIcon />
+              Form Rules
+            </RulesStatLabel>
+          </RulesStatCard>
+        </RulesStatsDashboard>
 
         <FilterContainer>
           <FilterRow>
