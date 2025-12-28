@@ -1,9 +1,13 @@
 /**
- * AIAssistedField - Wrapper component for form fields with AI assistance
- * Provides inline AI suggestions, auto-complete, and field explanations
+ * AIAssistedField - Clean wrapper component for form fields with AI assistance
+ *
+ * Features:
+ * - Subtle AI suggestion indicators
+ * - Clean loading states
+ * - Simple accept/reject actions
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { SparklesIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -65,7 +69,7 @@ export const AIAssistedField: React.FC<AIAssistedFieldProps> = ({
       </LabelRow>
 
       {/* Field Content */}
-      <FieldWrapper $isUpdating={isAIUpdating}>
+      <FieldWrapper $isUpdating={isAIUpdating} $isAISuggested={isAISuggested}>
         {children}
         {isAIUpdating && <UpdatingOverlay />}
       </FieldWrapper>
@@ -91,17 +95,17 @@ export const AIAssistedField: React.FC<AIAssistedFieldProps> = ({
   );
 };
 
-// Premium Animations
-const glowPulse = keyframes`
-  0%, 100% { box-shadow: 0 0 8px rgba(139, 92, 246, 0.2), 0 0 16px rgba(99, 102, 241, 0.1); }
-  50% { box-shadow: 0 0 16px rgba(139, 92, 246, 0.4), 0 0 32px rgba(99, 102, 241, 0.2); }
-`;
-
+// Simple animations
 const spin = keyframes`
   to { transform: rotate(360deg); }
 `;
 
-// Styled Components
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
+
+// Clean styled components
 const Container = styled.div`
   margin-bottom: 20px;
 `;
@@ -114,14 +118,17 @@ const LabelRow = styled.div`
 `;
 
 const Label = styled.label`
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: ${({ theme }) => theme.colours.text};
+  display: flex;
+  align-items: center;
+  gap: 4px;
 `;
 
 const Required = styled.span`
   color: #ef4444;
-  margin-left: 4px;
+  font-weight: 500;
 `;
 
 const LabelActions = styled.div`
@@ -130,17 +137,18 @@ const LabelActions = styled.div`
   gap: 8px;
 `;
 
+// Clean AI updating badge
 const UpdatingBadge = styled.div`
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  border-radius: 14px;
-  animation: ${glowPulse} 1.5s ease-in-out infinite;
+  padding: 4px 10px;
+  background: #6366f1;
+  border-radius: 12px;
+
   span {
-    font-size: 11px;
-    font-weight: 600;
+    font-size: 10px;
+    font-weight: 500;
     color: white;
   }
 `;
@@ -148,72 +156,52 @@ const UpdatingBadge = styled.div`
 const UpdatingSpinner = styled.div`
   width: 12px;
   height: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.25);
   border-top-color: white;
   border-radius: 50%;
-  animation: ${spin} 0.8s linear infinite;
+  animation: ${spin} 0.7s linear infinite;
 `;
 
+// Clean AI button
 const AIButton = styled.button`
   display: flex;
-  padding: 4px;
-  background: transparent;
-  border: 1px solid transparent;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.15);
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s;
-  svg { width: 16px; height: 16px; color: #8b5cf6; opacity: 0.6; }
+  transition: all 0.15s ease;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    color: #6366f1;
+  }
+
   &:hover {
-    background: rgba(139, 92, 246, 0.1);
-    border-color: rgba(139, 92, 246, 0.2);
-    svg { opacity: 1; }
+    background: rgba(99, 102, 241, 0.15);
   }
 `;
 
-// Shimmer animation for updating overlay
-const shimmerMove = keyframes`
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-`;
-
+// Simple updating overlay
 const UpdatingOverlay = styled.div`
   position: absolute;
   inset: 0;
   border-radius: 8px;
-  background: rgba(139, 92, 246, 0.05);
-  overflow: hidden;
+  background: rgba(99, 102, 241, 0.03);
   pointer-events: none;
   z-index: 2;
-
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(139, 92, 246, 0.15) 50%,
-      transparent 100%
-    );
-    animation: ${shimmerMove} 1.2s ease-in-out infinite;
-  }
 `;
 
-const FieldWrapper = styled.div<{ $isUpdating?: boolean }>`
+const FieldWrapper = styled.div<{ $isUpdating?: boolean; $isAISuggested?: boolean }>`
   position: relative;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 
-  /* AI Updating shimmer border */
+  /* AI Updating subtle indicator */
   ${({ $isUpdating }) => $isUpdating && css`
-    &::before {
-      content: '';
-      position: absolute;
-      inset: -3px;
-      border-radius: 12px;
-      border: 2px dashed rgba(139, 92, 246, 0.5);
-      pointer-events: none;
-      animation: ${glowPulse} 1s ease-in-out infinite;
-    }
+    opacity: 0.7;
   `}
 `;
 
@@ -221,6 +209,7 @@ const ActionRow = styled.div`
   display: flex;
   gap: 8px;
   margin-top: 8px;
+  animation: ${fadeIn} 0.2s ease-out;
 `;
 
 const ActionButton = styled.button`
@@ -228,25 +217,36 @@ const ActionButton = styled.button`
   align-items: center;
   gap: 4px;
   padding: 5px 10px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
-  border-radius: 6px;
+  border-radius: 5px;
   border: none;
   cursor: pointer;
-  transition: all 0.2s;
-  svg { width: 14px; height: 14px; }
+  transition: all 0.15s ease;
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
 `;
 
 const AcceptButton = styled(ActionButton)`
-  background: #10b981;
+  background: #22c55e;
   color: white;
-  &:hover { background: #059669; }
+
+  &:hover {
+    background: #16a34a;
+  }
 `;
 
 const RejectButton = styled(ActionButton)`
-  background: #f1f5f9;
-  color: #64748b;
-  &:hover { background: #e2e8f0; }
+  background: ${({ theme }) => theme.colours.backgroundAlt};
+  color: ${({ theme }) => theme.colours.textMuted};
+  border: 1px solid ${({ theme }) => theme.colours.border};
+
+  &:hover {
+    background: ${({ theme }) => theme.colours.border};
+  }
 `;
 
 export default AIAssistedField;

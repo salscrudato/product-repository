@@ -246,22 +246,48 @@ export const AIInsightsCard: React.FC<AIInsightsCardProps> = ({ stepId, draft, o
   );
 };
 
-// Animations
-const fadeIn = keyframes`from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); }`;
-const pulse = keyframes`0%, 100% { opacity: 1; } 50% { opacity: 0.7; }`;
+// Premium Animations
+const fadeIn = keyframes`from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); }`;
+const pulse = keyframes`0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.05); }`;
 const cursorBlink = keyframes`0%, 100% { opacity: 1; } 50% { opacity: 0; }`;
+const shimmer = keyframes`0% { background-position: -200% 0; } 100% { background-position: 200% 0; }`;
+const breathe = keyframes`0%, 100% { opacity: 0.4; } 50% { opacity: 0.7; }`;
 
-// Styled Components
+// Styled Components - Premium V2
 const Container = styled.div`
   background: ${({ theme }) => theme.colours.surface};
   border: 1px solid ${({ theme }) => theme.colours.border};
-  border-radius: 14px; overflow: hidden;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.04),
+    0 1px 3px rgba(0, 0, 0, 0.02);
+  position: relative;
+
+  /* Subtle ambient glow */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 60%;
+    background: radial-gradient(ellipse at top, rgba(139, 92, 246, 0.08) 0%, transparent 70%);
+    pointer-events: none;
+    animation: ${breathe} 4s ease-in-out infinite;
+  }
 `;
 
 const Header = styled.div`
-  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.06), rgba(99, 102, 241, 0.06));
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(99, 102, 241, 0.06));
   border-bottom: 1px solid ${({ theme }) => theme.colours.border};
+  position: relative;
+  z-index: 1;
 `;
 
 // P&C Tip Section with streaming text effect
@@ -312,52 +338,139 @@ const Cursor = styled.span`
 `;
 
 const HeaderIcon = styled.div`
-  display: flex; padding: 8px; background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  border-radius: 10px;
-  svg { width: 14px; height: 14px; color: white; }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+
+  svg {
+    width: 16px;
+    height: 16px;
+    color: white;
+  }
 `;
 
 const HeaderText = styled.div`
-  h4 { font-size: 14px; font-weight: 600; color: ${({ theme }) => theme.colours.text}; margin: 0; }
-  p { font-size: 12px; color: ${({ theme }) => theme.colours.textMuted}; margin: 2px 0 0; }
+  h4 {
+    font-size: 15px;
+    font-weight: 700;
+    color: ${({ theme }) => theme.colours.text};
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  p {
+    font-size: 12px;
+    color: ${({ theme }) => theme.colours.textMuted};
+    margin: 3px 0 0;
+  }
 `;
 
-const InsightsList = styled.div`padding: 12px;`;
+const InsightsList = styled.div`
+  padding: 14px;
+  position: relative;
+  z-index: 1;
+`;
 
 const InsightItem = styled.div<{ $type: string; $delay: number }>`
-  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
   background: ${({ $type }) => {
     switch ($type) {
-      case 'tip': return 'rgba(245, 158, 11, 0.08)';
-      case 'warning': return 'rgba(239, 68, 68, 0.08)';
-      case 'success': return 'rgba(16, 185, 129, 0.08)';
-      default: return 'rgba(99, 102, 241, 0.08)';
+      case 'tip': return 'rgba(245, 158, 11, 0.1)';
+      case 'warning': return 'rgba(239, 68, 68, 0.1)';
+      case 'success': return 'rgba(16, 185, 129, 0.1)';
+      default: return 'rgba(99, 102, 241, 0.1)';
     }
   }};
-  border-radius: 10px; margin-bottom: 8px;
-  animation: ${fadeIn} 0.25s ease-out; animation-delay: ${({ $delay }) => $delay * 60}ms; animation-fill-mode: both;
-  &:last-child { margin-bottom: 0; }
+  border: 1px solid ${({ $type }) => {
+    switch ($type) {
+      case 'tip': return 'rgba(245, 158, 11, 0.2)';
+      case 'warning': return 'rgba(239, 68, 68, 0.2)';
+      case 'success': return 'rgba(16, 185, 129, 0.2)';
+      default: return 'rgba(99, 102, 241, 0.15)';
+    }
+  }};
+  border-radius: 12px;
+  margin-bottom: 10px;
+  animation: ${fadeIn} 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  animation-delay: ${({ $delay }) => $delay * 80}ms;
+  animation-fill-mode: both;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
 `;
 
 const InsightIcon = styled.div<{ $type: string }>`
-  flex-shrink: 0; margin-top: 1px;
-  svg { width: 16px; height: 16px; color: ${({ $type }) => {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: ${({ $type }) => {
     switch ($type) {
-      case 'tip': return '#f59e0b';
-      case 'warning': return '#ef4444';
-      case 'success': return '#10b981';
-      default: return '#6366f1';
+      case 'tip': return 'rgba(245, 158, 11, 0.15)';
+      case 'warning': return 'rgba(239, 68, 68, 0.15)';
+      case 'success': return 'rgba(16, 185, 129, 0.15)';
+      default: return 'rgba(99, 102, 241, 0.15)';
     }
-  }}; }
+  }};
+  border-radius: 8px;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    color: ${({ $type }) => {
+      switch ($type) {
+        case 'tip': return '#f59e0b';
+        case 'warning': return '#ef4444';
+        case 'success': return '#10b981';
+        default: return '#6366f1';
+      }
+    }};
+  }
 `;
 
-const InsightText = styled.span`flex: 1; font-size: 13px; color: ${({ theme }) => theme.colours.text}; line-height: 1.4;`;
+const InsightText = styled.span`
+  flex: 1;
+  font-size: 13px;
+  color: ${({ theme }) => theme.colours.text};
+  line-height: 1.5;
+  padding-top: 4px;
+`;
 
 const InsightAction = styled.button`
-  padding: 4px 10px; background: ${({ theme }) => theme.colours.primary};
-  border: none; border-radius: 6px; font-size: 11px; font-weight: 600;
-  color: white; cursor: pointer; transition: opacity 0.2s;
-  &:hover { opacity: 0.9; }
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.25);
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(99, 102, 241, 0.35);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 `;
 
 export default AIInsightsCard;

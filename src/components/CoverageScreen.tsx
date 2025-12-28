@@ -1103,9 +1103,9 @@ export default function CoverageScreen() {
     return typeLabels[type || ''] || null;
   };
 
-  // Check if coverage has any P&C attributes configured
+  // Check if coverage has any P&C attributes configured (excluding trigger)
   const hasPCAttributes = (coverage: any) => {
-    return coverage.coverageTrigger || coverage.valuationMethod ||
+    return coverage.valuationMethod ||
            coverage.coinsurancePercentage || coverage.territoryType ||
            coverage.waitingPeriod;
   };
@@ -1513,12 +1513,6 @@ export default function CoverageScreen() {
                         {/* P&C Attributes Row - Shows key coverage configuration */}
                         {hasPCAttributes(parent) && (
                           <CoverageAttributesRow>
-                            {formatCoverageTrigger(parent.coverageTrigger) && (
-                              <AttributeChip $variant="trigger" title="Coverage Trigger">
-                                <AttributeLabel>Trigger:</AttributeLabel>
-                                <AttributeValue>{formatCoverageTrigger(parent.coverageTrigger)}</AttributeValue>
-                              </AttributeChip>
-                            )}
                             {formatValuationMethod(parent.valuationMethod) && (
                               <AttributeChip $variant="valuation" title="Valuation Method">
                                 <AttributeLabel>Valuation:</AttributeLabel>
@@ -1642,12 +1636,6 @@ export default function CoverageScreen() {
 	                              {/* P&C Attributes Row for sub-coverages */}
 	                              {hasPCAttributes(child) && (
 	                                <CoverageAttributesRow>
-	                                  {formatCoverageTrigger(child.coverageTrigger) && (
-	                                    <AttributeChip $variant="trigger" title="Coverage Trigger">
-	                                      <AttributeLabel>Trigger:</AttributeLabel>
-	                                      <AttributeValue>{formatCoverageTrigger(child.coverageTrigger)}</AttributeValue>
-	                                    </AttributeChip>
-	                                  )}
 	                                  {formatValuationMethod(child.valuationMethod) && (
 	                                    <AttributeChip $variant="valuation" title="Valuation Method">
 	                                      <AttributeLabel>Valuation:</AttributeLabel>

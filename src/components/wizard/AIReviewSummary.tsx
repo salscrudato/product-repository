@@ -37,17 +37,27 @@ interface AIReviewSummaryProps {
   className?: string;
 }
 
+// Helper to check if a value is filled (handles arrays)
+const isValueFilled = (value: unknown): boolean => {
+  if (value === undefined || value === null || value === '') return false;
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
+};
+
 // Calculate quality metrics for the coverage
+// Supports both canonical and legacy field representations
 const calculateQualityMetrics = (draft: Partial<Coverage>): QualityMetric[] => {
   const metrics: QualityMetric[] = [];
 
   // Basic Info
   const hasBasics = !!(draft.name && draft.coverageCode);
+  const hasDescription = !!draft.description;
   metrics.push({
     name: 'Basic Information',
-    score: hasBasics ? 100 : draft.name ? 50 : 0,
+    score: hasBasics ? (hasDescription ? 100 : 80) : draft.name ? 50 : 0,
     status: hasBasics ? 'complete' : draft.name ? 'partial' : 'missing',
-    recommendation: !hasBasics ? 'Add coverage name and code' : undefined,
+    recommendation: !hasBasics ? 'Add coverage name and code' :
+                    !hasDescription ? 'Consider adding a description' : undefined,
   });
 
   // Coverage Trigger
@@ -59,56 +69,88 @@ const calculateQualityMetrics = (draft: Partial<Coverage>): QualityMetric[] => {
     recommendation: !hasTrigger ? 'Define when coverage applies' : undefined,
   });
 
-  // Valuation
-  const hasValuation = !!(draft.valuationMethod && draft.coinsurancePercentage);
+  // Valuation - check canonical fields first, then legacy
+  const hasValuationMethods = isValueFilled(draft.valuationMethods) || isValueFilled(draft.valuationMethod);
+  const hasCoinsurance = isValueFilled(draft.coinsuranceOptions) || isValueFilled(draft.coinsurancePercentage);
+  const hasValuation = hasValuationMethods && hasCoinsurance;
   metrics.push({
     name: 'Valuation Settings',
-    score: hasValuation ? 100 : draft.valuationMethod ? 50 : 0,
-    status: hasValuation ? 'complete' : draft.valuationMethod ? 'partial' : 'missing',
+    score: hasValuation ? 100 : hasValuationMethods ? 50 : 0,
+    status: hasValuation ? 'complete' : hasValuationMethods ? 'partial' : 'missing',
     recommendation: !hasValuation ? 'Set valuation method and coinsurance' : undefined,
   });
 
-  // Underwriting
-  const hasUnderwriting = !!(draft.eligibilityCriteria || draft.underwritingGuidelines);
+  // Underwriting - check canonical underwriterApprovalType first
+  const hasApprovalType = !!draft.underwriterApprovalType;
+  const hasEligibility = isValueFilled(draft.eligibilityCriteria);
+  const hasGuidelines = !!draft.underwritingGuidelines;
+  const hasUnderwriting = hasApprovalType || hasEligibility || hasGuidelines;
+  // If conditional approval, eligibility is required
+  const needsEligibility = draft.underwriterApprovalType === 'conditional' && !hasEligibility;
   metrics.push({
     name: 'Underwriting Rules',
-    score: hasUnderwriting ? 100 : 0,
-    status: hasUnderwriting ? 'complete' : 'missing',
-    recommendation: !hasUnderwriting ? 'Add eligibility criteria' : undefined,
+    score: hasUnderwriting ? (needsEligibility ? 60 : 100) : 0,
+    status: hasUnderwriting ? (needsEligibility ? 'partial' : 'complete') : 'missing',
+    recommendation: needsEligibility ? 'Add eligibility criteria for conditional approval' :
+                    !hasUnderwriting ? 'Add underwriting requirements' : undefined,
   });
 
   // Claims
-  const hasClaims = !!draft.claimsProcedure;
+  const hasClaims = !!draft.claimsReportingPeriod || !!draft.proofOfLossDeadline;
   metrics.push({
-    name: 'Claims Procedure',
+    name: 'Claims Settings',
     score: hasClaims ? 100 : 0,
     status: hasClaims ? 'complete' : 'missing',
-    recommendation: !hasClaims ? 'Define claims handling process' : undefined,
+    recommendation: !hasClaims ? 'Define claims reporting requirements' : undefined,
   });
 
   return metrics;
 };
 
 // Generate AI summary text
+// Supports both canonical and legacy field representations
 const generateAISummary = (draft: Partial<Coverage>): string => {
   const parts: string[] = [];
-  
+
   if (draft.name) {
-    parts.push(`${draft.name} is a ${draft.coverageTrigger || 'standard'} coverage`);
+    const triggerLabel = draft.coverageTrigger || 'standard';
+    parts.push(`${draft.name} is a ${triggerLabel} coverage`);
   }
-  
-  if (draft.valuationMethod) {
-    parts.push(`valued using ${draft.valuationMethod.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+
+  // Check canonical valuationMethods first, then legacy valuationMethod
+  const valuationMethods = draft.valuationMethods && draft.valuationMethods.length > 0
+    ? draft.valuationMethods
+    : draft.valuationMethod ? [draft.valuationMethod] : [];
+
+  if (valuationMethods.length > 0) {
+    const methodLabels = valuationMethods.map(m => m.replace(/([A-Z])/g, ' $1').toLowerCase().trim());
+    parts.push(`valued using ${methodLabels.join(' or ')}`);
   }
-  
-  if (draft.coinsurancePercentage) {
-    parts.push(`with ${draft.coinsurancePercentage}% coinsurance`);
+
+  // Check canonical coinsuranceOptions first, then legacy coinsurancePercentage
+  const coinsuranceOptions = draft.coinsuranceOptions && draft.coinsuranceOptions.length > 0
+    ? draft.coinsuranceOptions
+    : draft.coinsurancePercentage ? [draft.coinsurancePercentage] : [];
+
+  if (coinsuranceOptions.length > 0) {
+    if (coinsuranceOptions.length === 1) {
+      parts.push(`with ${coinsuranceOptions[0]}% coinsurance`);
+    } else {
+      parts.push(`with coinsurance options of ${coinsuranceOptions.join('%, ')}%`);
+    }
   }
-  
+
+  // Add underwriting info
+  if (draft.underwriterApprovalType === 'required') {
+    parts.push('requiring underwriter approval');
+  } else if (draft.underwriterApprovalType === 'conditional') {
+    parts.push('with conditional underwriter approval');
+  }
+
   if (parts.length === 0) {
     return 'Start by adding basic coverage information to generate a summary.';
   }
-  
+
   return parts.join(' ') + '.';
 };
 

@@ -1,108 +1,188 @@
 /**
  * UnderwritingSection Component
  * Section for managing underwriting requirements and eligibility criteria
+ *
+ * Supports both canonical (underwriterApprovalType) and legacy (requiresUnderwriterApproval) fields
  */
 
 import React, { useState, memo, useCallback } from 'react';
 import styled from 'styled-components';
 import { PlusIcon, TrashIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { UnderwriterApprovalType } from '../../types';
+import { UnderwritingApprovalSelector } from '../selectors/UnderwritingApprovalSelector';
 
 interface UnderwritingSectionProps {
+  // Canonical field (preferred)
+  underwriterApprovalType?: UnderwriterApprovalType;
+  // Legacy field (for backward compatibility)
   requiresUnderwriterApproval?: boolean;
   eligibilityCriteria?: string[];
+  prohibitedClasses?: string[];
+  underwritingGuidelines?: string;
   requiredCoverages?: string[];
   incompatibleCoverages?: string[];
   onChange: (data: {
+    underwriterApprovalType?: UnderwriterApprovalType;
     requiresUnderwriterApproval?: boolean;
     eligibilityCriteria?: string[];
+    prohibitedClasses?: string[];
+    underwritingGuidelines?: string;
     requiredCoverages?: string[];
     incompatibleCoverages?: string[];
   }) => void;
 }
 
 export const UnderwritingSection = memo<UnderwritingSectionProps>(({
+  underwriterApprovalType,
   requiresUnderwriterApproval = false,
   eligibilityCriteria = [],
+  prohibitedClasses = [],
+  underwritingGuidelines = '',
   requiredCoverages = [],
   incompatibleCoverages = [],
   onChange,
 }) => {
   const [newCriterion, setNewCriterion] = useState('');
+  const [newProhibited, setNewProhibited] = useState('');
   const [newRequired, setNewRequired] = useState('');
   const [newIncompatible, setNewIncompatible] = useState('');
 
-  // Memoized callbacks to prevent unnecessary re-renders
-  const handleToggleApproval = useCallback((checked: boolean) => {
+  // Derive effective approval type from canonical or legacy field
+  const effectiveApprovalType: UnderwriterApprovalType =
+    underwriterApprovalType || (requiresUnderwriterApproval ? 'required' : 'not_required');
+
+  // Handle approval type change (updates both canonical and legacy)
+  const handleApprovalTypeChange = useCallback((type: UnderwriterApprovalType) => {
     onChange({
-      requiresUnderwriterApproval: checked,
+      underwriterApprovalType: type,
+      requiresUnderwriterApproval: type === 'required' || type === 'conditional',
       eligibilityCriteria,
+      prohibitedClasses,
+      underwritingGuidelines,
       requiredCoverages,
       incompatibleCoverages,
     });
-  }, [onChange, eligibilityCriteria, requiredCoverages, incompatibleCoverages]);
+  }, [onChange, eligibilityCriteria, prohibitedClasses, underwritingGuidelines, requiredCoverages, incompatibleCoverages]);
 
   const handleAddCriterion = useCallback(() => {
     if (newCriterion.trim()) {
       onChange({
-        requiresUnderwriterApproval,
+        underwriterApprovalType: effectiveApprovalType,
+        requiresUnderwriterApproval: effectiveApprovalType === 'required' || effectiveApprovalType === 'conditional',
         eligibilityCriteria: [...eligibilityCriteria, newCriterion.trim()],
+        prohibitedClasses,
+        underwritingGuidelines,
         requiredCoverages,
         incompatibleCoverages,
       });
       setNewCriterion('');
     }
-  }, [onChange, newCriterion, requiresUnderwriterApproval, eligibilityCriteria, requiredCoverages, incompatibleCoverages]);
+  }, [onChange, newCriterion, effectiveApprovalType, eligibilityCriteria, prohibitedClasses, underwritingGuidelines, requiredCoverages, incompatibleCoverages]);
 
   const handleRemoveCriterion = useCallback((index: number) => {
     onChange({
-      requiresUnderwriterApproval,
+      underwriterApprovalType: effectiveApprovalType,
+      requiresUnderwriterApproval: effectiveApprovalType === 'required' || effectiveApprovalType === 'conditional',
       eligibilityCriteria: eligibilityCriteria.filter((_, i) => i !== index),
+      prohibitedClasses,
+      underwritingGuidelines,
       requiredCoverages,
       incompatibleCoverages,
     });
-  }, [onChange, requiresUnderwriterApproval, eligibilityCriteria, requiredCoverages, incompatibleCoverages]);
+  }, [onChange, effectiveApprovalType, eligibilityCriteria, prohibitedClasses, underwritingGuidelines, requiredCoverages, incompatibleCoverages]);
+
+  const handleAddProhibited = useCallback(() => {
+    if (newProhibited.trim()) {
+      onChange({
+        underwriterApprovalType: effectiveApprovalType,
+        requiresUnderwriterApproval: effectiveApprovalType === 'required' || effectiveApprovalType === 'conditional',
+        eligibilityCriteria,
+        prohibitedClasses: [...prohibitedClasses, newProhibited.trim()],
+        underwritingGuidelines,
+        requiredCoverages,
+        incompatibleCoverages,
+      });
+      setNewProhibited('');
+    }
+  }, [onChange, newProhibited, effectiveApprovalType, eligibilityCriteria, prohibitedClasses, underwritingGuidelines, requiredCoverages, incompatibleCoverages]);
+
+  const handleRemoveProhibited = useCallback((index: number) => {
+    onChange({
+      underwriterApprovalType: effectiveApprovalType,
+      requiresUnderwriterApproval: effectiveApprovalType === 'required' || effectiveApprovalType === 'conditional',
+      eligibilityCriteria,
+      prohibitedClasses: prohibitedClasses.filter((_, i) => i !== index),
+      underwritingGuidelines,
+      requiredCoverages,
+      incompatibleCoverages,
+    });
+  }, [onChange, effectiveApprovalType, eligibilityCriteria, prohibitedClasses, underwritingGuidelines, requiredCoverages, incompatibleCoverages]);
+
+  const handleGuidelinesChange = useCallback((value: string) => {
+    onChange({
+      underwriterApprovalType: effectiveApprovalType,
+      requiresUnderwriterApproval: effectiveApprovalType === 'required' || effectiveApprovalType === 'conditional',
+      eligibilityCriteria,
+      prohibitedClasses,
+      underwritingGuidelines: value,
+      requiredCoverages,
+      incompatibleCoverages,
+    });
+  }, [onChange, effectiveApprovalType, eligibilityCriteria, prohibitedClasses, requiredCoverages, incompatibleCoverages]);
 
   const handleAddRequired = useCallback(() => {
     if (newRequired.trim()) {
       onChange({
-        requiresUnderwriterApproval,
+        underwriterApprovalType: effectiveApprovalType,
+        requiresUnderwriterApproval: effectiveApprovalType === 'required' || effectiveApprovalType === 'conditional',
         eligibilityCriteria,
+        prohibitedClasses,
+        underwritingGuidelines,
         requiredCoverages: [...requiredCoverages, newRequired.trim()],
         incompatibleCoverages,
       });
       setNewRequired('');
     }
-  }, [onChange, newRequired, requiresUnderwriterApproval, eligibilityCriteria, requiredCoverages, incompatibleCoverages]);
+  }, [onChange, newRequired, effectiveApprovalType, eligibilityCriteria, prohibitedClasses, underwritingGuidelines, requiredCoverages, incompatibleCoverages]);
 
   const handleRemoveRequired = useCallback((index: number) => {
     onChange({
-      requiresUnderwriterApproval,
+      underwriterApprovalType: effectiveApprovalType,
+      requiresUnderwriterApproval: effectiveApprovalType === 'required' || effectiveApprovalType === 'conditional',
       eligibilityCriteria,
+      prohibitedClasses,
+      underwritingGuidelines,
       requiredCoverages: requiredCoverages.filter((_, i) => i !== index),
       incompatibleCoverages,
     });
-  }, [onChange, requiresUnderwriterApproval, eligibilityCriteria, requiredCoverages, incompatibleCoverages]);
+  }, [onChange, effectiveApprovalType, eligibilityCriteria, prohibitedClasses, underwritingGuidelines, requiredCoverages, incompatibleCoverages]);
 
   const handleAddIncompatible = useCallback(() => {
     if (newIncompatible.trim()) {
       onChange({
-        requiresUnderwriterApproval,
+        underwriterApprovalType: effectiveApprovalType,
+        requiresUnderwriterApproval: effectiveApprovalType === 'required' || effectiveApprovalType === 'conditional',
         eligibilityCriteria,
+        prohibitedClasses,
+        underwritingGuidelines,
         requiredCoverages,
         incompatibleCoverages: [...incompatibleCoverages, newIncompatible.trim()],
       });
       setNewIncompatible('');
     }
-  }, [onChange, newIncompatible, requiresUnderwriterApproval, eligibilityCriteria, requiredCoverages, incompatibleCoverages]);
+  }, [onChange, newIncompatible, effectiveApprovalType, eligibilityCriteria, prohibitedClasses, underwritingGuidelines, requiredCoverages, incompatibleCoverages]);
 
   const handleRemoveIncompatible = useCallback((index: number) => {
     onChange({
-      requiresUnderwriterApproval,
+      underwriterApprovalType: effectiveApprovalType,
+      requiresUnderwriterApproval: effectiveApprovalType === 'required' || effectiveApprovalType === 'conditional',
       eligibilityCriteria,
+      prohibitedClasses,
+      underwritingGuidelines,
       requiredCoverages,
       incompatibleCoverages: incompatibleCoverages.filter((_, i) => i !== index),
     });
-  }, [onChange, requiresUnderwriterApproval, eligibilityCriteria, requiredCoverages, incompatibleCoverages]);
+  }, [onChange, effectiveApprovalType, eligibilityCriteria, prohibitedClasses, underwritingGuidelines, requiredCoverages, incompatibleCoverages]);
 
   return (
     <Container>
@@ -111,28 +191,23 @@ export const UnderwritingSection = memo<UnderwritingSectionProps>(({
         Define underwriting approval requirements, eligibility criteria, and coverage dependencies
       </HelpText>
 
-      {/* Underwriter Approval */}
+      {/* Underwriter Approval Type - New Segmented Control */}
       <SubSection>
-        <CheckboxRow>
-          <Checkbox
-            type="checkbox"
-            checked={requiresUnderwriterApproval}
-            onChange={(e) => handleToggleApproval(e.target.checked)}
-          />
-          <CheckboxLabel>Requires underwriter approval</CheckboxLabel>
-        </CheckboxRow>
-        {requiresUnderwriterApproval && (
-          <InfoBox>
-            <InfoText>
-              This coverage requires manual underwriter review and approval before binding.
-            </InfoText>
-          </InfoBox>
-        )}
+        <SubTitle>Underwriter Approval</SubTitle>
+        <UnderwritingApprovalSelector
+          value={effectiveApprovalType}
+          onChange={handleApprovalTypeChange}
+        />
       </SubSection>
 
-      {/* Eligibility Criteria */}
+      {/* Eligibility Criteria - Show prominently for conditional approval */}
       <SubSection>
-        <SubTitle>Eligibility Criteria</SubTitle>
+        <SubTitle>
+          Eligibility Criteria
+          {effectiveApprovalType === 'conditional' && (
+            <RequiredBadge>Required for Conditional</RequiredBadge>
+          )}
+        </SubTitle>
         <SubHelpText>
           Conditions that must be met for an insured to qualify for this coverage
         </SubHelpText>
@@ -164,6 +239,56 @@ export const UnderwritingSection = memo<UnderwritingSectionProps>(({
             Add
           </AddButton>
         </AddRow>
+      </SubSection>
+
+      {/* Prohibited Classes */}
+      <SubSection>
+        <SubTitle>Prohibited Classes</SubTitle>
+        <SubHelpText>
+          Business classes or risk types that cannot purchase this coverage
+        </SubHelpText>
+
+        <ItemList>
+          {prohibitedClasses.map((cls, index) => (
+            <ItemRow key={index}>
+              <ItemIcon>
+                <XCircleIcon style={{ width: 20, height: 20, color: '#ef4444' }} />
+              </ItemIcon>
+              <ItemText>{cls}</ItemText>
+              <RemoveButton onClick={() => handleRemoveProhibited(index)}>
+                <TrashIcon style={{ width: 16, height: 16 }} />
+              </RemoveButton>
+            </ItemRow>
+          ))}
+        </ItemList>
+
+        <AddRow>
+          <AddInput
+            type="text"
+            placeholder="e.g., Fireworks manufacturers"
+            value={newProhibited}
+            onChange={(e) => setNewProhibited(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleAddProhibited()}
+          />
+          <AddButton onClick={handleAddProhibited}>
+            <PlusIcon style={{ width: 20, height: 20 }} />
+            Add
+          </AddButton>
+        </AddRow>
+      </SubSection>
+
+      {/* Underwriting Guidelines */}
+      <SubSection>
+        <SubTitle>Underwriting Guidelines</SubTitle>
+        <SubHelpText>
+          Free-form notes and guidelines for underwriters reviewing this coverage
+        </SubHelpText>
+        <GuidelinesTextarea
+          placeholder="Enter underwriting guidelines, special considerations, or notes for underwriters..."
+          value={underwritingGuidelines}
+          onChange={(e) => handleGuidelinesChange(e.target.value)}
+          rows={4}
+        />
       </SubSection>
 
       {/* Required Coverages */}
@@ -398,3 +523,36 @@ const AddButton = styled.button`
   }
 `;
 
+const RequiredBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  text-transform: uppercase;
+`;
+
+const GuidelinesTextarea = styled.textarea`
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+`;

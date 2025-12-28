@@ -133,16 +133,24 @@ const COVERAGE_REQUIRED_FOR_PUBLISH = [
 
 /**
  * Fields that contribute to completeness scoring
+ * Supports both canonical and legacy field names
  */
-const COVERAGE_COMPLETENESS_FIELDS: { field: string; weight: number; label: string }[] = [
+const COVERAGE_COMPLETENESS_FIELDS: {
+  field: string;
+  alternateField?: string;  // Legacy field to check if canonical is empty
+  weight: number;
+  label: string;
+}[] = [
   { field: 'name', weight: 15, label: 'Coverage Name' },
   { field: 'coverageCode', weight: 10, label: 'Coverage Code' },
   { field: 'description', weight: 10, label: 'Description' },
   { field: 'coverageKind', weight: 5, label: 'Coverage Kind' },
   { field: 'coverageCategory', weight: 5, label: 'Coverage Category' },
   { field: 'coverageTrigger', weight: 8, label: 'Coverage Trigger' },
-  { field: 'valuationMethod', weight: 8, label: 'Valuation Method' },
-  { field: 'coinsurancePercentage', weight: 7, label: 'Coinsurance' },
+  // Check canonical valuationMethods first, then legacy valuationMethod
+  { field: 'valuationMethods', alternateField: 'valuationMethod', weight: 8, label: 'Valuation Method' },
+  // Check canonical coinsuranceOptions first, then legacy coinsurancePercentage
+  { field: 'coinsuranceOptions', alternateField: 'coinsurancePercentage', weight: 7, label: 'Coinsurance' },
   { field: 'availabilityStates', weight: 10, label: 'Availability States' },
   { field: 'territoryType', weight: 5, label: 'Territory Type' },
   { field: 'claimsReportingPeriod', weight: 5, label: 'Claims Reporting Period' },
@@ -152,7 +160,21 @@ const COVERAGE_COMPLETENESS_FIELDS: { field: string; weight: number; label: stri
 ];
 
 /**
+ * Helper to check if a value is considered "filled"
+ */
+function isValueFilled(value: unknown): boolean {
+  if (value === undefined || value === null || value === '') {
+    return false;
+  }
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+  return true;
+}
+
+/**
  * Calculate completeness score for a coverage
+ * Supports both canonical and legacy field representations
  */
 export function calculateCoverageCompleteness(coverage: Partial<Coverage>): {
   score: number;
@@ -163,13 +185,16 @@ export function calculateCoverageCompleteness(coverage: Partial<Coverage>): {
   let earnedWeight = 0;
   const filledFields: string[] = [];
   const missingFields: string[] = [];
+  const coverageData = coverage as Record<string, unknown>;
 
-  for (const { field, weight, label } of COVERAGE_COMPLETENESS_FIELDS) {
+  for (const { field, alternateField, weight, label } of COVERAGE_COMPLETENESS_FIELDS) {
     totalWeight += weight;
-    const value = (coverage as Record<string, unknown>)[field];
 
-    const isFilled = value !== undefined && value !== null && value !== '' &&
-      !(Array.isArray(value) && value.length === 0);
+    // Check canonical field first, then fall back to legacy field
+    const canonicalValue = coverageData[field];
+    const legacyValue = alternateField ? coverageData[alternateField] : undefined;
+
+    const isFilled = isValueFilled(canonicalValue) || isValueFilled(legacyValue);
 
     if (isFilled) {
       earnedWeight += weight;
@@ -247,7 +272,9 @@ export function validateCoverage(
     });
   }
 
-  // Business rule validations (apply to both modes)
+  // ========== Business rule validations (apply to both modes) ==========
+
+  // Legacy coinsurancePercentage validation
   if (coverage.coinsurancePercentage !== undefined) {
     if (coverage.coinsurancePercentage < 0 || coverage.coinsurancePercentage > 100) {
       errors.push({
@@ -259,6 +286,38 @@ export function validateCoverage(
     }
   }
 
+  // Canonical coinsuranceOptions validation
+  if (coverage.coinsuranceOptions && coverage.coinsuranceOptions.length > 0) {
+    for (const option of coverage.coinsuranceOptions) {
+      if (option < 0 || option > 100) {
+        errors.push({
+          field: 'coinsuranceOptions',
+          message: `Coinsurance option ${option} must be between 0 and 100`,
+          severity: 'error',
+          code: 'INVALID_COINSURANCE_OPTION'
+        });
+        break; // Only report first invalid option
+      }
+    }
+  }
+
+  // Canonical valuationMethods validation
+  const validValuationMethods = ['ACV', 'RC', 'agreedValue', 'marketValue', 'functionalRC', 'statedAmount'];
+  if (coverage.valuationMethods && coverage.valuationMethods.length > 0) {
+    for (const method of coverage.valuationMethods) {
+      if (!validValuationMethods.includes(method)) {
+        errors.push({
+          field: 'valuationMethods',
+          message: `Invalid valuation method: ${method}`,
+          severity: 'error',
+          code: 'INVALID_VALUATION_METHOD'
+        });
+        break;
+      }
+    }
+  }
+
+  // Waiting period validation
   if (coverage.waitingPeriod !== undefined && coverage.waitingPeriod < 0) {
     errors.push({
       field: 'waitingPeriod',
@@ -288,6 +347,38 @@ export function validateCoverage(
     });
   }
 
+  // Underwriter approval type validation
+  const validApprovalTypes = ['required', 'not_required', 'conditional'];
+  if (coverage.underwriterApprovalType && !validApprovalTypes.includes(coverage.underwriterApprovalType)) {
+    errors.push({
+      field: 'underwriterApprovalType',
+      message: `Invalid underwriter approval type: ${coverage.underwriterApprovalType}`,
+      severity: 'error',
+      code: 'INVALID_UNDERWRITER_APPROVAL_TYPE'
+    });
+  }
+
+  // Conditional approval requires eligibility criteria
+  if (coverage.underwriterApprovalType === 'conditional') {
+    if (!coverage.eligibilityCriteria || coverage.eligibilityCriteria.length === 0) {
+      if (mode === 'publish') {
+        errors.push({
+          field: 'eligibilityCriteria',
+          message: 'Conditional approval requires at least one eligibility criterion',
+          severity: 'error',
+          code: 'CONDITIONAL_APPROVAL_MISSING_CRITERIA'
+        });
+      } else {
+        warnings.push({
+          field: 'eligibilityCriteria',
+          message: 'Conditional approval should have eligibility criteria defined',
+          severity: 'warning',
+          code: 'CONDITIONAL_APPROVAL_MISSING_CRITERIA'
+        });
+      }
+    }
+  }
+
   // Endorsement-specific validation
   if (coverage.coverageKind === 'endorsement' && !coverage.modifiesCoverageId) {
     warnings.push({
@@ -308,8 +399,10 @@ export function validateCoverage(
     });
   }
 
-  // ACV specific validation
-  if (coverage.valuationMethod === 'ACV' && !coverage.depreciationMethod) {
+  // ACV specific validation - check both canonical and legacy
+  const hasACVSelected = coverage.valuationMethod === 'ACV' ||
+    (coverage.valuationMethods && coverage.valuationMethods.includes('ACV'));
+  if (hasACVSelected && !coverage.depreciationMethod) {
     warnings.push({
       field: 'depreciationMethod',
       message: 'ACV valuation should specify a depreciation method',

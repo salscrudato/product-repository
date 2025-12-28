@@ -14,15 +14,17 @@ const openaiService = require('../services/openai');
 const openaiKey = defineSecret('OPENAI_API_KEY');
 
 // Step-specific field mappings matching Coverage interface
+// Uses canonical field names (arrays) with legacy fallbacks
 const STEP_FIELDS = {
   triggers: ['coverageTrigger', 'waitingPeriod', 'waitingPeriodUnit', 'allowRetroactiveDate', 'extendedReportingPeriod'],
-  valuation: ['valuationMethod', 'coinsurance', 'coinsuranceMinimum', 'hasCoinsurancePenalty', 'depreciationMethod'],
-  underwriting: ['eligibilityCriteria', 'prohibitedClasses', 'requiresUnderwriterApproval'],
+  valuation: ['valuationMethods', 'valuationMethod', 'coinsuranceOptions', 'coinsuranceMinimum', 'coinsuranceMaximum', 'hasCoinsurancePenalty', 'depreciationMethod'],
+  underwriting: ['underwriterApprovalType', 'eligibilityCriteria', 'prohibitedClasses', 'underwritingGuidelines', 'requiresUnderwriterApproval'],
   claims: ['claimsReportingPeriod', 'proofOfLossDeadline', 'hasSubrogationRights', 'hasSalvageRights'],
   forms: [] // Forms are linked, not generated
 };
 
 // JSON schemas for strict type validation
+// Supports both canonical (array) and legacy (single value) fields
 const JSON_SCHEMAS = {
   triggers: {
     type: 'object',
@@ -39,21 +41,30 @@ const JSON_SCHEMAS = {
   valuation: {
     type: 'object',
     properties: {
+      // Canonical: array of valuation methods
+      valuationMethods: { type: 'array', items: { type: 'string', enum: ['ACV', 'RC', 'agreedValue', 'marketValue', 'functionalRC', 'statedAmount'] } },
+      // Legacy: single valuation method
       valuationMethod: { type: 'string', enum: ['ACV', 'RC', 'agreedValue', 'marketValue', 'functionalRC', 'statedAmount'] },
-      coinsurance: { type: 'number', enum: [80, 90, 100] },
+      // Canonical: array of coinsurance options
+      coinsuranceOptions: { type: 'array', items: { type: 'number', minimum: 0, maximum: 100 } },
       coinsuranceMinimum: { type: 'number', minimum: 0, maximum: 100 },
+      coinsuranceMaximum: { type: 'number', minimum: 0, maximum: 100 },
       hasCoinsurancePenalty: { type: 'boolean' },
       depreciationMethod: { type: 'string', enum: ['straightLine', 'decliningBalance', 'ageOfItem'] }
     },
-    required: ['valuationMethod'],
+    required: [],
     additionalProperties: false
   },
   underwriting: {
     type: 'object',
     properties: {
+      // Canonical: semantic approval type
+      underwriterApprovalType: { type: 'string', enum: ['required', 'not_required', 'conditional'] },
+      // Legacy: boolean
+      requiresUnderwriterApproval: { type: 'boolean' },
       eligibilityCriteria: { type: 'array', items: { type: 'string' } },
       prohibitedClasses: { type: 'array', items: { type: 'string' } },
-      requiresUnderwriterApproval: { type: 'boolean' }
+      underwritingGuidelines: { type: 'string' }
     },
     required: [],
     additionalProperties: false
@@ -115,9 +126,11 @@ Depreciation: straightLine is most common
 
 Return ONLY valid JSON matching this exact TypeScript interface:
 {
-  "valuationMethod": "ACV" | "RC" | "agreedValue" | "marketValue" | "functionalRC" | "statedAmount",
-  "coinsurance": 80 | 90 | 100,
-  "coinsuranceMinimum": number (typically 80),
+  "valuationMethods": ["RC", "ACV"] (array of applicable methods),
+  "valuationMethod": "RC" (primary method for legacy compatibility),
+  "coinsuranceOptions": [80, 90, 100] (array of available percentages),
+  "coinsuranceMinimum": 80 (minimum required percentage),
+  "coinsuranceMaximum": 100 (maximum allowed percentage),
   "hasCoinsurancePenalty": boolean (true if coinsurance penalty applies),
   "depreciationMethod": "straightLine" | "decliningBalance" | "ageOfItem"
 }`,
@@ -126,15 +139,18 @@ Return ONLY valid JSON matching this exact TypeScript interface:
 
 Generate underwriting-related fields appropriate for this coverage type.
 Consider:
+- Underwriter approval type: "required" for complex risks, "not_required" for standard, "conditional" for threshold-based
 - Eligibility criteria: Specific requirements to qualify
 - Prohibited classes: Business types or risks that cannot be insured
-- Underwriter approval: Required for complex or high-value risks
+- Underwriting guidelines: Free-form notes for underwriters
 
 Return ONLY valid JSON matching this exact TypeScript interface:
 {
+  "underwriterApprovalType": "required" | "not_required" | "conditional",
+  "requiresUnderwriterApproval": boolean (legacy, true if type is "required" or "conditional"),
   "eligibilityCriteria": ["criterion1", "criterion2", ...],
   "prohibitedClasses": ["class1", "class2", ...] or [],
-  "requiresUnderwriterApproval": boolean
+  "underwritingGuidelines": "Optional notes for underwriters"
 }`,
 
     claims: `${baseContext}

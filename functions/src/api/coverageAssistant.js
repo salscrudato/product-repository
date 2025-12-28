@@ -13,16 +13,23 @@ const { logger } = require('../utils/logger');
 const openaiKey = defineSecret('OPENAI_KEY');
 
 // Valid coverage fields for validation
+// Includes both canonical and legacy field names for backward compatibility
 const VALID_COVERAGE_FIELDS = [
   'name', 'coverageCode', 'description', 'type', 'isOptional', 'coverageKind',
   'scopeOfCoverage', 'perilsCovered', 'exclusions', 'insurableObjects', 'excludedObjects',
   'premiumBasis', 'ratePerUnit', 'minimumPremium', 'premium',
-  'coinsurancePercentage', 'hasCoinsurancePenalty', 'insuredParticipation', 'coinsuranceWaiver',
+  // Coinsurance - canonical (array) and legacy (single value)
+  'coinsuranceOptions', 'coinsuranceMinimum', 'coinsuranceMaximum', // canonical
+  'coinsurancePercentage', 'hasCoinsurancePenalty', 'insuredParticipation', 'coinsuranceWaiver', // legacy
   'coverageTrigger', 'waitingPeriod', 'waitingPeriodUnit', 'allowRetroactiveDate',
-  'valuationMethod', 'depreciationMethod', 'agreedValueAmount',
+  // Valuation - canonical (array) and legacy (single value)
+  'valuationMethods', // canonical
+  'valuationMethod', 'depreciationMethod', 'agreedValueAmount', // legacy
   'territoryType', 'states', 'availabilityStates', 'excludedTerritories', 'includedTerritories',
   'modifiesCoverageId', 'endorsementType', 'supersedes',
-  'requiresUnderwriterApproval', 'eligibilityCriteria', 'prohibitedClasses',
+  // Underwriting - canonical and legacy
+  'underwriterApprovalType', 'underwritingGuidelines', // canonical
+  'requiresUnderwriterApproval', 'eligibilityCriteria', 'prohibitedClasses', // legacy
   'requiredCoverages', 'incompatibleCoverages', 'requiredCoverageIds', 'incompatibleCoverageIds',
   'claimsReportingPeriod', 'proofOfLossDeadline', 'hasSubrogationRights', 'hasSalvageRights',
   'coverageCategory', 'lineOfBusiness', 'parentCoverageId'

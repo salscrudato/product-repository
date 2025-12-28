@@ -1,185 +1,153 @@
 /**
- * WizardFooter - Navigation footer for wizard with save/publish actions
+ * WizardFooter - Clean navigation footer for wizard with save/publish actions
  */
 
 import React from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
-  BookmarkIcon,
   CheckIcon,
   ArrowPathIcon,
   ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
-
-// Styled Components
-const Container = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-`;
-
-const LeftSection = styled.div``;
-
-const CenterSection = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 16px;
-`;
-
-const RightSection = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const pulse = keyframes`
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-`;
 
 const spin = keyframes`
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 `;
 
+// Clean styled components
+const Container = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const LeftSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 100px;
+`;
+
+const CenterSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: center;
+`;
+
+const RightSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+
 const StatusIndicator = styled.span<{ $type: 'warning' | 'info' }>`
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 14px;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: ${({ $type }) => $type === 'warning'
+    ? 'rgba(217, 119, 6, 0.08)'
+    : 'rgba(107, 114, 128, 0.06)'
+  };
   color: ${({ $type }) => $type === 'warning' ? '#d97706' : '#6b7280'};
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 12px;
+    height: 12px;
   }
 `;
 
-const PulseDot = styled.span`
-  width: 8px;
-  height: 8px;
-  background: #f59e0b;
-  border-radius: 50%;
-  animation: ${pulse} 2s ease-in-out infinite;
-`;
-
+// Clean navigation button
 const NavButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
+  gap: 5px;
+  padding: 7px 12px;
+  border: 1px solid ${({ theme }) => theme.colours.border};
+  border-radius: 6px;
   background: transparent;
-  color: ${({ theme }) => theme.colours.textMuted};
+  color: ${({ theme }) => theme.colours.text};
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.15s ease;
 
   &:hover {
-    background: ${({ theme }) => theme.colours.backgroundAlt};
+    background: ${({ theme }) => theme.colours.surface};
   }
 
   svg {
-    width: 16px;
-    height: 16px;
-  }
-`;
-
-const SaveButton = styled.button<{ $isDirty: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
-  transition: all 0.2s;
-  cursor: ${({ $isDirty }) => $isDirty ? 'pointer' : 'not-allowed'};
-  background: ${({ $isDirty, theme }) =>
-    $isDirty ? theme.colours.backgroundAlt : theme.colours.background
-  };
-  color: ${({ $isDirty, theme }) =>
-    $isDirty ? theme.colours.text : theme.colours.textMuted
-  };
-
-  &:hover:not(:disabled) {
-    background: ${({ theme }) => theme.colours.border};
-  }
-
-  svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
 `;
 
 const SpinningIcon = styled.span`
   display: flex;
-  animation: ${spin} 1s linear infinite;
+  animation: ${spin} 0.8s linear infinite;
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
 `;
 
+// Clean Next button
 const NextButton = styled.button<{ $disabled: boolean }>`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 24px;
+  gap: 5px;
+  padding: 7px 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 500;
-  transition: all 0.2s;
+  font-size: 13px;
+  transition: all 0.15s ease;
   cursor: ${({ $disabled }) => $disabled ? 'not-allowed' : 'pointer'};
-  background: ${({ $disabled, theme }) =>
-    $disabled ? theme.colours.backgroundAlt : theme.colours.primary
-  };
+  background: ${({ $disabled }) => $disabled ? '#e5e7eb' : '#6366f1'};
   color: ${({ $disabled }) => $disabled ? '#9ca3af' : 'white'};
 
   &:hover:not(:disabled) {
-    transform: scale(1.02);
-  }
-
-  &:active:not(:disabled) {
-    transform: scale(0.98);
+    background: #4f46e5;
   }
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
 `;
 
+// Clean Publish button
 const PublishButton = styled.button<{ $canPublish: boolean }>`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 24px;
+  gap: 6px;
+  padding: 7px 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 500;
-  transition: all 0.2s;
+  font-size: 13px;
+  transition: all 0.15s ease;
   cursor: ${({ $canPublish }) => $canPublish ? 'pointer' : 'not-allowed'};
-  background: ${({ $canPublish }) => $canPublish ? '#16a34a' : '#e5e7eb'};
+  background: ${({ $canPublish }) => $canPublish ? '#22c55e' : '#e5e7eb'};
   color: ${({ $canPublish }) => $canPublish ? 'white' : '#9ca3af'};
-  box-shadow: ${({ $canPublish }) =>
-    $canPublish ? '0 10px 15px -3px rgba(22, 163, 74, 0.3)' : 'none'
-  };
 
   &:hover:not(:disabled) {
-    background: ${({ $canPublish }) => $canPublish ? '#15803d' : '#e5e7eb'};
-    transform: ${({ $canPublish }) => $canPublish ? 'scale(1.02)' : 'none'};
-  }
-
-  &:active:not(:disabled) {
-    transform: scale(0.98);
+    background: ${({ $canPublish }) => $canPublish ? '#16a34a' : '#e5e7eb'};
   }
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
 `;
 

@@ -108,6 +108,23 @@ export {
 } from './validationService';
 
 // ============================================================================
+// Coverage Model Service
+// ============================================================================
+
+export {
+  normalizeCoverageDraft,
+  denormalizeForSave,
+  calculateStepProgress,
+  calculateOverallProgress,
+  getMissingRequiredFields,
+  isReadyToPublish,
+  WIZARD_STEP_FIELDS,
+  FIELD_LABELS,
+  type NormalizedCoverageDraft,
+  type WizardFieldConfig
+} from './coverageModel';
+
+// ============================================================================
 // Monitoring & Audit Services
 // ============================================================================
 

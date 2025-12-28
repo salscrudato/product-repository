@@ -45,67 +45,46 @@ export const CoinsuranceInput: React.FC<CoinsuranceInputProps> = ({
 
   return (
     <Container>
-      <SectionLabel>Available Coinsurance Options</SectionLabel>
-      <CheckboxGrid>
+      <OptionsGrid>
         {COINSURANCE_OPTIONS.map((pct) => (
-          <CheckboxItem
+          <OptionChip
             key={pct}
             $selected={selectedOptions.includes(pct)}
             onClick={() => handleToggle(pct)}
           >
-            <Checkbox
-              type="checkbox"
-              checked={selectedOptions.includes(pct)}
-              onChange={() => handleToggle(pct)}
-            />
-            <CheckboxLabel>{pct}%</CheckboxLabel>
-          </CheckboxItem>
+            {pct}%
+          </OptionChip>
         ))}
-      </CheckboxGrid>
+      </OptionsGrid>
 
-      <RangeSection>
-        <RangeLabel>Coinsurance Range</RangeLabel>
-        <RangeInputs>
-          <RangeField>
-            <RangeFieldLabel>Minimum</RangeFieldLabel>
-            <RangeInputWrapper>
-              <RangeInput
-                type="number"
-                min="0"
-                max="100"
-                step="5"
-                placeholder="Min"
-                value={minimum ?? ''}
-                onChange={(e) => handleMinChange(e.target.value ? parseInt(e.target.value) : undefined)}
-              />
-              <PercentSymbol>%</PercentSymbol>
-            </RangeInputWrapper>
-          </RangeField>
-          <RangeDivider>to</RangeDivider>
-          <RangeField>
-            <RangeFieldLabel>Maximum</RangeFieldLabel>
-            <RangeInputWrapper>
-              <RangeInput
-                type="number"
-                min="0"
-                max="100"
-                step="5"
-                placeholder="Max"
-                value={maximum ?? ''}
-                onChange={(e) => handleMaxChange(e.target.value ? parseInt(e.target.value) : undefined)}
-              />
-              <PercentSymbol>%</PercentSymbol>
-            </RangeInputWrapper>
-          </RangeField>
-        </RangeInputs>
-      </RangeSection>
-
-      {selectedOptions.length > 0 && (
-        <SelectedSummary>
-          <SelectedCount>{selectedOptions.length} option{selectedOptions.length > 1 ? 's' : ''} selected</SelectedCount>
-          <SelectedList>{selectedOptions.map(p => `${p}%`).join(', ')}</SelectedList>
-        </SelectedSummary>
-      )}
+      <RangeRow>
+        <RangeLabel>Range:</RangeLabel>
+        <RangeInputWrapper>
+          <RangeInput
+            type="number"
+            min="0"
+            max="100"
+            step="5"
+            placeholder="Min"
+            value={minimum ?? ''}
+            onChange={(e) => handleMinChange(e.target.value ? parseInt(e.target.value) : undefined)}
+          />
+          <span>%</span>
+        </RangeInputWrapper>
+        <RangeDivider>–</RangeDivider>
+        <RangeInputWrapper>
+          <RangeInput
+            type="number"
+            min="0"
+            max="100"
+            step="5"
+            placeholder="Max"
+            value={maximum ?? ''}
+            onChange={(e) => handleMaxChange(e.target.value ? parseInt(e.target.value) : undefined)}
+          />
+          <span>%</span>
+        </RangeInputWrapper>
+      </RangeRow>
     </Container>
   );
 };
@@ -114,82 +93,43 @@ export const CoinsuranceInput: React.FC<CoinsuranceInputProps> = ({
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 `;
 
-const SectionLabel = styled.div`
-  font-size: 13px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const CheckboxGrid = styled.div`
+const OptionsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
 `;
 
-const CheckboxItem = styled.div<{ $selected: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  background: ${({ $selected }) => $selected ? 'rgba(99, 102, 241, 0.08)' : '#f9fafb'};
-  border: 1px solid ${({ $selected }) => $selected ? '#6366f1' : '#e5e7eb'};
-  border-radius: 8px;
+const OptionChip = styled.button<{ $selected: boolean }>`
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.15s ease;
+  border: 1.5px solid ${({ $selected, theme }) => $selected ? '#6366f1' : theme.colours?.border || '#e5e7eb'};
+  background: ${({ $selected, theme }) => $selected ? 'rgba(99, 102, 241, 0.06)' : theme.colours?.background || '#fff'};
+  color: ${({ $selected, theme }) => $selected ? '#6366f1' : theme.colours?.text || '#374151'};
 
   &:hover {
-    border-color: ${({ $selected }) => $selected ? '#6366f1' : '#d1d5db'};
-    background: ${({ $selected }) => $selected ? 'rgba(99, 102, 241, 0.12)' : '#f3f4f6'};
+    border-color: #6366f1;
+    background: ${({ $selected }) => $selected ? '#5558e3' : 'rgba(99, 102, 241, 0.08)'};
   }
 `;
 
-const Checkbox = styled.input`
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-  accent-color: #6366f1;
-`;
-
-const CheckboxLabel = styled.span`
-  font-size: 14px;
-  font-weight: 500;
-  color: ${({ theme }) => theme.colours?.text || '#111827'};
-`;
-
-const RangeSection = styled.div`
+const RangeRow = styled.div`
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 8px;
   padding-top: 8px;
   border-top: 1px solid ${({ theme }) => theme.colours?.border || '#e5e7eb'};
 `;
 
-const RangeLabel = styled.div`
+const RangeLabel = styled.span`
   font-size: 13px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
-`;
-
-const RangeInputs = styled.div`
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-`;
-
-const RangeField = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-`;
-
-const RangeFieldLabel = styled.label`
-  font-size: 12px;
+  font-weight: 500;
   color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
 `;
 
@@ -197,55 +137,33 @@ const RangeInputWrapper = styled.div`
   display: flex;
   align-items: center;
   gap: 4px;
+
+  span {
+    font-size: 13px;
+    color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
+  }
 `;
 
 const RangeInput = styled.input`
-  width: 80px;
-  padding: 8px 10px;
-  border: 1px solid #d1d5db;
+  width: 60px;
+  padding: 6px 8px;
+  border: 1px solid ${({ theme }) => theme.colours?.border || '#d1d5db'};
   border-radius: 6px;
-  font-size: 14px;
-  color: #111827;
+  font-size: 13px;
+  color: ${({ theme }) => theme.colours?.text || '#111827'};
+  background: ${({ theme }) => theme.colours?.background || '#fff'};
 
   &:focus {
     outline: none;
     border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
   }
 
   &::placeholder {
-    color: #9ca3af;
+    color: ${({ theme }) => theme.colours?.textMuted || '#9ca3af'};
   }
 `;
 
-const PercentSymbol = styled.span`
-  font-size: 14px;
-  font-weight: 500;
-  color: #6b7280;
-`;
-
 const RangeDivider = styled.span`
-  font-size: 14px;
-  color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
-  padding-bottom: 10px;
-`;
-
-const SelectedSummary = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: rgba(99, 102, 241, 0.08);
-  border-radius: 6px;
-`;
-
-const SelectedCount = styled.span`
-  font-size: 13px;
-  font-weight: 600;
-  color: #6366f1;
-`;
-
-const SelectedList = styled.span`
   font-size: 13px;
   color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
 `;

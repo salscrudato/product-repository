@@ -1,47 +1,37 @@
 /**
- * WizardProgress - Modern, minimal progress indicator
+ * WizardProgress - Clean, minimal progress indicator
  *
  * Features:
- * - Clean, minimal step indicators
- * - Smooth animated progress line
- * - Elegant transitions
- * - Mobile-responsive
+ * - Simple step indicators
+ * - Subtle transitions
+ * - Clean visual hierarchy
  */
 
 import React from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { CheckIcon } from '@heroicons/react/24/solid';
+import { CheckIcon, SparklesIcon } from '@heroicons/react/24/solid';
 
-// Animations
-const popIn = keyframes`
-  0% { transform: scale(0.8); opacity: 0; }
-  50% { transform: scale(1.02); }
-  100% { transform: scale(1); opacity: 1; }
-`;
-
-const shimmer = keyframes`
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+// Subtle animations
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
 `;
 
 const gentlePulse = keyframes`
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.3);
-    transform: scale(1);
-  }
-  50% {
-    box-shadow: 0 0 0 6px rgba(99, 102, 241, 0);
-    transform: scale(1.02);
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 `;
 
-// Styled Components
+// Clean container
 const Container = styled.div`
-  padding: 20px 40px 24px;
-  background: linear-gradient(180deg,
-    ${({ theme }) => theme.colours.surface} 0%,
-    ${({ theme }) => theme.colours.backgroundAlt}15 100%
-  );
+  padding: 20px 32px 24px;
+  background: ${({ theme }) => theme.colours.background};
+  border-bottom: 1px solid ${({ theme }) => theme.colours.border};
+  position: relative;
+
+  @media (max-width: 768px) {
+    padding: 16px 20px 20px;
+  }
 `;
 
 const ProgressWrapper = styled.div`
@@ -52,37 +42,51 @@ const ProgressWrapper = styled.div`
   padding: 0 8px;
 `;
 
-// The track behind the progress
+// Simple track behind the progress
 const ProgressTrack = styled.div`
   position: absolute;
-  top: 20px;
-  left: 48px;
-  right: 48px;
-  height: 3px;
-  background: ${({ theme }) => theme.colours.border}50;
+  top: 18px;
+  left: 50px;
+  right: 50px;
+  height: 2px;
+  background: ${({ theme }) => theme.colours.border};
   border-radius: 2px;
   z-index: 0;
+
+  @media (max-width: 768px) {
+    top: 16px;
+    left: 35px;
+    right: 35px;
+  }
 `;
 
-// The filled progress line with gradient and glow
-const ProgressLine = styled.div<{ $progress: number }>`
+// Hidden - no glow needed for clean design
+const ProgressGlow = styled.div<{ $progress: number; $isAIActive?: boolean }>`
+  display: none;
+`;
+
+// Clean progress line
+const ProgressLine = styled.div<{ $progress: number; $isAIActive?: boolean }>`
   position: absolute;
-  top: 20px;
-  left: 48px;
-  height: 3px;
-  background: linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7);
-  background-size: 200% 100%;
-  animation: ${shimmer} 3s linear infinite;
+  top: 18px;
+  left: 50px;
+  height: 2px;
+  background: #6366f1;
   transform-origin: left;
   border-radius: 2px;
   z-index: 1;
-  width: calc((100% - 96px) * ${({ $progress }) => $progress / 100});
-  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+  width: calc((100% - 100px) * ${({ $progress }) => $progress / 100});
+  transition: width 0.4s ease-out;
+
+  @media (max-width: 768px) {
+    top: 16px;
+    left: 35px;
+    width: calc((100% - 70px) * ${({ $progress }) => $progress / 100});
+  }
 `;
 
-// Individual step wrapper
-const StepWrapper = styled.div`
+// Clean step wrapper
+const StepWrapper = styled.div<{ $isActive?: boolean }>`
   position: relative;
   z-index: 2;
   display: flex;
@@ -91,115 +95,155 @@ const StepWrapper = styled.div`
   gap: 10px;
   flex: 0 0 auto;
   min-width: 80px;
+
+  @media (max-width: 768px) {
+    min-width: 70px;
+    gap: 8px;
+  }
 `;
 
-// Step indicator circle - more refined
+// Clean step indicator circle
 const StepIndicator = styled.button<{
   $state: 'complete' | 'active' | 'upcoming';
   $isClickable: boolean;
 }>`
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   cursor: ${({ $isClickable }) => $isClickable ? 'pointer' : 'default'};
-  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-  animation: ${popIn} 0.5s ease-out backwards;
+  transition: all 0.2s ease;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4);
+  }
 
   ${({ $state, theme }) => {
     switch ($state) {
       case 'complete':
         return css`
-          background: linear-gradient(145deg, #22c55e 0%, #16a34a 100%);
+          background: #22c55e;
           color: white;
-          box-shadow:
-            0 2px 8px rgba(34, 197, 94, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
         `;
       case 'active':
         return css`
-          background: linear-gradient(145deg, #6366f1 0%, #7c3aed 100%);
+          background: #6366f1;
           color: white;
-          box-shadow:
-            0 4px 20px rgba(99, 102, 241, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
-          animation: ${popIn} 0.5s ease-out backwards, ${gentlePulse} 2.5s ease-in-out infinite;
+          box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
         `;
       default:
         return css`
           background: ${theme.colours.surface};
           color: ${theme.colours.textMuted};
-          border: 2px solid ${theme.colours.border};
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+          border: 1.5px solid ${theme.colours.border};
         `;
     }
   }}
 
   &:hover {
-    ${({ $isClickable, $state }) => $isClickable && css`
-      transform: scale(1.08) translateY(-2px);
-      box-shadow: ${$state === 'complete'
-        ? '0 6px 24px rgba(34, 197, 94, 0.4)'
-        : '0 6px 24px rgba(99, 102, 241, 0.4)'};
-    `}
-  }
-
-  &:active {
     ${({ $isClickable }) => $isClickable && css`
-      transform: scale(0.98);
-      transition-duration: 0.1s;
+      transform: scale(1.05);
     `}
   }
 
   svg {
-    width: 18px;
-    height: 18px;
-    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1));
+    width: 16px;
+    height: 16px;
+  }
+
+  @media (max-width: 768px) {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
   }
 `;
 
-// Step label - cleaner typography
+// Clean step label
 const StepLabel = styled.span<{ $state: 'complete' | 'active' | 'upcoming' }>`
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   text-align: center;
-  max-width: 90px;
-  line-height: 1.4;
-  letter-spacing: 0.01em;
-  transition: all 0.3s ease;
-  white-space: nowrap;
+  max-width: 80px;
+  line-height: 1.3;
+  transition: all 0.2s ease;
 
   ${({ $state, theme }) => {
     switch ($state) {
       case 'complete':
-        return css`
-          color: #16a34a;
-        `;
+        return css`color: #16a34a;`;
       case 'active':
         return css`
           color: #6366f1;
-          font-weight: 700;
+          font-weight: 600;
         `;
       default:
         return css`
           color: ${theme.colours.textMuted};
-          opacity: 0.7;
+          opacity: 0.6;
         `;
     }
   }};
+
+  @media (max-width: 768px) {
+    font-size: 10px;
+    max-width: 60px;
+  }
+`;
+
+// Step description - hidden for cleaner look
+const StepDescription = styled.span<{ $isVisible: boolean }>`
+  display: none;
 `;
 
 const OptionalTag = styled.span`
-  font-size: 9px;
+  font-size: 8px;
   color: ${({ theme }) => theme.colours.textMuted};
-  font-weight: 400;
-  opacity: 0.6;
+  font-weight: 500;
+  opacity: 0.5;
+  margin-left: 2px;
+`;
+
+// AI Activity indicator - simplified
+const AIIndicator = styled.div<{ $isActive: boolean }>`
+  display: ${({ $isActive }) => $isActive ? 'flex' : 'none'};
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(99, 102, 241, 0.1);
+  border-radius: 16px;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+
+  svg {
+    width: 12px;
+    height: 12px;
+    color: #6366f1;
+    animation: ${gentlePulse} 1.5s ease-in-out infinite;
+  }
+
+  span {
+    font-size: 10px;
+    font-weight: 500;
+    color: #6366f1;
+  }
+
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 
@@ -229,6 +273,8 @@ export const WizardProgress: React.FC<WizardProgressProps> = ({
   currentStepIndex,
   onStepClick,
   className = '',
+  isAIActive = false,
+  aiActivityMessage = 'AI Working...',
 }) => {
   // Calculate progress percentage for the line
   const progressPercent = steps.length > 1
@@ -236,13 +282,22 @@ export const WizardProgress: React.FC<WizardProgressProps> = ({
     : 0;
 
   return (
-    <Container className={className}>
+    <Container className={className} role="navigation" aria-label="Wizard progress">
       <ProgressWrapper>
         {/* Background track */}
         <ProgressTrack />
 
+        {/* Glow effect behind progress */}
+        <ProgressGlow $progress={progressPercent} $isAIActive={isAIActive} />
+
         {/* Animated progress line */}
-        <ProgressLine $progress={progressPercent} />
+        <ProgressLine $progress={progressPercent} $isAIActive={isAIActive} />
+
+        {/* AI Activity indicator */}
+        <AIIndicator $isActive={isAIActive}>
+          <SparklesIcon />
+          <span>{aiActivityMessage}</span>
+        </AIIndicator>
 
         {/* Step indicators */}
         {steps.map((step, index) => {
@@ -252,14 +307,15 @@ export const WizardProgress: React.FC<WizardProgressProps> = ({
           const isClickable = !!onStepClick && (isComplete || index === currentStepIndex + 1);
 
           return (
-            <StepWrapper key={step.id}>
+            <StepWrapper key={step.id} $isActive={isActive}>
               <StepIndicator
                 $state={state}
                 $isClickable={isClickable}
                 onClick={() => isClickable && onStepClick?.(index)}
                 disabled={!isClickable}
-                title={step.description}
-                style={{ animationDelay: `${index * 0.1}s` }}
+                aria-label={`Step ${index + 1}: ${step.label}${isComplete ? ' (completed)' : isActive ? ' (current)' : ''}`}
+                aria-current={isActive ? 'step' : undefined}
+                style={{ animationDelay: `${index * 0.08}s` }}
               >
                 {state === 'complete' ? (
                   <CheckIcon />
@@ -269,8 +325,11 @@ export const WizardProgress: React.FC<WizardProgressProps> = ({
               </StepIndicator>
               <StepLabel $state={state}>
                 {step.label}
-                {step.isOptional && <OptionalTag> (opt)</OptionalTag>}
+                {step.isOptional && <OptionalTag>optional</OptionalTag>}
               </StepLabel>
+              <StepDescription $isVisible={isActive}>
+                {step.description}
+              </StepDescription>
             </StepWrapper>
           );
         })}

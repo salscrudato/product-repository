@@ -120,6 +120,9 @@ export type EndorsementType = 'broadening' | 'restrictive' | 'clarifying' | 'add
 // Premium Basis
 export type PremiumBasis = 'flat' | 'perUnit' | 'rated' | 'manual';
 
+// Underwriter Approval Type
+export type UnderwriterApprovalType = 'required' | 'not_required' | 'conditional';
+
 // ========== NEW: Coverage Kind & Draft Types ==========
 
 /**
@@ -440,13 +443,14 @@ export interface Coverage {
 
   /**
    * Underwriter approval type (preferred over requiresUnderwriterApproval):
-   * - 'yes' = Always requires underwriter approval
-   * - 'no' = Auto-approved, no underwriter review needed
+   * - 'required' = Always requires underwriter approval
+   * - 'not_required' = Auto-approved, no underwriter review needed
    * - 'conditional' = Requires approval based on eligibility criteria
    */
-  underwriterApprovalType?: 'yes' | 'no' | 'conditional';
+  underwriterApprovalType?: UnderwriterApprovalType;
   eligibilityCriteria?: string[];
   prohibitedClasses?: string[];     // Business classes that can't buy this
+  underwritingGuidelines?: string;  // Free-form underwriting notes/guidelines
 
   /**
    * @deprecated Use requiredCoverageIds for ID-based references

@@ -25,6 +25,12 @@ import {
   DocumentTextIcon,
   ExclamationTriangleIcon,
   ExclamationCircleIcon,
+  CheckCircleIcon,
+  AdjustmentsHorizontalIcon,
+  UserCircleIcon,
+  NoSymbolIcon,
+  CheckIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 import { SparklesIcon, CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 import { Coverage, CoverageSimilarityMatch, CoverageTrigger, ValuationMethod } from '../../types';
@@ -103,112 +109,73 @@ const ModalOverlay = styled.div`
   z-index: 9998;
   background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(8px);
-  animation: ${fadeIn} 0.25s ${EASING.smooth};
+  animation: ${fadeIn} 0.25s ease-out;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 `;
 
 const ModalContainer = styled.div`
   position: fixed;
-  top: 24px;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   z-index: 9999;
   display: flex;
   flex-direction: column;
   background: ${({ theme }) => theme.colours.background};
-  animation: ${slideUp} 0.35s ${EASING.spring};
+  animation: ${slideUp} 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Take up most of the available space with elegant margins */
-  width: calc(100% - 32px);
-  max-width: 1400px;
-  height: calc(100vh - 48px); /* viewport - top and bottom padding */
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+
+  /* Larger dimensions for better desktop experience */
+  width: calc(100% - 48px);
+  max-width: 1200px;
+  height: calc(100vh - 48px);
   max-height: 900px;
 
-  /* Premium rounded corners and shadow */
+  /* Modern, soft appearance */
   border-radius: 20px;
+  border: 1px solid ${({ theme }) => theme.colours.border};
   box-shadow:
-    0 25px 50px -12px rgba(0, 0, 0, 0.35),
-    0 12px 24px -8px rgba(0, 0, 0, 0.2),
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-
-  /* Subtle gradient border effect */
-  &::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: 21px;
-    padding: 1px;
-    background: linear-gradient(
-      135deg,
-      rgba(99, 102, 241, 0.3) 0%,
-      rgba(139, 92, 246, 0.2) 50%,
-      rgba(99, 102, 241, 0.1) 100%
-    );
-    -webkit-mask:
-      linear-gradient(#fff 0 0) content-box,
-      linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-  }
+    0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 24px 48px -12px rgba(0, 0, 0, 0.18),
+    0 12px 24px -8px rgba(0, 0, 0, 0.08);
 
   overflow: hidden;
 
   /* Mobile Responsiveness */
   @media (max-width: 768px) {
     top: 0;
+    left: 0;
+    transform: none;
     width: 100%;
     height: 100vh;
     max-height: none;
     border-radius: 0;
-
-    &::before {
-      display: none;
-    }
-  }
-
-  @media (max-width: 480px) {
-    top: 0;
+    border: none;
   }
 `;
 
-// Premium Header with AI Branding
+// Clean, modern header - simplified and focused
 const Header = styled.div`
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 28px;
+  padding: 18px 24px;
   border-bottom: 1px solid ${({ theme }) => theme.colours.border};
-  background: linear-gradient(180deg,
-    ${({ theme }) => theme.colours.surface} 0%,
-    ${({ theme }) => theme.colours.background} 100%
-  );
-  position: relative;
+  background: ${({ theme }) => theme.colours.background};
   border-radius: 20px 20px 0 0;
 
-  &::before {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg,
-      transparent 0%,
-      rgba(99, 102, 241, 0.3) 20%,
-      rgba(139, 92, 246, 0.5) 50%,
-      rgba(99, 102, 241, 0.3) 80%,
-      transparent 100%
-    );
-  }
-
-  /* Mobile: Reduce padding and adjust layout */
   @media (max-width: 768px) {
     padding: 14px 16px;
     border-radius: 0;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 10px;
   }
 
   @media (max-width: 480px) {
@@ -222,24 +189,25 @@ const HeaderLeft = styled.div`
   gap: 16px;
 `;
 
-// Breadcrumb navigation for better context awareness
+// Simplified breadcrumb - less visual noise
 const Breadcrumb = styled.nav`
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 11px;
   color: ${({ theme }) => theme.colours.textMuted};
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 
   span {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
   }
 
   svg {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
+    opacity: 0.5;
   }
 `;
 
@@ -249,8 +217,8 @@ const BreadcrumbLink = styled.button`
   color: ${({ theme }) => theme.colours.textMuted};
   cursor: pointer;
   padding: 0;
-  font-size: 12px;
-  transition: color 0.2s;
+  font-size: 11px;
+  transition: color 0.15s;
 
   &:hover {
     color: ${({ theme }) => theme.colours.primary};
@@ -258,8 +226,8 @@ const BreadcrumbLink = styled.button`
 `;
 
 const BreadcrumbCurrent = styled.span`
-  color: ${({ theme }) => theme.colours.text};
-  font-weight: 500;
+  color: ${({ theme }) => theme.colours.textMuted};
+  font-weight: 400;
 `;
 
 // Compact progress indicator for header
@@ -328,78 +296,89 @@ const ProgressLabel = styled.div`
   }
 `;
 
-// AI Status Badge in Header
+// Minimal AI Status Badge - subtle and unobtrusive
 const AIStatusBadge = styled.div<{ $isActive: boolean }>`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
+  gap: 6px;
+  padding: 4px 10px;
   background: ${({ $isActive }) =>
     $isActive
-      ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.2) 100%)'
-      : 'rgba(99, 102, 241, 0.08)'
+      ? 'rgba(99, 102, 241, 0.08)'
+      : 'transparent'
   };
-  border: 1px solid ${({ $isActive }) =>
-    $isActive ? 'rgba(139, 92, 246, 0.4)' : 'rgba(99, 102, 241, 0.15)'
-  };
-  border-radius: 20px;
-  transition: all 0.3s ${EASING.smooth};
-
-  ${({ $isActive }) => $isActive && css`
-    animation: ${glowPulse} 2s ease-in-out infinite;
-  `}
+  border-radius: 16px;
+  transition: all 0.2s ease;
+  margin-left: 8px;
 `;
 
 const AIStatusIcon = styled.div<{ $isActive: boolean }>`
   display: flex;
-  padding: 4px;
-  border-radius: 6px;
-  background: ${({ $isActive }) =>
-    $isActive
-      ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
-      : 'rgba(99, 102, 241, 0.2)'
-  };
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  transition: all 0.2s ease;
 
   svg {
-    width: 12px;
-    height: 12px;
-    color: ${({ $isActive }) => $isActive ? 'white' : '#8b5cf6'};
-    ${({ $isActive }) => $isActive && css`
-      animation: ${sparkle} 1.5s ease-in-out infinite;
-    `}
+    width: 14px;
+    height: 14px;
+    color: ${({ $isActive }) => $isActive ? '#6366f1' : '#9ca3af'};
   }
 `;
 
 const AIStatusText = styled.span<{ $isActive: boolean }>`
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
-  color: ${({ $isActive }) => $isActive ? '#8b5cf6' : '#6b7280'};
+  color: ${({ $isActive }) => $isActive ? '#6366f1' : '#9ca3af'};
+  display: ${({ $isActive }) => $isActive ? 'inline' : 'none'};
+`;
 
-  ${({ $isActive }) => $isActive && css`
-    background: linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7);
-    background-size: 200% 100%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: ${gradientFlow} 3s ease infinite;
-  `}
+// Contextual AI message tooltip
+const AIContextMessage = styled.div<{ $isVisible: boolean }>`
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(${({ $isVisible }) => $isVisible ? '8px' : '4px'});
+  padding: 6px 12px;
+  background: rgba(15, 23, 42, 0.95);
+  border-radius: 6px;
+  font-size: 11px;
+  color: white;
+  white-space: nowrap;
+  opacity: ${({ $isVisible }) => $isVisible ? 1 : 0};
+  pointer-events: none;
+  transition: all 0.15s ease;
+  z-index: 100;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 5px solid rgba(15, 23, 42, 0.9);
+  }
 `;
 
 const HeaderTitle = styled.div`
   h1 {
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 600;
     color: ${({ theme }) => theme.colours.text};
     margin: 0;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
+    letter-spacing: -0.02em;
   }
   p {
-    font-size: 14px;
+    font-size: 12px;
     color: ${({ theme }) => theme.colours.textMuted};
-    margin: 4px 0 0 0;
-    max-width: 300px;
+    margin: 1px 0 0 0;
+    max-width: 280px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -410,27 +389,22 @@ const IconButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px;
+  padding: 8px;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
   color: ${({ theme }) => theme.colours.textMuted};
   cursor: pointer;
-  transition: all 0.2s ${EASING.smooth};
+  transition: all 0.15s ease;
 
   &:hover {
-    background: ${({ theme }) => theme.colours.backgroundAlt};
+    background: ${({ theme }) => theme.colours.surface};
     color: ${({ theme }) => theme.colours.text};
-    transform: scale(1.05);
-  }
-
-  &:active {
-    transform: scale(0.95);
   }
 
   svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
   }
 `;
 
@@ -449,29 +423,20 @@ const MainContent = styled.div`
 const FormPane = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: 32px 24px;
+  padding: 32px 40px;
   background: ${({ theme }) => theme.colours.background};
 
-  /* Subtle grid pattern */
-  background-image: radial-gradient(
-    circle at 1px 1px,
-    ${({ theme }) => theme.colours.border}15 1px,
-    transparent 0
-  );
-  background-size: 24px 24px;
-
-  /* Mobile: Reduce padding */
   @media (max-width: 768px) {
-    padding: 20px 16px;
+    padding: 24px 20px;
   }
 
   @media (max-width: 480px) {
-    padding: 16px 12px;
+    padding: 20px 16px;
   }
 `;
 
 const FormContent = styled.div`
-  max-width: 800px;
+  max-width: 640px;
   margin: 0 auto;
 
   @media (max-width: 768px) {
@@ -479,46 +444,23 @@ const FormContent = styled.div`
   }
 `;
 
-// Premium AI Sidebar with glass effect
+// Clean AI Sidebar
 const AISidebar = styled.div`
-  width: 340px;
+  width: 320px;
   flex-shrink: 0;
   overflow-y: auto;
   padding: 20px;
-  background: linear-gradient(180deg,
-    ${({ theme }) => theme.colours.backgroundAlt} 0%,
-    ${({ theme }) => `${theme.colours.backgroundAlt}f5`} 100%
-  );
+  background: ${({ theme }) => theme.colours.surface};
   border-left: 1px solid ${({ theme }) => theme.colours.border};
   display: flex;
   flex-direction: column;
   gap: 16px;
-  position: relative;
 
-  /* AI accent line */
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 1px;
-    height: 100%;
-    background: linear-gradient(180deg,
-      rgba(99, 102, 241, 0.5) 0%,
-      rgba(139, 92, 246, 0.3) 50%,
-      transparent 100%
-    );
-  }
-
-  animation: ${slideInRight} 0.4s ${EASING.smooth};
-
-  /* Tablet: Narrower sidebar */
   @media (max-width: 1024px) {
     width: 280px;
     padding: 16px;
   }
 
-  /* Mobile: Hide sidebar, show floating button instead */
   @media (max-width: 768px) {
     display: none;
   }
@@ -549,33 +491,31 @@ const AISidebarTitle = styled.h3`
   }
 `;
 
-// AI Working Card - shows when AI is auto-populating fields in sidebar
+// AI Working Card - shows when AI is auto-populating fields
 const AIWorkingCard = styled.div`
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 14px;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(99, 102, 241, 0.08));
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: 12px;
+  padding: 12px;
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 10px;
   margin-bottom: 16px;
-  animation: ${fadeInScale} 0.3s ${EASING.smooth};
 `;
 
 const AIWorkingIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: ${aiSolidGradient};
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  background: #6366f1;
+  border-radius: 8px;
   flex-shrink: 0;
-  animation: ${aiPulse} 1.5s ease-in-out infinite;
 
   svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     color: white;
   }
 `;
@@ -852,56 +792,41 @@ const MobileFloatingAIButton = styled.button`
   }
 `;
 
-// Premium Footer with gradient
+// Clean Footer - minimal and focused
 const Footer = styled.div`
   flex-shrink: 0;
   border-top: 1px solid ${({ theme }) => theme.colours.border};
-  background: linear-gradient(180deg,
-    ${({ theme }) => theme.colours.surface} 0%,
-    ${({ theme }) => theme.colours.background} 100%
-  );
-  padding: 18px 28px;
-  position: relative;
+  background: ${({ theme }) => theme.colours.background};
+  padding: 16px 24px;
   border-radius: 0 0 20px 20px;
+`;
 
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg,
-      transparent 0%,
-      rgba(99, 102, 241, 0.2) 50%,
-      transparent 100%
-    );
+// Step container with subtle animation
+const StepContainer = styled.div<{ $direction?: 'left' | 'right' }>`
+  animation: ${fadeIn} 0.25s ease-out;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
   }
 `;
 
-// Step container with directional animation support
-const StepContainer = styled.div<{ $direction?: 'left' | 'right' }>`
-  animation: ${({ $direction }) =>
-    $direction === 'left' ? contentSlideRight : contentSlideLeft
-  } 0.35s ${EASING.smooth};
-  animation-fill-mode: both;
-`;
-
-// Premium step title with AI indicator
+// Clean step title - larger and more prominent
 const StepTitle = styled.h2`
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
   color: ${({ theme }) => theme.colours.text};
   margin: 0 0 8px 0;
   display: flex;
   align-items: center;
   gap: 10px;
+  letter-spacing: -0.02em;
 `;
 
 const StepSubtitle = styled.p`
   font-size: 14px;
   color: ${({ theme }) => theme.colours.textMuted};
   margin: 0 0 28px 0;
+  line-height: 1.6;
 `;
 
 const StepHeader = styled.div`
@@ -985,22 +910,20 @@ const Input = styled.input`
   }
 `;
 
-// AI Working Banner - prominent indicator when AI is populating fields
+// AI Working Banner - clean indicator when AI is populating fields
 const AIFillingBanner = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  margin-bottom: 20px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  border-radius: 12px;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: #6366f1;
+  border-radius: 8px;
   color: white;
-  animation: ${fadeInScale} 0.3s ${EASING.smooth};
 
   svg {
-    width: 22px;
-    height: 22px;
-    animation: ${sparkle} 1s ease-in-out infinite;
+    width: 18px;
+    height: 18px;
   }
 `;
 
@@ -1009,26 +932,27 @@ const AIFillingText = styled.div`
 
   strong {
     display: block;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 500;
     margin-bottom: 2px;
   }
 
   span {
     font-size: 12px;
-    opacity: 0.9;
+    opacity: 0.85;
   }
 `;
 
 const AIFillingDots = styled.div`
   display: flex;
-  gap: 4px;
+  gap: 3px;
 
   span {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
     background: white;
+    opacity: 0.7;
     animation: ${aiPulse} 1.4s ease-in-out infinite;
 
     &:nth-child(2) { animation-delay: 0.2s; }
@@ -1437,7 +1361,24 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
   const [suggestedFormIds] = useState<string[]>([]);
   const [aiSuggestedFields, setAISuggestedFields] = useState<Set<string>>(new Set());
   const [showMobileAIPanel, setShowMobileAIPanel] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [saveTimeAgo, setSaveTimeAgo] = useState<string>('');
   const prevStepRef = useRef(0);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<Element | null>(null);
+
+  // Focus management - trap focus in modal and restore on close
+  useEffect(() => {
+    if (isOpen) {
+      // Store the previously focused element
+      previousActiveElement.current = document.activeElement;
+      // Focus the modal container
+      setTimeout(() => modalRef.current?.focus(), 50);
+    } else if (previousActiveElement.current instanceof HTMLElement) {
+      // Restore focus when modal closes
+      previousActiveElement.current.focus();
+    }
+  }, [isOpen]);
 
   // Get product for line of business info
   const { product } = useProduct(productId);
@@ -1521,11 +1462,14 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
     }
   }, [isOpen]);
 
-  // Auto-draft fields when entering details step
+  // Auto-draft fields when entering trigger/valuation/underwriting steps
   useEffect(() => {
     const stepId = WIZARD_STEPS[currentStep]?.id;
+    // Auto-draft for steps that have AI-fillable fields
+    const autoDraftableSteps = ['triggers', 'valuation', 'underwriting'];
     if (
-      stepId === 'details' &&
+      stepId &&
+      autoDraftableSteps.includes(stepId) &&
       !autoDraftedStepsRef.current.has(stepId) &&
       draft.name // Only auto-draft if we have a coverage name
     ) {
@@ -1543,25 +1487,60 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
   }, [isAutoDrafting]);
 
   // Calculate step field counts for progress indicator
+  // Uses canonical fields with fallback to legacy fields for backward compatibility
   const stepsWithFieldCounts = useMemo((): WizardStep[] => {
-    const fieldMap: Record<string, { fields: (keyof Coverage)[]; }> = {
-      basics: { fields: ['name', 'coverageCode'] },
-      triggers: { fields: ['coverageTrigger', 'waitingPeriod'] },
-      valuation: { fields: ['valuationMethod', 'coinsurancePercentage'] },
-      underwriting: { fields: ['requiresUnderwriterApproval', 'eligibilityCriteria', 'prohibitedClasses'] },
+    // Field configuration with canonical and legacy field pairs
+    const fieldMap: Record<string, {
+      fields: (keyof Coverage)[];
+      legacyFields?: (keyof Coverage)[]; // Legacy fields to check if canonical is empty
+    }> = {
+      basics: { fields: ['name', 'coverageCode', 'description', 'coverageKind'] },
+      triggers: { fields: ['coverageTrigger', 'waitingPeriod', 'claimsReportingPeriod'] },
+      valuation: {
+        fields: ['valuationMethods', 'coinsuranceOptions', 'depreciationMethod'],
+        legacyFields: ['valuationMethod', 'coinsurancePercentage']
+      },
+      underwriting: {
+        fields: ['underwriterApprovalType', 'eligibilityCriteria', 'prohibitedClasses', 'underwritingGuidelines'],
+        legacyFields: ['requiresUnderwriterApproval']
+      },
       review: { fields: [] },
+    };
+
+    // Helper to check if a field is filled (handles arrays)
+    const isFieldFilled = (value: unknown): boolean => {
+      if (value === undefined || value === null || value === '') return false;
+      if (Array.isArray(value)) return value.length > 0;
+      return true;
     };
 
     return WIZARD_STEPS.map(step => {
       const config = fieldMap[step.id];
       if (!config) return step;
-      const filledCount = config.fields.filter(f =>
-        draft[f] !== undefined && draft[f] !== null && draft[f] !== ''
-      ).length;
+
+      // Count filled fields, checking canonical first then legacy
+      let filledCount = 0;
+      for (const field of config.fields) {
+        if (isFieldFilled(draft[field])) {
+          filledCount++;
+        }
+      }
+
+      // Also check legacy fields if they exist and canonical equivalents are empty
+      if (config.legacyFields) {
+        for (const legacyField of config.legacyFields) {
+          if (isFieldFilled(draft[legacyField])) {
+            filledCount++;
+          }
+        }
+      }
+
+      const totalFields = config.fields.length + (config.legacyFields?.length || 0);
+
       return {
         ...step,
-        fieldCount: config.fields.length,
-        filledFieldCount: filledCount,
+        fieldCount: totalFields,
+        filledFieldCount: Math.min(filledCount, totalFields), // Cap at total
       };
     });
   }, [draft]);
@@ -1624,6 +1603,43 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
     });
   }, [updateDraft]);
 
+  // Track when save completes and update "time ago" display
+  const prevIsSaving = useRef(isSaving);
+  useEffect(() => {
+    // Detect when saving transitions from true to false (save completed)
+    if (prevIsSaving.current && !isSaving && !isDirty) {
+      setLastSavedAt(new Date());
+    }
+    prevIsSaving.current = isSaving;
+  }, [isSaving, isDirty]);
+
+  // Update "time ago" display every 10 seconds
+  useEffect(() => {
+    if (!lastSavedAt) return;
+
+    const updateTimeAgo = () => {
+      const now = new Date();
+      const diffMs = now.getTime() - lastSavedAt.getTime();
+      const diffSec = Math.floor(diffMs / 1000);
+
+      if (diffSec < 5) {
+        setSaveTimeAgo('just now');
+      } else if (diffSec < 60) {
+        setSaveTimeAgo(`${diffSec}s ago`);
+      } else if (diffSec < 3600) {
+        const mins = Math.floor(diffSec / 60);
+        setSaveTimeAgo(`${mins}m ago`);
+      } else {
+        const hours = Math.floor(diffSec / 3600);
+        setSaveTimeAgo(`${hours}h ago`);
+      }
+    };
+
+    updateTimeAgo();
+    const interval = setInterval(updateTimeAgo, 10000);
+    return () => clearInterval(interval);
+  }, [lastSavedAt]);
+
   if (!isOpen) return null;
 
   const canPublish = validation?.readyToPublish ?? false;
@@ -1639,6 +1655,7 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
     <>
       <ModalOverlay onClick={onClose} />
       <ModalContainer
+        ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-label="Coverage Copilot Wizard"
@@ -1681,7 +1698,7 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
           }
         }}
       >
-        {/* Premium Header with Breadcrumb & AI Status */}
+        {/* Header */}
         <Header>
           <HeaderLeft>
             <IconButton onClick={onClose} title="Back to coverages" aria-label="Back to coverages">
@@ -1699,6 +1716,14 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
               </Breadcrumb>
               <h1>
                 {existingCoverage?.id ? 'Edit Coverage' : 'Coverage Copilot'}
+                <AIStatusBadge $isActive={isAutoDrafting}>
+                  <AIStatusIcon $isActive={isAutoDrafting}>
+                    {isAutoDrafting ? <SparklesIcon /> : <SparklesOutline />}
+                  </AIStatusIcon>
+                  <AIStatusText $isActive={isAutoDrafting}>
+                    {isAutoDrafting ? aiActivityMessage : 'AI Ready'}
+                  </AIStatusText>
+                </AIStatusBadge>
               </h1>
             </HeaderTitle>
           </HeaderLeft>
@@ -1718,7 +1743,7 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
               {autoSaveStatus === 'saved' && (
                 <>
                   <CheckCircleSolid />
-                  <span>Saved</span>
+                  <span>Saved{saveTimeAgo ? ` ${saveTimeAgo}` : ''}</span>
                 </>
               )}
             </AutoSaveIndicator>
@@ -2212,9 +2237,8 @@ const TriggersStepWithAI: React.FC<TriggersStepProps> = ({
 // Styled components for TriggersStepWithAI
 const TriggerStepContainer = styled.div`
   display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 32px;
-  min-height: 400px;
+  grid-template-columns: 1fr 280px;
+  gap: 24px;
 
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
@@ -2226,11 +2250,11 @@ const TriggerMainContent = styled.div`
 `;
 
 const WaitingPeriodSection = styled.div`
-  margin-top: 24px;
-  padding: 16px;
+  margin-top: 20px;
+  padding: 14px 16px;
   background: ${({ theme }) => theme.colours.surface};
   border: 1px solid ${({ theme }) => theme.colours.border};
-  border-radius: 12px;
+  border-radius: 10px;
 `;
 
 const WaitingPeriodCheckbox = styled.div`
@@ -2239,14 +2263,14 @@ const WaitingPeriodCheckbox = styled.div`
   gap: 10px;
 
   input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     accent-color: #6366f1;
     cursor: pointer;
   }
 
   label {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     color: ${({ theme }) => theme.colours.text};
     cursor: pointer;
@@ -2255,23 +2279,22 @@ const WaitingPeriodCheckbox = styled.div`
 
 const WaitingPeriodInputRow = styled.div`
   display: flex;
-  gap: 12px;
-  margin-top: 16px;
+  gap: 10px;
+  margin-top: 12px;
 `;
 
 const WaitingPeriodNumberInput = styled.input`
   flex: 1;
-  padding: 10px 14px;
-  font-size: 14px;
+  padding: 8px 12px;
+  font-size: 13px;
   border: 1px solid ${({ theme }) => theme.colours.border};
-  border-radius: 8px;
+  border-radius: 6px;
   background: ${({ theme }) => theme.colours.background};
   color: ${({ theme }) => theme.colours.text};
 
   &:focus {
     outline: none;
     border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
   }
 
   &::placeholder {
@@ -2280,91 +2303,87 @@ const WaitingPeriodNumberInput = styled.input`
 `;
 
 const WaitingPeriodUnitSelect = styled.select`
-  padding: 10px 14px;
-  font-size: 14px;
+  padding: 8px 12px;
+  font-size: 13px;
   border: 1px solid ${({ theme }) => theme.colours.border};
-  border-radius: 8px;
+  border-radius: 6px;
   background: ${({ theme }) => theme.colours.background};
   color: ${({ theme }) => theme.colours.text};
   cursor: pointer;
-  min-width: 120px;
+  min-width: 100px;
 
   &:focus {
     outline: none;
     border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
   }
 `;
 
 const TriggerDescription = styled.p`
-  font-size: 14px;
+  font-size: 13px;
   color: ${({ theme }) => theme.colours.textMuted};
-  margin-bottom: 24px;
-  line-height: 1.6;
+  margin-bottom: 20px;
+  line-height: 1.5;
 `;
 
 const TriggerAISidebar = styled.div`
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(99, 102, 241, 0.08));
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: 16px;
-  padding: 20px;
+  background: ${({ theme }) => theme.colours.surface};
+  border: 1px solid ${({ theme }) => theme.colours.border};
+  border-radius: 12px;
+  padding: 16px;
   height: fit-content;
-  animation: ${slideInRight} 0.4s ease-out;
+  min-width: 280px;
 `;
 
 const TriggerAISidebarHeader = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+  border-bottom: 1px solid ${({ theme }) => theme.colours.border};
 
   svg {
-    width: 20px;
-    height: 20px;
-    color: #8b5cf6;
+    width: 18px;
+    height: 18px;
+    color: #6366f1;
   }
 
   span {
     font-size: 14px;
     font-weight: 600;
-    color: #7c3aed;
+    color: ${({ theme }) => theme.colours.text};
   }
 `;
 
 const AISuggestionCard = styled.div<{ $confidence: number }>`
-  background: ${({ theme }) => theme.colours.surface};
-  border: 1.5px solid ${({ $confidence }) =>
-    $confidence >= 90 ? '#10b981' :
-    $confidence >= 75 ? '#8b5cf6' : '#f59e0b'};
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
+  background: ${({ theme }) => theme.colours.background};
+  border: 1px solid ${({ theme }) => theme.colours.border};
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
 `;
 
 const AISuggestionBadge = styled.span<{ $confidence: number }>`
   display: inline-block;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: 5px;
   background: ${({ $confidence }) =>
-    $confidence >= 90 ? 'linear-gradient(135deg, #10b981, #059669)' :
-    $confidence >= 75 ? 'linear-gradient(135deg, #8b5cf6, #7c3aed)' :
-    'linear-gradient(135deg, #f59e0b, #d97706)'};
+    $confidence >= 90 ? '#10b981' :
+    $confidence >= 75 ? '#6366f1' : '#f59e0b'};
   color: white;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 `;
 
 const AISuggestionTrigger = styled.div`
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: ${({ theme }) => theme.colours.text};
   text-transform: capitalize;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 `;
 
 const AISuggestionReason = styled.p`
@@ -2377,12 +2396,13 @@ const AISuggestionReason = styled.p`
 const AISuggestionConfidence = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin-bottom: 12px;
 
   span {
     font-size: 12px;
     color: ${({ theme }) => theme.colours.textMuted};
+    white-space: nowrap;
   }
 `;
 
@@ -2403,9 +2423,8 @@ const ConfidenceBar = styled.div<{ $confidence: number }>`
     width: ${({ $confidence }) => $confidence}%;
     background: ${({ $confidence }) =>
       $confidence >= 90 ? '#10b981' :
-      $confidence >= 75 ? '#8b5cf6' : '#f59e0b'};
+      $confidence >= 75 ? '#6366f1' : '#f59e0b'};
     border-radius: 3px;
-    transition: width 0.3s ease;
   }
 `;
 
@@ -2413,26 +2432,25 @@ const ApplySuggestionButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  padding: 10px 16px;
+  padding: 10px 14px;
   font-size: 13px;
-  font-weight: 600;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  font-weight: 500;
+  background: #6366f1;
   color: white;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease;
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
 
   &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    background: #4f46e5;
   }
 `;
 
@@ -2441,24 +2459,30 @@ const AppliedIndicator = styled.div`
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 10px 16px;
-  font-size: 13px;
-  font-weight: 600;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
   color: #10b981;
-  background: rgba(16, 185, 129, 0.1);
-  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.08);
+  border-radius: 6px;
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
+`;
+
+const ValuationSectionsContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 `;
 
 const ValuationSuggestionLabel = styled.div`
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   color: ${({ theme }) => theme.colours.textMuted};
   margin-bottom: 4px;
 `;
@@ -2467,27 +2491,26 @@ const ApplyAllButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  padding: 12px 16px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
   color: white;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: #6366f1;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease;
   margin-top: 8px;
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
 
   &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    background: #4f46e5;
   }
 `;
 
@@ -2496,17 +2519,17 @@ const NoSuggestionCard = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 32px 16px;
+  gap: 8px;
+  padding: 20px 14px;
   text-align: center;
-  background: ${({ theme }) => theme.colours.surface};
+  background: ${({ theme }) => theme.colours.background};
   border: 1px dashed ${({ theme }) => theme.colours.border};
-  border-radius: 12px;
-  margin-bottom: 16px;
+  border-radius: 10px;
+  margin-bottom: 12px;
 
   svg {
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
     color: ${({ theme }) => theme.colours.textMuted};
     opacity: 0.5;
   }
@@ -2521,13 +2544,14 @@ const NoSuggestionCard = styled.div`
 const AISidebarTip = styled.div`
   display: flex;
   gap: 8px;
-  padding: 12px;
-  background: rgba(99, 102, 241, 0.08);
+  padding: 10px 12px;
+  background: rgba(99, 102, 241, 0.04);
   border-radius: 8px;
+  margin-top: 10px;
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     color: #6366f1;
     flex-shrink: 0;
     margin-top: 2px;
@@ -2624,48 +2648,50 @@ const ValuationStepWithAI: React.FC<ValuationStepProps> = ({
       <TriggerMainContent>
         <StepTitle>Valuation & Coinsurance</StepTitle>
         <TriggerDescription>
-          Select the available valuation methods and coinsurance options for this coverage.
+          Configure valuation methods and coinsurance options for this coverage.
         </TriggerDescription>
 
-        <AIAssistedField
-          label="Available Valuation Methods"
-          fieldName="valuationMethods"
-          isAISuggested={aiSuggestedFields.has('valuationMethods') || valuationApplied}
-          isAIUpdating={isAIUpdating && (!draft.valuationMethods || draft.valuationMethods.length === 0)}
-          aiExplanation={aiSuggestion?.valuationReason}
-          aiConfidence={aiSuggestion?.confidence}
-          onAcceptSuggestion={() => onAcceptField?.('valuationMethods')}
-          onRejectSuggestion={() => onRejectField?.('valuationMethods')}
-          hideActions={valuationApplied}
-        >
-          <ValuationMethodSelector
-            values={draft.valuationMethods}
-            onChange={(methods) => updateDraft({ valuationMethods: methods })}
-          />
-        </AIAssistedField>
+        <ValuationSectionsContainer>
+          <AIAssistedField
+            label="Valuation Methods"
+            fieldName="valuationMethods"
+            isAISuggested={aiSuggestedFields.has('valuationMethods') || valuationApplied}
+            isAIUpdating={isAIUpdating && (!draft.valuationMethods || draft.valuationMethods.length === 0)}
+            aiExplanation={aiSuggestion?.valuationReason}
+            aiConfidence={aiSuggestion?.confidence}
+            onAcceptSuggestion={() => onAcceptField?.('valuationMethods')}
+            onRejectSuggestion={() => onRejectField?.('valuationMethods')}
+            hideActions={valuationApplied}
+          >
+            <ValuationMethodSelector
+              values={draft.valuationMethods}
+              onChange={(methods) => updateDraft({ valuationMethods: methods })}
+            />
+          </AIAssistedField>
 
-        <AIAssistedField
-          label="Available Coinsurance Options"
-          fieldName="coinsuranceOptions"
-          isAISuggested={aiSuggestedFields.has('coinsuranceOptions') || coinsuranceApplied}
-          isAIUpdating={isAIUpdating && (!draft.coinsuranceOptions || draft.coinsuranceOptions.length === 0)}
-          aiExplanation={aiSuggestion?.coinsuranceReason}
-          aiConfidence={aiSuggestion?.confidence}
-          onAcceptSuggestion={() => onAcceptField?.('coinsuranceOptions')}
-          onRejectSuggestion={() => onRejectField?.('coinsuranceOptions')}
-          hideActions={coinsuranceApplied}
-        >
-          <CoinsuranceInput
-            selectedOptions={draft.coinsuranceOptions}
-            minimum={draft.coinsuranceMinimum}
-            maximum={draft.coinsuranceMaximum}
-            onChange={(options, min, max) => updateDraft({
-              coinsuranceOptions: options,
-              coinsuranceMinimum: min,
-              coinsuranceMaximum: max
-            })}
-          />
-        </AIAssistedField>
+          <AIAssistedField
+            label="Coinsurance Options"
+            fieldName="coinsuranceOptions"
+            isAISuggested={aiSuggestedFields.has('coinsuranceOptions') || coinsuranceApplied}
+            isAIUpdating={isAIUpdating && (!draft.coinsuranceOptions || draft.coinsuranceOptions.length === 0)}
+            aiExplanation={aiSuggestion?.coinsuranceReason}
+            aiConfidence={aiSuggestion?.confidence}
+            onAcceptSuggestion={() => onAcceptField?.('coinsuranceOptions')}
+            onRejectSuggestion={() => onRejectField?.('coinsuranceOptions')}
+            hideActions={coinsuranceApplied}
+          >
+            <CoinsuranceInput
+              selectedOptions={draft.coinsuranceOptions}
+              minimum={draft.coinsuranceMinimum}
+              maximum={draft.coinsuranceMaximum}
+              onChange={(options, min, max) => updateDraft({
+                coinsuranceOptions: options,
+                coinsuranceMinimum: min,
+                coinsuranceMaximum: max
+              })}
+            />
+          </AIAssistedField>
+        </ValuationSectionsContainer>
       </TriggerMainContent>
 
       {/* AI Suggestions Sidebar */}
@@ -2815,23 +2841,23 @@ const UnderwritingStepWithAI: React.FC<UnderwritingStepProps> = ({
 
   // Determine approval type (support both old and new field)
   const approvalType = draft.underwriterApprovalType ||
-    (draft.requiresUnderwriterApproval === true ? 'yes' :
-     draft.requiresUnderwriterApproval === false ? 'no' : undefined);
+    (draft.requiresUnderwriterApproval === true ? 'required' :
+     draft.requiresUnderwriterApproval === false ? 'not_required' : undefined);
 
   const isConditional = approvalType === 'conditional';
-  const showConditionalFields = isConditional || approvalType === 'yes';
+  const showConditionalFields = isConditional || approvalType === 'required';
 
   return (
     <TriggerStepContainer>
       <TriggerMainContent>
         <StepTitle>Underwriting Requirements</StepTitle>
         <TriggerDescription>
-          Define underwriter approval requirements and eligibility criteria.
+          Configure approval workflow and eligibility criteria for this coverage.
         </TriggerDescription>
 
         {/* Underwriter Approval Toggle - 3 Options */}
         <AIAssistedField
-          label="Requires Underwriter Approval"
+          label="Approval Workflow"
           fieldName="underwriterApprovalType"
           isAISuggested={aiSuggestedFields.has('underwriterApprovalType')}
           isAIUpdating={isAIUpdating && !approvalType}
@@ -2839,119 +2865,136 @@ const UnderwritingStepWithAI: React.FC<UnderwritingStepProps> = ({
           onRejectSuggestion={() => onRejectField?.('underwriterApprovalType')}
         >
           <UnderwritingToggleRow>
-            <UnderwritingToggle
-              $active={approvalType === 'yes'}
-              onClick={() => updateDraft({ underwriterApprovalType: 'yes', requiresUnderwriterApproval: true })}
+            <UnderwritingToggleCard
+              $active={approvalType === 'not_required'}
+              $type="auto"
+              onClick={() => updateDraft({ underwriterApprovalType: 'not_required', requiresUnderwriterApproval: false })}
             >
-              Yes
-            </UnderwritingToggle>
-            <UnderwritingToggle
-              $active={approvalType === 'no'}
-              onClick={() => updateDraft({ underwriterApprovalType: 'no', requiresUnderwriterApproval: false })}
-            >
-              No
-            </UnderwritingToggle>
-            <UnderwritingToggle
+              <UnderwritingToggleIcon $type="auto" $active={approvalType === 'not_required'}>
+                <CheckCircleIcon />
+              </UnderwritingToggleIcon>
+              <UnderwritingToggleLabel>Auto-Approve</UnderwritingToggleLabel>
+              <UnderwritingToggleDesc>No review needed</UnderwritingToggleDesc>
+            </UnderwritingToggleCard>
+            <UnderwritingToggleCard
               $active={approvalType === 'conditional'}
-              $conditional
+              $type="conditional"
               onClick={() => updateDraft({ underwriterApprovalType: 'conditional', requiresUnderwriterApproval: true })}
             >
-              Conditional
-            </UnderwritingToggle>
+              <UnderwritingToggleIcon $type="conditional" $active={approvalType === 'conditional'}>
+                <AdjustmentsHorizontalIcon />
+              </UnderwritingToggleIcon>
+              <UnderwritingToggleLabel>Conditional</UnderwritingToggleLabel>
+              <UnderwritingToggleDesc>Based on criteria</UnderwritingToggleDesc>
+            </UnderwritingToggleCard>
+            <UnderwritingToggleCard
+              $active={approvalType === 'required'}
+              $type="manual"
+              onClick={() => updateDraft({ underwriterApprovalType: 'required', requiresUnderwriterApproval: true })}
+            >
+              <UnderwritingToggleIcon $type="manual" $active={approvalType === 'required'}>
+                <UserCircleIcon />
+              </UnderwritingToggleIcon>
+              <UnderwritingToggleLabel>Manual Review</UnderwritingToggleLabel>
+              <UnderwritingToggleDesc>Always require UW</UnderwritingToggleDesc>
+            </UnderwritingToggleCard>
           </UnderwritingToggleRow>
-          <ApprovalTypeDescription>
-            {approvalType === 'yes' && 'All submissions require underwriter review before binding.'}
-            {approvalType === 'no' && 'Auto-approved - no underwriter review required.'}
-            {approvalType === 'conditional' && 'Requires underwriter approval when eligibility criteria are not met.'}
-            {!approvalType && 'Select an approval type to continue.'}
-          </ApprovalTypeDescription>
         </AIAssistedField>
 
         {/* Conditional Fields - Only shown when Conditional is selected */}
         {isConditional && (
           <ConditionalFieldsContainer>
             <ConditionalFieldsHeader>
-              <ExclamationTriangleIcon />
-              <span>Define the conditions for automatic approval</span>
+              <ConditionalHeaderIcon>
+                <AdjustmentsHorizontalIcon />
+              </ConditionalHeaderIcon>
+              <ConditionalHeaderText>
+                <span>Conditional Approval Rules</span>
+                <ConditionalHeaderSubtext>Define criteria for automatic approval</ConditionalHeaderSubtext>
+              </ConditionalHeaderText>
             </ConditionalFieldsHeader>
 
-            {/* Eligibility Criteria - Required for Conditional */}
-            <AIAssistedField
-              label="Eligibility Criteria (Required)"
-              fieldName="eligibilityCriteria"
-              isAISuggested={aiSuggestedFields.has('eligibilityCriteria')}
-              isAIUpdating={isAIUpdating && (!draft.eligibilityCriteria || draft.eligibilityCriteria.length === 0)}
-              onAcceptSuggestion={() => onAcceptField?.('eligibilityCriteria')}
-              onRejectSuggestion={() => onRejectField?.('eligibilityCriteria')}
-            >
-              <ConditionalFieldDescription>
-                When all criteria are met, the submission will be auto-approved. Otherwise, it will require underwriter review.
-              </ConditionalFieldDescription>
-              <UnderwritingListContainer>
-                {(draft.eligibilityCriteria || []).map((criteria, index) => (
-                  <UnderwritingListItem key={index}>
-                    <span>{criteria}</span>
-                    <UnderwritingRemoveButton onClick={() => handleRemoveCriteria(index)}>
-                      <XMarkIcon />
-                    </UnderwritingRemoveButton>
-                  </UnderwritingListItem>
-                ))}
-                <UnderwritingAddRow>
-                  <UnderwritingInput
-                    type="text"
-                    placeholder="Add eligibility requirement..."
-                    value={newCriteria}
-                    onChange={(e) => setNewCriteria(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddCriteria()}
-                  />
-                  <UnderwritingAddButton onClick={handleAddCriteria} disabled={!newCriteria.trim()}>
-                    Add
-                  </UnderwritingAddButton>
-                </UnderwritingAddRow>
-              </UnderwritingListContainer>
-              {isConditional && (!draft.eligibilityCriteria || draft.eligibilityCriteria.length === 0) && (
-                <RequiredFieldWarning>
-                  <ExclamationCircleIcon />
-                  At least one eligibility criterion is required for conditional approval.
-                </RequiredFieldWarning>
-              )}
-            </AIAssistedField>
+            <ConditionalSectionsGrid>
+              {/* Eligibility Criteria - Required for Conditional */}
+              <ConditionalSection>
+                <ConditionalSectionHeader>
+                  <CheckCircleIcon />
+                  <span>Eligibility Criteria</span>
+                  <ConditionalSectionBadge>Required</ConditionalSectionBadge>
+                </ConditionalSectionHeader>
+                <ConditionalSectionDesc>
+                  Submissions meeting all criteria are auto-approved
+                </ConditionalSectionDesc>
+                <UnderwritingListContainer>
+                  {(draft.eligibilityCriteria || []).map((criteria, index) => (
+                    <CriteriaItem key={index}>
+                      <CriteriaCheckmark>
+                        <CheckIcon />
+                      </CriteriaCheckmark>
+                      <CriteriaText>{criteria}</CriteriaText>
+                      <UnderwritingRemoveButton onClick={() => handleRemoveCriteria(index)}>
+                        <XMarkIcon />
+                      </UnderwritingRemoveButton>
+                    </CriteriaItem>
+                  ))}
+                  <UnderwritingAddRow>
+                    <UnderwritingInput
+                      type="text"
+                      placeholder="e.g., Minimum 3 years in business"
+                      value={newCriteria}
+                      onChange={(e) => setNewCriteria(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddCriteria()}
+                    />
+                    <UnderwritingAddButton onClick={handleAddCriteria} disabled={!newCriteria.trim()}>
+                      <PlusIcon />
+                    </UnderwritingAddButton>
+                  </UnderwritingAddRow>
+                </UnderwritingListContainer>
+                {(!draft.eligibilityCriteria || draft.eligibilityCriteria.length === 0) && (
+                  <RequiredFieldWarning>
+                    <ExclamationCircleIcon />
+                    Add at least one criterion
+                  </RequiredFieldWarning>
+                )}
+              </ConditionalSection>
 
-            {/* Prohibited Classes */}
-            <AIAssistedField
-              label="Prohibited Business Classes"
-              fieldName="prohibitedClasses"
-              isAISuggested={aiSuggestedFields.has('prohibitedClasses')}
-              isAIUpdating={isAIUpdating && (!draft.prohibitedClasses || draft.prohibitedClasses.length === 0)}
-              onAcceptSuggestion={() => onAcceptField?.('prohibitedClasses')}
-              onRejectSuggestion={() => onRejectField?.('prohibitedClasses')}
-            >
-              <ConditionalFieldDescription>
-                Business classes that are never eligible for this coverage.
-              </ConditionalFieldDescription>
-              <UnderwritingListContainer>
-                {(draft.prohibitedClasses || []).map((cls, index) => (
-                  <UnderwritingListItem key={index} $prohibited>
-                    <span>{cls}</span>
-                    <UnderwritingRemoveButton onClick={() => handleRemoveProhibitedClass(index)}>
-                      <XMarkIcon />
-                    </UnderwritingRemoveButton>
-                  </UnderwritingListItem>
-                ))}
-                <UnderwritingAddRow>
-                  <UnderwritingInput
-                    type="text"
-                    placeholder="Add prohibited class..."
-                    value={newProhibitedClass}
-                    onChange={(e) => setNewProhibitedClass(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddProhibitedClass()}
-                  />
-                  <UnderwritingAddButton onClick={handleAddProhibitedClass} disabled={!newProhibitedClass.trim()}>
-                    Add
-                  </UnderwritingAddButton>
-                </UnderwritingAddRow>
-              </UnderwritingListContainer>
-            </AIAssistedField>
+              {/* Prohibited Classes */}
+              <ConditionalSection $type="prohibited">
+                <ConditionalSectionHeader>
+                  <NoSymbolIcon />
+                  <span>Prohibited Classes</span>
+                  <ConditionalSectionBadge $type="optional">Optional</ConditionalSectionBadge>
+                </ConditionalSectionHeader>
+                <ConditionalSectionDesc>
+                  Business classes that are never eligible
+                </ConditionalSectionDesc>
+                <UnderwritingListContainer>
+                  {(draft.prohibitedClasses || []).map((cls, index) => (
+                    <CriteriaItem key={index} $prohibited>
+                      <CriteriaCheckmark $prohibited>
+                        <NoSymbolIcon />
+                      </CriteriaCheckmark>
+                      <CriteriaText>{cls}</CriteriaText>
+                      <UnderwritingRemoveButton onClick={() => handleRemoveProhibitedClass(index)}>
+                        <XMarkIcon />
+                      </UnderwritingRemoveButton>
+                    </CriteriaItem>
+                  ))}
+                  <UnderwritingAddRow>
+                    <UnderwritingInput
+                      type="text"
+                      placeholder="e.g., Hazardous materials handling"
+                      value={newProhibitedClass}
+                      onChange={(e) => setNewProhibitedClass(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddProhibitedClass()}
+                    />
+                    <UnderwritingAddButton onClick={handleAddProhibitedClass} disabled={!newProhibitedClass.trim()} $secondary>
+                      <PlusIcon />
+                    </UnderwritingAddButton>
+                  </UnderwritingAddRow>
+                </UnderwritingListContainer>
+              </ConditionalSection>
+            </ConditionalSectionsGrid>
           </ConditionalFieldsContainer>
         )}
       </TriggerMainContent>
@@ -2995,106 +3038,225 @@ const UnderwritingStepWithAI: React.FC<UnderwritingStepProps> = ({
 
 // Underwriting Step Styled Components
 const UnderwritingToggleRow = styled.div`
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 
   @media (max-width: 600px) {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 8px;
   }
 `;
 
-const UnderwritingToggle = styled.button<{ $active: boolean; $conditional?: boolean }>`
-  flex: 1;
-  padding: 14px 16px;
-  border: 2px solid ${({ $active, $conditional }) =>
+const UnderwritingToggleCard = styled.button<{ $active: boolean; $type: 'auto' | 'conditional' | 'manual' }>`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px;
+  border: 2px solid ${({ $active, $type }) =>
     $active
-      ? ($conditional ? '#f59e0b' : '#6366f1')
+      ? ($type === 'auto' ? '#10b981' : $type === 'conditional' ? '#f59e0b' : '#6366f1')
       : '#e5e7eb'};
-  border-radius: 10px;
-  background: ${({ $active, $conditional }) =>
+  border-radius: 12px;
+  background: ${({ $active, $type }) =>
     $active
-      ? ($conditional ? 'rgba(245, 158, 11, 0.08)' : 'rgba(99, 102, 241, 0.08)')
+      ? ($type === 'auto' ? 'rgba(16, 185, 129, 0.06)' : $type === 'conditional' ? 'rgba(245, 158, 11, 0.06)' : 'rgba(99, 102, 241, 0.06)')
       : 'transparent'};
-  color: ${({ $active, $conditional, theme }) =>
-    $active
-      ? ($conditional ? '#d97706' : '#6366f1')
-      : theme.colours?.text || '#374151'};
-  font-size: 14px;
-  font-weight: ${({ $active }) => $active ? 600 : 500};
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    border-color: ${({ $active, $conditional }) =>
-      $active
-        ? ($conditional ? '#f59e0b' : '#6366f1')
-        : '#d1d5db'};
-    background: ${({ $active, $conditional }) =>
-      $active
-        ? ($conditional ? 'rgba(245, 158, 11, 0.12)' : 'rgba(99, 102, 241, 0.12)')
-        : 'rgba(0, 0, 0, 0.02)'};
+    border-color: ${({ $type }) =>
+      $type === 'auto' ? '#10b981' : $type === 'conditional' ? '#f59e0b' : '#6366f1'};
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   }
 `;
 
-const ApprovalTypeDescription = styled.p`
-  margin: 12px 0 0 0;
-  padding: 10px 14px;
-  background: ${({ theme }) => theme.colours?.surface || '#f9fafb'};
-  border-radius: 8px;
-  font-size: 13px;
+const UnderwritingToggleIcon = styled.div<{ $type: 'auto' | 'conditional' | 'manual'; $active: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: ${({ $type, $active }) =>
+    $active
+      ? ($type === 'auto' ? 'rgba(16, 185, 129, 0.12)' : $type === 'conditional' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(99, 102, 241, 0.12)')
+      : 'rgba(0, 0, 0, 0.04)'};
+
+  svg {
+    width: 24px;
+    height: 24px;
+    color: ${({ $type, $active }) =>
+      $active
+        ? ($type === 'auto' ? '#10b981' : $type === 'conditional' ? '#d97706' : '#6366f1')
+        : '#9ca3af'};
+  }
+`;
+
+const UnderwritingToggleLabel = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colours?.text || '#111827'};
+`;
+
+const UnderwritingToggleDesc = styled.span`
+  font-size: 12px;
   color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
-  line-height: 1.5;
 `;
 
 const ConditionalFieldsContainer = styled.div`
-  margin-top: 24px;
-  padding: 20px;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.04), rgba(217, 119, 6, 0.02));
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  border-radius: 12px;
+  margin-top: 20px;
+  padding: 24px;
+  background: ${({ theme }) => theme.colours?.surface || '#fafafa'};
+  border: 1px solid ${({ theme }) => theme.colours?.border || '#e5e7eb'};
+  border-radius: 16px;
   animation: ${slideUp} 0.3s ease;
 `;
 
 const ConditionalFieldsHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+  gap: 14px;
+  margin-bottom: 24px;
+`;
+
+const ConditionalHeaderIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
 
   svg {
-    width: 20px;
-    height: 20px;
-    color: #d97706;
+    width: 24px;
+    height: 24px;
+    color: white;
+  }
+`;
+
+const ConditionalHeaderText = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  span {
+    font-size: 16px;
+    font-weight: 600;
+    color: ${({ theme }) => theme.colours?.text || '#111827'};
+  }
+`;
+
+const ConditionalHeaderSubtext = styled.span`
+  font-size: 13px;
+  color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
+`;
+
+const ConditionalSectionsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ConditionalSection = styled.div<{ $type?: 'prohibited' }>`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background: ${({ theme }) => theme.colours?.background || '#fff'};
+  border: 1px solid ${({ theme }) => theme.colours?.border || '#e5e7eb'};
+  border-radius: 12px;
+`;
+
+const ConditionalSectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    color: #6366f1;
   }
 
   span {
     font-size: 14px;
     font-weight: 600;
-    color: #b45309;
+    color: ${({ theme }) => theme.colours?.text || '#111827'};
   }
 `;
 
-const ConditionalFieldDescription = styled.p`
-  margin: 0 0 12px 0;
+const ConditionalSectionBadge = styled.span<{ $type?: 'optional' }>`
+  margin-left: auto;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-radius: 4px;
+  background: ${({ $type }) => $type === 'optional' ? 'rgba(107, 114, 128, 0.1)' : 'rgba(99, 102, 241, 0.1)'};
+  color: ${({ $type }) => $type === 'optional' ? '#6b7280' : '#6366f1'};
+`;
+
+const ConditionalSectionDesc = styled.p`
+  margin: 0;
   font-size: 13px;
   color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
-  line-height: 1.5;
+  line-height: 1.4;
+`;
+
+const CriteriaItem = styled.div<{ $prohibited?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: ${({ $prohibited }) => $prohibited ? 'rgba(239, 68, 68, 0.04)' : 'rgba(99, 102, 241, 0.04)'};
+  border: 1px solid ${({ $prohibited }) => $prohibited ? 'rgba(239, 68, 68, 0.12)' : 'rgba(99, 102, 241, 0.12)'};
+  border-radius: 10px;
+`;
+
+const CriteriaCheckmark = styled.div<{ $prohibited?: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: ${({ $prohibited }) => $prohibited ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'};
+  flex-shrink: 0;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    color: ${({ $prohibited }) => $prohibited ? '#ef4444' : '#10b981'};
+  }
+`;
+
+const CriteriaText = styled.span`
+  flex: 1;
+  font-size: 14px;
+  color: ${({ theme }) => theme.colours?.text || '#374151'};
 `;
 
 const RequiredFieldWarning = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 8px;
   padding: 10px 14px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
   border-radius: 8px;
   font-size: 13px;
-  color: #dc2626;
+  color: #d97706;
 
   svg {
     width: 16px;
@@ -3109,35 +3271,20 @@ const UnderwritingListContainer = styled.div`
   gap: 8px;
 `;
 
-const UnderwritingListItem = styled.div<{ $prohibited?: boolean }>`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  background: ${({ $prohibited }) => $prohibited ? 'rgba(239, 68, 68, 0.08)' : 'rgba(99, 102, 241, 0.06)'};
-  border: 1px solid ${({ $prohibited }) => $prohibited ? 'rgba(239, 68, 68, 0.2)' : 'rgba(99, 102, 241, 0.15)'};
-  border-radius: 8px;
-  font-size: 14px;
-  color: ${({ theme }) => theme.colours?.text || '#374151'};
-
-  span {
-    flex: 1;
-  }
-`;
-
 const UnderwritingRemoveButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   background: transparent;
   color: #9ca3af;
   cursor: pointer;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 
   &:hover {
     background: rgba(239, 68, 68, 0.1);
@@ -3152,18 +3299,18 @@ const UnderwritingRemoveButton = styled.button`
 
 const UnderwritingAddRow = styled.div`
   display: flex;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 10px;
+  margin-top: 8px;
 `;
 
 const UnderwritingInput = styled.input`
   flex: 1;
-  padding: 10px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  padding: 12px 14px;
+  border: 1.5px solid ${({ theme }) => theme.colours?.border || '#e5e7eb'};
+  border-radius: 10px;
   font-size: 14px;
   color: ${({ theme }) => theme.colours?.text || '#374151'};
-  background: ${({ theme }) => theme.colours?.surface || '#fff'};
+  background: ${({ theme }) => theme.colours?.background || '#fff'};
   transition: all 0.15s ease;
 
   &:focus {
@@ -3177,25 +3324,35 @@ const UnderwritingInput = styled.input`
   }
 `;
 
-const UnderwritingAddButton = styled.button`
-  padding: 10px 16px;
+const UnderwritingAddButton = styled.button<{ $secondary?: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
   border: none;
-  border-radius: 8px;
-  background: #6366f1;
+  border-radius: 10px;
+  background: ${({ $secondary }) => $secondary ? '#ef4444' : '#6366f1'};
   color: white;
-  font-size: 14px;
-  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
+  flex-shrink: 0;
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
 
   &:hover:not(:disabled) {
-    background: #4f46e5;
+    background: ${({ $secondary }) => $secondary ? '#dc2626' : '#4f46e5'};
+    transform: scale(1.05);
   }
 
   &:disabled {
     background: #e5e7eb;
     color: #9ca3af;
     cursor: not-allowed;
+    transform: none;
   }
 `;
 
@@ -3374,88 +3531,86 @@ const EnhancedReviewStep: React.FC<EnhancedReviewStepProps> = ({ draft, validati
   );
 };
 
-// AI Contribution styled components
+// AI Contribution styled components - clean and subtle
 const AIContributionCard = styled.div`
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.05));
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 20px;
-  animation: ${slideUp} 0.4s ${EASING.spring};
+  background: ${({ theme }) => theme.colours.surface};
+  border: 1px solid ${({ theme }) => theme.colours.border};
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 16px;
 `;
 
 const AIContributionHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 6px;
+  margin-bottom: 10px;
 
   svg {
-    width: 18px;
-    height: 18px;
-    color: ${({ theme }) => theme.colours.primary};
+    width: 16px;
+    height: 16px;
+    color: #6366f1;
   }
 
   span {
-    font-size: 14px;
-    font-weight: 600;
-    color: ${({ theme }) => theme.colours.primary};
+    font-size: 13px;
+    font-weight: 500;
+    color: ${({ theme }) => theme.colours.text};
   }
 `;
 
 const AIContributionBody = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 `;
 
 const AIContributionStat = styled.div`
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 5px;
 
   span:first-child {
-    font-size: 24px;
-    font-weight: 700;
-    color: ${({ theme }) => theme.colours.primary};
+    font-size: 20px;
+    font-weight: 600;
+    color: #6366f1;
   }
 
   span:last-child {
-    font-size: 13px;
+    font-size: 12px;
     color: ${({ theme }) => theme.colours.textMuted};
   }
 `;
 
 const AIContributionBar = styled.div`
-  height: 6px;
+  height: 4px;
   background: ${({ theme }) => theme.colours.border};
-  border-radius: 3px;
+  border-radius: 2px;
   overflow: hidden;
 `;
 
 const AIContributionFill = styled.div<{ $percent: number }>`
   height: 100%;
   width: ${({ $percent }) => $percent}%;
-  background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
-  border-radius: 3px;
-  transition: width 0.5s ${EASING.spring};
+  background: #6366f1;
+  border-radius: 2px;
 `;
 
 const AIContributionNote = styled.div`
-  font-size: 12px;
+  font-size: 11px;
   color: ${({ theme }) => theme.colours.textMuted};
 `;
 
 const AIBadge = styled.span`
   display: inline-flex;
   align-items: center;
-  padding: 2px 6px;
-  margin-left: 8px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  padding: 2px 5px;
+  margin-left: 6px;
+  background: #6366f1;
   color: white;
-  font-size: 10px;
-  font-weight: 600;
-  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 500;
+  border-radius: 3px;
   text-transform: uppercase;
 `;
 
