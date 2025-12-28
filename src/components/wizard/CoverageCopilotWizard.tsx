@@ -133,7 +133,7 @@ const ModalContainer = styled.div`
 
   /* Larger dimensions for better desktop experience */
   width: calc(100% - 48px);
-  max-width: 1200px;
+  max-width: 1600px;
   height: calc(100vh - 48px);
   max-height: 900px;
 
@@ -436,7 +436,7 @@ const FormPane = styled.div`
 `;
 
 const FormContent = styled.div`
-  max-width: 640px;
+  max-width: 1100px;
   margin: 0 auto;
 
   @media (max-width: 768px) {
