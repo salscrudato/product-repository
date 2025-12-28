@@ -85,14 +85,14 @@ export interface ChatMessage {
 // ============================================================================
 
 export const AI_MODELS: AIModels = {
-  // Primary model used across the application
+  // Primary model used across the application - all using gpt-4o-mini for cost efficiency
   PRIMARY: 'gpt-4o-mini',
 
   // Fallback model (if needed in future)
   FALLBACK: 'gpt-4o-mini',
 
-  // Specific model overrides (if different models needed for specific features)
-  CLAIMS_ANALYSIS: 'gpt-4o',  // Keep GPT-4o for Claims Analysis as per user preference
+  // All features use gpt-4o-mini for consistency and cost savings
+  CLAIMS_ANALYSIS: 'gpt-4o-mini',
   PRODUCT_SUMMARY: 'gpt-4o-mini',
   HOME_CHAT: 'gpt-4o-mini',
   AGENT_WORKFLOW: 'gpt-4o-mini',

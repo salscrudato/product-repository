@@ -107,7 +107,7 @@ TOTAL SECTIONS: ${formChunks.length}
     const result = await Promise.race([
       analyzeClaim({
         messages: messages,
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         maxTokens: 2000,
         temperature: 0.2
       }),
@@ -312,7 +312,7 @@ Use the standard structured format with clear sections and specific form referen
             content: synthesisPrompt
           }
         ],
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         maxTokens: 3000,
         temperature: 0.1
       }),

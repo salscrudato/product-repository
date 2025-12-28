@@ -1,67 +1,110 @@
 /**
  * CoinsuranceInput Component
- * Input for coinsurance percentage with penalty option
+ * Multi-select for available coinsurance options with min/max range
  */
 
 import React from 'react';
 import styled from 'styled-components';
 
+// Standard P&C coinsurance options
+const COINSURANCE_OPTIONS = [50, 60, 70, 80, 90, 100];
+
 interface CoinsuranceInputProps {
-  percentage?: number;
-  hasPenalty?: boolean;
-  onChange: (percentage: number | undefined, hasPenalty: boolean) => void;
+  selectedOptions?: number[];
+  minimum?: number;
+  maximum?: number;
+  onChange: (options: number[], min?: number, max?: number) => void;
 }
 
-const COMMON_PERCENTAGES = [80, 90, 100];
-
 export const CoinsuranceInput: React.FC<CoinsuranceInputProps> = ({
-  percentage,
-  hasPenalty = true,
+  selectedOptions = [],
+  minimum,
+  maximum,
   onChange,
 }) => {
+  const handleToggle = (pct: number) => {
+    let newOptions: number[];
+    if (selectedOptions.includes(pct)) {
+      newOptions = selectedOptions.filter(v => v !== pct);
+    } else {
+      newOptions = [...selectedOptions, pct].sort((a, b) => a - b);
+    }
+    // Auto-calculate min/max from selection
+    const newMin = newOptions.length > 0 ? Math.min(...newOptions) : undefined;
+    const newMax = newOptions.length > 0 ? Math.max(...newOptions) : undefined;
+    onChange(newOptions, newMin, newMax);
+  };
+
+  const handleMinChange = (value: number | undefined) => {
+    onChange(selectedOptions, value, maximum);
+  };
+
+  const handleMaxChange = (value: number | undefined) => {
+    onChange(selectedOptions, minimum, value);
+  };
+
   return (
     <Container>
-      <InputRow>
-        <PercentageInput
-          type="number"
-          min="0"
-          max="100"
-          step="5"
-          placeholder="Enter percentage"
-          value={percentage || ''}
-          onChange={(e) => {
-            const val = e.target.value ? parseInt(e.target.value) : undefined;
-            onChange(val, hasPenalty);
-          }}
-        />
-        <PercentSymbol>%</PercentSymbol>
-      </InputRow>
-
-      <QuickButtons>
-        {COMMON_PERCENTAGES.map((pct) => (
-          <QuickButton
+      <SectionLabel>Available Coinsurance Options</SectionLabel>
+      <CheckboxGrid>
+        {COINSURANCE_OPTIONS.map((pct) => (
+          <CheckboxItem
             key={pct}
-            active={percentage === pct}
-            onClick={() => onChange(pct, hasPenalty)}
+            $selected={selectedOptions.includes(pct)}
+            onClick={() => handleToggle(pct)}
           >
-            {pct}%
-          </QuickButton>
+            <Checkbox
+              type="checkbox"
+              checked={selectedOptions.includes(pct)}
+              onChange={() => handleToggle(pct)}
+            />
+            <CheckboxLabel>{pct}%</CheckboxLabel>
+          </CheckboxItem>
         ))}
-      </QuickButtons>
+      </CheckboxGrid>
 
-      <CheckboxRow>
-        <Checkbox
-          type="checkbox"
-          checked={hasPenalty}
-          onChange={(e) => onChange(percentage, e.target.checked)}
-        />
-        <CheckboxLabel>Apply coinsurance penalty for under-insurance</CheckboxLabel>
-      </CheckboxRow>
+      <RangeSection>
+        <RangeLabel>Coinsurance Range</RangeLabel>
+        <RangeInputs>
+          <RangeField>
+            <RangeFieldLabel>Minimum</RangeFieldLabel>
+            <RangeInputWrapper>
+              <RangeInput
+                type="number"
+                min="0"
+                max="100"
+                step="5"
+                placeholder="Min"
+                value={minimum ?? ''}
+                onChange={(e) => handleMinChange(e.target.value ? parseInt(e.target.value) : undefined)}
+              />
+              <PercentSymbol>%</PercentSymbol>
+            </RangeInputWrapper>
+          </RangeField>
+          <RangeDivider>to</RangeDivider>
+          <RangeField>
+            <RangeFieldLabel>Maximum</RangeFieldLabel>
+            <RangeInputWrapper>
+              <RangeInput
+                type="number"
+                min="0"
+                max="100"
+                step="5"
+                placeholder="Max"
+                value={maximum ?? ''}
+                onChange={(e) => handleMaxChange(e.target.value ? parseInt(e.target.value) : undefined)}
+              />
+              <PercentSymbol>%</PercentSymbol>
+            </RangeInputWrapper>
+          </RangeField>
+        </RangeInputs>
+      </RangeSection>
 
-      {percentage && (
-        <DisplayValue>
-          {percentage}% {hasPenalty ? '(with penalty)' : '(no penalty)'}
-        </DisplayValue>
+      {selectedOptions.length > 0 && (
+        <SelectedSummary>
+          <SelectedCount>{selectedOptions.length} option{selectedOptions.length > 1 ? 's' : ''} selected</SelectedCount>
+          <SelectedList>{selectedOptions.map(p => `${p}%`).join(', ')}</SelectedList>
+        </SelectedSummary>
       )}
     </Container>
   );
@@ -71,18 +114,94 @@ export const CoinsuranceInput: React.FC<CoinsuranceInputProps> = ({
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 `;
 
-const InputRow = styled.div`
-  display: flex;
-  align-items: center;
+const SectionLabel = styled.div`
+  font-size: 13px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const CheckboxGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 `;
 
-const PercentageInput = styled.input`
-  flex: 1;
+const CheckboxItem = styled.div<{ $selected: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 10px 12px;
+  background: ${({ $selected }) => $selected ? 'rgba(99, 102, 241, 0.08)' : '#f9fafb'};
+  border: 1px solid ${({ $selected }) => $selected ? '#6366f1' : '#e5e7eb'};
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: ${({ $selected }) => $selected ? '#6366f1' : '#d1d5db'};
+    background: ${({ $selected }) => $selected ? 'rgba(99, 102, 241, 0.12)' : '#f3f4f6'};
+  }
+`;
+
+const Checkbox = styled.input`
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #6366f1;
+`;
+
+const CheckboxLabel = styled.span`
+  font-size: 14px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.colours?.text || '#111827'};
+`;
+
+const RangeSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid ${({ theme }) => theme.colours?.border || '#e5e7eb'};
+`;
+
+const RangeLabel = styled.div`
+  font-size: 13px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
+`;
+
+const RangeInputs = styled.div`
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+`;
+
+const RangeField = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const RangeFieldLabel = styled.label`
+  font-size: 12px;
+  color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
+`;
+
+const RangeInputWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const RangeInput = styled.input`
+  width: 80px;
+  padding: 8px 10px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 14px;
@@ -90,8 +209,8 @@ const PercentageInput = styled.input`
 
   &:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
   }
 
   &::placeholder {
@@ -100,55 +219,33 @@ const PercentageInput = styled.input`
 `;
 
 const PercentSymbol = styled.span`
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   color: #6b7280;
 `;
 
-const QuickButtons = styled.div`
-  display: flex;
-  gap: 8px;
-`;
-
-const QuickButton = styled.button<{ active?: boolean }>`
-  padding: 8px 16px;
-  background: ${props => props.active ? '#3b82f6' : '#f3f4f6'};
-  color: ${props => props.active ? 'white' : '#374151'};
-  border: 1px solid ${props => props.active ? '#3b82f6' : '#d1d5db'};
-  border-radius: 6px;
+const RangeDivider = styled.span`
   font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: ${props => props.active ? '#2563eb' : '#e5e7eb'};
-  }
+  color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
+  padding-bottom: 10px;
 `;
 
-const CheckboxRow = styled.div`
+const SelectedSummary = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-`;
-
-const Checkbox = styled.input`
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-`;
-
-const CheckboxLabel = styled.label`
-  font-size: 14px;
-  color: #374151;
-  cursor: pointer;
-`;
-
-const DisplayValue = styled.div`
-  padding: 8px 12px;
-  background: #f3f4f6;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(99, 102, 241, 0.08);
   border-radius: 6px;
-  font-size: 14px;
-  color: #374151;
-  font-weight: 500;
+`;
+
+const SelectedCount = styled.span`
+  font-size: 13px;
+  font-weight: 600;
+  color: #6366f1;
+`;
+
+const SelectedList = styled.span`
+  font-size: 13px;
+  color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
 `;

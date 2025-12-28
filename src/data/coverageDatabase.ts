@@ -1611,5 +1611,689 @@ export const COVERAGE_DATABASE: CoverageEntry[] = [
     commonlyPairedWith: ['General Liability', 'Abuse and Molestation'],
     description: 'Covers sexual misconduct claims'
   },
+
+  // ============================================================================
+  // ADDITIONAL COMMERCIAL PROPERTY COVERAGES
+  // ============================================================================
+  {
+    name: 'Leasehold Interest',
+    abbreviations: ['LHI', 'LEASE'],
+    aliases: ['Leasehold Coverage'],
+    keywords: ['leasehold', 'interest', 'lease', 'rent', 'bonus'],
+    lineOfBusiness: ['property', 'commercial property'],
+    category: 'Property - Specialty',
+    commonlyPairedWith: ['Business Income', 'Tenant Improvements'],
+    description: 'Covers loss of favorable lease terms due to covered loss'
+  },
+  {
+    name: 'Outdoor Property',
+    abbreviations: ['OUTDR', 'ODP'],
+    aliases: ['Outdoor Equipment', 'Exterior Property'],
+    keywords: ['outdoor', 'property', 'fencing', 'landscaping', 'exterior'],
+    lineOfBusiness: ['property', 'commercial property'],
+    category: 'Property - Supplemental',
+    commonlyPairedWith: ['Building Coverage', 'Signs Coverage'],
+    description: 'Covers outdoor property like fencing and landscaping'
+  },
+  {
+    name: 'Brands and Labels',
+    abbreviations: ['B&L', 'BRAND'],
+    aliases: ['Brand Protection', 'Label Coverage'],
+    keywords: ['brands', 'labels', 'trademark', 'damaged', 'goods'],
+    lineOfBusiness: ['property', 'commercial property'],
+    category: 'Property - Specialty',
+    commonlyPairedWith: ['Business Personal Property'],
+    description: 'Covers removal of brands/labels from damaged goods'
+  },
+  {
+    name: 'Pair or Set',
+    abbreviations: ['P&S', 'PAIR'],
+    aliases: ['Matching Coverage', 'Set Coverage'],
+    keywords: ['pair', 'set', 'matching', 'incomplete', 'partial'],
+    lineOfBusiness: ['property', 'commercial property', 'homeowners'],
+    category: 'Property - Supplemental',
+    commonlyPairedWith: ['Personal Property', 'Business Personal Property'],
+    description: 'Covers loss of value when part of a pair or set is damaged'
+  },
+  {
+    name: 'Demolition Cost',
+    abbreviations: ['DEMO', 'DEM'],
+    aliases: ['Demolition Coverage'],
+    keywords: ['demolition', 'cost', 'teardown', 'undamaged', 'portion'],
+    lineOfBusiness: ['property', 'commercial property'],
+    category: 'Property - Supplemental',
+    commonlyPairedWith: ['Ordinance or Law', 'Building Coverage'],
+    description: 'Covers cost to demolish undamaged portions of building'
+  },
+  {
+    name: 'Peak Season',
+    abbreviations: ['PEAK', 'SEAS'],
+    aliases: ['Seasonal Increase', 'Peak Season Limit'],
+    keywords: ['peak', 'season', 'seasonal', 'increase', 'inventory'],
+    lineOfBusiness: ['property', 'commercial property'],
+    category: 'Property - Supplemental',
+    commonlyPairedWith: ['Business Personal Property'],
+    description: 'Provides automatic increase during peak seasons'
+  },
+  {
+    name: 'Extended Period of Indemnity',
+    abbreviations: ['EPI', 'EXTPI'],
+    aliases: ['Extended Period', 'Recovery Period'],
+    keywords: ['extended', 'period', 'indemnity', 'recovery', 'ramp-up'],
+    lineOfBusiness: ['property', 'commercial property'],
+    category: 'Property - Time Element',
+    commonlyPairedWith: ['Business Income'],
+    description: 'Extends BI coverage beyond restoration period'
+  },
+  {
+    name: 'Ingress/Egress',
+    abbreviations: ['I/E', 'ACCESS'],
+    aliases: ['Access Coverage', 'Ingress Egress'],
+    keywords: ['ingress', 'egress', 'access', 'blocked', 'road'],
+    lineOfBusiness: ['property', 'commercial property'],
+    category: 'Property - Time Element',
+    commonlyPairedWith: ['Business Income', 'Civil Authority'],
+    description: 'Covers loss when access is blocked'
+  },
+  {
+    name: 'Service Interruption',
+    abbreviations: ['SI', 'SVCINT'],
+    aliases: ['Utility Service Interruption', 'Power Failure'],
+    keywords: ['service', 'interruption', 'utility', 'power', 'water'],
+    lineOfBusiness: ['property', 'commercial property'],
+    category: 'Property - Time Element',
+    commonlyPairedWith: ['Business Income', 'Equipment Breakdown'],
+    description: 'Covers losses from utility service interruption'
+  },
+  {
+    name: 'Sue and Labor',
+    abbreviations: ['S&L', 'SUE'],
+    aliases: ['Expense to Reduce Loss'],
+    keywords: ['sue', 'labor', 'expense', 'reduce', 'mitigate'],
+    lineOfBusiness: ['property', 'commercial property', 'marine'],
+    category: 'Property - Supplemental',
+    commonlyPairedWith: ['Building Coverage'],
+    description: 'Covers expenses incurred to reduce or prevent loss'
+  },
+
+  // ============================================================================
+  // ADDITIONAL LIABILITY COVERAGES
+  // ============================================================================
+  {
+    name: 'Hired Auto Physical Damage',
+    abbreviations: ['HAPD', 'HIREDPD'],
+    aliases: ['Rental Car Damage', 'Hired Vehicle Damage'],
+    keywords: ['hired', 'auto', 'physical', 'damage', 'rental'],
+    lineOfBusiness: ['auto', 'commercial auto'],
+    category: 'Auto - Non-Owned',
+    commonlyPairedWith: ['Hired Auto', 'Non-Owned Auto'],
+    description: 'Covers physical damage to hired vehicles'
+  },
+  {
+    name: 'Loading and Unloading',
+    abbreviations: ['L&U', 'LOAD'],
+    aliases: ['Loading Coverage'],
+    keywords: ['loading', 'unloading', 'cargo', 'dock', 'delivery'],
+    lineOfBusiness: ['auto', 'commercial auto', 'liability'],
+    category: 'Auto - Liability',
+    commonlyPairedWith: ['Auto Liability', 'General Liability'],
+    description: 'Covers liability during loading/unloading operations'
+  },
+  {
+    name: 'Employee Benefits Liability',
+    abbreviations: ['EBL', 'EMPBEN'],
+    aliases: ['Benefits Administration Liability'],
+    keywords: ['employee', 'benefits', 'liability', 'administration', 'enrollment'],
+    lineOfBusiness: ['liability', 'employee benefits'],
+    category: 'Liability - Employment',
+    commonlyPairedWith: ['Employment Practices Liability', 'Fiduciary Liability'],
+    description: 'Covers errors in benefits administration'
+  },
+  {
+    name: 'Lessor of Leased Equipment',
+    abbreviations: ['LLE', 'LESSOR'],
+    aliases: ['Equipment Lessor Liability'],
+    keywords: ['lessor', 'leased', 'equipment', 'rental', 'owner'],
+    lineOfBusiness: ['liability', 'general liability'],
+    category: 'Liability - Specialty',
+    commonlyPairedWith: ['General Liability'],
+    description: 'Covers liability as lessor of equipment'
+  },
+  {
+    name: 'Additional Insured',
+    abbreviations: ['AI', 'ADDINS'],
+    aliases: ['Additional Named Insured', 'Certificate Holder'],
+    keywords: ['additional', 'insured', 'certificate', 'holder', 'landlord'],
+    lineOfBusiness: ['liability', 'general liability'],
+    category: 'Liability - General',
+    commonlyPairedWith: ['General Liability', 'Auto Liability'],
+    description: 'Extends coverage to additional parties'
+  },
+  {
+    name: 'Primary and Non-Contributory',
+    abbreviations: ['P&NC', 'PRIMARY'],
+    aliases: ['Primary Non-Contributory'],
+    keywords: ['primary', 'non-contributory', 'first', 'dollar'],
+    lineOfBusiness: ['liability', 'general liability'],
+    category: 'Liability - General',
+    commonlyPairedWith: ['Additional Insured', 'General Liability'],
+    description: 'Makes policy primary over other insurance'
+  },
+  {
+    name: 'Waiver of Subrogation',
+    abbreviations: ['WOS', 'WAIVER'],
+    aliases: ['Subrogation Waiver'],
+    keywords: ['waiver', 'subrogation', 'contract', 'agreement'],
+    lineOfBusiness: ['liability', 'property', 'general liability'],
+    category: 'Liability - General',
+    commonlyPairedWith: ['General Liability', 'Property Coverage'],
+    description: 'Waives insurer right to subrogate against named parties'
+  },
+  {
+    name: 'Blanket Additional Insured',
+    abbreviations: ['BAI', 'BLNKAI'],
+    aliases: ['Automatic Additional Insured'],
+    keywords: ['blanket', 'additional', 'insured', 'automatic', 'contract'],
+    lineOfBusiness: ['liability', 'general liability'],
+    category: 'Liability - General',
+    commonlyPairedWith: ['General Liability', 'Additional Insured'],
+    description: 'Automatic AI status for contractually required parties'
+  },
+  {
+    name: 'Cross Liability',
+    abbreviations: ['XL', 'CROSS'],
+    aliases: ['Separation of Insureds', 'Severability'],
+    keywords: ['cross', 'liability', 'separation', 'insureds', 'severability'],
+    lineOfBusiness: ['liability', 'general liability'],
+    category: 'Liability - General',
+    commonlyPairedWith: ['General Liability'],
+    description: 'Treats each insured separately for coverage purposes'
+  },
+
+  // ============================================================================
+  // SPECIALTY LINES - HOSPITALITY
+  // ============================================================================
+  {
+    name: 'Hotel/Motel Liability',
+    abbreviations: ['HOTEL', 'HOSP'],
+    aliases: ['Innkeepers Liability', 'Hospitality Liability'],
+    keywords: ['hotel', 'motel', 'hospitality', 'innkeeper', 'guest'],
+    lineOfBusiness: ['liability', 'hospitality'],
+    category: 'Liability - Specialty',
+    commonlyPairedWith: ['General Liability', 'Liquor Liability'],
+    description: 'Covers hotel/motel specific liability exposures'
+  },
+  {
+    name: 'Guest Property',
+    abbreviations: ['GUEST', 'GSTPROP'],
+    aliases: ['Guest Belongings', 'Innkeepers Goods'],
+    keywords: ['guest', 'property', 'belongings', 'hotel', 'theft'],
+    lineOfBusiness: ['property', 'hospitality'],
+    category: 'Property - Specialty',
+    commonlyPairedWith: ['Hotel/Motel Liability'],
+    description: 'Covers guest property at hotels/motels'
+  },
+  {
+    name: 'Food Contamination',
+    abbreviations: ['FOOD', 'CONTAM'],
+    aliases: ['Food Spoilage', 'Food Borne Illness'],
+    keywords: ['food', 'contamination', 'spoilage', 'illness', 'restaurant'],
+    lineOfBusiness: ['liability', 'hospitality', 'property'],
+    category: 'Liability - Specialty',
+    commonlyPairedWith: ['General Liability', 'Product Recall'],
+    description: 'Covers food contamination liability and cleanup'
+  },
+
+  // ============================================================================
+  // SPECIALTY LINES - TRANSPORTATION
+  // ============================================================================
+  {
+    name: 'Truckers Liability',
+    abbreviations: ['TRUCK', 'TL'],
+    aliases: ['Trucker General Liability'],
+    keywords: ['truckers', 'liability', 'trucking', 'transportation', 'haul'],
+    lineOfBusiness: ['auto', 'trucking'],
+    category: 'Auto - Commercial',
+    commonlyPairedWith: ['Motor Truck Cargo', 'Auto Liability'],
+    description: 'Liability coverage for trucking operations'
+  },
+  {
+    name: 'MCS-90 Endorsement',
+    abbreviations: ['MCS90', 'MCS'],
+    aliases: ['Motor Carrier Endorsement', 'DOT Endorsement'],
+    keywords: ['MCS-90', 'motor', 'carrier', 'DOT', 'federal', 'interstate'],
+    lineOfBusiness: ['auto', 'trucking'],
+    category: 'Auto - Commercial',
+    commonlyPairedWith: ['Truckers Liability', 'Auto Liability'],
+    description: 'Required endorsement for interstate motor carriers'
+  },
+  {
+    name: 'Refrigeration Breakdown',
+    abbreviations: ['REFRIG', 'REEFER'],
+    aliases: ['Reefer Breakdown', 'Temperature Control'],
+    keywords: ['refrigeration', 'breakdown', 'reefer', 'temperature', 'perishable'],
+    lineOfBusiness: ['auto', 'trucking', 'inland marine'],
+    category: 'Auto - Commercial',
+    commonlyPairedWith: ['Motor Truck Cargo', 'Spoilage Coverage'],
+    description: 'Covers refrigeration unit breakdown during transit'
+  },
+  {
+    name: 'Shipper Contingent Cargo',
+    abbreviations: ['SCC', 'SHIPCONT'],
+    aliases: ['Contingent Cargo', 'Shipper Interest'],
+    keywords: ['shipper', 'contingent', 'cargo', 'goods', 'transit'],
+    lineOfBusiness: ['inland marine', 'cargo'],
+    category: 'Inland Marine',
+    commonlyPairedWith: ['Transit Coverage', 'Motor Truck Cargo'],
+    description: 'Covers shippers goods when carrier insurance fails'
+  },
+  {
+    name: 'Bailee Coverage',
+    abbreviations: ['BAILEE', 'BAIL'],
+    aliases: ['Bailees Customer', 'Customer Goods'],
+    keywords: ['bailee', 'customer', 'goods', 'care', 'custody', 'control'],
+    lineOfBusiness: ['inland marine', 'property'],
+    category: 'Inland Marine',
+    commonlyPairedWith: ['Garagekeepers Coverage'],
+    description: 'Covers customer property in your care'
+  },
+
+  // ============================================================================
+  // SPECIALTY LINES - MANUFACTURING/INDUSTRIAL
+  // ============================================================================
+  {
+    name: 'Manufacturers E&O',
+    abbreviations: ['MEO', 'MFGEO'],
+    aliases: ['Manufacturing Errors & Omissions'],
+    keywords: ['manufacturers', 'errors', 'omissions', 'design', 'specifications'],
+    lineOfBusiness: ['liability', 'professional liability'],
+    category: 'Liability - Professional',
+    commonlyPairedWith: ['Products Liability', 'Product Recall'],
+    description: 'Covers manufacturing errors and specification issues'
+  },
+  {
+    name: 'Vendors Liability',
+    abbreviations: ['VEND', 'VL'],
+    aliases: ['Vendor Coverage', 'Distributor Liability'],
+    keywords: ['vendors', 'liability', 'distributor', 'reseller', 'products'],
+    lineOfBusiness: ['liability', 'general liability'],
+    category: 'Liability - Products',
+    commonlyPairedWith: ['Products Liability'],
+    description: 'Extends products coverage to vendors/distributors'
+  },
+  {
+    name: 'Contingent Bodily Injury',
+    abbreviations: ['CBI', 'CONTBI'],
+    aliases: ['Contingent BI Property Damage'],
+    keywords: ['contingent', 'bodily', 'injury', 'product', 'recall'],
+    lineOfBusiness: ['liability'],
+    category: 'Liability - Products',
+    commonlyPairedWith: ['Product Recall', 'Products Liability'],
+    description: 'Covers bodily injury claims from product recalls'
+  },
+
+  // ============================================================================
+  // CYBER - EXPANDED COVERAGES
+  // ============================================================================
+  {
+    name: 'Business Interruption - Cyber',
+    abbreviations: ['CYBERBI', 'CBI'],
+    aliases: ['Cyber Business Interruption', 'System Failure'],
+    keywords: ['cyber', 'business', 'interruption', 'system', 'outage', 'downtime'],
+    lineOfBusiness: ['cyber'],
+    category: 'Liability - Cyber',
+    commonlyPairedWith: ['Cyber Liability', 'Network Security Liability'],
+    description: 'Covers lost income from cyber events'
+  },
+  {
+    name: 'Media Content Liability',
+    abbreviations: ['MCL', 'MEDIA'],
+    aliases: ['Website Liability', 'Digital Content'],
+    keywords: ['media', 'content', 'website', 'digital', 'copyright', 'defamation'],
+    lineOfBusiness: ['cyber', 'liability'],
+    category: 'Liability - Cyber',
+    commonlyPairedWith: ['Cyber Liability', 'Media Liability'],
+    description: 'Covers liability from digital media content'
+  },
+  {
+    name: 'PCI DSS Fines & Penalties',
+    abbreviations: ['PCI', 'PCIDSS'],
+    aliases: ['Payment Card Fines', 'Card Brand Penalties'],
+    keywords: ['PCI', 'DSS', 'fines', 'penalties', 'payment', 'card', 'breach'],
+    lineOfBusiness: ['cyber'],
+    category: 'Liability - Cyber',
+    commonlyPairedWith: ['Cyber Liability', 'Data Breach Response'],
+    description: 'Covers PCI compliance fines and assessments'
+  },
+  {
+    name: 'Regulatory Defense & Penalties',
+    abbreviations: ['RDP', 'REGPEN'],
+    aliases: ['Regulatory Proceedings', 'Government Investigation'],
+    keywords: ['regulatory', 'defense', 'penalties', 'fines', 'investigation', 'HIPAA'],
+    lineOfBusiness: ['cyber', 'liability'],
+    category: 'Liability - Cyber',
+    commonlyPairedWith: ['Cyber Liability', 'Privacy Liability'],
+    description: 'Covers regulatory fines and defense costs'
+  },
+  {
+    name: 'Reputation Recovery',
+    abbreviations: ['REP', 'REPUTE'],
+    aliases: ['Crisis Management', 'PR Expense'],
+    keywords: ['reputation', 'recovery', 'crisis', 'management', 'PR', 'public relations'],
+    lineOfBusiness: ['cyber', 'liability'],
+    category: 'Liability - Cyber',
+    commonlyPairedWith: ['Cyber Liability', 'Data Breach Response'],
+    description: 'Covers costs to restore reputation after incident'
+  },
+  {
+    name: 'Fraudulent Instruction',
+    abbreviations: ['FI', 'FRAUDINST'],
+    aliases: ['Funds Transfer Fraud', 'Wire Fraud'],
+    keywords: ['fraudulent', 'instruction', 'wire', 'transfer', 'funds', 'impersonation'],
+    lineOfBusiness: ['cyber', 'crime'],
+    category: 'Liability - Cyber',
+    commonlyPairedWith: ['Social Engineering Fraud', 'Crime Coverage'],
+    description: 'Covers losses from fraudulent fund transfers'
+  },
+  {
+    name: 'Telecommunications Fraud',
+    abbreviations: ['TELEFRAUD', 'TF'],
+    aliases: ['Phone Fraud', 'Toll Fraud'],
+    keywords: ['telecommunications', 'fraud', 'phone', 'toll', 'hacking'],
+    lineOfBusiness: ['cyber', 'crime'],
+    category: 'Liability - Cyber',
+    commonlyPairedWith: ['Cyber Liability', 'Crime Coverage'],
+    description: 'Covers fraudulent use of phone systems'
+  },
+  {
+    name: 'Cryptojacking Coverage',
+    abbreviations: ['CRYPTO', 'CRYPT'],
+    aliases: ['Cryptocurrency Mining Fraud'],
+    keywords: ['cryptojacking', 'cryptocurrency', 'mining', 'malware'],
+    lineOfBusiness: ['cyber'],
+    category: 'Liability - Cyber',
+    commonlyPairedWith: ['Cyber Liability'],
+    description: 'Covers losses from unauthorized crypto mining'
+  },
+
+  // ============================================================================
+  // MANAGEMENT LIABILITY - EXPANDED
+  // ============================================================================
+  {
+    name: 'Side A DIC',
+    abbreviations: ['SIDEA', 'ADIC'],
+    aliases: ['Side A Only', 'Personal Asset Protection'],
+    keywords: ['side', 'A', 'DIC', 'personal', 'directors', 'officers'],
+    lineOfBusiness: ['management liability'],
+    category: 'Liability - Management',
+    commonlyPairedWith: ['Directors & Officers Liability'],
+    description: 'Excess D&O for personal liability of directors/officers'
+  },
+  {
+    name: 'Entity Coverage',
+    abbreviations: ['ENT', 'ENTITY'],
+    aliases: ['Corporate Coverage', 'Organization Coverage'],
+    keywords: ['entity', 'corporate', 'organization', 'company', 'securities'],
+    lineOfBusiness: ['management liability'],
+    category: 'Liability - Management',
+    commonlyPairedWith: ['Directors & Officers Liability'],
+    description: 'Covers the entity itself for securities claims'
+  },
+  {
+    name: 'Employed Lawyers',
+    abbreviations: ['EMLAW', 'INHOUSE'],
+    aliases: ['In-House Counsel', 'Corporate Legal'],
+    keywords: ['employed', 'lawyers', 'in-house', 'counsel', 'legal'],
+    lineOfBusiness: ['professional liability', 'management liability'],
+    category: 'Liability - Professional',
+    commonlyPairedWith: ['Professional Liability', 'Directors & Officers Liability'],
+    description: 'Covers liability of employed in-house attorneys'
+  },
+  {
+    name: 'Outside Directorship',
+    abbreviations: ['OD', 'OUTDIR'],
+    aliases: ['Outside Board Positions'],
+    keywords: ['outside', 'directorship', 'board', 'positions', 'nonprofit'],
+    lineOfBusiness: ['management liability'],
+    category: 'Liability - Management',
+    commonlyPairedWith: ['Directors & Officers Liability'],
+    description: 'Covers directors serving on outside boards'
+  },
+  {
+    name: 'Antitrust',
+    abbreviations: ['AT', 'ANTITRUST'],
+    aliases: ['Competition Law', 'Trade Practice'],
+    keywords: ['antitrust', 'competition', 'trade', 'practice', 'monopoly'],
+    lineOfBusiness: ['management liability', 'liability'],
+    category: 'Liability - Management',
+    commonlyPairedWith: ['Directors & Officers Liability'],
+    description: 'Covers antitrust and competition law claims'
+  },
+
+  // ============================================================================
+  // ENVIRONMENTAL - EXPANDED
+  // ============================================================================
+  {
+    name: 'Site Pollution Liability',
+    abbreviations: ['SPL', 'SITEPOL'],
+    aliases: ['Premises Pollution', 'On-Site Pollution'],
+    keywords: ['site', 'pollution', 'premises', 'on-site', 'contamination'],
+    lineOfBusiness: ['environmental', 'liability'],
+    category: 'Liability - Environmental',
+    commonlyPairedWith: ['Pollution Liability'],
+    description: 'Covers pollution originating from insured site'
+  },
+  {
+    name: 'Transportation Pollution',
+    abbreviations: ['TPL', 'TRANSPOL'],
+    aliases: ['Transit Pollution', 'Cargo Pollution'],
+    keywords: ['transportation', 'pollution', 'transit', 'spill', 'hazmat'],
+    lineOfBusiness: ['environmental', 'auto'],
+    category: 'Liability - Environmental',
+    commonlyPairedWith: ['Pollution Liability', 'Auto Liability'],
+    description: 'Covers pollution during transportation'
+  },
+  {
+    name: 'Storage Tank Liability',
+    abbreviations: ['STL', 'TANK'],
+    aliases: ['UST Coverage', 'Tank Pollution'],
+    keywords: ['storage', 'tank', 'UST', 'AST', 'petroleum', 'leak'],
+    lineOfBusiness: ['environmental', 'liability'],
+    category: 'Liability - Environmental',
+    commonlyPairedWith: ['Pollution Liability'],
+    description: 'Covers above and underground storage tank releases'
+  },
+  {
+    name: 'Cleanup Cost Cap',
+    abbreviations: ['CCC', 'CAPCOST'],
+    aliases: ['Cost Cap', 'Remediation Cap'],
+    keywords: ['cleanup', 'cost', 'cap', 'remediation', 'budget', 'overrun'],
+    lineOfBusiness: ['environmental'],
+    category: 'Liability - Environmental',
+    commonlyPairedWith: ['Pollution Liability'],
+    description: 'Caps environmental cleanup cost exposure'
+  },
+  {
+    name: 'Mold Liability',
+    abbreviations: ['MOLD', 'MOLDL'],
+    aliases: ['Mold Coverage', 'Fungus Liability'],
+    keywords: ['mold', 'fungus', 'liability', 'remediation', 'indoor air'],
+    lineOfBusiness: ['environmental', 'liability'],
+    category: 'Liability - Environmental',
+    commonlyPairedWith: ['Pollution Liability', 'General Liability'],
+    description: 'Covers mold-related liability claims'
+  },
+  {
+    name: 'Asbestos Liability',
+    abbreviations: ['ASB', 'ASBL'],
+    aliases: ['Asbestos Coverage', 'Asbestos Abatement'],
+    keywords: ['asbestos', 'liability', 'abatement', 'mesothelioma'],
+    lineOfBusiness: ['environmental', 'liability'],
+    category: 'Liability - Environmental',
+    commonlyPairedWith: ['Pollution Liability'],
+    description: 'Covers asbestos-related liability claims'
+  },
+  {
+    name: 'Lead Paint Liability',
+    abbreviations: ['LEAD', 'LEADL'],
+    aliases: ['Lead Coverage', 'Lead Abatement'],
+    keywords: ['lead', 'paint', 'liability', 'abatement', 'poisoning'],
+    lineOfBusiness: ['environmental', 'liability'],
+    category: 'Liability - Environmental',
+    commonlyPairedWith: ['Pollution Liability', 'Property Coverage'],
+    description: 'Covers lead paint-related liability claims'
+  },
+
+  // ============================================================================
+  // INTERNATIONAL/GLOBAL COVERAGES
+  // ============================================================================
+  {
+    name: 'Foreign Voluntary Workers Comp',
+    abbreviations: ['FVWC', 'FOREWC'],
+    aliases: ['Foreign Workers Compensation', 'Expat WC'],
+    keywords: ['foreign', 'voluntary', 'workers', 'compensation', 'expat', 'overseas'],
+    lineOfBusiness: ['workers compensation', 'international'],
+    category: 'Workers Comp',
+    commonlyPairedWith: ['Workers Compensation'],
+    description: 'Covers employees working outside the US'
+  },
+  {
+    name: 'DBA Coverage',
+    abbreviations: ['DBA', 'LHWCA'],
+    aliases: ['Defense Base Act', 'Longshore Coverage'],
+    keywords: ['DBA', 'defense', 'base', 'act', 'longshore', 'harbor'],
+    lineOfBusiness: ['workers compensation'],
+    category: 'Workers Comp',
+    commonlyPairedWith: ['Workers Compensation'],
+    description: 'Covers workers on US military bases or maritime'
+  },
+  {
+    name: 'Foreign Package Policy',
+    abbreviations: ['FPP', 'FOREIGN'],
+    aliases: ['International Package', 'Overseas Coverage'],
+    keywords: ['foreign', 'package', 'international', 'overseas', 'global'],
+    lineOfBusiness: ['international', 'commercial'],
+    category: 'International',
+    commonlyPairedWith: ['General Liability', 'Property Coverage'],
+    description: 'Bundled coverage for foreign operations'
+  },
+  {
+    name: 'War Risk',
+    abbreviations: ['WAR', 'WARISK'],
+    aliases: ['War Coverage', 'Political Violence'],
+    keywords: ['war', 'risk', 'terrorism', 'political', 'violence', 'civil war'],
+    lineOfBusiness: ['international', 'specialty'],
+    category: 'International',
+    commonlyPairedWith: ['Foreign Package Policy', 'Property Coverage'],
+    description: 'Covers war and political violence losses'
+  },
+  {
+    name: 'TRIA Coverage',
+    abbreviations: ['TRIA', 'TERROR'],
+    aliases: ['Terrorism Coverage', 'Certified Acts'],
+    keywords: ['TRIA', 'terrorism', 'certified', 'acts', 'terror'],
+    lineOfBusiness: ['property', 'liability'],
+    category: 'Specialty',
+    commonlyPairedWith: ['Property Coverage', 'General Liability'],
+    description: 'Covers certified acts of terrorism under TRIA'
+  },
+  {
+    name: 'Political Risk',
+    abbreviations: ['PR', 'POLRISK'],
+    aliases: ['Political Risk Insurance', 'Country Risk'],
+    keywords: ['political', 'risk', 'expropriation', 'nationalization', 'currency'],
+    lineOfBusiness: ['international', 'specialty'],
+    category: 'International',
+    commonlyPairedWith: ['Foreign Package Policy'],
+    description: 'Covers political risk exposures abroad'
+  },
+  {
+    name: 'Trade Disruption',
+    abbreviations: ['TD', 'TRADEDIS'],
+    aliases: ['Trade Credit Political Risk'],
+    keywords: ['trade', 'disruption', 'embargo', 'sanctions', 'export'],
+    lineOfBusiness: ['international', 'specialty'],
+    category: 'International',
+    commonlyPairedWith: ['Political Risk', 'Trade Credit'],
+    description: 'Covers trade losses from political events'
+  },
+  {
+    name: 'Local Admitted Coverage',
+    abbreviations: ['LAC', 'ADMITTED'],
+    aliases: ['Admitted Paper', 'Local Policy'],
+    keywords: ['local', 'admitted', 'compliance', 'statutory', 'country'],
+    lineOfBusiness: ['international'],
+    category: 'International',
+    commonlyPairedWith: ['Foreign Package Policy'],
+    description: 'Compliant local coverage in foreign jurisdictions'
+  },
+
+  // ============================================================================
+  // EXECUTIVE PROTECTION
+  // ============================================================================
+  {
+    name: 'Personal Excess Liability',
+    abbreviations: ['PEL', 'PERSEXC'],
+    aliases: ['Executive Umbrella', 'Personal Excess'],
+    keywords: ['personal', 'excess', 'liability', 'executive', 'umbrella'],
+    lineOfBusiness: ['personal lines', 'executive'],
+    category: 'Executive',
+    commonlyPairedWith: ['Umbrella Personal', 'Personal Liability'],
+    description: 'High-limit personal excess for executives'
+  },
+  {
+    name: 'Workplace Violence',
+    abbreviations: ['WV', 'WKPVIOL'],
+    aliases: ['Active Assailant', 'Active Shooter'],
+    keywords: ['workplace', 'violence', 'active', 'assailant', 'shooter', 'threat'],
+    lineOfBusiness: ['liability', 'specialty'],
+    category: 'Specialty',
+    commonlyPairedWith: ['General Liability', 'Workers Compensation'],
+    description: 'Covers workplace violence events'
+  },
+  {
+    name: 'Special Risk',
+    abbreviations: ['SPEC', 'SPECIAL'],
+    aliases: ['DIC Commercial', 'Special Perils'],
+    keywords: ['special', 'risk', 'DIC', 'perils', 'difference', 'conditions'],
+    lineOfBusiness: ['property', 'specialty'],
+    category: 'Specialty',
+    commonlyPairedWith: ['Property Coverage'],
+    description: 'Covers perils not in standard policies'
+  },
+
+  // ============================================================================
+  // REPRESENTATIONS & WARRANTIES
+  // ============================================================================
+  {
+    name: 'Representations & Warranties',
+    abbreviations: ['R&W', 'RWI'],
+    aliases: ['RWI', 'M&A Insurance', 'Transaction Liability'],
+    keywords: ['representations', 'warranties', 'M&A', 'transaction', 'acquisition'],
+    lineOfBusiness: ['specialty', 'management liability'],
+    category: 'Specialty',
+    commonlyPairedWith: ['Directors & Officers Liability'],
+    description: 'Covers M&A representations and warranties'
+  },
+  {
+    name: 'Tax Liability Insurance',
+    abbreviations: ['TLI', 'TAXINS'],
+    aliases: ['Tax Opinion Insurance', 'Tax Indemnity'],
+    keywords: ['tax', 'liability', 'insurance', 'IRS', 'opinion', 'indemnity'],
+    lineOfBusiness: ['specialty'],
+    category: 'Specialty',
+    commonlyPairedWith: ['Representations & Warranties'],
+    description: 'Covers tax-related exposure in transactions'
+  },
+  {
+    name: 'Contingent Liability',
+    abbreviations: ['CL', 'CONTL'],
+    aliases: ['Litigation Buyout', 'Judgment Preservation'],
+    keywords: ['contingent', 'liability', 'litigation', 'judgment', 'settlement'],
+    lineOfBusiness: ['specialty'],
+    category: 'Specialty',
+    commonlyPairedWith: ['Directors & Officers Liability'],
+    description: 'Covers known contingent liabilities'
+  },
 ];
 

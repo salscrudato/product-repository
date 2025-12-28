@@ -27,7 +27,7 @@ import {
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 import { SparklesIcon, CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
-import { Coverage, CoverageSimilarityMatch } from '../../types';
+import { Coverage, CoverageSimilarityMatch, CoverageTrigger, ValuationMethod } from '../../types';
 import { useCoverageDraft, useCoverages, useProduct } from '../../hooks';
 import { useAutoDraftCoverage } from '../../hooks/useAutoDraftCoverage';
 import { WizardProgress, WizardStep } from './WizardProgress';
@@ -737,6 +737,121 @@ const ShortcutHint = styled.div`
   }
 `;
 
+// Mobile AI Panel - Slide-up panel for AI insights on mobile
+const MobileAIPanelOverlay = styled.div<{ $isOpen: boolean }>`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: ${({ $isOpen }) => $isOpen ? 'block' : 'none'};
+    position: fixed;
+    inset: 0;
+    z-index: 10002;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    animation: ${fadeIn} 0.2s ease;
+  }
+`;
+
+const MobileAIPanel = styled.div<{ $isOpen: boolean }>`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10003;
+    max-height: 70vh;
+    background: ${({ theme }) => theme.colours.background};
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.2);
+    transform: ${({ $isOpen }) => $isOpen ? 'translateY(0)' : 'translateY(100%)'};
+    transition: transform 0.3s ${EASING.spring};
+  }
+`;
+
+const MobileAIPanelHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid ${({ theme }) => theme.colours.border};
+
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: ${({ theme }) => theme.colours.text};
+
+    svg {
+      width: 20px;
+      height: 20px;
+      color: #8b5cf6;
+    }
+  }
+`;
+
+const MobileAIPanelContent = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+`;
+
+const MobileAIPanelClose = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: ${({ theme }) => theme.colours.surface};
+  border: 1px solid ${({ theme }) => theme.colours.border};
+  border-radius: 8px;
+  cursor: pointer;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    color: ${({ theme }) => theme.colours.textMuted};
+  }
+`;
+
+// Mobile Floating AI Button - visible on all steps on mobile
+const MobileFloatingAIButton = styled.button`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: 100px;
+    right: 16px;
+    z-index: 10001;
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+    cursor: pointer;
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+`;
+
 // Premium Footer with gradient
 const Footer = styled.div`
   flex-shrink: 0;
@@ -1289,6 +1404,8 @@ const NumberInput: React.FC<NumberInputProps> = ({ value, onChange, min, max, su
   </NumberInputContainer>
 );
 
+
+
 interface CoverageCopilotWizardProps {
   isOpen: boolean;
   onClose: () => void;
@@ -1299,8 +1416,10 @@ interface CoverageCopilotWizardProps {
 
 const WIZARD_STEPS: WizardStep[] = [
   { id: 'basics', label: 'Basics', description: 'Name and code' },
-  { id: 'details', label: 'Details', description: 'Coverage settings' },
-  { id: 'review', label: 'Review', description: 'Review and save' }
+  { id: 'triggers', label: 'Trigger & Periods', description: 'Coverage triggers' },
+  { id: 'valuation', label: 'Valuation & Coinsurance', description: 'Value settings' },
+  { id: 'underwriting', label: 'Underwriting', description: 'Eligibility & requirements' },
+  { id: 'review', label: 'Review', description: 'Review and publish' }
 ];
 
 export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
@@ -1317,6 +1436,7 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
   const [selectedFormIds, setSelectedFormIds] = useState<string[]>([]);
   const [suggestedFormIds] = useState<string[]>([]);
   const [aiSuggestedFields, setAISuggestedFields] = useState<Set<string>>(new Set());
+  const [showMobileAIPanel, setShowMobileAIPanel] = useState(false);
   const prevStepRef = useRef(0);
 
   // Get product for line of business info
@@ -1426,7 +1546,9 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
   const stepsWithFieldCounts = useMemo((): WizardStep[] => {
     const fieldMap: Record<string, { fields: (keyof Coverage)[]; }> = {
       basics: { fields: ['name', 'coverageCode'] },
-      details: { fields: ['coverageTrigger', 'valuationMethod'] },
+      triggers: { fields: ['coverageTrigger', 'waitingPeriod'] },
+      valuation: { fields: ['valuationMethod', 'coinsurancePercentage'] },
+      underwriting: { fields: ['requiresUnderwriterApproval', 'eligibilityCriteria', 'prohibitedClasses'] },
       review: { fields: [] },
     };
 
@@ -1520,10 +1642,43 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label="Coverage Copilot Wizard"
+        tabIndex={-1}
         onKeyDown={(e) => {
+          // Escape - Close wizard
           if (e.key === 'Escape') onClose();
-          if (e.key === 'ArrowRight' && e.metaKey) handleNext();
-          if (e.key === 'ArrowLeft' && e.metaKey) handlePrevious();
+          // Cmd/Ctrl + Arrow Right - Next step
+          if (e.key === 'ArrowRight' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            handleNext();
+          }
+          // Cmd/Ctrl + Arrow Left - Previous step
+          if (e.key === 'ArrowLeft' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            handlePrevious();
+          }
+          // Cmd/Ctrl + S - Save draft
+          if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            saveDraft();
+          }
+          // Cmd/Ctrl + Enter - Publish (on review step)
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && currentStep === WIZARD_STEPS.length - 1 && canPublish) {
+            e.preventDefault();
+            handlePublish();
+          }
+          // Cmd/Ctrl + ? - Toggle mobile AI panel
+          if (e.key === '?' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            setShowMobileAIPanel(prev => !prev);
+          }
+          // Number keys 1-5 - Jump to step
+          if (['1', '2', '3', '4', '5'].includes(e.key) && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            const stepIndex = parseInt(e.key) - 1;
+            if (stepIndex < WIZARD_STEPS.length) {
+              setCurrentStep(stepIndex);
+            }
+          }
         }}
       >
         {/* Premium Header with Breadcrumb & AI Status */}
@@ -1548,13 +1703,9 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
             </HeaderTitle>
           </HeaderLeft>
 
-          {/* Progress Ring & Auto-save */}
+          {/* Auto-save indicator */}
           <HeaderProgress>
-            <ProgressRing $percentage={completenessScore}>
-              <ProgressRingText>{completenessScore}%</ProgressRingText>
-            </ProgressRing>
             <ProgressLabel>
-              <span>Step {currentStep + 1} of {WIZARD_STEPS.length}</span>
               <span>{draft.name || 'New Coverage'}</span>
             </ProgressLabel>
             <AutoSaveIndicator $status={autoSaveStatus} aria-live="polite">
@@ -1603,17 +1754,47 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
                   />
                 )}
                 {currentStep === 1 && (
-                  <DetailsStep
+                  <TriggersStepWithAI
                     draft={draft}
                     updateDraft={updateDraft}
                     aiSuggestedFields={aiSuggestedFields}
                     onAcceptField={handleAcceptAISuggestion}
                     onRejectField={handleRejectAISuggestion}
                     isAIUpdating={isAutoDrafting}
+                    productName={product?.name}
+                    productLineOfBusiness={product?.lineOfBusiness}
                   />
                 )}
                 {currentStep === 2 && (
-                  <SimpleReviewStep draft={draft} validation={validation} />
+                  <ValuationStepWithAI
+                    draft={draft}
+                    updateDraft={updateDraft}
+                    aiSuggestedFields={aiSuggestedFields}
+                    onAcceptField={handleAcceptAISuggestion}
+                    onRejectField={handleRejectAISuggestion}
+                    isAIUpdating={isAutoDrafting}
+                    productName={product?.name}
+                    productLineOfBusiness={product?.lineOfBusiness}
+                  />
+                )}
+                {currentStep === 3 && (
+                  <UnderwritingStepWithAI
+                    draft={draft}
+                    updateDraft={updateDraft}
+                    aiSuggestedFields={aiSuggestedFields}
+                    onAcceptField={handleAcceptAISuggestion}
+                    onRejectField={handleRejectAISuggestion}
+                    isAIUpdating={isAutoDrafting}
+                    productName={product?.name}
+                    productLineOfBusiness={product?.lineOfBusiness}
+                  />
+                )}
+                {currentStep === 4 && (
+                  <EnhancedReviewStep
+                    draft={draft}
+                    validation={validation}
+                    aiSuggestedFields={aiSuggestedFields}
+                  />
                 )}
               </StepContainer>
             </FormContent>
@@ -1638,8 +1819,8 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
         </Footer>
       </ModalContainer>
 
-      {/* Floating AI Help Button (visible on review step) */}
-      {currentStep === 2 && (
+      {/* Floating AI Help Button (visible on review step - desktop) */}
+      {currentStep === 4 && (
         <FloatingAIButton
           onClick={() => setCurrentStep(0)}
           aria-label="Get AI assistance"
@@ -1652,6 +1833,31 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
           </ShortcutHint>
         </FloatingAIButton>
       )}
+
+      {/* Mobile Floating AI Button - visible on all steps */}
+      <MobileFloatingAIButton
+        onClick={() => setShowMobileAIPanel(true)}
+        aria-label="View AI insights"
+      >
+        <SparklesIcon />
+      </MobileFloatingAIButton>
+
+      {/* Mobile AI Panel - Slide-up panel */}
+      <MobileAIPanelOverlay $isOpen={showMobileAIPanel} onClick={() => setShowMobileAIPanel(false)} />
+      <MobileAIPanel $isOpen={showMobileAIPanel}>
+        <MobileAIPanelHeader>
+          <h3><SparklesIcon /> AI Insights</h3>
+          <MobileAIPanelClose onClick={() => setShowMobileAIPanel(false)}>
+            <XMarkIcon />
+          </MobileAIPanelClose>
+        </MobileAIPanelHeader>
+        <MobileAIPanelContent>
+          <AIInsightsCard
+            stepId={WIZARD_STEPS[currentStep]?.id || 'basics'}
+            draft={draft}
+          />
+        </MobileAIPanelContent>
+      </MobileAIPanel>
 
       {/* Celebration overlay */}
       <CompletionCelebration
@@ -1694,31 +1900,1304 @@ const BasicInfoStep: React.FC<StepProps> = ({
   </div>
 );
 
-// Combined Details Step - simplified with only essential fields
-const DetailsStep: React.FC<StepProps> = ({
+// AI Trigger Suggestions based on coverage name
+const TRIGGER_SUGGESTIONS: Record<string, { trigger: CoverageTrigger; confidence: number; reason: string }> = {
+  // Property coverages - typically occurrence-based
+  'building': { trigger: 'occurrence', confidence: 95, reason: 'Property coverages use occurrence triggers for physical damage claims' },
+  'contents': { trigger: 'occurrence', confidence: 95, reason: 'Contents coverage triggers when loss occurs during policy period' },
+  'business personal property': { trigger: 'occurrence', confidence: 95, reason: 'BPP coverage applies to losses during policy period' },
+  'equipment breakdown': { trigger: 'occurrence', confidence: 90, reason: 'Equipment failures trigger at time of breakdown occurrence' },
+  'flood': { trigger: 'occurrence', confidence: 95, reason: 'Flood damage is occurrence-based by nature' },
+  'earthquake': { trigger: 'occurrence', confidence: 95, reason: 'Seismic events trigger coverage at occurrence' },
+  'fire': { trigger: 'occurrence', confidence: 95, reason: 'Fire damage coverage activates when fire occurs' },
+  'theft': { trigger: 'occurrence', confidence: 90, reason: 'Theft coverage responds to incidents when they occur' },
+  'vandalism': { trigger: 'occurrence', confidence: 90, reason: 'Vandalism triggers at time of damage' },
+  'glass': { trigger: 'occurrence', confidence: 90, reason: 'Glass breakage triggers on occurrence' },
+  'wind': { trigger: 'occurrence', confidence: 95, reason: 'Wind/hail damage is occurrence-based' },
+  'hail': { trigger: 'occurrence', confidence: 95, reason: 'Hail damage triggers when storm occurs' },
+  'water damage': { trigger: 'occurrence', confidence: 90, reason: 'Water damage coverage responds at occurrence' },
+  'sprinkler': { trigger: 'occurrence', confidence: 90, reason: 'Sprinkler leakage triggers at time of occurrence' },
+
+  // Liability coverages - can be occurrence or claims-made
+  'general liability': { trigger: 'occurrence', confidence: 85, reason: 'GL commonly uses occurrence for bodily injury/property damage' },
+  'products liability': { trigger: 'occurrence', confidence: 80, reason: 'Products claims often discovered after policy period' },
+  'premises liability': { trigger: 'occurrence', confidence: 85, reason: 'Premises incidents trigger when they occur' },
+  'personal injury': { trigger: 'occurrence', confidence: 80, reason: 'Personal injury coverage typically occurrence-based' },
+  'advertising injury': { trigger: 'claimsMade', confidence: 75, reason: 'Advertising claims may have delayed discovery' },
+
+  // Professional/specialty - typically claims-made
+  'professional liability': { trigger: 'claimsMade', confidence: 90, reason: 'Professional liability uses claims-made for long-tail exposure' },
+  'errors and omissions': { trigger: 'claimsMade', confidence: 92, reason: 'E&O coverage is traditionally claims-made' },
+  'directors and officers': { trigger: 'claimsMade', confidence: 95, reason: 'D&O liability requires claims-made trigger' },
+  'employment practices': { trigger: 'claimsMade', confidence: 93, reason: 'EPL uses claims-made for employment-related claims' },
+  'cyber': { trigger: 'claimsMade', confidence: 88, reason: 'Cyber liability typically uses claims-made triggers' },
+  'media liability': { trigger: 'claimsMade', confidence: 85, reason: 'Media claims often have delayed discovery' },
+  'fiduciary': { trigger: 'claimsMade', confidence: 90, reason: 'Fiduciary liability uses claims-made structure' },
+  'malpractice': { trigger: 'claimsMade', confidence: 95, reason: 'Medical malpractice requires claims-made for long-tail risks' },
+
+  // Business income - occurrence-based
+  'business income': { trigger: 'occurrence', confidence: 90, reason: 'BI coverage links to underlying occurrence event' },
+  'extra expense': { trigger: 'occurrence', confidence: 90, reason: 'Extra expense follows occurrence of covered loss' },
+  'business interruption': { trigger: 'occurrence', confidence: 90, reason: 'BI triggers when covered event occurs' },
+
+  // Workers comp / employers liability
+  'workers compensation': { trigger: 'injuryInFact', confidence: 85, reason: 'WC uses injury-in-fact for workplace injuries' },
+  'employers liability': { trigger: 'occurrence', confidence: 80, reason: 'EL commonly uses occurrence trigger' },
+
+  // Environmental - manifestation or continuous
+  'pollution': { trigger: 'manifestation', confidence: 85, reason: 'Environmental claims often use manifestation trigger' },
+  'environmental': { trigger: 'manifestation', confidence: 85, reason: 'Environmental damage may manifest over time' },
+  'contamination': { trigger: 'continuous', confidence: 80, reason: 'Contamination exposure may be continuous' },
+  'asbestos': { trigger: 'continuous', confidence: 90, reason: 'Asbestos claims trigger across multiple policy periods' },
+
+  // Auto
+  'auto liability': { trigger: 'occurrence', confidence: 95, reason: 'Auto liability triggers at time of accident' },
+  'collision': { trigger: 'occurrence', confidence: 95, reason: 'Collision coverage activates when accident occurs' },
+  'comprehensive': { trigger: 'occurrence', confidence: 95, reason: 'Comp coverage triggers on covered loss occurrence' },
+  'uninsured motorist': { trigger: 'occurrence', confidence: 90, reason: 'UM triggers at time of accident' },
+};
+
+// Function to get AI suggestion based on coverage name
+const getAITriggerSuggestion = (coverageName: string, lineOfBusiness?: string): { trigger: CoverageTrigger; confidence: number; reason: string } | null => {
+  if (!coverageName) return null;
+
+  const lowerName = coverageName.toLowerCase();
+
+  // Check for exact or partial matches
+  for (const [key, value] of Object.entries(TRIGGER_SUGGESTIONS)) {
+    if (lowerName.includes(key) || key.includes(lowerName)) {
+      return value;
+    }
+  }
+
+  // Default suggestions based on line of business
+  if (lineOfBusiness) {
+    const lobLower = lineOfBusiness.toLowerCase();
+    if (lobLower.includes('property') || lobLower.includes('commercial property')) {
+      return { trigger: 'occurrence', confidence: 75, reason: 'Property lines typically use occurrence triggers' };
+    }
+    if (lobLower.includes('liability') || lobLower.includes('professional')) {
+      return { trigger: 'claimsMade', confidence: 70, reason: 'Liability lines often use claims-made triggers' };
+    }
+    if (lobLower.includes('auto') || lobLower.includes('vehicle')) {
+      return { trigger: 'occurrence', confidence: 80, reason: 'Auto coverages typically use occurrence triggers' };
+    }
+  }
+
+  // Generic fallback - most P&C coverages are occurrence-based
+  return { trigger: 'occurrence', confidence: 60, reason: 'Most P&C coverages use occurrence-based triggers by default' };
+};
+
+// AI Valuation Suggestions based on coverage name - now with multiple options
+interface ValuationSuggestion {
+  valuationMethods: ValuationMethod[];
+  coinsuranceOptions: number[];
+  coinsuranceMin: number;
+  coinsuranceMax: number;
+  confidence: number;
+  valuationReason: string;
+  coinsuranceReason: string;
+}
+
+const VALUATION_SUGGESTIONS: Record<string, ValuationSuggestion> = {
+  // Property coverages - typically RC/ACV options with 80-100% coinsurance range
+  'building': { valuationMethods: ['RC', 'ACV'], coinsuranceOptions: [80, 90, 100], coinsuranceMin: 80, coinsuranceMax: 100, confidence: 95, valuationReason: 'Buildings typically offer RC (preferred) or ACV options', coinsuranceReason: 'Standard property coinsurance range' },
+  'contents': { valuationMethods: ['ACV', 'RC'], coinsuranceOptions: [80, 90, 100], coinsuranceMin: 80, coinsuranceMax: 100, confidence: 85, valuationReason: 'Contents often ACV, some policies offer RC upgrade', coinsuranceReason: '80-100% coinsurance options typical' },
+  'business personal property': { valuationMethods: ['RC', 'ACV'], coinsuranceOptions: [80, 90, 100], coinsuranceMin: 80, coinsuranceMax: 100, confidence: 88, valuationReason: 'BPP commonly offers both RC and ACV', coinsuranceReason: 'Commercial property standard range' },
+  'equipment breakdown': { valuationMethods: ['RC', 'ACV', 'functionalRC'], coinsuranceOptions: [80, 90, 100], coinsuranceMin: 80, coinsuranceMax: 100, confidence: 90, valuationReason: 'Equipment may use RC, ACV, or functional replacement', coinsuranceReason: 'Standard coinsurance for equipment' },
+  'flood': { valuationMethods: ['RC', 'ACV'], coinsuranceOptions: [80], coinsuranceMin: 80, coinsuranceMax: 80, confidence: 85, valuationReason: 'Flood typically RC or ACV based on building age', coinsuranceReason: 'NFIP uses 80% coinsurance' },
+  'earthquake': { valuationMethods: ['RC', 'ACV'], coinsuranceOptions: [80, 90, 100], coinsuranceMin: 80, coinsuranceMax: 100, confidence: 85, valuationReason: 'Earthquake coverage offers RC or ACV options', coinsuranceReason: 'Standard coinsurance for catastrophic perils' },
+  'fire': { valuationMethods: ['RC', 'ACV'], coinsuranceOptions: [80, 90, 100], coinsuranceMin: 80, coinsuranceMax: 100, confidence: 92, valuationReason: 'Fire damage typically RC with ACV option', coinsuranceReason: 'Industry standard 80-100% range' },
+
+  // Specialty property - agreed value eliminates coinsurance
+  'fine arts': { valuationMethods: ['agreedValue'], coinsuranceOptions: [100], coinsuranceMin: 100, coinsuranceMax: 100, confidence: 95, valuationReason: 'Fine arts require agreed value - unique items', coinsuranceReason: 'Agreed value waives coinsurance' },
+  'jewelry': { valuationMethods: ['agreedValue', 'statedAmount'], coinsuranceOptions: [100], coinsuranceMin: 100, coinsuranceMax: 100, confidence: 92, valuationReason: 'Jewelry needs agreed or stated value', coinsuranceReason: 'Full value for scheduled items' },
+  'antiques': { valuationMethods: ['agreedValue'], coinsuranceOptions: [100], coinsuranceMin: 100, coinsuranceMax: 100, confidence: 90, valuationReason: 'Antiques require agreed value', coinsuranceReason: 'No coinsurance for agreed value' },
+  'collectibles': { valuationMethods: ['agreedValue', 'marketValue'], coinsuranceOptions: [100], coinsuranceMin: 100, coinsuranceMax: 100, confidence: 88, valuationReason: 'Collectibles use agreed or market value', coinsuranceReason: 'Full coinsurance for valuables' },
+
+  // Auto coverages - ACV standard, no coinsurance
+  'collision': { valuationMethods: ['ACV'], coinsuranceOptions: [100], coinsuranceMin: 100, coinsuranceMax: 100, confidence: 95, valuationReason: 'Auto collision uses ACV exclusively', coinsuranceReason: 'No coinsurance in auto physical damage' },
+  'comprehensive': { valuationMethods: ['ACV'], coinsuranceOptions: [100], coinsuranceMin: 100, coinsuranceMax: 100, confidence: 95, valuationReason: 'Comp coverage uses ACV standard', coinsuranceReason: 'No coinsurance for auto comp' },
+
+  // Older/historic buildings
+  'functional replacement': { valuationMethods: ['functionalRC', 'ACV'], coinsuranceOptions: [80, 90], coinsuranceMin: 80, coinsuranceMax: 90, confidence: 88, valuationReason: 'Older buildings may use functional RC', coinsuranceReason: 'Reduced coinsurance for functional' },
+
+  // Business income - based on actual income
+  'business income': { valuationMethods: ['ACV'], coinsuranceOptions: [50, 60, 70, 80], coinsuranceMin: 50, coinsuranceMax: 80, confidence: 75, valuationReason: 'BI based on actual lost income', coinsuranceReason: 'BI coinsurance often 50-80%' },
+  'business interruption': { valuationMethods: ['ACV'], coinsuranceOptions: [50, 60, 70, 80], coinsuranceMin: 50, coinsuranceMax: 80, confidence: 75, valuationReason: 'BI valued at actual amounts', coinsuranceReason: 'Standard BI coinsurance options' },
+  'extra expense': { valuationMethods: ['ACV'], coinsuranceOptions: [80, 90, 100], coinsuranceMin: 80, coinsuranceMax: 100, confidence: 70, valuationReason: 'Extra expenses at actual cost', coinsuranceReason: 'Standard coinsurance applies' },
+};
+
+// Function to get AI valuation suggestion based on coverage name
+const getAIValuationSuggestion = (coverageName: string, lineOfBusiness?: string): ValuationSuggestion | null => {
+  if (!coverageName) return null;
+
+  const lowerName = coverageName.toLowerCase();
+
+  // Check for exact or partial matches
+  for (const [key, suggestion] of Object.entries(VALUATION_SUGGESTIONS)) {
+    if (lowerName.includes(key) || key.includes(lowerName)) {
+      return suggestion;
+    }
+  }
+
+  // Default suggestions based on line of business
+  if (lineOfBusiness) {
+    const lobLower = lineOfBusiness.toLowerCase();
+    if (lobLower.includes('property') || lobLower.includes('commercial property')) {
+      return { valuationMethods: ['RC', 'ACV'], coinsuranceOptions: [80, 90, 100], coinsuranceMin: 80, coinsuranceMax: 100, confidence: 75, valuationReason: 'Property coverages typically offer RC and ACV', coinsuranceReason: '80-100% coinsurance is industry standard' };
+    }
+    if (lobLower.includes('auto') || lobLower.includes('vehicle')) {
+      return { valuationMethods: ['ACV'], coinsuranceOptions: [100], coinsuranceMin: 100, coinsuranceMax: 100, confidence: 80, valuationReason: 'Auto coverages use actual cash value', coinsuranceReason: 'No coinsurance requirement for auto' };
+    }
+    if (lobLower.includes('inland marine') || lobLower.includes('marine')) {
+      return { valuationMethods: ['agreedValue', 'ACV'], coinsuranceOptions: [100], coinsuranceMin: 100, coinsuranceMax: 100, confidence: 75, valuationReason: 'Marine/inland marine uses agreed value or ACV', coinsuranceReason: 'Agreed value waives coinsurance' };
+    }
+  }
+
+  // Generic fallback for property
+  return { valuationMethods: ['RC', 'ACV'], coinsuranceOptions: [80, 90, 100], coinsuranceMin: 80, coinsuranceMax: 100, confidence: 60, valuationReason: 'Most property coverages offer RC and ACV options', coinsuranceReason: '80-100% coinsurance is most common' };
+};
+
+// Extended StepProps for trigger step
+interface TriggersStepProps extends StepProps {
+  productName?: string;
+  productLineOfBusiness?: string;
+}
+
+// New Triggers Step with AI Sidebar
+const TriggersStepWithAI: React.FC<TriggersStepProps> = ({
   draft,
   updateDraft,
-}) => (
-  <div>
-    <StepTitle>Coverage Settings</StepTitle>
+  aiSuggestedFields = new Set(),
+  onAcceptField,
+  onRejectField,
+  isAIUpdating,
+  productLineOfBusiness
+}) => {
+  // Get AI suggestion based on coverage name
+  const aiSuggestion = React.useMemo(() => {
+    return getAITriggerSuggestion(draft.name || '', productLineOfBusiness);
+  }, [draft.name, productLineOfBusiness]);
 
-    <FieldGroup>
-      <FieldLabel>Coverage Trigger</FieldLabel>
-      <CoverageTriggerSelector
-        value={draft.coverageTrigger}
-        onChange={(trigger) => updateDraft({ coverageTrigger: trigger })}
-      />
-    </FieldGroup>
+  // Auto-apply high confidence suggestion if no trigger is set
+  React.useEffect(() => {
+    if (aiSuggestion && aiSuggestion.confidence >= 90 && !draft.coverageTrigger) {
+      updateDraft({ coverageTrigger: aiSuggestion.trigger });
+    }
+  }, [aiSuggestion, draft.coverageTrigger, updateDraft]);
 
-    <FieldGroup>
-      <FieldLabel>Valuation Method</FieldLabel>
-      <ValuationMethodSelector
-        value={draft.valuationMethod}
-        onChange={(method) => updateDraft({ valuationMethod: method })}
-      />
-    </FieldGroup>
-  </div>
-);
+  const handleApplySuggestion = () => {
+    if (aiSuggestion) {
+      updateDraft({ coverageTrigger: aiSuggestion.trigger });
+    }
+  };
+
+  return (
+    <TriggerStepContainer>
+      <TriggerMainContent>
+        <StepTitle>Coverage Trigger</StepTitle>
+        <TriggerDescription>
+          Select how this coverage is triggered. This determines when claims are covered based on when the incident occurs vs. when the claim is made.
+        </TriggerDescription>
+
+        <AIAssistedField
+          label="Coverage Trigger"
+          fieldName="coverageTrigger"
+          isAISuggested={aiSuggestedFields.has('coverageTrigger') || (!!aiSuggestion && draft.coverageTrigger === aiSuggestion.trigger)}
+          isAIUpdating={isAIUpdating && !draft.coverageTrigger}
+          aiExplanation={aiSuggestion?.reason}
+          aiConfidence={aiSuggestion?.confidence}
+          onAcceptSuggestion={() => onAcceptField?.('coverageTrigger')}
+          onRejectSuggestion={() => onRejectField?.('coverageTrigger')}
+          hideActions={!!aiSuggestion && draft.coverageTrigger === aiSuggestion.trigger}
+        >
+          <CoverageTriggerSelector
+            value={draft.coverageTrigger}
+            onChange={(trigger) => updateDraft({ coverageTrigger: trigger })}
+          />
+        </AIAssistedField>
+
+        {/* Waiting Period Option */}
+        <WaitingPeriodSection>
+          <WaitingPeriodCheckbox>
+            <input
+              type="checkbox"
+              id="hasWaitingPeriod"
+              checked={!!draft.waitingPeriod}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  updateDraft({ waitingPeriod: 0, waitingPeriodUnit: 'days' });
+                } else {
+                  updateDraft({ waitingPeriod: undefined, waitingPeriodUnit: undefined });
+                }
+              }}
+            />
+            <label htmlFor="hasWaitingPeriod">Waiting Period</label>
+          </WaitingPeriodCheckbox>
+
+          {draft.waitingPeriod !== undefined && (
+            <WaitingPeriodInputRow>
+              <WaitingPeriodNumberInput
+                type="number"
+                min="0"
+                value={draft.waitingPeriod || ''}
+                onChange={(e) => updateDraft({ waitingPeriod: parseInt(e.target.value) || 0 })}
+                placeholder="Enter value"
+              />
+              <WaitingPeriodUnitSelect
+                value={draft.waitingPeriodUnit || 'days'}
+                onChange={(e) => updateDraft({ waitingPeriodUnit: e.target.value as 'days' | 'months' })}
+              >
+                <option value="days">Days</option>
+                <option value="dollars">$ Amount</option>
+              </WaitingPeriodUnitSelect>
+            </WaitingPeriodInputRow>
+          )}
+        </WaitingPeriodSection>
+      </TriggerMainContent>
+
+      {/* AI Suggestions Sidebar */}
+      <TriggerAISidebar>
+        <TriggerAISidebarHeader>
+          <SparklesIcon />
+          <span>AI Recommendations</span>
+        </TriggerAISidebarHeader>
+
+        {aiSuggestion ? (
+          <AISuggestionCard $confidence={aiSuggestion.confidence}>
+            <AISuggestionBadge $confidence={aiSuggestion.confidence}>
+              {aiSuggestion.confidence >= 90 ? 'High Confidence' :
+               aiSuggestion.confidence >= 75 ? 'Recommended' : 'Suggested'}
+            </AISuggestionBadge>
+            <AISuggestionTrigger>
+              {aiSuggestion.trigger.replace(/([A-Z])/g, ' $1').trim()}
+            </AISuggestionTrigger>
+            <AISuggestionReason>{aiSuggestion.reason}</AISuggestionReason>
+            <AISuggestionConfidence>
+              <ConfidenceBar $confidence={aiSuggestion.confidence} />
+              <span>{aiSuggestion.confidence}% confidence</span>
+            </AISuggestionConfidence>
+            {draft.coverageTrigger !== aiSuggestion.trigger && (
+              <ApplySuggestionButton onClick={handleApplySuggestion}>
+                <SparklesIcon />
+                Apply Suggestion
+              </ApplySuggestionButton>
+            )}
+            {draft.coverageTrigger === aiSuggestion.trigger && (
+              <AppliedIndicator>
+                <CheckCircleSolid />
+                Applied
+              </AppliedIndicator>
+            )}
+          </AISuggestionCard>
+        ) : (
+          <NoSuggestionCard>
+            <QuestionMarkCircleIcon />
+            <span>Enter a coverage name to get AI trigger recommendations</span>
+          </NoSuggestionCard>
+        )}
+
+        <AISidebarTip>
+          <InformationCircleIcon />
+          <span>
+            Based on <strong>{draft.name || 'your coverage'}</strong> and P&C industry standards.
+          </span>
+        </AISidebarTip>
+      </TriggerAISidebar>
+    </TriggerStepContainer>
+  );
+};
+
+// Styled components for TriggersStepWithAI
+const TriggerStepContainer = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 32px;
+  min-height: 400px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const TriggerMainContent = styled.div`
+  flex: 1;
+`;
+
+const WaitingPeriodSection = styled.div`
+  margin-top: 24px;
+  padding: 16px;
+  background: ${({ theme }) => theme.colours.surface};
+  border: 1px solid ${({ theme }) => theme.colours.border};
+  border-radius: 12px;
+`;
+
+const WaitingPeriodCheckbox = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #6366f1;
+    cursor: pointer;
+  }
+
+  label {
+    font-size: 14px;
+    font-weight: 500;
+    color: ${({ theme }) => theme.colours.text};
+    cursor: pointer;
+  }
+`;
+
+const WaitingPeriodInputRow = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+`;
+
+const WaitingPeriodNumberInput = styled.input`
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 14px;
+  border: 1px solid ${({ theme }) => theme.colours.border};
+  border-radius: 8px;
+  background: ${({ theme }) => theme.colours.background};
+  color: ${({ theme }) => theme.colours.text};
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+
+  &::placeholder {
+    color: ${({ theme }) => theme.colours.textMuted};
+  }
+`;
+
+const WaitingPeriodUnitSelect = styled.select`
+  padding: 10px 14px;
+  font-size: 14px;
+  border: 1px solid ${({ theme }) => theme.colours.border};
+  border-radius: 8px;
+  background: ${({ theme }) => theme.colours.background};
+  color: ${({ theme }) => theme.colours.text};
+  cursor: pointer;
+  min-width: 120px;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+`;
+
+const TriggerDescription = styled.p`
+  font-size: 14px;
+  color: ${({ theme }) => theme.colours.textMuted};
+  margin-bottom: 24px;
+  line-height: 1.6;
+`;
+
+const TriggerAISidebar = styled.div`
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(99, 102, 241, 0.08));
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 16px;
+  padding: 20px;
+  height: fit-content;
+  animation: ${slideInRight} 0.4s ease-out;
+`;
+
+const TriggerAISidebarHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+
+  svg {
+    width: 20px;
+    height: 20px;
+    color: #8b5cf6;
+  }
+
+  span {
+    font-size: 14px;
+    font-weight: 600;
+    color: #7c3aed;
+  }
+`;
+
+const AISuggestionCard = styled.div<{ $confidence: number }>`
+  background: ${({ theme }) => theme.colours.surface};
+  border: 1.5px solid ${({ $confidence }) =>
+    $confidence >= 90 ? '#10b981' :
+    $confidence >= 75 ? '#8b5cf6' : '#f59e0b'};
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+`;
+
+const AISuggestionBadge = styled.span<{ $confidence: number }>`
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: ${({ $confidence }) =>
+    $confidence >= 90 ? 'linear-gradient(135deg, #10b981, #059669)' :
+    $confidence >= 75 ? 'linear-gradient(135deg, #8b5cf6, #7c3aed)' :
+    'linear-gradient(135deg, #f59e0b, #d97706)'};
+  color: white;
+  margin-bottom: 12px;
+`;
+
+const AISuggestionTrigger = styled.div`
+  font-size: 18px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colours.text};
+  text-transform: capitalize;
+  margin-bottom: 8px;
+`;
+
+const AISuggestionReason = styled.p`
+  font-size: 13px;
+  color: ${({ theme }) => theme.colours.textMuted};
+  line-height: 1.5;
+  margin-bottom: 12px;
+`;
+
+const AISuggestionConfidence = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+
+  span {
+    font-size: 12px;
+    color: ${({ theme }) => theme.colours.textMuted};
+  }
+`;
+
+const ConfidenceBar = styled.div<{ $confidence: number }>`
+  flex: 1;
+  height: 6px;
+  background: ${({ theme }) => theme.colours.border};
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: ${({ $confidence }) => $confidence}%;
+    background: ${({ $confidence }) =>
+      $confidence >= 90 ? '#10b981' :
+      $confidence >= 75 ? '#8b5cf6' : '#f59e0b'};
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+`;
+
+const ApplySuggestionButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  }
+`;
+
+const AppliedIndicator = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 8px;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const ValuationSuggestionLabel = styled.div`
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: ${({ theme }) => theme.colours.textMuted};
+  margin-bottom: 4px;
+`;
+
+const ApplyAllButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  }
+`;
+
+const NoSuggestionCard = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 16px;
+  text-align: center;
+  background: ${({ theme }) => theme.colours.surface};
+  border: 1px dashed ${({ theme }) => theme.colours.border};
+  border-radius: 12px;
+  margin-bottom: 16px;
+
+  svg {
+    width: 32px;
+    height: 32px;
+    color: ${({ theme }) => theme.colours.textMuted};
+    opacity: 0.5;
+  }
+
+  span {
+    font-size: 13px;
+    color: ${({ theme }) => theme.colours.textMuted};
+    line-height: 1.5;
+  }
+`;
+
+const AISidebarTip = styled.div`
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(99, 102, 241, 0.08);
+  border-radius: 8px;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    color: #6366f1;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  span {
+    font-size: 12px;
+    color: ${({ theme }) => theme.colours.textMuted};
+    line-height: 1.5;
+
+    strong {
+      color: #6366f1;
+    }
+  }
+`;
+
+// Extended StepProps for valuation step
+interface ValuationStepProps extends StepProps {
+  productName?: string;
+  productLineOfBusiness?: string;
+}
+
+// Valuation Step with AI Sidebar
+const ValuationStepWithAI: React.FC<ValuationStepProps> = ({
+  draft,
+  updateDraft,
+  aiSuggestedFields = new Set(),
+  onAcceptField,
+  onRejectField,
+  isAIUpdating,
+  productLineOfBusiness
+}) => {
+  // Get AI suggestion based on coverage name
+  const aiSuggestion = React.useMemo(() => {
+    return getAIValuationSuggestion(draft.name || '', productLineOfBusiness);
+  }, [draft.name, productLineOfBusiness]);
+
+  // Auto-apply high confidence suggestion if no values are set
+  React.useEffect(() => {
+    if (aiSuggestion && aiSuggestion.confidence >= 90) {
+      const updates: Partial<Coverage> = {};
+      if (!draft.valuationMethods || draft.valuationMethods.length === 0) {
+        updates.valuationMethods = aiSuggestion.valuationMethods;
+      }
+      if (!draft.coinsuranceOptions || draft.coinsuranceOptions.length === 0) {
+        updates.coinsuranceOptions = aiSuggestion.coinsuranceOptions;
+        updates.coinsuranceMinimum = aiSuggestion.coinsuranceMin;
+        updates.coinsuranceMaximum = aiSuggestion.coinsuranceMax;
+      }
+      if (Object.keys(updates).length > 0) {
+        updateDraft(updates);
+      }
+    }
+  }, [aiSuggestion, draft.valuationMethods, draft.coinsuranceOptions, updateDraft]);
+
+  const handleApplyValuationSuggestion = () => {
+    if (aiSuggestion) {
+      updateDraft({ valuationMethods: aiSuggestion.valuationMethods });
+    }
+  };
+
+  const handleApplyCoinsuranceSuggestion = () => {
+    if (aiSuggestion) {
+      updateDraft({
+        coinsuranceOptions: aiSuggestion.coinsuranceOptions,
+        coinsuranceMinimum: aiSuggestion.coinsuranceMin,
+        coinsuranceMaximum: aiSuggestion.coinsuranceMax
+      });
+    }
+  };
+
+  const handleApplyAllSuggestions = () => {
+    if (aiSuggestion) {
+      updateDraft({
+        valuationMethods: aiSuggestion.valuationMethods,
+        coinsuranceOptions: aiSuggestion.coinsuranceOptions,
+        coinsuranceMinimum: aiSuggestion.coinsuranceMin,
+        coinsuranceMaximum: aiSuggestion.coinsuranceMax
+      });
+    }
+  };
+
+  // Check if suggestions are applied (compare arrays)
+  const valuationApplied = aiSuggestion &&
+    draft.valuationMethods?.length === aiSuggestion.valuationMethods.length &&
+    aiSuggestion.valuationMethods.every(v => draft.valuationMethods?.includes(v));
+  const coinsuranceApplied = aiSuggestion &&
+    draft.coinsuranceOptions?.length === aiSuggestion.coinsuranceOptions.length &&
+    aiSuggestion.coinsuranceOptions.every(c => draft.coinsuranceOptions?.includes(c));
+  const allApplied = valuationApplied && coinsuranceApplied;
+
+  return (
+    <TriggerStepContainer>
+      <TriggerMainContent>
+        <StepTitle>Valuation & Coinsurance</StepTitle>
+        <TriggerDescription>
+          Select the available valuation methods and coinsurance options for this coverage.
+        </TriggerDescription>
+
+        <AIAssistedField
+          label="Available Valuation Methods"
+          fieldName="valuationMethods"
+          isAISuggested={aiSuggestedFields.has('valuationMethods') || valuationApplied}
+          isAIUpdating={isAIUpdating && (!draft.valuationMethods || draft.valuationMethods.length === 0)}
+          aiExplanation={aiSuggestion?.valuationReason}
+          aiConfidence={aiSuggestion?.confidence}
+          onAcceptSuggestion={() => onAcceptField?.('valuationMethods')}
+          onRejectSuggestion={() => onRejectField?.('valuationMethods')}
+          hideActions={valuationApplied}
+        >
+          <ValuationMethodSelector
+            values={draft.valuationMethods}
+            onChange={(methods) => updateDraft({ valuationMethods: methods })}
+          />
+        </AIAssistedField>
+
+        <AIAssistedField
+          label="Available Coinsurance Options"
+          fieldName="coinsuranceOptions"
+          isAISuggested={aiSuggestedFields.has('coinsuranceOptions') || coinsuranceApplied}
+          isAIUpdating={isAIUpdating && (!draft.coinsuranceOptions || draft.coinsuranceOptions.length === 0)}
+          aiExplanation={aiSuggestion?.coinsuranceReason}
+          aiConfidence={aiSuggestion?.confidence}
+          onAcceptSuggestion={() => onAcceptField?.('coinsuranceOptions')}
+          onRejectSuggestion={() => onRejectField?.('coinsuranceOptions')}
+          hideActions={coinsuranceApplied}
+        >
+          <CoinsuranceInput
+            selectedOptions={draft.coinsuranceOptions}
+            minimum={draft.coinsuranceMinimum}
+            maximum={draft.coinsuranceMaximum}
+            onChange={(options, min, max) => updateDraft({
+              coinsuranceOptions: options,
+              coinsuranceMinimum: min,
+              coinsuranceMaximum: max
+            })}
+          />
+        </AIAssistedField>
+      </TriggerMainContent>
+
+      {/* AI Suggestions Sidebar */}
+      <TriggerAISidebar>
+        <TriggerAISidebarHeader>
+          <SparklesIcon />
+          <span>AI Recommendations</span>
+        </TriggerAISidebarHeader>
+
+        {aiSuggestion ? (
+          <>
+            {/* Valuation Methods Suggestion */}
+            <AISuggestionCard $confidence={aiSuggestion.confidence}>
+              <AISuggestionBadge $confidence={aiSuggestion.confidence}>
+                {aiSuggestion.confidence >= 90 ? 'High Confidence' :
+                 aiSuggestion.confidence >= 75 ? 'Recommended' : 'Suggested'}
+              </AISuggestionBadge>
+              <ValuationSuggestionLabel>Valuation Methods</ValuationSuggestionLabel>
+              <AISuggestionTrigger>
+                {aiSuggestion.valuationMethods.map(v =>
+                  v === 'RC' ? 'RC' :
+                  v === 'ACV' ? 'ACV' :
+                  v === 'agreedValue' ? 'Agreed' :
+                  v === 'statedAmount' ? 'Stated' :
+                  v === 'functionalRC' ? 'Functional' : v
+                ).join(', ')}
+              </AISuggestionTrigger>
+              <AISuggestionReason>{aiSuggestion.valuationReason}</AISuggestionReason>
+              {!valuationApplied && (
+                <ApplySuggestionButton onClick={handleApplyValuationSuggestion}>
+                  <SparklesIcon />
+                  Apply
+                </ApplySuggestionButton>
+              )}
+              {valuationApplied && (
+                <AppliedIndicator>
+                  <CheckCircleSolid />
+                  Applied
+                </AppliedIndicator>
+              )}
+            </AISuggestionCard>
+
+            {/* Coinsurance Suggestion */}
+            <AISuggestionCard $confidence={aiSuggestion.confidence}>
+              <ValuationSuggestionLabel>Coinsurance Options</ValuationSuggestionLabel>
+              <AISuggestionTrigger>
+                {aiSuggestion.coinsuranceOptions.map(c => `${c}%`).join(', ')}
+              </AISuggestionTrigger>
+              <AISuggestionReason>
+                Range: {aiSuggestion.coinsuranceMin}% - {aiSuggestion.coinsuranceMax}%. {aiSuggestion.coinsuranceReason}
+              </AISuggestionReason>
+              {!coinsuranceApplied && (
+                <ApplySuggestionButton onClick={handleApplyCoinsuranceSuggestion}>
+                  <SparklesIcon />
+                  Apply
+                </ApplySuggestionButton>
+              )}
+              {coinsuranceApplied && (
+                <AppliedIndicator>
+                  <CheckCircleSolid />
+                  Applied
+                </AppliedIndicator>
+              )}
+            </AISuggestionCard>
+
+            {/* Apply All Button */}
+            {!allApplied && (
+              <ApplyAllButton onClick={handleApplyAllSuggestions}>
+                <SparklesIcon />
+                Apply All Suggestions
+              </ApplyAllButton>
+            )}
+
+            <AISuggestionConfidence>
+              <ConfidenceBar $confidence={aiSuggestion.confidence} />
+              <span>{aiSuggestion.confidence}% confidence</span>
+            </AISuggestionConfidence>
+          </>
+        ) : (
+          <NoSuggestionCard>
+            <QuestionMarkCircleIcon />
+            <span>Enter a coverage name to get AI valuation recommendations</span>
+          </NoSuggestionCard>
+        )}
+
+        <AISidebarTip>
+          <InformationCircleIcon />
+          <span>
+            Based on <strong>{draft.name || 'your coverage'}</strong> and P&C industry standards.
+          </span>
+        </AISidebarTip>
+      </TriggerAISidebar>
+    </TriggerStepContainer>
+  );
+};
+
+// ============================================================
+// UNDERWRITING STEP WITH AI
+// ============================================================
+interface UnderwritingStepProps extends StepProps {
+  productName?: string;
+  productLineOfBusiness?: string;
+}
+
+const UnderwritingStepWithAI: React.FC<UnderwritingStepProps> = ({
+  draft,
+  updateDraft,
+  aiSuggestedFields = new Set(),
+  onAcceptField,
+  onRejectField,
+  isAIUpdating,
+  productLineOfBusiness
+}) => {
+  // Local state for adding new criteria
+  const [newCriteria, setNewCriteria] = React.useState('');
+  const [newProhibitedClass, setNewProhibitedClass] = React.useState('');
+
+  // Handle adding eligibility criteria
+  const handleAddCriteria = () => {
+    if (newCriteria.trim()) {
+      const currentCriteria = draft.eligibilityCriteria || [];
+      updateDraft({ eligibilityCriteria: [...currentCriteria, newCriteria.trim()] });
+      setNewCriteria('');
+    }
+  };
+
+  // Handle removing eligibility criteria
+  const handleRemoveCriteria = (index: number) => {
+    const currentCriteria = draft.eligibilityCriteria || [];
+    updateDraft({ eligibilityCriteria: currentCriteria.filter((_, i) => i !== index) });
+  };
+
+  // Handle adding prohibited class
+  const handleAddProhibitedClass = () => {
+    if (newProhibitedClass.trim()) {
+      const currentClasses = draft.prohibitedClasses || [];
+      updateDraft({ prohibitedClasses: [...currentClasses, newProhibitedClass.trim()] });
+      setNewProhibitedClass('');
+    }
+  };
+
+  // Handle removing prohibited class
+  const handleRemoveProhibitedClass = (index: number) => {
+    const currentClasses = draft.prohibitedClasses || [];
+    updateDraft({ prohibitedClasses: currentClasses.filter((_, i) => i !== index) });
+  };
+
+  // Determine approval type (support both old and new field)
+  const approvalType = draft.underwriterApprovalType ||
+    (draft.requiresUnderwriterApproval === true ? 'yes' :
+     draft.requiresUnderwriterApproval === false ? 'no' : undefined);
+
+  const isConditional = approvalType === 'conditional';
+  const showConditionalFields = isConditional || approvalType === 'yes';
+
+  return (
+    <TriggerStepContainer>
+      <TriggerMainContent>
+        <StepTitle>Underwriting Requirements</StepTitle>
+        <TriggerDescription>
+          Define underwriter approval requirements and eligibility criteria.
+        </TriggerDescription>
+
+        {/* Underwriter Approval Toggle - 3 Options */}
+        <AIAssistedField
+          label="Requires Underwriter Approval"
+          fieldName="underwriterApprovalType"
+          isAISuggested={aiSuggestedFields.has('underwriterApprovalType')}
+          isAIUpdating={isAIUpdating && !approvalType}
+          onAcceptSuggestion={() => onAcceptField?.('underwriterApprovalType')}
+          onRejectSuggestion={() => onRejectField?.('underwriterApprovalType')}
+        >
+          <UnderwritingToggleRow>
+            <UnderwritingToggle
+              $active={approvalType === 'yes'}
+              onClick={() => updateDraft({ underwriterApprovalType: 'yes', requiresUnderwriterApproval: true })}
+            >
+              Yes
+            </UnderwritingToggle>
+            <UnderwritingToggle
+              $active={approvalType === 'no'}
+              onClick={() => updateDraft({ underwriterApprovalType: 'no', requiresUnderwriterApproval: false })}
+            >
+              No
+            </UnderwritingToggle>
+            <UnderwritingToggle
+              $active={approvalType === 'conditional'}
+              $conditional
+              onClick={() => updateDraft({ underwriterApprovalType: 'conditional', requiresUnderwriterApproval: true })}
+            >
+              Conditional
+            </UnderwritingToggle>
+          </UnderwritingToggleRow>
+          <ApprovalTypeDescription>
+            {approvalType === 'yes' && 'All submissions require underwriter review before binding.'}
+            {approvalType === 'no' && 'Auto-approved - no underwriter review required.'}
+            {approvalType === 'conditional' && 'Requires underwriter approval when eligibility criteria are not met.'}
+            {!approvalType && 'Select an approval type to continue.'}
+          </ApprovalTypeDescription>
+        </AIAssistedField>
+
+        {/* Conditional Fields - Only shown when Conditional is selected */}
+        {isConditional && (
+          <ConditionalFieldsContainer>
+            <ConditionalFieldsHeader>
+              <ExclamationTriangleIcon />
+              <span>Define the conditions for automatic approval</span>
+            </ConditionalFieldsHeader>
+
+            {/* Eligibility Criteria - Required for Conditional */}
+            <AIAssistedField
+              label="Eligibility Criteria (Required)"
+              fieldName="eligibilityCriteria"
+              isAISuggested={aiSuggestedFields.has('eligibilityCriteria')}
+              isAIUpdating={isAIUpdating && (!draft.eligibilityCriteria || draft.eligibilityCriteria.length === 0)}
+              onAcceptSuggestion={() => onAcceptField?.('eligibilityCriteria')}
+              onRejectSuggestion={() => onRejectField?.('eligibilityCriteria')}
+            >
+              <ConditionalFieldDescription>
+                When all criteria are met, the submission will be auto-approved. Otherwise, it will require underwriter review.
+              </ConditionalFieldDescription>
+              <UnderwritingListContainer>
+                {(draft.eligibilityCriteria || []).map((criteria, index) => (
+                  <UnderwritingListItem key={index}>
+                    <span>{criteria}</span>
+                    <UnderwritingRemoveButton onClick={() => handleRemoveCriteria(index)}>
+                      <XMarkIcon />
+                    </UnderwritingRemoveButton>
+                  </UnderwritingListItem>
+                ))}
+                <UnderwritingAddRow>
+                  <UnderwritingInput
+                    type="text"
+                    placeholder="Add eligibility requirement..."
+                    value={newCriteria}
+                    onChange={(e) => setNewCriteria(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddCriteria()}
+                  />
+                  <UnderwritingAddButton onClick={handleAddCriteria} disabled={!newCriteria.trim()}>
+                    Add
+                  </UnderwritingAddButton>
+                </UnderwritingAddRow>
+              </UnderwritingListContainer>
+              {isConditional && (!draft.eligibilityCriteria || draft.eligibilityCriteria.length === 0) && (
+                <RequiredFieldWarning>
+                  <ExclamationCircleIcon />
+                  At least one eligibility criterion is required for conditional approval.
+                </RequiredFieldWarning>
+              )}
+            </AIAssistedField>
+
+            {/* Prohibited Classes */}
+            <AIAssistedField
+              label="Prohibited Business Classes"
+              fieldName="prohibitedClasses"
+              isAISuggested={aiSuggestedFields.has('prohibitedClasses')}
+              isAIUpdating={isAIUpdating && (!draft.prohibitedClasses || draft.prohibitedClasses.length === 0)}
+              onAcceptSuggestion={() => onAcceptField?.('prohibitedClasses')}
+              onRejectSuggestion={() => onRejectField?.('prohibitedClasses')}
+            >
+              <ConditionalFieldDescription>
+                Business classes that are never eligible for this coverage.
+              </ConditionalFieldDescription>
+              <UnderwritingListContainer>
+                {(draft.prohibitedClasses || []).map((cls, index) => (
+                  <UnderwritingListItem key={index} $prohibited>
+                    <span>{cls}</span>
+                    <UnderwritingRemoveButton onClick={() => handleRemoveProhibitedClass(index)}>
+                      <XMarkIcon />
+                    </UnderwritingRemoveButton>
+                  </UnderwritingListItem>
+                ))}
+                <UnderwritingAddRow>
+                  <UnderwritingInput
+                    type="text"
+                    placeholder="Add prohibited class..."
+                    value={newProhibitedClass}
+                    onChange={(e) => setNewProhibitedClass(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddProhibitedClass()}
+                  />
+                  <UnderwritingAddButton onClick={handleAddProhibitedClass} disabled={!newProhibitedClass.trim()}>
+                    Add
+                  </UnderwritingAddButton>
+                </UnderwritingAddRow>
+              </UnderwritingListContainer>
+            </AIAssistedField>
+          </ConditionalFieldsContainer>
+        )}
+      </TriggerMainContent>
+
+      {/* AI Suggestions Sidebar */}
+      <TriggerAISidebar>
+        <TriggerAISidebarHeader>
+          <SparklesIcon />
+          <span>AI Recommendations</span>
+        </TriggerAISidebarHeader>
+
+        <AISuggestionCard $confidence={85}>
+          <AISuggestionBadge $confidence={85}>Recommended</AISuggestionBadge>
+          <ValuationSuggestionLabel>Underwriting Guidance</ValuationSuggestionLabel>
+          <AISuggestionReason>
+            {productLineOfBusiness?.toLowerCase().includes('property')
+              ? 'Property coverages typically require underwriter approval for high-value risks and specific hazard classes.'
+              : productLineOfBusiness?.toLowerCase().includes('liability')
+              ? 'Liability coverages often need approval for high-risk industries and coverage limits above thresholds.'
+              : 'Consider requiring underwriter approval for unusual risks or coverage amounts above your appetite.'}
+          </AISuggestionReason>
+        </AISuggestionCard>
+
+        <NoSuggestionCard>
+          <InformationCircleIcon />
+          <span>
+            Common eligibility criteria include minimum years in business, loss history requirements, and safety certifications.
+          </span>
+        </NoSuggestionCard>
+
+        <AISidebarTip>
+          <InformationCircleIcon />
+          <span>
+            Define clear underwriting rules to ensure consistent risk selection.
+          </span>
+        </AISidebarTip>
+      </TriggerAISidebar>
+    </TriggerStepContainer>
+  );
+};
+
+// Underwriting Step Styled Components
+const UnderwritingToggleRow = styled.div`
+  display: flex;
+  gap: 12px;
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    gap: 8px;
+  }
+`;
+
+const UnderwritingToggle = styled.button<{ $active: boolean; $conditional?: boolean }>`
+  flex: 1;
+  padding: 14px 16px;
+  border: 2px solid ${({ $active, $conditional }) =>
+    $active
+      ? ($conditional ? '#f59e0b' : '#6366f1')
+      : '#e5e7eb'};
+  border-radius: 10px;
+  background: ${({ $active, $conditional }) =>
+    $active
+      ? ($conditional ? 'rgba(245, 158, 11, 0.08)' : 'rgba(99, 102, 241, 0.08)')
+      : 'transparent'};
+  color: ${({ $active, $conditional, theme }) =>
+    $active
+      ? ($conditional ? '#d97706' : '#6366f1')
+      : theme.colours?.text || '#374151'};
+  font-size: 14px;
+  font-weight: ${({ $active }) => $active ? 600 : 500};
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${({ $active, $conditional }) =>
+      $active
+        ? ($conditional ? '#f59e0b' : '#6366f1')
+        : '#d1d5db'};
+    background: ${({ $active, $conditional }) =>
+      $active
+        ? ($conditional ? 'rgba(245, 158, 11, 0.12)' : 'rgba(99, 102, 241, 0.12)')
+        : 'rgba(0, 0, 0, 0.02)'};
+  }
+`;
+
+const ApprovalTypeDescription = styled.p`
+  margin: 12px 0 0 0;
+  padding: 10px 14px;
+  background: ${({ theme }) => theme.colours?.surface || '#f9fafb'};
+  border-radius: 8px;
+  font-size: 13px;
+  color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
+  line-height: 1.5;
+`;
+
+const ConditionalFieldsContainer = styled.div`
+  margin-top: 24px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.04), rgba(217, 119, 6, 0.02));
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 12px;
+  animation: ${slideUp} 0.3s ease;
+`;
+
+const ConditionalFieldsHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+
+  svg {
+    width: 20px;
+    height: 20px;
+    color: #d97706;
+  }
+
+  span {
+    font-size: 14px;
+    font-weight: 600;
+    color: #b45309;
+  }
+`;
+
+const ConditionalFieldDescription = styled.p`
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
+  line-height: 1.5;
+`;
+
+const RequiredFieldWarning = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #dc2626;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+`;
+
+const UnderwritingListContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const UnderwritingListItem = styled.div<{ $prohibited?: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: ${({ $prohibited }) => $prohibited ? 'rgba(239, 68, 68, 0.08)' : 'rgba(99, 102, 241, 0.06)'};
+  border: 1px solid ${({ $prohibited }) => $prohibited ? 'rgba(239, 68, 68, 0.2)' : 'rgba(99, 102, 241, 0.15)'};
+  border-radius: 8px;
+  font-size: 14px;
+  color: ${({ theme }) => theme.colours?.text || '#374151'};
+
+  span {
+    flex: 1;
+  }
+`;
+
+const UnderwritingRemoveButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const UnderwritingAddRow = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+`;
+
+const UnderwritingInput = styled.input`
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: ${({ theme }) => theme.colours?.text || '#374151'};
+  background: ${({ theme }) => theme.colours?.surface || '#fff'};
+  transition: all 0.15s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+`;
+
+const UnderwritingAddButton = styled.button`
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #6366f1;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: #4f46e5;
+  }
+
+  &:disabled {
+    background: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+  }
+`;
 
 // Simple Review Step - minimal and clean
 interface SimpleReviewStepProps {
@@ -1745,9 +3224,29 @@ const SimpleReviewStep: React.FC<SimpleReviewStepProps> = ({ draft, validation }
           <span>{draft.coverageTrigger ? draft.coverageTrigger.replace(/([A-Z])/g, ' $1').trim() : 'Not set'}</span>
         </SimpleReviewRow>
         <SimpleReviewRow>
-          <span>Valuation Method</span>
-          <span>{draft.valuationMethod || 'Not set'}</span>
+          <span>Valuation Methods</span>
+          <span>{draft.valuationMethods?.length ? draft.valuationMethods.join(', ') : (draft.valuationMethod || 'Not set')}</span>
         </SimpleReviewRow>
+        <SimpleReviewRow>
+          <span>Coinsurance Options</span>
+          <span>{draft.coinsuranceOptions?.length ? draft.coinsuranceOptions.map(c => `${c}%`).join(', ') : 'Not set'}</span>
+        </SimpleReviewRow>
+        <SimpleReviewRow>
+          <span>Underwriter Approval</span>
+          <span>{draft.requiresUnderwriterApproval === true ? 'Required' : draft.requiresUnderwriterApproval === false ? 'Auto-Approve' : 'Not set'}</span>
+        </SimpleReviewRow>
+        {draft.eligibilityCriteria && draft.eligibilityCriteria.length > 0 && (
+          <SimpleReviewRow>
+            <span>Eligibility Criteria</span>
+            <span>{draft.eligibilityCriteria.length} requirement(s)</span>
+          </SimpleReviewRow>
+        )}
+        {draft.prohibitedClasses && draft.prohibitedClasses.length > 0 && (
+          <SimpleReviewRow>
+            <span>Prohibited Classes</span>
+            <span>{draft.prohibitedClasses.length} class(es)</span>
+          </SimpleReviewRow>
+        )}
       </SimpleReviewDetails>
     </SimpleReviewCard>
 
@@ -1767,9 +3266,209 @@ const SimpleReviewStep: React.FC<SimpleReviewStepProps> = ({ draft, validation }
   </ReviewContainer>
 );
 
+// Enhanced Review Step with AI contribution summary
+interface EnhancedReviewStepProps {
+  draft: Partial<Coverage>;
+  validation: any;
+  aiSuggestedFields?: Set<string>;
+}
+
+const EnhancedReviewStep: React.FC<EnhancedReviewStepProps> = ({ draft, validation, aiSuggestedFields }) => {
+  const aiFieldCount = aiSuggestedFields?.size || 0;
+  const totalFields = 6; // Approximate number of key fields
+  const aiContributionPercent = Math.round((aiFieldCount / totalFields) * 100);
+
+  return (
+    <ReviewContainer>
+      <StepTitle>Review & Publish</StepTitle>
+      <StepSubtitle>
+        Your coverage is ready. Review the details below before publishing.
+      </StepSubtitle>
+
+      {/* AI Contribution Summary */}
+      {aiFieldCount > 0 && (
+        <AIContributionCard>
+          <AIContributionHeader>
+            <SparklesIcon />
+            <span>AI Assisted This Coverage</span>
+          </AIContributionHeader>
+          <AIContributionBody>
+            <AIContributionStat>
+              <span>{aiFieldCount}</span>
+              <span>fields suggested</span>
+            </AIContributionStat>
+            <AIContributionBar>
+              <AIContributionFill $percent={aiContributionPercent} />
+            </AIContributionBar>
+            <AIContributionNote>
+              AI helped configure {aiContributionPercent}% of this coverage based on P&C best practices
+            </AIContributionNote>
+          </AIContributionBody>
+        </AIContributionCard>
+      )}
+
+      <SimpleReviewCard>
+        <SimpleReviewHeader>
+          <ShieldCheckIcon />
+          <div>
+            <SimpleReviewName>{draft.name || 'Unnamed Coverage'}</SimpleReviewName>
+            <SimpleReviewCode>{draft.coverageCode || 'No code assigned'}</SimpleReviewCode>
+          </div>
+        </SimpleReviewHeader>
+
+        <SimpleReviewDetails>
+          <SimpleReviewRow $aiSuggested={aiSuggestedFields?.has('coverageTrigger')}>
+            <span>Trigger Type</span>
+            <span>
+              {draft.coverageTrigger ? draft.coverageTrigger.replace(/([A-Z])/g, ' $1').trim() : 'Not set'}
+              {aiSuggestedFields?.has('coverageTrigger') && <AIBadge>AI</AIBadge>}
+            </span>
+          </SimpleReviewRow>
+          <SimpleReviewRow $aiSuggested={aiSuggestedFields?.has('valuationMethod')}>
+            <span>Valuation Methods</span>
+            <span>
+              {draft.valuationMethods?.length ? draft.valuationMethods.join(', ') : (draft.valuationMethod || 'Not set')}
+              {aiSuggestedFields?.has('valuationMethod') && <AIBadge>AI</AIBadge>}
+            </span>
+          </SimpleReviewRow>
+          <SimpleReviewRow $aiSuggested={aiSuggestedFields?.has('coinsuranceOptions')}>
+            <span>Coinsurance Options</span>
+            <span>
+              {draft.coinsuranceOptions?.length ? draft.coinsuranceOptions.map(c => `${c}%`).join(', ') : 'Not set'}
+              {aiSuggestedFields?.has('coinsuranceOptions') && <AIBadge>AI</AIBadge>}
+            </span>
+          </SimpleReviewRow>
+          <SimpleReviewRow>
+            <span>Underwriter Approval</span>
+            <span>{draft.requiresUnderwriterApproval === true ? 'Required' : draft.requiresUnderwriterApproval === false ? 'Auto-Approve' : 'Not set'}</span>
+          </SimpleReviewRow>
+          {draft.eligibilityCriteria && draft.eligibilityCriteria.length > 0 && (
+            <SimpleReviewRow>
+              <span>Eligibility Criteria</span>
+              <span>{draft.eligibilityCriteria.length} requirement(s)</span>
+            </SimpleReviewRow>
+          )}
+          {draft.prohibitedClasses && draft.prohibitedClasses.length > 0 && (
+            <SimpleReviewRow>
+              <span>Prohibited Classes</span>
+              <span>{draft.prohibitedClasses.length} class(es)</span>
+            </SimpleReviewRow>
+          )}
+        </SimpleReviewDetails>
+      </SimpleReviewCard>
+
+      {validation && !validation.readyToPublish && (
+        <WarningBox>
+          <WarningHeader>
+            <ExclamationTriangleIcon />
+            <span>Missing Required Fields</span>
+          </WarningHeader>
+          <WarningList>
+            {validation.missingRequiredFields.map((field: string) => (
+              <li key={field}>{field}</li>
+            ))}
+          </WarningList>
+        </WarningBox>
+      )}
+    </ReviewContainer>
+  );
+};
+
+// AI Contribution styled components
+const AIContributionCard = styled.div`
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.05));
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  animation: ${slideUp} 0.4s ${EASING.spring};
+`;
+
+const AIContributionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    color: ${({ theme }) => theme.colours.primary};
+  }
+
+  span {
+    font-size: 14px;
+    font-weight: 600;
+    color: ${({ theme }) => theme.colours.primary};
+  }
+`;
+
+const AIContributionBody = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const AIContributionStat = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+
+  span:first-child {
+    font-size: 24px;
+    font-weight: 700;
+    color: ${({ theme }) => theme.colours.primary};
+  }
+
+  span:last-child {
+    font-size: 13px;
+    color: ${({ theme }) => theme.colours.textMuted};
+  }
+`;
+
+const AIContributionBar = styled.div`
+  height: 6px;
+  background: ${({ theme }) => theme.colours.border};
+  border-radius: 3px;
+  overflow: hidden;
+`;
+
+const AIContributionFill = styled.div<{ $percent: number }>`
+  height: 100%;
+  width: ${({ $percent }) => $percent}%;
+  background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 3px;
+  transition: width 0.5s ${EASING.spring};
+`;
+
+const AIContributionNote = styled.div`
+  font-size: 12px;
+  color: ${({ theme }) => theme.colours.textMuted};
+`;
+
+const AIBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  margin-left: 8px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+  text-transform: uppercase;
+`;
+
 // Simple styled components for the new steps
 const FieldGroup = styled.div`
   margin-bottom: 24px;
+`;
+
+const ValuationStepDescription = styled.p`
+  font-size: 14px;
+  color: ${({ theme }) => theme.colours.textMuted};
+  margin-bottom: 24px;
+  line-height: 1.6;
 `;
 
 const FieldLabel = styled.label`
@@ -1821,12 +3520,18 @@ const SimpleReviewDetails = styled.div`
   gap: 12px;
 `;
 
-const SimpleReviewRow = styled.div`
+const SimpleReviewRow = styled.div<{ $aiSuggested?: boolean }>`
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12px 0;
   border-bottom: 1px solid ${({ theme }) => theme.colours.border};
+  ${({ $aiSuggested }) => $aiSuggested && css`
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.05) 0%, transparent 100%);
+    margin: 0 -12px;
+    padding: 12px;
+    border-radius: 6px;
+  `}
 
   &:last-child {
     border-bottom: none;
@@ -1842,6 +3547,8 @@ const SimpleReviewRow = styled.div`
     font-weight: 500;
     color: ${({ theme }) => theme.colours.text};
     text-transform: capitalize;
+    display: flex;
+    align-items: center;
   }
 `;
 
@@ -1933,73 +3640,6 @@ const TriggersStep: React.FC<StepProps> = ({
         </AIAssistedField>
       </>
     )}
-  </div>
-);
-
-const ValuationStep: React.FC<StepProps> = ({
-  draft,
-  updateDraft,
-  aiSuggestedFields = new Set(),
-  onAcceptField,
-  onRejectField,
-  isAIUpdating
-}) => (
-  <div>
-    {isAIUpdating && (
-      <AIFillingBanner>
-        <SparklesIcon />
-        <AIFillingText>
-          <strong>AI is determining valuation</strong>
-          <span>Selecting optimal method for "{draft.name}"...</span>
-        </AIFillingText>
-        <AIFillingDots><span /><span /><span /></AIFillingDots>
-      </AIFillingBanner>
-    )}
-    <StepTitle>Valuation & Coinsurance</StepTitle>
-    <AIAssistedField
-      label="Valuation Method"
-      fieldName="valuationMethod"
-      isAISuggested={aiSuggestedFields.has('valuationMethod')}
-      isAIUpdating={isAIUpdating && !draft.valuationMethod}
-      aiExplanation="Recommended valuation approach for this coverage"
-      onAcceptSuggestion={() => onAcceptField?.('valuationMethod')}
-      onRejectSuggestion={() => onRejectField?.('valuationMethod')}
-    >
-      <ValuationMethodSelector
-        value={draft.valuationMethod}
-        onChange={(method) => updateDraft({ valuationMethod: method })}
-      />
-    </AIAssistedField>
-    {draft.valuationMethod === 'ACV' && (
-      <AIAssistedField
-        label="Depreciation Method"
-        fieldName="depreciationMethod"
-        isAISuggested={aiSuggestedFields.has('depreciationMethod')}
-        aiExplanation="Common depreciation approach for ACV"
-        onAcceptSuggestion={() => onAcceptField?.('depreciationMethod')}
-        onRejectSuggestion={() => onRejectField?.('depreciationMethod')}
-      >
-        <DepreciationMethodSelector
-          value={draft.depreciationMethod}
-          onChange={(method) => updateDraft({ depreciationMethod: method })}
-        />
-      </AIAssistedField>
-    )}
-    <AIAssistedField
-      label="Coinsurance Percentage"
-      fieldName="coinsurancePercentage"
-      isAISuggested={aiSuggestedFields.has('coinsurancePercentage')}
-      isAIUpdating={isAIUpdating && !draft.coinsurancePercentage}
-      aiExplanation="Industry standard coinsurance for property coverages is 80%"
-      aiConfidence={95}
-      onAcceptSuggestion={() => onAcceptField?.('coinsurancePercentage')}
-      onRejectSuggestion={() => onRejectField?.('coinsurancePercentage')}
-    >
-      <CoinsuranceInput
-        value={draft.coinsurancePercentage}
-        onChange={(value) => updateDraft({ coinsurancePercentage: value })}
-      />
-    </AIAssistedField>
   </div>
 );
 

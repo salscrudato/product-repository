@@ -139,7 +139,7 @@ const coverageAssistant = onCall(
 
       const response = await axios.post(
         'https://api.openai.com/v1/chat/completions',
-        { model: 'gpt-4o', messages, temperature: 0.3, max_tokens: 2000, response_format: { type: 'json_object' } },
+        { model: 'gpt-4o-mini', messages, temperature: 0.3, max_tokens: 2000, response_format: { type: 'json_object' } },
         { headers: { 'Authorization': `Bearer ${openaiKey.value()}`, 'Content-Type': 'application/json' } }
       );
 

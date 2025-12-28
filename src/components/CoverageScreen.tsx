@@ -27,7 +27,6 @@ import EnhancedHeader from '../components/ui/EnhancedHeader';
 
 import { LimitsModal } from '../components/modals/LimitsModal';
 import { DeductiblesModal } from '../components/modals/DeductiblesModal';
-import { CoverageFormModal } from '../components/modals/CoverageFormModal';
 import { CoverageCopilotWizard } from '../components/wizard/CoverageCopilotWizard';
 
 import styled, { keyframes } from 'styled-components';
@@ -313,6 +312,62 @@ const ToolbarLabel = styled.span`
   font-size: 13px;
   color: #64748b;
   font-weight: 500;
+`;
+
+const CopilotButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 50%, #8b5cf6 100%);
+  background-size: 200% 100%;
+  border: none;
+  border-radius: 50px;
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35), 0 3px 6px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(20px);
+  letter-spacing: 0.01em;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(135deg, #2563eb, #7c3aed, #8b5cf6);
+    border-radius: 52px;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    filter: blur(10px);
+  }
+
+  &:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 12px 32px rgba(124, 58, 237, 0.45), 0 6px 12px rgba(0, 0, 0, 0.12);
+    background-position: 100% 0;
+
+    &::before {
+      opacity: 0.6;
+    }
+  }
+
+  &:active {
+    transform: translateY(-1px) scale(1.01);
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+    transition: transform 0.3s ease;
+  }
+
+  &:hover svg {
+    transform: rotate(15deg) scale(1.1);
+  }
 `;
 
 // Parent Coverage Card - Compact card for parent coverages
@@ -709,72 +764,6 @@ const WideModal = styled(Modal)`
   border: 1px solid rgba(255, 255, 255, 0.2);
 `;
 
-const CopilotButton = styled.button`
-  position: fixed;
-  bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 28px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #ffffff;
-  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 50%, #8b5cf6 100%);
-  background-size: 200% 100%;
-  border: none;
-  border-radius: 50px;
-  box-shadow: 0 10px 30px rgba(124, 58, 237, 0.4), 0 4px 8px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 100;
-  backdrop-filter: blur(20px);
-  letter-spacing: 0.01em;
-
-  &::before {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    background: linear-gradient(135deg, #2563eb, #7c3aed, #8b5cf6);
-    border-radius: 52px;
-    z-index: -1;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    filter: blur(10px);
-  }
-
-  &:hover {
-    transform: translateX(-50%) translateY(-4px) scale(1.03);
-    box-shadow: 0 20px 50px rgba(124, 58, 237, 0.5), 0 8px 16px rgba(0, 0, 0, 0.15);
-    background-position: 100% 0;
-
-    &::before {
-      opacity: 0.7;
-    }
-  }
-
-  &:active {
-    transform: translateX(-50%) translateY(-2px) scale(1.01);
-  }
-
-  svg {
-    width: 18px;
-    height: 18px;
-    transition: transform 0.3s ease;
-  }
-
-  &:hover svg {
-    transform: rotate(15deg) scale(1.1);
-  }
-
-  @media (max-width: 768px) {
-    padding: 12px 24px;
-    font-size: 13px;
-    bottom: 24px;
-  }
-`;
-
 // Empty State - Enhanced with illustration and better CTAs
 const EmptyState = styled.div`
   display: flex;
@@ -1006,6 +995,7 @@ export default function CoverageScreen() {
 
   // Coverage Copilot wizard state
   const [copilotWizardOpen, setCopilotWizardOpen] = useState(false);
+  const [editingCoverageForWizard, setEditingCoverageForWizard] = useState<any>(null);
 
   // Tree structure generation for proper parent-child rendering
   const treeStructure = useMemo(() => {
@@ -1120,16 +1110,9 @@ export default function CoverageScreen() {
            coverage.waitingPeriod;
   };
 
-  const [formState, setFormState] = useState({
-    name: '', coverageCode: '', formIds: [], limits: [], deductibles: [],
-    states: [], category: ''
-  });
-  const [editingId, setEditingId] = useState(null);
-
   const [limitModalOpen, setLimitModalOpen] = useState(false);
   const [deductibleModalOpen, setDeductibleModalOpen] = useState(false);
   const [currentCoverage, setCurrentCoverage] = useState(null);
-  const [addModalOpen, setAddModalOpen] = useState(false);
 
   const [linkFormsModalOpen, setLinkFormsModalOpen] = useState(false);
   const [selectedCoverageForForms, setSelectedCoverageForForms] = useState(null);
@@ -1203,30 +1186,19 @@ export default function CoverageScreen() {
   useEffect(() => { loadMeta(); }, [loadMeta]);
 
   /* ---------- helpers ---------- */
-  const resetForm = () => {
-    setFormState({ name:'', coverageCode:'', formIds:[], limits:[], deductibles:[], states:[], category:'' });
-    setEditingId(null);
-  };
+  // Open Coverage Copilot wizard for editing
   const openEditModal = c => {
-    setCurrentCoverage(c);
-    setFormState({
-      name: c.name || '', coverageCode: c.coverageCode || '',
-      formIds: c.formIds || [], limits: c.limits || [],
-      deductibles: c.deductibles || [], states: c.states || []
-    });
-    setEditingId(c.id); setAddModalOpen(true);
+    setEditingCoverageForWizard(c);
+    setCopilotWizardOpen(true);
   };
+
+  // Open Coverage Copilot wizard for adding new coverage
   const openAddModal = (parentId = null) => {
-    resetForm();
-    setAddingParentId(parentId);
-    setAddModalOpen(true);
+    setEditingCoverageForWizard(parentId ? { parentCoverageId: parentId } : null);
+    setCopilotWizardOpen(true);
   };
 
-  /* --- CRUD handlers (add/update/delete) are unchanged except setMetaLoading wrappers --- */
-  //  ... omitted for brevity (same logic but use formState) ...
-
-  /* ---------- handlers missing after refactor ---------- */
-
+  /* ---------- Modal handlers ---------- */
   const openLimitModal = c => {
     setCurrentCoverage(c);
     setLimitModalOpen(true);
@@ -1421,10 +1393,10 @@ export default function CoverageScreen() {
           </CommandBarCenter>
 
           <CommandBarRight>
-            <ToolbarButton onClick={() => openAddModal()}>
-              <PlusIcon />
-              Add Coverage
-            </ToolbarButton>
+            <CopilotButton onClick={() => setCopilotWizardOpen(true)}>
+              <SparklesIcon />
+              Coverage Copilot
+            </CopilotButton>
           </CommandBarRight>
         </CommandBar>
 
@@ -1732,11 +1704,6 @@ export default function CoverageScreen() {
           </EmptyState>
         )}
 
-        <CopilotButton onClick={() => setCopilotWizardOpen(true)}>
-          <SparklesIcon />
-          Coverage Copilot
-        </CopilotButton>
-
       </PageContent>
 
       {/* ----- Limits Modal (Enhanced) ----- */}
@@ -1763,70 +1730,20 @@ export default function CoverageScreen() {
         />
       )}
 
-      {/* ----- Add / Edit Coverage Modal (Enhanced) ----- */}
-      {addModalOpen && (
-        <CoverageFormModal
-          isOpen={addModalOpen}
-          onClose={() => {
-            setAddModalOpen(false);
-            resetForm();
-          }}
-          productId={productId}
-          coverage={editingId ? {
-            id: editingId,
-            ...formState,
-            // Map existing coverage data if editing
-            ...(currentCoverage || {})
-          } : {
-            name: formState.name,
-            coverageCode: formState.coverageCode,
-            parentCoverageId: addingParentId
-          }}
-          onSave={async (coverageData) => {
-            setMetaLoading(true);
-            try {
-              const data = {
-                ...coverageData,
-                productId,
-                parentCoverageId: addingParentId || null,
-              };
-
-              if (editingId) {
-                // Update existing coverage
-                await updateDoc(
-                  doc(db, `products/${productId}/coverages`, editingId),
-                  { ...data, updatedAt: serverTimestamp() }
-                );
-              } else {
-                // Add new coverage
-                await addDoc(
-                  collection(db, `products/${productId}/coverages`),
-                  { ...data, createdAt: serverTimestamp() }
-                );
-              }
-              await reloadCoverages();
-              resetForm();
-              setAddModalOpen(false);
-            } catch (err) {
-              console.error(err);
-              throw new Error('Save failed: ' + err.message);
-            } finally {
-              setMetaLoading(false);
-            }
-          }}
-          title={editingId ? 'Edit Coverage' : 'Add Coverage'}
-        />
-      )}
-
-      {/* Coverage Copilot Wizard - Moved outside PageContent */}
+      {/* Coverage Copilot Wizard - Used for both add and edit */}
       {copilotWizardOpen && productId && (
         <CoverageCopilotWizard
           isOpen={copilotWizardOpen}
-          onClose={() => setCopilotWizardOpen(false)}
-          productId={productId}
-          onSave={() => {
+          onClose={() => {
             setCopilotWizardOpen(false);
-            reloadCoverages();
+            setEditingCoverageForWizard(null);
+          }}
+          productId={productId}
+          existingCoverage={editingCoverageForWizard}
+          onSave={async () => {
+            setCopilotWizardOpen(false);
+            setEditingCoverageForWizard(null);
+            await reloadCoverages();
           }}
         />
       )}

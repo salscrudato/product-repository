@@ -4,7 +4,7 @@
  * OPTIMIZED VERSION - Performance & Cost Improvements:
  * - Insurance-specific semantic chunking for coverages, limits, deductibles, exclusions
  * - Parallel batch processing with rate limiting
- * - Intelligent model selection (gpt-4o-mini for map, gpt-4o for reduce)
+ * - All operations use gpt-4o-mini for cost efficiency
  * - Token budget management and prompt compression
  * - Hierarchical summarization with early termination
  * - Chunk caching with LRU eviction
@@ -166,10 +166,9 @@ const RAG_CONFIG = {
   maxCacheSize: 100,
   cacheTTL: 10 * 60 * 1000, // 10 minutes
 
-  // Cost estimates (per 1K tokens)
+  // Cost estimates (per 1K tokens) - all using gpt-4o-mini
   costs: {
-    'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
-    'gpt-4o': { input: 0.005, output: 0.015 }
+    'gpt-4o-mini': { input: 0.00015, output: 0.0006 }
   }
 };
 

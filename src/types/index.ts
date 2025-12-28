@@ -385,11 +385,13 @@ export interface Coverage {
   premium?: number;
 
   // ========== Coinsurance & Participation ==========
-  coinsurancePercentage?: number;  // 80, 90, 100
+  coinsurancePercentage?: number;  // Legacy single value - 80, 90, 100
+  coinsuranceOptions?: number[];   // Available coinsurance percentages (e.g., [80, 90, 100])
+  coinsuranceMinimum?: number;     // Minimum coinsurance percentage allowed
+  coinsuranceMaximum?: number;     // Maximum coinsurance percentage allowed
   hasCoinsurancePenalty?: boolean;
   insuredParticipation?: number;   // Percentage insured pays (copay)
   coinsuranceWaiver?: boolean;     // Whether coinsurance can be waived
-  coinsuranceMinimum?: number;     // Minimum coinsurance percentage
 
   // ========== Coverage Triggers & Periods ==========
   coverageTrigger?: CoverageTrigger;
@@ -427,7 +429,22 @@ export interface Coverage {
   supersedes?: string[];            // Coverage IDs this replaces
 
   // ========== Underwriting ==========
+  /**
+   * Underwriter approval requirement:
+   * - 'yes' = Always requires underwriter approval
+   * - 'no' = Auto-approved, no underwriter review needed
+   * - 'conditional' = Requires approval based on eligibility criteria
+   * @deprecated Use underwriterApprovalType instead (kept for backward compatibility)
+   */
   requiresUnderwriterApproval?: boolean;
+
+  /**
+   * Underwriter approval type (preferred over requiresUnderwriterApproval):
+   * - 'yes' = Always requires underwriter approval
+   * - 'no' = Auto-approved, no underwriter review needed
+   * - 'conditional' = Requires approval based on eligibility criteria
+   */
+  underwriterApprovalType?: 'yes' | 'no' | 'conditional';
   eligibilityCriteria?: string[];
   prohibitedClasses?: string[];     // Business classes that can't buy this
 

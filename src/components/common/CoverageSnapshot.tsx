@@ -29,7 +29,6 @@ interface CoverageSnapshotProps {
   healthLabel?: string;
   healthScore?: number;
   healthTooltip?: string;
-  triggerLabel?: string;
   valuationLabel?: string;
   territoryLabel?: string;
   coinsuranceLabel?: string;
@@ -86,14 +85,12 @@ export const CoverageSnapshot: React.FC<CoverageSnapshotProps> = ({
   healthLabel,
   healthScore,
   healthTooltip,
-  triggerLabel,
   valuationLabel,
   territoryLabel,
   coinsuranceLabel,
   waitingPeriodLabel
 }) => {
   const hasAttributes = !!(
-    triggerLabel ||
     valuationLabel ||
     territoryLabel ||
     coinsuranceLabel ||
@@ -153,7 +150,6 @@ export const CoverageSnapshot: React.FC<CoverageSnapshotProps> = ({
 
         {hasAttributes && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {triggerLabel && <AttributePill label="Trigger" value={triggerLabel} />}
             {valuationLabel && <AttributePill label="Valuation" value={valuationLabel} />}
             {territoryLabel && <AttributePill label="Territory" value={territoryLabel} />}
             {coinsuranceLabel && <AttributePill label="Coinsurance" value={coinsuranceLabel} />}

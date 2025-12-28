@@ -50,11 +50,11 @@ const MODEL_CONFIGS: Record<ModelTier, ModelConfig> = {
     costPer1kOutput: 0.0006
   },
   quality: {
-    model: 'gpt-4o',
+    model: 'gpt-4o-mini',  // All tiers use gpt-4o-mini for cost efficiency
     maxTokens: 4000,
     temperature: 0.5,
-    costPer1kInput: 0.005,
-    costPer1kOutput: 0.015
+    costPer1kInput: 0.00015,
+    costPer1kOutput: 0.0006
   }
 };
 

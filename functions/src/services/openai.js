@@ -34,12 +34,12 @@ const CONFIG = {
   timeoutPerToken: 50, // Additional ms per expected token
   maxTimeout: 120000, // 2 minutes max
 
-  // Model configurations
+  // Model configurations - all using gpt-4o-mini for cost efficiency
   models: {
-    'gpt-4o-mini': { costPer1kInput: 0.00015, costPer1kOutput: 0.0006, maxTokens: 16384 },
-    'gpt-4o': { costPer1kInput: 0.005, costPer1kOutput: 0.015, maxTokens: 4096 },
-    'gpt-4-turbo': { costPer1kInput: 0.01, costPer1kOutput: 0.03, maxTokens: 4096 }
-  }
+    'gpt-4o-mini': { costPer1kInput: 0.00015, costPer1kOutput: 0.0006, maxTokens: 16384 }
+  },
+  // Default model for all operations
+  defaultModel: 'gpt-4o-mini'
 };
 
 // ============================================================================
@@ -125,16 +125,18 @@ const isRetryableError = (error) => {
 
 /**
  * Get OpenAI API key from environment
+ * Checks both OPENAI_API_KEY (for v2 functions secrets) and OPENAI_KEY (legacy)
  */
 const getOpenAIKey = () => {
-  if (process.env.OPENAI_KEY) {
-    const key = process.env.OPENAI_KEY.trim();
-    if (!key) {
+  const key = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY;
+  if (key) {
+    const trimmedKey = key.trim();
+    if (!trimmedKey) {
       throw new Error('OpenAI API key is empty after trimming.');
     }
-    return key;
+    return trimmedKey;
   }
-  throw new Error('OpenAI API key not configured. Set OPENAI_KEY environment variable.');
+  throw new Error('OpenAI API key not configured. Set OPENAI_API_KEY environment variable.');
 };
 
 /**

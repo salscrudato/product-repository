@@ -4,6 +4,7 @@
  */
 
 const functions = require('firebase-functions');
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { requireAuth } = require('../middleware/auth');
 const { validateAIRequest } = require('../middleware/validation');
 const { withErrorHandling } = require('../middleware/errorHandler');
@@ -150,20 +151,33 @@ const analyzeClaim = functions.https.onCall(
 /**
  * Suggest coverage names based on partial input
  * Uses AI to dynamically generate relevant P&C insurance coverage suggestions
+ *
+ * Using v2 onCall for proper Firebase Auth integration
  */
-const suggestCoverageNames = functions.https.onCall(
-  withErrorHandling(async (data, context) => {
-    requireAuth(context);
-    rateLimitAI(context);
+const suggestCoverageNames = onCall(
+  {
+    // Enable CORS and require authentication
+    cors: true,
+    // Secrets for OpenAI
+    secrets: ['OPENAI_API_KEY'],
+  },
+  async (request) => {
+    // v2 uses request.auth instead of context.auth
+    if (!request.auth) {
+      throw new HttpsError(
+        'unauthenticated',
+        'User must be authenticated to perform this action'
+      );
+    }
 
-    const { query, lineOfBusiness = 'property', existingNames = [] } = data;
+    const { query, lineOfBusiness = 'property', existingNames = [] } = request.data;
 
     if (!query || query.length < 2) {
       return { suggestions: [] };
     }
 
     logger.info('Coverage name suggestion requested', {
-      userId: context.auth.uid,
+      userId: request.auth.uid,
       query,
       lineOfBusiness
     });
@@ -187,38 +201,43 @@ Rules:
       { role: 'user', content: `Suggest coverage names matching: "${query}"` }
     ];
 
-    const result = await openaiService.generateChatResponse(
-      messages,
-      'gpt-4o-mini', // Use fast, cheap model for suggestions
-      100, // Low max tokens
-      0.3 // Low temperature for consistent results
-    );
-
-    // Parse the response
-    let suggestions = [];
     try {
-      const content = result.content || result.choices?.[0]?.message?.content || '[]';
-      // Clean up the response - sometimes GPT adds markdown
-      const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      suggestions = JSON.parse(cleaned);
-
-      // Filter out any that match existing names
-      suggestions = suggestions.filter(
-        s => !existingNames.some(e => e.toLowerCase() === s.toLowerCase())
+      const result = await openaiService.generateChatResponse(
+        messages,
+        'gpt-4o-mini', // Use fast, cheap model for suggestions
+        100, // Low max tokens
+        0.3 // Low temperature for consistent results
       );
-    } catch (parseError) {
-      logger.warn('Failed to parse AI suggestions', { error: parseError.message, content: result.content });
-      suggestions = [];
+
+      // Parse the response
+      let suggestions = [];
+      try {
+        const content = result.content || result.choices?.[0]?.message?.content || '[]';
+        // Clean up the response - sometimes GPT adds markdown
+        const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        suggestions = JSON.parse(cleaned);
+
+        // Filter out any that match existing names
+        suggestions = suggestions.filter(
+          s => !existingNames.some(e => e.toLowerCase() === s.toLowerCase())
+        );
+      } catch (parseError) {
+        logger.warn('Failed to parse AI suggestions', { error: parseError.message, content: result.content });
+        suggestions = [];
+      }
+
+      logger.info('Coverage name suggestions generated', {
+        userId: request.auth.uid,
+        count: suggestions.length,
+        tokensUsed: result.usage?.total_tokens
+      });
+
+      return { suggestions };
+    } catch (error) {
+      logger.error('Coverage suggestion failed', { error: error.message });
+      throw new HttpsError('internal', 'Failed to generate suggestions');
     }
-
-    logger.info('Coverage name suggestions generated', {
-      userId: context.auth.uid,
-      count: suggestions.length,
-      tokensUsed: result.usage?.total_tokens
-    });
-
-    return { suggestions };
-  }, 'suggestCoverageNames')
+  }
 );
 
 module.exports = {

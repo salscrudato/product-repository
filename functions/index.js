@@ -22,10 +22,10 @@ const db = admin.firestore();
 // ============================================================================
 
 const AI_CONFIG = {
-  // Model pricing (per 1K tokens) - Use gpt-4o-mini for cost savings
+  // Model pricing (per 1K tokens) - All using gpt-4o-mini for cost savings
   models: {
     fast: { name: 'gpt-4o-mini', inputCost: 0.00015, outputCost: 0.0006 },
-    quality: { name: 'gpt-4o', inputCost: 0.005, outputCost: 0.015 }
+    quality: { name: 'gpt-4o-mini', inputCost: 0.00015, outputCost: 0.0006 }
   },
 
   // Task-specific settings - FULL COMPLETENESS with generous limits
@@ -379,5 +379,4 @@ const autoDraftAPI = require('./src/api/autoDraftCoverageFields');
 exports.autoDraftCoverageFields = autoDraftAPI.autoDraftCoverageFields;
 
 // Coverage Name Suggestions (AI-powered autocomplete)
-const aiAPI = require('./src/api/ai');
 exports.suggestCoverageNames = aiAPI.suggestCoverageNames;

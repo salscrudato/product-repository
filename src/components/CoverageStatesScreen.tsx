@@ -307,7 +307,6 @@ export default function CoverageStatesScreen() {
             statesCount={selectedStates.length}
             formsCount={formsCount}
             rulesCount={rulesCount}
-            triggerLabel={coverage.coverageTrigger}
             valuationLabel={coverage.valuationMethod}
             territoryLabel={coverage.territory}
             coinsuranceLabel={coverage.coinsurance}

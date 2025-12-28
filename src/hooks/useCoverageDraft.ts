@@ -9,7 +9,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { doc, setDoc, getDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, deleteDoc, addDoc, collection, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Coverage, CoverageDraft, CoverageDraftStatus, CoverageDraftSource } from '../types';
 import { validateCoverage, calculateCoverageCompleteness, CoverageValidationResult } from '../services/validationService';
@@ -143,15 +143,76 @@ export default function useCoverageDraft(options: UseCoverageDraftOptions): UseC
   }, [productId, draftId, draft, status, source, completeness.score, validation?.missingRequiredFields]);
 
   const publishDraft = useCallback(async (): Promise<Coverage | null> => {
+    if (!productId) {
+      setError('No product ID provided');
+      return null;
+    }
+
     const publishValidation = validateCoverage(draft, { mode: 'publish' });
     if (!publishValidation.isValid) {
       setError(`Cannot publish: ${publishValidation.errors.map(e => e.message).join(', ')}`);
       return null;
     }
-    // Publishing logic would go here - create actual coverage document
-    setStatus('published');
-    return draft as Coverage;
-  }, [draft]);
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      // Prepare coverage data for Firestore
+      const coverageData = {
+        ...draft,
+        productId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      // Remove undefined fields
+      Object.keys(coverageData).forEach(key => {
+        if (coverageData[key as keyof typeof coverageData] === undefined) {
+          delete coverageData[key as keyof typeof coverageData];
+        }
+      });
+
+      let savedCoverage: Coverage;
+
+      // Check if we're editing an existing coverage (has an id that exists in the coverages collection)
+      if (draft.id) {
+        // Update existing coverage
+        const coverageRef = doc(db, `products/${productId}/coverages`, draft.id);
+        await updateDoc(coverageRef, {
+          ...coverageData,
+          updatedAt: serverTimestamp(),
+        });
+        savedCoverage = { ...draft, id: draft.id } as Coverage;
+      } else {
+        // Create new coverage in products/{productId}/coverages
+        const coveragesRef = collection(db, `products/${productId}/coverages`);
+        const docRef = await addDoc(coveragesRef, coverageData);
+        savedCoverage = { ...draft, id: docRef.id } as Coverage;
+      }
+
+      // Clean up the draft document if it exists
+      if (draftId) {
+        try {
+          await deleteDoc(doc(db, `products/${productId}/coverageDrafts/${draftId}`));
+        } catch (cleanupErr) {
+          // Non-critical error, just log it
+          console.warn('Failed to clean up draft:', cleanupErr);
+        }
+      }
+
+      setStatus('published');
+      setIsDirty(false);
+
+      return savedCoverage;
+    } catch (err) {
+      console.error('Error publishing coverage:', err);
+      setError('Failed to publish coverage: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [draft, productId, draftId]);
 
   const discardDraft = useCallback(async () => {
     if (draftId && productId) {
