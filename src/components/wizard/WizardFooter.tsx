@@ -231,13 +231,6 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
 
       {/* Center - Status indicators */}
       <CenterSection>
-        {isDirty && (
-          <StatusIndicator $type="warning">
-            <PulseDot />
-            Unsaved changes
-          </StatusIndicator>
-        )}
-
         {missingRequiredCount > 0 && (
           <StatusIndicator $type="info">
             <ExclamationCircleIcon />
@@ -248,20 +241,6 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
 
       {/* Right side - Action buttons */}
       <RightSection>
-        {/* Save Draft button */}
-        <SaveButton
-          onClick={onSaveDraft}
-          disabled={isSaving || !isDirty}
-          $isDirty={isDirty}
-        >
-          {isSaving ? (
-            <SpinningIcon><ArrowPathIcon /></SpinningIcon>
-          ) : (
-            <BookmarkIcon />
-          )}
-          Save Draft
-        </SaveButton>
-
         {/* Next / Publish button */}
         {isLastStep ? (
           <PublishButton
