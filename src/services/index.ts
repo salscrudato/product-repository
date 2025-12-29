@@ -143,3 +143,26 @@ export {
   type AuditLogEntry
 } from './auditService';
 
+// ============================================================================
+// Limit Option Services
+// ============================================================================
+
+export {
+  // Option Set CRUD
+  getLimitOptionSets,
+  getLimitOptionSetWithOptions,
+  upsertLimitOptionSet,
+  deleteLimitOptionSet,
+  // Option CRUD
+  getLimitOptions,
+  upsertLimitOption,
+  deleteLimitOption,
+  setDefaultOption,
+  reorderOptions,
+  // Display helpers
+  generateDisplayValue,
+  // Migration
+  migrateLegacyLimitsToOptionSet,
+  saveMigratedOptionSet,
+  syncToLegacyLimits
+} from './limitOptionService';

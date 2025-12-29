@@ -10,6 +10,9 @@
 
 import { Timestamp } from 'firebase/firestore';
 
+// Re-export limit option types
+export * from './limitOptions';
+
 // ============================================================================
 // Product Types
 // ============================================================================
