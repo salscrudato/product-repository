@@ -798,11 +798,11 @@ const EmptyStateText = styled.p`
  * Prevents unnecessary re-renders when parent component updates
  */
 interface RuleCardItemProps {
-  rule: any;
+  rule: Rule;
   getProductName: (productId: string) => string;
-  getTargetName: (rule: any) => string;
+  getTargetName: (rule: Rule) => string;
   getRuleTypeColor: (ruleType: string) => string;
-  onEdit: (rule: any) => void;
+  onEdit: (rule: Rule) => void;
   onDelete: (ruleId: string) => void;
 }
 
@@ -1386,45 +1386,6 @@ export default function RulesScreen() {
             />
           </div>
         )}
-
-        {/* Rules Stats Dashboard */}
-        <RulesStatsDashboard>
-          <RulesStatCard $color="linear-gradient(90deg, #6366f1, #8b5cf6)">
-            <RulesStatValue>{rules.length}</RulesStatValue>
-            <RulesStatLabel>
-              <Cog6ToothIcon />
-              Total Rules
-            </RulesStatLabel>
-          </RulesStatCard>
-          <RulesStatCard $color="linear-gradient(90deg, #10b981, #059669)">
-            <RulesStatValue>{rules.filter(r => r.status === 'Active').length}</RulesStatValue>
-            <RulesStatLabel>
-              <ShieldCheckIcon />
-              Active Rules
-            </RulesStatLabel>
-          </RulesStatCard>
-          <RulesStatCard $color="linear-gradient(90deg, #f59e0b, #d97706)">
-            <RulesStatValue>{rules.filter(r => r.ruleType === 'Coverage').length}</RulesStatValue>
-            <RulesStatLabel>
-              <ShieldCheckIcon />
-              Coverage Rules
-            </RulesStatLabel>
-          </RulesStatCard>
-          <RulesStatCard $color="linear-gradient(90deg, #8b5cf6, #7c3aed)">
-            <RulesStatValue>{rules.filter(r => r.ruleType === 'Pricing').length}</RulesStatValue>
-            <RulesStatLabel>
-              <CurrencyDollarIcon />
-              Pricing Rules
-            </RulesStatLabel>
-          </RulesStatCard>
-          <RulesStatCard $color="linear-gradient(90deg, #06b6d4, #0891b2)">
-            <RulesStatValue>{rules.filter(r => r.ruleType === 'Forms').length}</RulesStatValue>
-            <RulesStatLabel>
-              <DocumentTextIcon />
-              Form Rules
-            </RulesStatLabel>
-          </RulesStatCard>
-        </RulesStatsDashboard>
 
         <FilterContainer>
           <FilterRow>

@@ -1,104 +1,90 @@
 /**
  * DesignSystem - Shared design tokens and components
- * 
+ *
  * Provides consistent styling across all pages with:
- * - Animation keyframes
  * - Color system
  * - Shared styled components
  * - Statistics dashboard components
  * - Enhanced modal components
+ *
+ * NOTE: Animations are imported from '@/styles/animations.ts' (single source of truth)
  */
 
-import styled, { keyframes, css } from 'styled-components';
+import styled, { css } from 'styled-components';
 
-// ============ Animation Keyframes ============
+// ============ Animation Keyframes (re-exported from centralized animations.ts) ============
+// Import from the single source of truth
+import {
+  fadeInUp,
+  fadeIn,
+  scaleIn,
+  slideDown,
+  slideUp,
+  pulse,
+  shimmer,
+  spin,
+  ripple,
+  glow
+} from '@/styles/animations';
+import { theme } from '@/styles/theme';
 
-export const fadeInUp = keyframes`
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-`;
+// Re-export for backward compatibility
+export {
+  fadeInUp,
+  fadeIn,
+  scaleIn,
+  slideDown,
+  slideUp,
+  pulse,
+  shimmer,
+  spin,
+  ripple,
+  glow
+};
 
-export const fadeIn = keyframes`
-  from { opacity: 0; }
-  to { opacity: 1; }
-`;
-
-export const scaleIn = keyframes`
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-`;
-
-export const slideDown = keyframes`
-  from { opacity: 0; max-height: 0; transform: translateY(-8px); }
-  to { opacity: 1; max-height: 2000px; transform: translateY(0); }
-`;
-
-export const slideUp = keyframes`
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-`;
-
-export const pulse = keyframes`
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-`;
-
-export const shimmer = keyframes`
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-`;
-
-export const spin = keyframes`
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-`;
-
-export const ripple = keyframes`
-  0% { transform: scale(0); opacity: 1; }
-  100% { transform: scale(4); opacity: 0; }
-`;
-
-export const glow = keyframes`
-  0%, 100% { box-shadow: 0 0 5px rgba(99, 102, 241, 0.2); }
-  50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); }
-`;
-
-// ============ Color System ============
+// ============ Color System (derived from theme.ts - single source of truth) ============
+// This maintains backward compatibility for components that import `colors` from DesignSystem
+// All color values come from theme.ts
 
 export const colors = {
-  primary: '#6366f1',
-  primaryDark: '#4f46e5',
-  primaryLight: '#818cf8',
-  secondary: '#8b5cf6',
-  success: '#10b981',
-  successDark: '#059669',
-  warning: '#f59e0b',
-  warningDark: '#d97706',
-  error: '#ef4444',
-  errorDark: '#dc2626',
-  info: '#06b6d4',
-  infoDark: '#0891b2',
-  
-  gray50: '#f8fafc',
-  gray100: '#f1f5f9',
-  gray200: '#e2e8f0',
-  gray300: '#cbd5e1',
-  gray400: '#94a3b8',
-  gray500: '#64748b',
-  gray600: '#475569',
-  gray700: '#334155',
-  gray800: '#1e293b',
-  gray900: '#0f172a',
-};
+  // Primary colors
+  primary: theme.colours.primary,
+  primaryDark: theme.colours.primaryDark,
+  primaryLight: theme.colours.primaryLight,
+  secondary: '#8b5cf6', // Extended - not in theme.colours
 
+  // Semantic colors
+  success: theme.colours.success,
+  successDark: theme.colours.successDark,
+  warning: theme.colours.warning,
+  warningDark: theme.colours.warningDark,
+  error: theme.colours.error,
+  errorDark: theme.colours.errorDark,
+  info: theme.colours.info,
+  infoDark: theme.colours.infoDark,
+
+  // Gray scale (mapped from theme)
+  gray50: theme.colours.backgroundAlt,  // #f8fafc
+  gray100: theme.colours.backgroundSubtle, // #f1f5f9
+  gray200: theme.colours.border, // #e2e8f0
+  gray300: '#cbd5e1', // Extended
+  gray400: '#94a3b8', // Extended
+  gray500: theme.colours.textMuted, // #64748b
+  gray600: theme.colours.textSecondary, // #475569
+  gray700: '#334155', // Extended
+  gray800: theme.colours.secondaryText, // #1e293b
+  gray900: theme.colours.text, // #0f172a
+} as const;
+
+// Gradients derived from theme
 export const gradients = {
   primary: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-  success: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-  warning: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-  info: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
-  error: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-  background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%)',
-};
+  success: `linear-gradient(135deg, ${theme.colours.success} 0%, ${theme.colours.successDark} 100%)`,
+  warning: `linear-gradient(135deg, ${theme.colours.warning} 0%, ${theme.colours.warningDark} 100%)`,
+  info: `linear-gradient(135deg, ${theme.colours.info} 0%, ${theme.colours.infoDark} 100%)`,
+  error: `linear-gradient(135deg, ${theme.colours.error} 0%, ${theme.colours.errorDark} 100%)`,
+  background: `linear-gradient(135deg, ${theme.colours.backgroundAlt} 0%, ${theme.colours.border} 50%, ${theme.colours.backgroundSubtle} 100%)`,
+} as const;
 
 // ============ Statistics Dashboard ============
 
@@ -399,16 +385,9 @@ export const EmptyStateDescription = styled.p`
   line-height: 1.5;
 `;
 
-// ============ Loading Spinner ============
-
-export const LoadingSpinner = styled.div<{ $size?: number; $color?: string }>`
-  width: ${({ $size }) => $size || 24}px;
-  height: ${({ $size }) => $size || 24}px;
-  border: 2.5px solid rgba(99, 102, 241, 0.2);
-  border-top-color: ${({ $color }) => $color || colors.primary};
-  border-radius: 50%;
-  animation: ${spin} 0.8s linear infinite;
-`;
+// ============ Loading Components ============
+// Note: For LoadingSpinner component, use '@/components/ui/LoadingSpinner' instead
+// This provides multiple variants (circular, dots, bars, ring) and proper accessibility
 
 export const LoadingContainer = styled.div`
   display: flex;

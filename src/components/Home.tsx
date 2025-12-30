@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled from 'styled-components';
 import {
   SparklesIcon,
   TrashIcon,
@@ -18,63 +18,7 @@ import { AI_MODELS, AI_PARAMETERS } from '../config/aiConfig';
 import firebaseOptimized from '../services/firebaseOptimized';
 import aiPromptOptimizer from '../services/aiPromptOptimizer';
 import responseFormatter from '../services/responseFormatter';
-
-// ============================================================================
-// Animations
-// ============================================================================
-
-const fadeInUp = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-`;
-
-const slideInLeft = keyframes`
-  from {
-    opacity: 0;
-    transform: translateX(-12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-`;
-
-const slideInRight = keyframes`
-  from {
-    opacity: 0;
-    transform: translateX(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-`;
-
-const pulseGlow = keyframes`
-  0%, 100% {
-    box-shadow: 0 0 16px rgba(99, 102, 241, 0.15);
-  }
-  50% {
-    box-shadow: 0 0 28px rgba(99, 102, 241, 0.3);
-  }
-`;
-
-const typingDots = keyframes`
-  0%, 60%, 100% {
-    transform: translateY(0);
-    opacity: 0.3;
-  }
-  30% {
-    transform: translateY(-5px);
-    opacity: 1;
-  }
-`;
+import { fadeInUp, slideInLeft, slideInRight, pulseGlow, typingDots } from '@/styles/animations';
 
 
 
@@ -172,12 +116,12 @@ const ChatContainer = styled.div`
   }
 
   &::-webkit-scrollbar-thumb {
-    background: 'rgba(0,0,0,0.15)';
+    background: rgba(0, 0, 0, 0.15);
     border-radius: 3px;
   }
 
   &::-webkit-scrollbar-thumb:hover {
-    background: 'rgba(0,0,0,0.25)';
+    background: rgba(0, 0, 0, 0.25);
   }
 
   @media (max-width: 768px) {
@@ -269,21 +213,22 @@ const UserMessage = styled.div`
   animation: ${slideInRight} 0.25s ease-out;
 
   .content {
-    background: '#3b82f6';
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
     color: #ffffff;
-    padding: 12px 16px;
-    border-radius: 20px;
+    padding: 14px 18px;
+    border-radius: 20px 20px 4px 20px;
     max-width: 75%;
     font-size: 15px;
     line-height: 1.6;
     word-wrap: break-word;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
   }
 
   @media (max-width: 768px) {
     .content {
       max-width: 90%;
       font-size: 14px;
-      padding: 10px 14px;
+      padding: 12px 14px;
     }
   }
 `;
@@ -296,19 +241,20 @@ const AssistantMessage = styled.div`
   animation: ${slideInLeft} 0.25s ease-out;
 
   .avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)';
+    width: 32px;
+    height: 32px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     margin-top: 2px;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 
     svg {
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       color: white;
     }
   }
@@ -316,10 +262,12 @@ const AssistantMessage = styled.div`
   .content {
     flex: 1;
     min-width: 0;
-    background: '#f8f9fa';
-    color: '#1a1a1a';
-    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.95);
+    color: #1e293b;
+    padding: 18px 22px;
     border-radius: 4px 20px 20px 20px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   }
 
   .message-actions {
@@ -338,13 +286,17 @@ const AssistantMessage = styled.div`
     gap: 12px;
 
     .avatar {
-      width: 24px;
-      height: 24px;
+      width: 28px;
+      height: 28px;
 
       svg {
-        width: 12px;
-        height: 12px;
+        width: 14px;
+        height: 14px;
       }
+    }
+
+    .content {
+      padding: 14px 16px;
     }
 
     .message-actions {
@@ -362,10 +314,7 @@ const ActionButton = styled.button<{ $active?: boolean }>`
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: ${({ $active, theme }) =>
-    $active
-      ? '#10b981'
-      : ('#666666')};
+  color: ${({ $active }) => $active ? '#10b981' : '#64748b'};
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -377,11 +326,8 @@ const ActionButton = styled.button<{ $active?: boolean }>`
   }
 
   &:hover {
-    background: 'rgba(0,0,0,0.05)';
-    color: ${({ $active, theme }) =>
-      $active
-        ? '#10b981'
-        : ('#1a1a1a')};
+    background: rgba(0, 0, 0, 0.05);
+    color: ${({ $active }) => $active ? '#10b981' : '#1e293b'};
   }
 `;
 
@@ -517,9 +463,9 @@ const ClearButton = styled.button`
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: '#ffffff';
-  border: 1px solid '#e2e8f0';
-  color: '#64748b';
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -534,8 +480,9 @@ const ClearButton = styled.button`
   }
 
   &:hover {
-    background: '#f8fafc';
+    background: #f8fafc;
     transform: scale(1.05);
+    color: #ef4444;
   }
 
   @media (max-width: 768px) {
@@ -579,8 +526,8 @@ const LoadingIndicator = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: 'rgba(255, 255, 255, 0.95)';
-    border: 1px solid '#e2e8f0';
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #e2e8f0;
     border-radius: 4px 20px 20px 20px;
     padding: 16px 20px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -588,7 +535,7 @@ const LoadingIndicator = styled.div`
 
   .typing-text {
     font-size: 13px;
-    color: '#64748b';
+    color: #64748b;
     font-weight: 500;
   }
 
@@ -668,10 +615,17 @@ export default function Home() {
 
 
   // Fetch comprehensive application data for enhanced AI context (optimized with caching)
+  // Uses AbortController for proper cleanup to prevent state updates on unmounted components
   useEffect(() => {
+    const abortController = new AbortController();
+
     const fetchContextData = async () => {
+      // Early exit if already aborted
+      if (abortController.signal.aborted) return;
+
       try {
         setDataLoading(true);
+        const startTime = Date.now();
 
         // Use optimized Firebase service with caching
         // Note: Coverages are subcollections under products, so we use collectionGroup
@@ -685,21 +639,44 @@ export default function Home() {
           firebaseOptimized.getCollection('tasks', { useCache: true })
         ]);
 
-        setCoverages(coverageList || []);
-        setForms(formList || []);
-        setRules(rulesList || []);
-        setPricingSteps(pricingList || []);
-        setDataDictionary(dictList || []);
-        setFormCoverages(formCoverageList || []);
-        setTasks(taskList || []);
+        // Only update state if component is still mounted (not aborted)
+        if (!abortController.signal.aborted) {
+          setCoverages(coverageList || []);
+          setForms(formList || []);
+          setRules(rulesList || []);
+          setPricingSteps(pricingList || []);
+          setDataDictionary(dictList || []);
+          setFormCoverages(formCoverageList || []);
+          setTasks(taskList || []);
+
+          logger.info(LOG_CATEGORIES.PERFORMANCE, 'Context data loaded', {
+            duration: `${Date.now() - startTime}ms`,
+            counts: {
+              coverages: coverageList?.length || 0,
+              forms: formList?.length || 0,
+              rules: rulesList?.length || 0
+            }
+          });
+        }
       } catch (error) {
-        logger.error(LOG_CATEGORIES.CACHE, 'Error fetching context data', { error });
+        // Only log error if not aborted (aborted requests are expected)
+        if (!abortController.signal.aborted) {
+          logger.error(LOG_CATEGORIES.CACHE, 'Error fetching context data', { error });
+        }
       } finally {
-        setDataLoading(false);
+        // Only update loading state if not aborted
+        if (!abortController.signal.aborted) {
+          setDataLoading(false);
+        }
       }
     };
 
     fetchContextData();
+
+    // Cleanup function - abort any in-flight requests when component unmounts
+    return () => {
+      abortController.abort();
+    };
   }, []);
 
 
@@ -799,35 +776,92 @@ export default function Home() {
         }
       },
 
-      // Sample data for backward compatibility
+      // Sample data for quick reference
       sampleData: {
-        products: safeProducts.slice(0, 3).map(p => ({
+        products: safeProducts.slice(0, 5).map(p => ({
+          id: p.id,
           name: p.name,
           code: p.productCode,
-          states: p.availableStates?.length || 0
+          lineOfBusiness: p.lineOfBusiness,
+          states: p.availableStates?.slice(0, 5) || [],
+          stateCount: p.availableStates?.length || 0
         })),
-        coverages: safeCoverages.slice(0, 3).map(c => ({
+        coverages: safeCoverages.slice(0, 8).map(c => ({
+          id: c.id,
           name: c.coverageName,
           code: c.coverageCode,
-          category: c.category
+          category: c.category,
+          isSubCoverage: !!c.parentCoverage
         })),
-        tasks: safeTasks.slice(0, 3).map(t => ({
+        forms: safeForms.slice(0, 5).map(f => ({
+          id: f.id,
+          name: f.name,
+          formNumber: f.formNumber,
+          category: f.category,
+          hasDocument: !!(f.downloadUrl || f.filePath)
+        })),
+        rules: safeRules.slice(0, 5).map(r => ({
+          id: r.id,
+          name: r.name,
+          type: r.type,
+          proprietary: r.proprietary
+        })),
+        tasks: safeTasks.slice(0, 5).map(t => ({
+          id: t.id,
           title: t.title,
           phase: t.phase,
-          priority: t.priority
+          priority: t.priority,
+          status: t.status
         }))
       },
 
-      // FULL DATA - Include all data for comprehensive AI context
+      // Full data for comprehensive AI responses - the AI uses this to answer questions accurately
       fullData: {
-        products: safeProducts,
-        coverages: safeCoverages,
-        forms: safeForms,
-        rules: safeRules,
-        pricingSteps: safePricingSteps,
-        dataDictionary: safeDataDictionary,
-        formCoverages: safeFormCoverages,
-        tasks: safeTasks
+        products: safeProducts.map(p => ({
+          id: p.id,
+          name: p.name,
+          productCode: p.productCode,
+          lineOfBusiness: p.lineOfBusiness,
+          availableStates: p.availableStates || [],
+          description: p.description,
+          effectiveDate: p.effectiveDate
+        })),
+        coverages: safeCoverages.map(c => ({
+          id: c.id,
+          coverageName: c.coverageName || c.name,
+          coverageCode: c.coverageCode || c.code,
+          category: c.category,
+          description: c.description,
+          parentCoverage: c.parentCoverage
+        })),
+        forms: safeForms.map(f => ({
+          id: f.id,
+          name: f.name || f.formName,
+          formNumber: f.formNumber,
+          category: f.category,
+          description: f.description
+        })),
+        rules: safeRules.map(r => ({
+          id: r.id,
+          name: r.name || r.ruleName,
+          category: r.category,
+          description: r.description,
+          proprietary: r.proprietary
+        })),
+        tasks: safeTasks.map(t => ({
+          id: t.id,
+          title: t.title,
+          phase: t.phase,
+          priority: t.priority,
+          status: t.status,
+          dueDate: t.dueDate
+        })),
+        pricingSteps: safePricingSteps.map(p => ({
+          id: p.id,
+          stepName: p.stepName || p.name,
+          stepType: p.stepType,
+          description: p.description
+        }))
       }
     };
 

@@ -1,7 +1,7 @@
 // src/components/ui/ProductCard.tsx
 import React, { memo, useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
-import styled, { keyframes, css } from 'styled-components';
+import styled, { css } from 'styled-components';
 import {
   PencilIcon,
   ChevronRightIcon,
@@ -16,33 +16,7 @@ import {
 import { SparklesIcon, ChatBubbleLeftEllipsisIcon } from '@heroicons/react/24/solid';
 import LoadingSpinner from './LoadingSpinner';
 import { formatFirestoreDate } from '../../utils/firestoreHelpers';
-
-/* ---------- Animations ---------- */
-const shimmer = keyframes`
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-`;
-
-const pulse = keyframes`
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.7; transform: scale(0.95); }
-`;
-
-const float = keyframes`
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-3px); }
-`;
-
-const glow = keyframes`
-  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.15); }
-  50% { box-shadow: 0 0 30px rgba(99, 102, 241, 0.25); }
-`;
-
-const gradientShift = keyframes`
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-`;
+import { shimmer, pulseScale as pulse, float, glowLarge as glow, gradientShift } from '@/styles/animations';
 
 /* ---------- Card Container ---------- */
 const Card = styled.article<{ $isHovered?: boolean; $archived?: boolean }>`

@@ -306,6 +306,44 @@ class Logger {
     });
   }
 
+  /**
+   * Log performance metrics for operations
+   * Useful for tracking render times, data loading, and optimization analysis
+   */
+  logPerformance(
+    operation: string,
+    durationMs: number,
+    metadata: Record<string, unknown> = {}
+  ): void {
+    // Use warn level for slow operations (>1s), info otherwise
+    const level = durationMs > 1000 ? LOG_LEVELS.WARN : LOG_LEVELS.INFO;
+    const message = `Performance: ${operation} completed in ${durationMs}ms`;
+
+    this.log(level, LOG_CATEGORIES.PERFORMANCE, message, {
+      operation,
+      durationMs,
+      isSlowOperation: durationMs > 1000,
+      ...metadata
+    });
+  }
+
+  /**
+   * Create a performance timer that can be started and stopped
+   * Returns an object with stop() method that logs the duration
+   */
+  startPerformanceTimer(operation: string, metadata: Record<string, unknown> = {}): { stop: () => number } {
+    const startTime = performance.now();
+
+    return {
+      stop: (): number => {
+        const endTime = performance.now();
+        const durationMs = Math.round(endTime - startTime);
+        this.logPerformance(operation, durationMs, metadata);
+        return durationMs;
+      }
+    };
+  }
+
   // Get stored logs for debugging
   getLogs(): LogEntry[] {
     try {

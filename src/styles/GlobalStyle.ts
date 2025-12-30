@@ -1,4 +1,6 @@
 import { createGlobalStyle, keyframes } from 'styled-components';
+// Import shimmer from centralized animations (single source of truth)
+import { shimmer } from './animations';
 
 /* -------- Gentle background pulse animation -------- */
 const backgroundPulse = keyframes`
@@ -11,12 +13,6 @@ const backgroundPulse = keyframes`
 const waveScroll = keyframes`
   from { background-position: 0 0; }
   to   { background-position: 400px 0; }
-`;
-
-/* subtle shimmer for loading states */
-const shimmer = keyframes`
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
 `;
 
 export const GlobalStyle = createGlobalStyle`

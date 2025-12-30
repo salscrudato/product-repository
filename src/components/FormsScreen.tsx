@@ -10,8 +10,9 @@ import { ref, getDownloadURL } from 'firebase/storage';
 import { uploadFormPdf, deleteFormPdf } from '@utils/storage';
 import {
   TrashIcon, DocumentTextIcon, PlusIcon, XMarkIcon,
-  LinkIcon, PencilIcon,
-  Squares2X2Icon, FunnelIcon, MapIcon
+  LinkIcon, PencilIcon, EyeIcon,
+  Squares2X2Icon, FunnelIcon, MapIcon, ChevronDownIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/solid';
 import { CoverageSnapshot } from '@components/common/CoverageSnapshot';
 import type { Product, Coverage, FormTemplate } from '@/types';
@@ -23,7 +24,7 @@ import { TextInput } from '@components/ui/Input';
 import MainNavigation from '@components/ui/Navigation';
 import { PageContainer, PageContent } from '@components/ui/PageContainer';
 import EnhancedHeader from '@components/ui/EnhancedHeader';
-
+import { AddFormModal } from '@components/modals/AddFormModal';
 
 import {
   Overlay, Modal, ModalHeader, ModalTitle, CloseBtn
@@ -65,40 +66,103 @@ const OverlayFixed = styled(Overlay)`
 
 /* ---------- Modern Styled Components ---------- */
 
-// Filters Bar - Similar to pricing screen
+// Apple-inspired Filters Bar
 const FiltersBar = styled.div`
   display: flex;
-  gap: 24px;
+  flex-direction: column;
+  gap: 16px;
   margin-bottom: 32px;
   padding: 20px 24px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  align-items: end;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.03),
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    0 12px 40px rgba(0, 0, 0, 0.06);
   position: relative;
   z-index: 10;
+`;
+
+const FiltersRow = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
 
   @media (max-width: 768px) {
     flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
+    gap: 12px;
+  }
+`;
+
+const SearchInputWrapper = styled.div`
+  position: relative;
+  flex: 2;
+  min-width: 280px;
+
+  svg {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: #86868b;
+    pointer-events: none;
+    transition: color 0.2s ease;
+  }
+
+  &:focus-within svg {
+    color: #0071e3;
+  }
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  height: 44px;
+  padding: 0 16px 0 44px;
+  font-size: 15px;
+  font-weight: 400;
+  color: #1d1d1f;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &::placeholder {
+    color: #86868b;
+  }
+
+  &:hover {
+    border-color: rgba(0, 0, 0, 0.12);
+    background: white;
+  }
+
+  &:focus {
+    border-color: #0071e3;
+    background: white;
+    box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1);
   }
 `;
 
 const FormGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   flex: 1;
+  min-width: 180px;
+`;
 
-  label {
-    font-size: 14px;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 4px;
-  }
+const FilterLabel = styled.span`
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #86868b;
+  margin-bottom: 6px;
 `;
 
 const FilterWrapper = styled.div`
@@ -106,196 +170,424 @@ const FilterWrapper = styled.div`
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-width: 200px;
   position: relative;
   z-index: 20;
+
+  select {
+    height: 44px;
+    padding: 0 36px 0 40px;
+    font-size: 15px;
+    font-weight: 400;
+    color: #1d1d1f;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+
+    &:hover {
+      border-color: rgba(0, 0, 0, 0.12);
+      background: white;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: #0071e3;
+      background: white;
+      box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1);
+    }
+  }
+
+  svg:first-child {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid #86868b;
+    pointer-events: none;
+  }
 `;
 
 
 
-const AddButton = styled.button`
+const AddFormButton = styled.button`
   position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 32px;
+  right: 32px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  font-size: 12px;
+  gap: 10px;
+  padding: 14px 24px;
+  font-size: 15px;
   font-weight: 600;
   color: #ffffff;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 50%, #8b5cf6 100%);
+  background-size: 200% 100%;
   border: none;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
+  border-radius: 50px;
+  box-shadow:
+    0 8px 24px rgba(124, 58, 237, 0.35),
+    0 3px 6px rgba(0, 0, 0, 0.08);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 100;
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.01em;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(135deg, #2563eb, #7c3aed, #8b5cf6);
+    border-radius: 52px;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    filter: blur(10px);
+  }
 
   &:hover {
-    transform: translateX(-50%) translateY(-2px) scale(1.02);
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow:
+      0 12px 32px rgba(124, 58, 237, 0.45),
+      0 6px 12px rgba(0, 0, 0, 0.1);
+    background-position: 100% 0;
+
+    &::before {
+      opacity: 0.5;
+    }
+  }
+
+  &:active {
+    transform: translateY(-1px) scale(0.98);
   }
 
   svg {
-    width: 12px;
-    height: 12px;
+    width: 18px;
+    height: 18px;
   }
-`;
-
-// Forms Grid - Single column layout like coverage screen
-const FormsGrid = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 120px;
 
   @media (max-width: 768px) {
-    gap: 12px;
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 20px;
+    font-size: 14px;
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
   }
 `;
 
-// Form Card - Full width design matching parent coverage cards
+// Forms Grid - 2 column layout
+const FormsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-bottom: 120px;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+`;
+
+// Form Card - Enhanced modern design
 const FormCard = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transition: all 0.2s ease;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(249, 250, 251, 0.9) 100%);
+  border-radius: 20px;
+  padding: 0;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.04),
+    0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   width: 100%;
   z-index: 1;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-    border-color: #6366f1;
+    transform: translateY(-4px);
+    box-shadow:
+      0 20px 40px rgba(99, 102, 241, 0.12),
+      0 8px 16px rgba(0, 0, 0, 0.06);
+    border-color: rgba(99, 102, 241, 0.3);
     z-index: 2;
+
+    &::before {
+      opacity: 1;
+    }
   }
+`;
+
+const CardInner = styled.div`
+  padding: 24px;
 `;
 
 const CardHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 14px;
-  gap: 8px;
+  margin-bottom: 20px;
+  gap: 16px;
 `;
 
-// Container for title and tags
-const TitleAndTagsContainer = styled.div`
+const CardLeftSection = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex: 1;
+`;
+
+const FormIconContainer = styled.div<{ $category?: string }>`
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  flex-shrink: 0;
+  background: ${({ $category }) => {
+    switch ($category) {
+      case 'Base Coverage': return 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)';
+      case 'Endorsement': return 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+      case 'Exclusion': return 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+      case 'Declaration': return 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)';
+      case 'Notice': return 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)';
+      default: return 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)';
+    }
+  }};
+  box-shadow: ${({ $category }) => {
+    switch ($category) {
+      case 'Base Coverage': return '0 8px 20px rgba(59, 130, 246, 0.3)';
+      case 'Endorsement': return '0 8px 20px rgba(16, 185, 129, 0.3)';
+      case 'Exclusion': return '0 8px 20px rgba(245, 158, 11, 0.3)';
+      case 'Declaration': return '0 8px 20px rgba(139, 92, 246, 0.3)';
+      case 'Notice': return '0 8px 20px rgba(6, 182, 212, 0.3)';
+      default: return '0 8px 20px rgba(99, 102, 241, 0.3)';
+    }
+  }};
+
+  svg {
+    width: 26px;
+    height: 26px;
+    color: white;
+  }
+`;
+
+const FormTitleSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   flex: 1;
-  flex-wrap: wrap;
+  min-width: 0;
 `;
 
 const CardTitle = styled.h3`
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   color: #1e293b;
   margin: 0;
-  line-height: 1.3;
-  letter-spacing: -0.025em;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+
+  a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: #6366f1;
+    }
+  }
 `;
 
-const CardCode = styled.span`
+const FormNumberInline = styled.span`
+  font-size: 13px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.colours.textSecondary};
+  margin-left: 10px;
+  font-family: ${({ theme }) => theme.fontMono};
+  letter-spacing: 0.01em;
+`;
+
+const FormNumberBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: #6366f1;
-  background: rgba(99, 102, 241, 0.1);
+  color: ${({ theme }) => theme.colours.primary};
+  background: ${({ theme }) => theme.colours.gradientSubtle};
   padding: 6px 12px;
   border-radius: 8px;
-  margin-left: 16px;
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  letter-spacing: 0.025em;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  letter-spacing: 0.01em;
+  width: fit-content;
+  font-family: ${({ theme }) => theme.fontMono};
+`;
+
+const TagsRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+interface CardCategoryProps {
+  $category?: string;
+}
+
+const CardCategory = styled.div<CardCategoryProps>`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  width: fit-content;
+  background: ${({ $category }) => {
+    switch ($category) {
+      case 'Base Coverage': return 'rgba(59, 130, 246, 0.1)';
+      case 'Endorsement': return 'rgba(16, 185, 129, 0.1)';
+      case 'Exclusion': return 'rgba(245, 158, 11, 0.1)';
+      case 'Declaration': return 'rgba(139, 92, 246, 0.1)';
+      case 'Notice': return 'rgba(6, 182, 212, 0.1)';
+      default: return 'rgba(99, 102, 241, 0.1)';
+    }
+  }};
+  color: ${({ $category }) => {
+    switch ($category) {
+      case 'Base Coverage': return '#3b82f6';
+      case 'Endorsement': return '#059669';
+      case 'Exclusion': return '#d97706';
+      case 'Declaration': return '#7c3aed';
+      case 'Notice': return '#0891b2';
+      default: return '#6366f1';
+    }
+  }};
+`;
+
+const TypeBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(100, 116, 139, 0.08);
+  color: #64748b;
 `;
 
 const CardActions = styled.div`
   display: flex;
-  gap: 8px;
-  margin-left: 12px;
+  gap: 6px;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+
+  ${FormCard}:hover & {
+    opacity: 1;
+  }
 `;
 
 const IconButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border: none;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.8);
   color: #64748b;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(226, 232, 240, 0.6);
 
   &:hover {
     background: rgba(99, 102, 241, 0.1);
     color: #6366f1;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+    transform: scale(1.05);
+    border-color: rgba(99, 102, 241, 0.2);
   }
 
   &.danger:hover {
     background: rgba(239, 68, 68, 0.1);
     color: #ef4444;
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.2);
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
   }
 `;
 
 // Card Content
-const CardContent = styled.div`
-  margin-bottom: 12px;
+const CardContent = styled.div``;
+
+const MetaRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 0;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
+  margin-top: 4px;
 `;
 
-interface CardCategoryProps {
-  category?: string;
-}
+const MetaItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #64748b;
 
-const CardCategory = styled.div.withConfig({
-  shouldForwardProp: (prop) => !['category'].includes(prop),
-})<CardCategoryProps>`
-  display: inline-block;
-  background: ${({ category }) => {
-    switch (category) {
-      case 'Base Coverage Form': return 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%)';
-      case 'Endorsement': return 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.1) 100%)';
-      case 'Exclusion': return 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(251, 191, 36, 0.1) 100%)';
-      default: return 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)';
-    }
-  }};
-  color: ${({ category }) => {
-    switch (category) {
-      case 'Base Coverage Form': return '#3b82f6';
-      case 'Endorsement': return '#22c55e';
-      case 'Exclusion': return '#f59e0b';
-      default: return '#6366f1';
-    }
-  }};
-  border: ${({ category }) => {
-    switch (category) {
-      case 'Base Coverage Form': return '1px solid rgba(59, 130, 246, 0.2)';
-      case 'Endorsement': return '1px solid rgba(34, 197, 94, 0.2)';
-      case 'Exclusion': return '1px solid rgba(245, 158, 11, 0.2)';
-      default: return '1px solid rgba(99, 102, 241, 0.2)';
-    }
-  }};
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 10px;
-  font-weight: 600;
-  margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
+  svg {
+    width: 15px;
+    height: 15px;
+    opacity: 0.7;
+  }
+
+  strong {
+    color: #475569;
+    font-weight: 600;
+  }
 `;
 
 const ExclusionsSection = styled.div`
@@ -364,107 +656,205 @@ const ExclusionCoverage = styled.div`
 
 
 
-const CardMetrics = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 12px;
-  margin-top: 14px;
+const CardMetricsGrid = styled.div`
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 `;
 
-const MetricItem = styled.div`
+const MetricButton = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
-  background: rgba(248, 250, 252, 0.8);
+  padding: 10px 16px;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.8) 100%);
   backdrop-filter: blur(8px);
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 13px;
-  color: #64748b;
+  color: #475569;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid rgba(226, 232, 240, 0.5);
-  font-weight: 500;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  font-weight: 600;
 
   &:hover {
-    background: rgba(99, 102, 241, 0.1);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%);
     color: #6366f1;
-    transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.18);
+    border-color: rgba(99, 102, 241, 0.25);
   }
 
   svg {
     width: 16px;
     height: 16px;
-    opacity: 0.8;
+    opacity: 0.75;
+  }
+
+  span {
+    font-weight: 700;
+    color: #6366f1;
   }
 `;
 
-
-
-// Forms Stats Dashboard
-const slideIn = keyframes`
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-`;
-
-const FormsStatsDashboard = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-  animation: ${slideIn} 0.4s ease-out;
-`;
-
-const FormsStatCard = styled.div<{ $color?: string }>`
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: ${({ $color }) => $color || 'linear-gradient(90deg, #6366f1, #8b5cf6)'};
-  }
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-    border-color: transparent;
-  }
-`;
-
-const FormsStatValue = styled.div`
-  font-size: 28px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 4px;
-  letter-spacing: -0.02em;
-`;
-
-const FormsStatLabel = styled.div`
-  font-size: 13px;
-  font-weight: 500;
-  color: #64748b;
+const PdfButton = styled.a`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(220, 38, 38, 0.05) 100%);
+  border-radius: 12px;
+  font-size: 13px;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
 
   svg {
-    width: 14px;
-    height: 14px;
-    opacity: 0.7;
+    width: 16px;
+    height: 16px;
   }
+`;
+
+// Multi-Select Dropdown for States - Apple Style
+const MultiSelectContainer = styled.div`
+  position: relative;
+  flex: 1;
+  min-width: 180px;
+`;
+
+const MultiSelectTrigger = styled.button`
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 400;
+  color: #1d1d1f;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+
+  &:hover {
+    border-color: rgba(0, 0, 0, 0.12);
+    background: white;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #0071e3;
+    background: white;
+    box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1);
+  }
+`;
+
+const MultiSelectDropdown = styled.div<{ $isOpen: boolean }>`
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.05),
+    0 4px 16px rgba(0, 0, 0, 0.08),
+    0 16px 48px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  max-height: 320px;
+  overflow-y: auto;
+  display: ${({ $isOpen }) => ($isOpen ? 'block' : 'none')};
+`;
+
+const MultiSelectHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+`;
+
+const MultiSelectActions = styled.div`
+  display: flex;
+  gap: 4px;
+`;
+
+const MultiSelectActionBtn = styled.button`
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #0071e3;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: rgba(0, 113, 227, 0.08);
+  }
+
+  &:active {
+    background: rgba(0, 113, 227, 0.12);
+  }
+`;
+
+const MultiSelectOption = styled.label<{ $selected?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: #1d1d1f;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  background: ${({ $selected }) => ($selected ? 'rgba(0, 113, 227, 0.06)' : 'transparent')};
+
+  &:hover {
+    background: ${({ $selected }) => ($selected ? 'rgba(0, 113, 227, 0.1)' : 'rgba(0, 0, 0, 0.03)')};
+  }
+
+  &:last-child {
+    border-radius: 0 0 14px 14px;
+  }
+`;
+
+const MultiSelectCheckbox = styled.input`
+  width: 18px;
+  height: 18px;
+  accent-color: #0071e3;
+  cursor: pointer;
+  border-radius: 4px;
+`;
+
+const SelectedCount = styled.span`
+  background: linear-gradient(135deg, #0071e3, #00a2ff);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 6px;
+  box-shadow: 0 1px 3px rgba(0, 113, 227, 0.3);
 `;
 
 // Empty State
@@ -487,7 +877,80 @@ const EmptyStateText = styled.p`
   margin: 0 0 24px 0;
 `;
 
+// View Modal Styles
+const ViewModalContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+`;
 
+const ViewModalSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ViewModalLabel = styled.span`
+  font-size: 12px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colours.textMuted};
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+`;
+
+const ViewModalValue = styled.span`
+  font-size: 15px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.colours.text};
+`;
+
+const ViewModalGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+`;
+
+const ViewModalPdfLink = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: ${({ theme }) => theme.colours.gradientSubtle};
+  color: ${({ theme }) => theme.colours.primary};
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  width: fit-content;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    background: ${({ theme }) => theme.colours.primary};
+    color: white;
+  }
+`;
+
+const ViewModalTagsContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`;
+
+const ViewModalTag = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: ${({ theme }) => theme.colours.backgroundSubtle};
+  color: ${({ theme }) => theme.colours.textSecondary};
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+`;
 
 /* ---------- component ---------- */
 export default function FormsScreen() {
@@ -531,6 +994,8 @@ export default function FormsScreen() {
   /* filter state */
   const [selectedCoverage, setSelectedCoverage] = useState<string | null>(null);
   const [selectedFilterStates, setSelectedFilterStates] = useState<string[]>([]);
+  const [statesDropdownOpen, setStatesDropdownOpen] = useState(false);
+  const statesDropdownRef = useRef<HTMLDivElement>(null);
 
   /* ui state */
   const [loading, setLoading] = useState(true);
@@ -561,6 +1026,10 @@ export default function FormsScreen() {
   const [statesModalOpen, setStatesModalOpen] = useState(false);
   const [selectedFormForStates, setSelectedFormForStates] = useState<ExtendedForm | null>(null);
   const [formStates, setFormStates] = useState<string[]>([]);
+
+  /* view modal (read-only form details) */
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [viewingForm, setViewingForm] = useState<ExtendedForm | null>(null);
 
   /* version sidebar */
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -681,6 +1150,17 @@ export default function FormsScreen() {
     };
     fetchAll();
   }, [productId]);
+
+  /* Close states dropdown when clicking outside */
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (statesDropdownRef.current && !statesDropdownRef.current.contains(event.target as Node)) {
+        setStatesDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   /* Fetch coverage snapshot data when viewing forms for a specific coverage */
   useEffect(() => {
@@ -818,14 +1298,16 @@ export default function FormsScreen() {
     }
   };
   const handleSaveForm = async () => {
-    if (!formNumber || !effectiveDate || !selectedProduct) {
-      alert('Form Number, Effective Date, and Product are required.');
+    if (!formNumber || !effectiveDate) {
+      alert('Form Number and Effective Date are required.');
       return;
     }
     if (editingId && changeSummary.trim().length < 10) {
       alert('Please provide a reason for the change (at least 10 characters).');
       return;
     }
+    // Use productId from URL if available, otherwise use selectedProduct
+    const effectiveProductId = productId || selectedProduct || '';
     try {
       const basePayload = {
         formName: formName || null,
@@ -834,14 +1316,14 @@ export default function FormsScreen() {
         effectiveDate,
         type,
         category,
-        productIds: selectedProduct ? [selectedProduct] : [],
-        productId: selectedProduct,
+        productIds: effectiveProductId ? [effectiveProductId] : [],
+        productId: effectiveProductId || null,
         states: selectedStates
       };
       let filePath = null;
       let downloadUrl = null;
       if (file) {
-        const uploadResult = await uploadFormPdf(file, selectedProduct);
+        const uploadResult = await uploadFormPdf(file, effectiveProductId || 'general');
         filePath = uploadResult.filePath;
         downloadUrl = uploadResult.downloadUrl;
       }
@@ -880,7 +1362,7 @@ export default function FormsScreen() {
         batch.set(newRef, {
           formId,
           coverageId,
-          productId: selectedProduct,
+          productId: effectiveProductId || null,
           createdAt: serverTimestamp()
         });
       });
@@ -915,6 +1397,143 @@ export default function FormsScreen() {
       console.error(err);
       alert('Failed to save form.');
     }
+  };
+
+  // New handler for AddFormModal
+  const handleNewModalSave = async (formData: {
+    formName: string;
+    formNumber: string;
+    effectiveDate: string;
+    type: string;
+    category: string;
+    selectedCoverages: string[];
+    selectedStates: string[];
+    file: File | null;
+    changeSummary?: string;
+  }) => {
+    // Use productId from URL if available
+    const effectiveProductId = productId || '';
+
+    const basePayload = {
+      formName: formData.formName || null,
+      formNumber: formData.formNumber,
+      formEditionDate: formData.effectiveDate,
+      effectiveDate: formData.effectiveDate,
+      type: formData.type,
+      category: formData.category,
+      productIds: effectiveProductId ? [effectiveProductId] : [],
+      productId: effectiveProductId || null,
+      states: formData.selectedStates
+    };
+
+    let filePath = null;
+    let downloadUrl = null;
+    if (formData.file) {
+      const uploadResult = await uploadFormPdf(formData.file, effectiveProductId || 'general');
+      filePath = uploadResult.filePath;
+      downloadUrl = uploadResult.downloadUrl;
+    }
+
+    const payload = {
+      ...basePayload,
+      ...(filePath && { filePath, downloadUrl })
+    };
+
+    let formId;
+    if (editingId) {
+      await updateDoc(doc(db, 'forms', editingId), payload);
+      formId = editingId;
+    } else {
+      const docRef = await addDoc(collection(db, 'forms'), {
+        ...payload,
+        filePath,
+        downloadUrl,
+        createdAt: serverTimestamp()
+      });
+      formId = docRef.id;
+    }
+
+    // Link to coverages via junction table
+    const batch = writeBatch(db);
+
+    // Delete old links for this form
+    const existingLinksSnap = await getDocs(
+      query(collection(db, 'formCoverages'), where('formId', '==', formId))
+    );
+    existingLinksSnap.docs.forEach(linkDoc => {
+      batch.delete(linkDoc.ref);
+    });
+
+    // Add new links
+    formData.selectedCoverages.forEach(coverageId => {
+      const newRef = doc(collection(db, 'formCoverages'));
+      batch.set(newRef, {
+        formId,
+        coverageId,
+        productId: effectiveProductId || null,
+        createdAt: serverTimestamp()
+      });
+    });
+
+    await batch.commit();
+
+    // Reset and close
+    setEditingId(null);
+    setShowModal(false);
+
+    // Refresh forms list
+    const snap = await getDocs(collection(db, 'forms'));
+
+    // Fetch all form-coverage links for the refresh
+    const linksSnap = await getDocs(collection(db, 'formCoverages'));
+    const coveragesByForm: Record<string, string[]> = {};
+    linksSnap.docs.forEach(docSnap => {
+      const { formId: fId, coverageId: cId } = docSnap.data() as { formId: string; coverageId: string };
+      if (!coveragesByForm[fId]) coveragesByForm[fId] = [];
+      coveragesByForm[fId].push(cId);
+    });
+
+    const formList: ExtendedForm[] = await Promise.all(
+      snap.docs.map(async d => {
+        const data = d.data();
+        let url: string | null = null;
+        if (data.filePath) {
+          try { url = await getDownloadURL(ref(storage, data.filePath)); } catch { /* ignore */ }
+        }
+        return {
+          ...data,
+          id: d.id,
+          formNumber: data.formNumber || '',
+          downloadUrl: url,
+          productIds: data.productIds || (data.productId ? [data.productId] : []),
+          coverageIds: coveragesByForm[d.id] || []
+        } as ExtendedForm;
+      })
+    );
+    setForms(formList);
+  };
+
+  // Open new modal for editing
+  const openEditModalNew = (formObj: ExtendedForm) => {
+    setEditingId(formObj.id);
+    setShowModal(true);
+  };
+
+  // Get the editing form data for the new modal
+  const getEditingFormData = () => {
+    if (!editingId) return null;
+    const form = forms.find(f => f.id === editingId);
+    if (!form) return null;
+    return {
+      id: form.id,
+      formName: form.formName,
+      formNumber: form.formNumber,
+      effectiveDate: typeof form.effectiveDate === 'string' ? form.effectiveDate : '',
+      type: form.type,
+      category: form.category,
+      coverageIds: form.coverageIds,
+      states: form.states,
+    };
   };
 
   const handleDeleteForm = async (id: string) => {
@@ -1051,15 +1670,10 @@ export default function FormsScreen() {
       <PageContent>
         <EnhancedHeader
           title={title}
-          subtitle={`Manage ${filteredForms.length} form${filteredForms.length !== 1 ? 's' : ''}`}
+          subtitle={`Manage ${filteredForms.length} Form${filteredForms.length !== 1 ? 's' : ''}`}
           icon={DocumentTextIcon}
           showBackButton
           onBackClick={() => window.history.back()}
-          searchProps={{
-            placeholder: "Search forms by name, number, or category...",
-            value: rawSearch,
-            onChange: (e) => setRawSearch(e.target.value)
-          }}
         />
 
         {/* Coverage Context Snapshot - show when viewing forms for a specific coverage */}
@@ -1080,81 +1694,102 @@ export default function FormsScreen() {
           </div>
         )}
 
-        {/* Forms Stats Dashboard */}
-        <FormsStatsDashboard>
-          <FormsStatCard $color="linear-gradient(90deg, #6366f1, #8b5cf6)">
-            <FormsStatValue>{forms.length}</FormsStatValue>
-            <FormsStatLabel>
-              <DocumentTextIcon />
-              Total Forms
-            </FormsStatLabel>
-          </FormsStatCard>
-          <FormsStatCard $color="linear-gradient(90deg, #3b82f6, #6366f1)">
-            <FormsStatValue>{forms.filter(f => f.category === 'Base Coverage Form').length}</FormsStatValue>
-            <FormsStatLabel>
-              <DocumentTextIcon />
-              Base Forms
-            </FormsStatLabel>
-          </FormsStatCard>
-          <FormsStatCard $color="linear-gradient(90deg, #10b981, #059669)">
-            <FormsStatValue>{forms.filter(f => f.category === 'Endorsement').length}</FormsStatValue>
-            <FormsStatLabel>
-              <PlusIcon />
-              Endorsements
-            </FormsStatLabel>
-          </FormsStatCard>
-          <FormsStatCard $color="linear-gradient(90deg, #f59e0b, #d97706)">
-            <FormsStatValue>{forms.filter(f => f.category === 'Exclusion').length}</FormsStatValue>
-            <FormsStatLabel>
-              <XMarkIcon />
-              Exclusions
-            </FormsStatLabel>
-          </FormsStatCard>
-          <FormsStatCard $color="linear-gradient(90deg, #06b6d4, #0891b2)">
-            <FormsStatValue>{forms.filter(f => f.downloadUrl).length}</FormsStatValue>
-            <FormsStatLabel>
-              <LinkIcon />
-              With PDFs
-            </FormsStatLabel>
-          </FormsStatCard>
-        </FormsStatsDashboard>
-
-        {/* Filters Bar */}
+        {/* Apple-inspired Filters Bar */}
         <FiltersBar>
-          <FormGroup>
-            <label>Select Coverage</label>
-            <FilterWrapper>
-              <FunnelIcon width={16} height={16} style={{ color: '#6B7280' }} />
-              <TextInput
-                as="select"
-                value={selectedCoverage ?? ''}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedCoverage(e.target.value || null)}
-              >
-                <option value="">All Coverages</option>
-                {coverageOptions.map(o => (
-                  <option key={o.value ?? 'all'} value={o.value ?? ''}>{o.label}</option>
-                ))}
-              </TextInput>
-            </FilterWrapper>
-          </FormGroup>
+          {/* Search Row */}
+          <SearchInputWrapper>
+            <MagnifyingGlassIcon />
+            <SearchInput
+              type="text"
+              placeholder="Search forms by name, number, or category..."
+              value={rawSearch}
+              onChange={(e) => setRawSearch(e.target.value)}
+            />
+          </SearchInputWrapper>
 
-          <FormGroup>
-            <label>Select States</label>
-            <FilterWrapper>
-              <MapIcon width={16} height={16} style={{ color: '#6B7280' }} />
-              <TextInput
-                as="select"
-                multiple
-                value={selectedFilterStates}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedFilterStates(Array.from(e.target.selectedOptions, option => option.value))}
-                style={{ minHeight: '100px' }}
-              >
-                {stateOptions.filter(o => o.value !== null).map(o => (
-                  <option key={o.value} value={o.value ?? ''}>{o.label}</option>
-                ))}
-              </TextInput>
-            </FilterWrapper>
-          </FormGroup>
+          {/* Filters Row */}
+          <FiltersRow>
+            <FormGroup>
+              <FilterLabel>Coverage</FilterLabel>
+              <FilterWrapper>
+                <FunnelIcon width={16} height={16} style={{ color: '#86868b' }} />
+                <select
+                  value={selectedCoverage ?? ''}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedCoverage(e.target.value || null)}
+                >
+                  <option value="">All Coverages</option>
+                  {coverageOptions.map(o => (
+                    <option key={o.value ?? 'all'} value={o.value ?? ''}>{o.label}</option>
+                  ))}
+                </select>
+              </FilterWrapper>
+            </FormGroup>
+
+            <FormGroup>
+              <FilterLabel>States</FilterLabel>
+              <MultiSelectContainer ref={statesDropdownRef}>
+                <MultiSelectTrigger
+                  type="button"
+                  onClick={() => setStatesDropdownOpen(!statesDropdownOpen)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <MapIcon width={16} height={16} style={{ color: '#86868b' }} />
+                    <span>
+                      {selectedFilterStates.length === 0
+                        ? 'All States'
+                        : selectedFilterStates.length === allStates.length
+                          ? 'All States'
+                          : `${selectedFilterStates.length} selected`}
+                    </span>
+                    {selectedFilterStates.length > 0 && selectedFilterStates.length < allStates.length && (
+                      <SelectedCount>{selectedFilterStates.length}</SelectedCount>
+                    )}
+                  </div>
+                  <ChevronDownIcon width={14} height={14} style={{ color: '#86868b', transform: statesDropdownOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s ease' }} />
+                </MultiSelectTrigger>
+                <MultiSelectDropdown $isOpen={statesDropdownOpen}>
+                  <MultiSelectHeader>
+                    <span style={{ fontSize: 12, fontWeight: 500, color: '#86868b' }}>
+                      {selectedFilterStates.length} of {allStates.length} selected
+                    </span>
+                    <MultiSelectActions>
+                      <MultiSelectActionBtn
+                        type="button"
+                        onClick={() => setSelectedFilterStates([...allStates])}
+                      >
+                        Select All
+                      </MultiSelectActionBtn>
+                      <MultiSelectActionBtn
+                        type="button"
+                        onClick={() => setSelectedFilterStates([])}
+                      >
+                        Clear
+                      </MultiSelectActionBtn>
+                    </MultiSelectActions>
+                  </MultiSelectHeader>
+                  {allStates.map(state => (
+                    <MultiSelectOption
+                      key={state}
+                      $selected={selectedFilterStates.includes(state)}
+                    >
+                      <MultiSelectCheckbox
+                        type="checkbox"
+                        checked={selectedFilterStates.includes(state)}
+                        onChange={() => {
+                          setSelectedFilterStates(prev =>
+                            prev.includes(state)
+                              ? prev.filter(s => s !== state)
+                              : [...prev, state]
+                          );
+                        }}
+                      />
+                      {state}
+                    </MultiSelectOption>
+                  ))}
+                </MultiSelectDropdown>
+              </MultiSelectContainer>
+            </FormGroup>
+          </FiltersRow>
         </FiltersBar>
 
         {/* Forms Display */}
@@ -1162,80 +1797,55 @@ export default function FormsScreen() {
           <FormsGrid>
             {filteredForms.map(f => (
                 <FormCard key={f.id}>
-                  <CardHeader>
-                    <TitleAndTagsContainer>
-                      <CardTitle>
-                        {f.downloadUrl ? (
-                          <a
-                            href={f.downloadUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ textDecoration: 'none', color: 'inherit' }}
-                          >
-                            {(f.formName || f.formNumber || 'Unnamed Form').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
-                          </a>
-                        ) : (
-                          <span>
-                            {(f.formName || f.formNumber || 'Unnamed Form').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
-                          </span>
-                        )}
-                      </CardTitle>
-                      <CardCategory category={f.category ?? 'Base Coverage Form'}>
-                        {f.category}
-                      </CardCategory>
-                      <CardCode>{f.formNumber}</CardCode>
-                    </TitleAndTagsContainer>
-                    <CardActions>
-                      <IconButton onClick={() => openEditModal(f)} title="Edit">
-                        <PencilIcon width={16} height={16} />
-                      </IconButton>
-                      <IconButton className="danger" onClick={() => handleDeleteForm(f.id)} title="Delete">
-                        <TrashIcon width={16} height={16} />
-                      </IconButton>
-                    </CardActions>
-                  </CardHeader>
+                  <CardInner>
+                    <CardHeader>
+                      <CardLeftSection>
+                        <FormIconContainer $category={f.category}>
+                          <DocumentTextIcon />
+                        </FormIconContainer>
+                        <FormTitleSection>
+                          <CardTitle>
+                            {f.downloadUrl ? (
+                              <a href={f.downloadUrl} target="_blank" rel="noopener noreferrer">
+                                {(f.formName || f.formNumber || 'Unnamed Form').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
+                              </a>
+                            ) : (
+                              (f.formName || f.formNumber || 'Unnamed Form').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+                            )}
+                          </CardTitle>
+                          <CardCategory $category={f.category}>{f.category || 'Other'}</CardCategory>
+                        </FormTitleSection>
+                      </CardLeftSection>
+                      <CardActions>
+                        <IconButton onClick={() => { setViewingForm(f); setViewModalOpen(true); }} title="View Details">
+                          <EyeIcon />
+                        </IconButton>
+                        <IconButton onClick={() => openEditModalNew(f)} title="Edit">
+                          <PencilIcon />
+                        </IconButton>
+                        <IconButton className="danger" onClick={() => handleDeleteForm(f.id)} title="Delete">
+                          <TrashIcon />
+                        </IconButton>
+                      </CardActions>
+                    </CardHeader>
 
-                  <CardContent>
-                    <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', fontSize: '14px', color: '#64748b' }}>
-                      <span><strong>Type:</strong> {f.type}</span>
-                      <span><strong>Edition:</strong> {typeof f.effectiveDate === 'string' ? f.effectiveDate : '—'}</span>
-                    </div>
-
-                    <CardMetrics>
-                      <MetricItem onClick={() => openLinkProductModal(f)}>
-                        <Squares2X2Icon />
-                        Products {f.productIds?.length ? `(${f.productIds.length})` : '(0)'}
-                      </MetricItem>
-                      <MetricItem onClick={() => openLinkCoverageModal(f)}>
-                        <LinkIcon />
-                        Coverages {f.coverageIds?.length ? `(${f.coverageIds.length})` : '(0)'}
-                      </MetricItem>
-                      <MetricItem onClick={() => openStatesModal(f)}>
-                        <MapIcon />
-                        States {f.states?.length ? `(${f.states.length})` : '(0)'}
-                      </MetricItem>
-                    </CardMetrics>
-
-                    {/* Coverage Exclusions Section */}
-                    {(getFormExclusions[f.id]?.length ?? 0) > 0 && (
-                      <ExclusionsSection>
-                        <ExclusionsSectionTitle>
-                          Coverage Exclusions ({getFormExclusions[f.id]?.length ?? 0})
-                        </ExclusionsSectionTitle>
-                        <ExclusionsList>
-                          {(getFormExclusions[f.id] ?? []).map((exclusion, idx) => (
-                            <ExclusionItem key={idx}>
-                              <ExclusionType>general</ExclusionType>
-                              <ExclusionDetails>
-                                <ExclusionName>{exclusion.exclusionText}</ExclusionName>
-                                <ExclusionCoverage>From: {exclusion.coverageName}</ExclusionCoverage>
-                              </ExclusionDetails>
-                            </ExclusionItem>
-                          ))}
-                        </ExclusionsList>
-                      </ExclusionsSection>
-                    )}
-                  </CardContent>
+                    <CardContent>
+                      <CardMetricsGrid>
+                        <MetricButton onClick={() => openLinkProductModal(f)}>
+                          <Squares2X2Icon />
+                          Products <span>({f.productIds?.length || 0})</span>
+                        </MetricButton>
+                        <MetricButton onClick={() => openLinkCoverageModal(f)}>
+                          <LinkIcon />
+                          Coverages <span>({f.coverageIds?.length || 0})</span>
+                        </MetricButton>
+                        <MetricButton onClick={() => openStatesModal(f)}>
+                          <MapIcon />
+                          States <span>({f.states?.length || 0})</span>
+                        </MetricButton>
+                      </CardMetricsGrid>
+                    </CardContent>
+                  </CardInner>
                 </FormCard>
               ))}
           </FormsGrid>
@@ -1249,219 +1859,20 @@ export default function FormsScreen() {
         )}
 
         {/* Add Form Button */}
-        <AddButton onClick={() => { setEditingId(null); setShowModal(true); }}>
-          <PlusIcon width={14} height={14}/>
+        <AddFormButton onClick={() => { setEditingId(null); setShowModal(true); }}>
+          <PlusIcon />
           Add Form
-        </AddButton>
+        </AddFormButton>
 
-        {/* ---------- Add Form Modal ---------- */}
-        {showModal && (
-          <OverlayFixed>
-            <Modal onClick={e => e.stopPropagation()}>
-              <CloseBtn onClick={() => setShowModal(false)}>
-                <XMarkIcon width={16} height={16} />
-              </CloseBtn>
-              <ModalTitle>{editingId ? 'Edit Form' : 'Add New Form'}</ModalTitle>
-              {/* ---------- form fields ---------- */}
-              <div style={{ display:'flex', flexWrap:'wrap', gap:16, marginBottom:16 }}>
-                <div style={{ flex:1, minWidth:140 }}>
-                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
-                    Product*
-                  </label>
-                  <TextInput
-                    as="select"
-                    value={selectedProduct}
-                    onChange={e => setSelectedProduct(e.target.value)}
-                    disabled={!!productId}
-                  >
-                    <option value="">Select Product</option>
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </TextInput>
-                </div>
-                <div style={{ flex:1, minWidth:140 }}>
-                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
-                    Link Coverages (optional)
-                  </label>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                    <Button variant="ghost" onClick={() => setSelectedCoverages(
-                      coverages.filter(c => !productId || c.productId === (selectedProduct || productId)).map(c => c.id)
-                    )}>Select All</Button>
-                    <Button variant="ghost" onClick={() => setSelectedCoverages([])}>Clear All</Button>
-                  </div>
-                  <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #E5E7EB', borderRadius: 4, padding: 8 }}>
-                    {(coverages.filter(c => !productId || c.productId === (selectedProduct || productId))).map(c => (
-                      <label key={c.id} style={{ display: 'block', padding: 4 }}>
-                        <input
-                          type="checkbox"
-                          value={c.id}
-                          checked={selectedCoverages.includes(c.id)}
-                          onChange={e => {
-                            const val = e.target.value;
-                            setSelectedCoverages(prev =>
-                              prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]
-                            );
-                          }}
-                        />{' '}
-                        {c.name}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display:'flex', flexWrap:'wrap', gap:16, marginBottom:16 }}>
-                <div style={{ flex:1, minWidth:140 }}>
-                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
-                    Applicable States (optional)
-                  </label>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                    <Button variant="ghost" onClick={() => setSelectedStates(['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'])}>Select All</Button>
-                    <Button variant="ghost" onClick={() => setSelectedStates([])}>Clear All</Button>
-                  </div>
-                  <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #E5E7EB', borderRadius: 4, padding: 8 }}>
-                    {['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(state => (
-                      <label key={state} style={{ display: 'block', padding: 4 }}>
-                        <input
-                          type="checkbox"
-                          value={state}
-                          checked={selectedStates.includes(state)}
-                          onChange={e => {
-                            const val = e.target.value;
-                            setSelectedStates(prev =>
-                              prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]
-                            );
-                          }}
-                        />{' '}
-                        {state}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display:'flex', flexWrap:'wrap', gap:16, marginBottom:16 }}>
-                <div style={{ flex:1, minWidth:140 }}>
-                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
-                    Form Name (optional)
-                  </label>
-                  <TextInput
-                    placeholder="Form Name"
-                    value={formName}
-                    onChange={e => setFormName(e.target.value)}
-                  />
-                </div>
-                <div style={{ flex:1, minWidth:140 }}>
-                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
-                    Form Number*
-                  </label>
-                  <TextInput
-                    placeholder="Form Number"
-                    value={formNumber}
-                    onChange={e => setFormNumber(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display:'flex', flexWrap:'wrap', gap:16, marginBottom:16 }}>
-                <div style={{ flex:1, minWidth:140 }}>
-                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
-                    Effective Date (MM/YY)*
-                  </label>
-                  <TextInput
-                    placeholder="MM/YY"
-                    value={effectiveDate}
-                    onChange={e => {
-                      let v = e.target.value.replace(/[^0-9]/g, '');
-                      if (v.length > 4) v = v.slice(0, 4);
-                      if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
-                      setEffectiveDate(v);
-                    }}
-                  />
-                </div>
-                <div style={{ flex:1, minWidth:140 }}>
-                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
-                    Type
-                  </label>
-                  <TextInput
-                    as="select"
-                    value={type}
-                    onChange={e => setType(e.target.value)}
-                  >
-                    <option value="ISO">ISO</option>
-                    <option value="Proprietary">Proprietary</option>
-                    <option value="NAICS">NAICS</option>
-                    <option value="Other">Other</option>
-                  </TextInput>
-                </div>
-                <div style={{ flex:1, minWidth:140 }}>
-                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
-                    Category
-                  </label>
-                  <TextInput
-                    as="select"
-                    value={category}
-                    onChange={e => setCategory(e.target.value)}
-                  >
-                    <option value="Base Coverage Form">Base Coverage Form</option>
-                    <option value="Endorsement">Endorsement</option>
-                    <option value="Exclusion">Exclusion</option>
-                    <option value="Dec/Quote Letter">Dec/Quote Letter</option>
-                    <option value="Notice">Notice</option>
-                    <option value="Other">Other</option>
-                  </TextInput>
-                </div>
-              </div>
-
-              <div style={{ display:'flex', flexWrap:'wrap', gap:16, marginBottom:16 }}>
-                <div style={{ flex:1, minWidth:140 }}>
-                  <label style={{ display:'block', fontSize:14, fontWeight:500, color:'#1F2937', marginBottom:8 }}>
-                    Upload PDF (optional)
-                  </label>
-                  <input
-                    id="file-upload"
-                    type="file"
-                    accept=".pdf"
-                    style={{ display:'none' }}
-                    onChange={e => setFile(e.target.files?.[0] ?? null)}
-                  />
-                  <label
-                    htmlFor="file-upload"
-                    style={{
-                      width:'100%',
-                      display:'flex',
-                      alignItems:'center',
-                      gap:8,
-                      padding:12,
-                      border:'1px dashed #D1D5DB',
-                      borderRadius:8,
-                      cursor:'pointer',
-                      color:'#6B7280',
-                      fontSize:14,
-                      ...(file ? { color:'#1D4ED8', borderColor:'#1D4ED8' } : {})
-                    }}
-                  >
-                    <DocumentTextIcon width={20} height={20} />
-                    {file ? file.name : 'Upload PDF (optional)'}
-                  </label>
-                </div>
-              </div>
-
-              {editingId && (
-                <textarea
-                  rows={3}
-                  placeholder="Reason for changes (required)"
-                  value={changeSummary}
-                  onChange={e => setChangeSummary(e.target.value)}
-                  style={{ width:'100%', padding:10, borderRadius:6, border:'1px solid #e5e7eb', fontSize:14, marginBottom:16 }}
-                />
-              )}
-
-              <Button onClick={handleSaveForm}>Save Form</Button>
-            </Modal>
-          </OverlayFixed>
-        )}
+        {/* ---------- Add Form Modal (Apple-inspired) ---------- */}
+        <AddFormModal
+          isOpen={showModal}
+          onClose={() => { setShowModal(false); setEditingId(null); }}
+          onSave={handleNewModalSave}
+          coverages={coverages.filter(c => !productId || c.productId === productId)}
+          productId={productId}
+          editingForm={getEditingFormData()}
+        />
 
         {/* Link Coverage Modal */}
         {linkCoverageModalOpen && (
@@ -1626,6 +2037,108 @@ export default function FormsScreen() {
                 <Button onClick={handleSaveStates}>Save</Button>
                 <Button variant="ghost" onClick={() => setStatesModalOpen(false)}>Cancel</Button>
               </div>
+            </Modal>
+          </OverlayFixed>
+        )}
+
+        {/* View Form Details Modal */}
+        {viewModalOpen && viewingForm && (
+          <OverlayFixed onClick={() => setViewModalOpen(false)}>
+            <Modal onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+              <ModalHeader>
+                <ModalTitle>Form Details</ModalTitle>
+                <CloseBtn onClick={() => setViewModalOpen(false)}>✕</CloseBtn>
+              </ModalHeader>
+
+              <ViewModalContent>
+                <ViewModalSection>
+                  <ViewModalLabel>Form Name</ViewModalLabel>
+                  <ViewModalValue>
+                    {(viewingForm.formName || 'Unnamed Form').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
+                  </ViewModalValue>
+                </ViewModalSection>
+
+                <ViewModalGrid>
+                  <ViewModalSection>
+                    <ViewModalLabel>Form Number</ViewModalLabel>
+                    <ViewModalValue>{viewingForm.formNumber || '—'}</ViewModalValue>
+                  </ViewModalSection>
+                  <ViewModalSection>
+                    <ViewModalLabel>Edition Date</ViewModalLabel>
+                    <ViewModalValue>
+                      {typeof viewingForm.effectiveDate === 'string' && viewingForm.effectiveDate
+                        ? viewingForm.effectiveDate
+                        : '—'}
+                    </ViewModalValue>
+                  </ViewModalSection>
+                </ViewModalGrid>
+
+                <ViewModalGrid>
+                  <ViewModalSection>
+                    <ViewModalLabel>Type</ViewModalLabel>
+                    <ViewModalValue>{viewingForm.type || 'ISO'}</ViewModalValue>
+                  </ViewModalSection>
+                  <ViewModalSection>
+                    <ViewModalLabel>Category</ViewModalLabel>
+                    <ViewModalValue>{viewingForm.category || 'Other'}</ViewModalValue>
+                  </ViewModalSection>
+                </ViewModalGrid>
+
+                <ViewModalSection>
+                  <ViewModalLabel>Linked Products ({viewingForm.productIds?.length || 0})</ViewModalLabel>
+                  <ViewModalTagsContainer>
+                    {viewingForm.productIds && viewingForm.productIds.length > 0 ? (
+                      viewingForm.productIds.map(pid => {
+                        const product = products.find(p => p.id === pid);
+                        return (
+                          <ViewModalTag key={pid}>{product?.name || pid}</ViewModalTag>
+                        );
+                      })
+                    ) : (
+                      <ViewModalValue style={{ color: '#94a3b8' }}>No products linked</ViewModalValue>
+                    )}
+                  </ViewModalTagsContainer>
+                </ViewModalSection>
+
+                <ViewModalSection>
+                  <ViewModalLabel>Linked Coverages ({viewingForm.coverageIds?.length || 0})</ViewModalLabel>
+                  <ViewModalTagsContainer>
+                    {viewingForm.coverageIds && viewingForm.coverageIds.length > 0 ? (
+                      viewingForm.coverageIds.map(cid => {
+                        const coverage = coverages.find(c => c.id === cid);
+                        return (
+                          <ViewModalTag key={cid}>{coverage?.name || cid}</ViewModalTag>
+                        );
+                      })
+                    ) : (
+                      <ViewModalValue style={{ color: '#94a3b8' }}>No coverages linked</ViewModalValue>
+                    )}
+                  </ViewModalTagsContainer>
+                </ViewModalSection>
+
+                <ViewModalSection>
+                  <ViewModalLabel>Available States ({viewingForm.states?.length || 0})</ViewModalLabel>
+                  <ViewModalTagsContainer>
+                    {viewingForm.states && viewingForm.states.length > 0 ? (
+                      viewingForm.states.sort().map(state => (
+                        <ViewModalTag key={state}>{state}</ViewModalTag>
+                      ))
+                    ) : (
+                      <ViewModalValue style={{ color: '#94a3b8' }}>No states selected</ViewModalValue>
+                    )}
+                  </ViewModalTagsContainer>
+                </ViewModalSection>
+
+                {viewingForm.downloadUrl && (
+                  <ViewModalSection>
+                    <ViewModalLabel>Document</ViewModalLabel>
+                    <ViewModalPdfLink href={viewingForm.downloadUrl} target="_blank" rel="noopener noreferrer">
+                      <DocumentTextIcon />
+                      View PDF
+                    </ViewModalPdfLink>
+                  </ViewModalSection>
+                )}
+              </ViewModalContent>
             </Modal>
           </OverlayFixed>
         )}

@@ -1,27 +1,6 @@
 import React from 'react';
-import styled, { keyframes, css } from 'styled-components';
-
-/* ---------- Animations ---------- */
-const spin = keyframes`
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-`;
-
-const pulse = keyframes`
-  0%, 80%, 100% {
-    transform: scale(0);
-    opacity: 0.5;
-  }
-  40% {
-    transform: scale(1);
-    opacity: 1;
-  }
-`;
-
-const fadeIn = keyframes`
-  from { opacity: 0; }
-  to { opacity: 1; }
-`;
+import styled, { css } from 'styled-components';
+import { spin, pulseDots as pulse, fadeIn } from '@/styles/animations';
 
 /* ---------- Types ---------- */
 type SpinnerType = 'circular' | 'dots' | 'bars' | 'ring';

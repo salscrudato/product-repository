@@ -5,7 +5,7 @@
  * Supports drag-to-reorder and inline editing.
  */
 
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import styled from 'styled-components';
 import {
   DocumentTextIcon,
@@ -294,5 +294,5 @@ const ActionButton = styled.button<{ $danger?: boolean }>`
   }
 `;
 
-export default FormLinkCard;
+export default memo(FormLinkCard);
 

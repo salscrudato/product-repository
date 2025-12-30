@@ -76,8 +76,7 @@ export {
   EmptyStateIcon,
   EmptyStateTitle,
   EmptyStateDescription,
-  // Loading
-  LoadingSpinner,
+  // Loading (Note: For LoadingSpinner, use '@/components/ui/LoadingSpinner' instead)
   LoadingContainer,
   LoadingText,
   // Action Bar

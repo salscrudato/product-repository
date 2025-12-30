@@ -7,9 +7,17 @@
  * - Apple-inspired micro-interactions
  * - Fluid glassmorphism effects
  * - Neural network-style visual language
+ *
+ * NOTE: Common animations (shimmer, fadeIn, etc.) are imported from the
+ * centralized animations.ts file to avoid duplication.
  */
 
 import { keyframes, css } from 'styled-components';
+// Import shared animations from centralized source (single source of truth)
+import { shimmer } from '@/styles/animations';
+
+// Re-export shimmer for backward compatibility
+export { shimmer };
 
 // ========== Premium Keyframe Animations ==========
 
@@ -24,12 +32,6 @@ export const gradientFlow = keyframes`
 export const aiPulse = keyframes`
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.85; transform: scale(1.02); }
-`;
-
-// Shimmer effect for loading/generating states
-export const shimmer = keyframes`
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
 `;
 
 // Sparkle animation for AI icons

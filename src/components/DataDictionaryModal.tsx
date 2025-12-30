@@ -1,7 +1,6 @@
-// src/components/DataDictionaryModal.js
+// src/components/DataDictionaryModal.tsx
 
 import { useEffect, useState } from 'react';
-import PropTypes from 'prop-types';
 // Firestore imports for real-time subscription and mutations
 import {
   collection,
@@ -49,9 +48,23 @@ const CategorySelect = styled(TextInput).attrs({ as: 'select' })`
   width: 100%;
 `;
 
-export default function DataDictionaryModal({ open, onClose }) {
+interface DataDictionaryModalProps {
+  /** Whether the modal is visible */
+  open: boolean;
+  /** Callback to close the modal */
+  onClose: () => void;
+}
+
+interface DataDictionaryRow {
+  id: string;
+  category: string;
+  displayName: string;
+  code: string;
+}
+
+export default function DataDictionaryModal({ open, onClose }: DataDictionaryModalProps) {
   // Local state for rows fetched from Firestore
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState<DataDictionaryRow[]>([]);
 
   // Subscribe to the 'dataDictionary' collection in Firestore
   useEffect(() => {
@@ -85,7 +98,7 @@ export default function DataDictionaryModal({ open, onClose }) {
   };
 
   // Update a single field in a row
-  const handleUpdate = async (id, field, value) => {
+  const handleUpdate = async (id: string, field: keyof Omit<DataDictionaryRow, 'id'>, value: string) => {
     try {
       await updateDoc(doc(db, 'dataDictionary', id), { [field]: value });
       // optimistic UI: local state will reflect Firestore update via onSnapshot
@@ -96,7 +109,7 @@ export default function DataDictionaryModal({ open, onClose }) {
   };
 
   // Delete a row after confirmation
-  const handleDelete = async id => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this entry?')) return;
     try {
       await deleteDoc(doc(db, 'dataDictionary', id));
@@ -184,10 +197,3 @@ export default function DataDictionaryModal({ open, onClose }) {
     </Overlay>
   );
 }
-
-DataDictionaryModal.propTypes = {
-  /** Whether the modal is visible */
-  open: PropTypes.bool.isRequired,
-  /** Callback to close the modal */
-  onClose: PropTypes.func.isRequired
-};

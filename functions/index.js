@@ -111,8 +111,8 @@ const compressPrompt = (prompt) => {
 };
 
 // Import modular API functions
-const aiAPI = require('./src/api/ai');
 const productCreationAgentAPI = require('./src/api/productCreationAgent');
+const aiAPI = require('./src/api/ai'); // Used for suggestCoverageNames
 
 
 
@@ -337,13 +337,8 @@ exports.analyzeClaim = onCall({ secrets: [openaiKey] }, async (request) => {
 });
 
 // ============================================================================
-// MODERNIZED API EXPORTS
+// ADDITIONAL API EXPORTS
 // ============================================================================
-
-// AI-powered features (using new modular architecture)
-exports.generateProductSummaryV2 = aiAPI.generateProductSummary;
-exports.generateChatResponseV2 = aiAPI.generateChatResponse;
-exports.analyzeClaimV2 = aiAPI.analyzeClaim;
 
 // Pricing Engine
 const pricingAPI = require('./src/api/pricing');

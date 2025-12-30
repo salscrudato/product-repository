@@ -1,5 +1,5 @@
 // src/components/CoverageScreen.tsx
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useParams, useLocation, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   collection,
@@ -8,9 +8,7 @@ import {
   doc,
   getDoc,
   query,
-  where,
-  writeBatch,
-  serverTimestamp
+  where
 } from 'firebase/firestore';
 import type { Coverage } from '../types';
 import { ref, getDownloadURL } from 'firebase/storage';
@@ -19,8 +17,6 @@ import useCoverages from '@hooks/useCoverages';
 import { useCoverageFormCounts } from '@hooks/useCoverageFormCounts';
 import useDebounce from '@hooks/useDebounce';
 
-import { Button } from '../components/ui/Button';
-import { TextInput } from '../components/ui/Input';
 import MainNavigation from '../components/ui/Navigation';
 import { PageContainer, PageContent } from '../components/ui/PageContainer';
 import EnhancedHeader from '../components/ui/EnhancedHeader';
@@ -29,19 +25,13 @@ import { LimitOptionsModal } from '../components/limits/LimitOptionsModal';
 import { DeductibleOptionsModal } from '../components/deductibles/DeductibleOptionsModal';
 import { CoverageCopilotWizard } from '../components/wizard/CoverageCopilotWizard';
 
-import styled, { keyframes } from 'styled-components';
-import {
-  Overlay,
-  Modal,
-  ModalHeader,
-  ModalTitle,
-  CloseBtn
-} from '../components/ui/Table';
+// Lazy-load LinkFormsModal for better code splitting
+const LinkFormsModal = lazy(() => import('./coverage/LinkFormsModal'));
+
 import {
   PencilIcon,
   PlusIcon,
   TrashIcon,
-  XMarkIcon,
   ShieldCheckIcon,
   ChevronRightIcon,
   MapIcon,
@@ -54,835 +44,47 @@ import {
   MagnifyingGlassIcon
 } from '@heroicons/react/24/solid';
 
-/* ---------- styled components ---------- */
-
-// Animations for micro-interactions
-const fadeInUp = keyframes`
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-`;
-
-const scaleIn = keyframes`
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-`;
-
-const pulse = keyframes`
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-`;
-
-const shimmer = keyframes`
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-`;
-
-// Coverage Grid - 2-column layout for coverage cards
-const CoverageGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  margin-bottom: 120px;
-  width: 100%;
-
-  & > * {
-    animation: ${fadeInUp} 0.5s ease-out backwards;
-  }
-
-  & > *:nth-child(1) { animation-delay: 0.05s; }
-  & > *:nth-child(2) { animation-delay: 0.1s; }
-  & > *:nth-child(3) { animation-delay: 0.15s; }
-  & > *:nth-child(4) { animation-delay: 0.2s; }
-  & > *:nth-child(5) { animation-delay: 0.25s; }
-  & > *:nth-child(6) { animation-delay: 0.3s; }
-  & > *:nth-child(7) { animation-delay: 0.35s; }
-  & > *:nth-child(8) { animation-delay: 0.4s; }
-
-  @media (max-width: 1024px) {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-`;
-
-// Coverage Group - Contains parent and its sub-coverages
-const CoverageGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 8px;
-`;
-
-// Sub-coverage Container with professional visual connector
-const SubCoverageContainer = styled.div<{ $isExpanded: boolean }>`
-  position: relative;
-  margin-left: 24px;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  padding-left: 24px;
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 50%, #e2e8f0 100%);
-    border-radius: 1px;
-  }
-
-  & > * {
-    position: relative;
-  }
-
-  & > *::before {
-    content: '';
-    position: absolute;
-    left: -24px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 16px;
-    height: 1px;
-    background: #e2e8f0;
-  }
-
-  ${({ $isExpanded }) => $isExpanded ? `
-    opacity: 1;
-    transform: translateY(0);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  ` : `
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
-    position: absolute;
-    z-index: -1;
-  `}
-
-  @media (max-width: 768px) {
-    margin-left: 16px;
-  }
-`;
-
-// Command Bar - Apple-inspired search + actions bar (matching ProductHub)
-const CommandBar = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 32px;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 4px 12px rgba(0, 0, 0, 0.03),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  max-width: 1400px;
-  margin-left: auto;
-  margin-right: auto;
-  position: relative;
-
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 16px;
-    padding: 1px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.2) 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-  }
-`;
-
-const CommandBarLeft = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const CommandBarCenter = styled.div`
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  max-width: 640px;
-  min-width: 320px;
-`;
-
-const CommandBarRight = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const SearchWrapper = styled.div`
-  width: 100%;
-  position: relative;
-  display: flex;
-  align-items: center;
-`;
-
-const SearchInputStyled = styled.input`
-  width: 100%;
-  padding: 12px 16px 12px 44px;
-  background: rgba(0, 0, 0, 0.03);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 450;
-  color: #1a1a1a;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  letter-spacing: -0.01em;
-
-  &::placeholder {
-    color: #8e8e93;
-    font-weight: 400;
-  }
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.04);
-    border-color: rgba(0, 0, 0, 0.08);
-  }
-
-  &:focus {
-    outline: none;
-    background: #ffffff;
-    border-color: rgba(99, 102, 241, 0.5);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
-  }
-`;
-
-const SearchIconWrapper = styled.div`
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #8e8e93;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  svg {
-    width: 18px;
-    height: 18px;
-  }
-`;
-
-const ToolbarLabel = styled.span`
-  font-size: 13px;
-  color: #64748b;
-  font-weight: 500;
-`;
-
-const CopilotButton = styled.button`
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 24px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #ffffff;
-  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 50%, #8b5cf6 100%);
-  background-size: 200% 100%;
-  border: none;
-  border-radius: 50px;
-  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35), 0 3px 6px rgba(0, 0, 0, 0.08);
-  cursor: pointer;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(20px);
-  letter-spacing: 0.01em;
-  position: relative;
-
-  &::before {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    background: linear-gradient(135deg, #2563eb, #7c3aed, #8b5cf6);
-    border-radius: 52px;
-    z-index: -1;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    filter: blur(10px);
-  }
-
-  &:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 12px 32px rgba(124, 58, 237, 0.45), 0 6px 12px rgba(0, 0, 0, 0.12);
-    background-position: 100% 0;
-
-    &::before {
-      opacity: 0.6;
-    }
-  }
-
-  &:active {
-    transform: translateY(-1px) scale(1.01);
-  }
-
-  svg {
-    width: 18px;
-    height: 18px;
-    transition: transform 0.3s ease;
-  }
-
-  &:hover svg {
-    transform: rotate(15deg) scale(1.1);
-  }
-`;
-
-// Parent Coverage Card - Compact card for parent coverages
-const ParentCoverageCard = styled.div`
-  background: white;
-  border-radius: 14px;
-  padding: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), 0 1px 4px rgba(0, 0, 0, 0.02);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 40px rgba(99, 102, 241, 0.12), 0 8px 16px rgba(0, 0, 0, 0.06);
-    border-color: rgba(99, 102, 241, 0.4);
-
-    &::before {
-      opacity: 1;
-    }
-  }
-
-  &:focus-within {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-  }
-`;
-
-// Coverage Card - Compact design for sub-coverages
-const CoverageCard = styled.div<{ $isSubCoverage?: boolean; $delay?: number }>`
-  background: white;
-  border-radius: 12px;
-  padding: 14px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  animation: ${scaleIn} 0.35s ease-out backwards;
-  animation-delay: ${({ $delay }) => ($delay || 0) * 0.05}s;
-
-  &:hover {
-    transform: translateY(-3px) scale(1.01);
-    box-shadow: 0 12px 28px rgba(99, 102, 241, 0.1), 0 4px 12px rgba(0, 0, 0, 0.05);
-    border-color: rgba(99, 102, 241, 0.35);
-  }
-
-  ${({ $isSubCoverage }) => $isSubCoverage && `
-    background: linear-gradient(135deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.9) 100%);
-    border-left: 4px solid #6366f1;
-
-    &::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      bottom: 0;
-      width: 4px;
-      background: linear-gradient(180deg, #6366f1 0%, #8b5cf6 100%);
-    }
-  `}
-`;
-
-const CardHeader = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 14px;
-`;
-
-const CardHeaderRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-`;
-
-const CardTitleGroup = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-`;
-
-const CardTitle = styled.h3`
-  font-size: 18px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0;
-  line-height: 1.3;
-  letter-spacing: -0.025em;
-`;
-
-const CardCode = styled.span`
-  font-size: 12px;
-  font-weight: 600;
-  color: #6366f1;
-  background: rgba(99, 102, 241, 0.1);
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  letter-spacing: 0.025em;
-  white-space: nowrap;
-`;
-
-const CardActions = styled.div`
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-`;
-
-
-
-const IconButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.8);
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-
-  &:hover {
-    background: rgba(99, 102, 241, 0.1);
-    color: #6366f1;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
-  }
-
-  &.danger:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
-  }
-`;
-
-// Coverage Type Badge - Shows if coverage is optional, required, or endorsement
-const CoverageTypeBadge = styled.span<{ $isOptional?: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  margin-left: 8px;
-
-  ${({ $isOptional }) => $isOptional ? `
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.08) 100%);
-    color: #6366f1;
-    border: 1px solid rgba(99, 102, 241, 0.2);
-  ` : `
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.08) 100%);
-    color: #059669;
-    border: 1px solid rgba(16, 185, 129, 0.2);
-  `}
-`;
-
-const CardMetrics = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-`;
-
-const MetricItem = styled.div<{ $hasValue?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: linear-gradient(135deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.9) 100%);
-  backdrop-filter: blur(8px);
-  border-radius: 8px;
-  font-size: 12px;
-  color: #475569;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  font-weight: 500;
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 3px;
-    height: 100%;
-    background: ${({ $hasValue }) => $hasValue ? 'linear-gradient(180deg, #10b981, #059669)' : 'transparent'};
-    transition: all 0.25s ease;
-  }
-
-  &:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
-    color: #6366f1;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.12);
-    border-color: rgba(99, 102, 241, 0.3);
-
-    svg {
-      color: #6366f1;
-    }
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-
-  svg {
-    width: 16px;
-    height: 16px;
-    color: #64748b;
-    transition: all 0.25s ease;
-    flex-shrink: 0;
-  }
-`;
-
-const MetricLabel = styled.span`
-  white-space: nowrap;
-`;
-
-const MetricBadge = styled.span<{ $variant?: 'default' | 'success' | 'warning' }>`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
-  font-size: 11px;
-  font-weight: 700;
-  border-radius: 11px;
-
-  ${({ $variant }) => {
-    switch ($variant) {
-      case 'success':
-        return `
-          background: rgba(16, 185, 129, 0.15);
-          color: #059669;
-        `;
-      case 'warning':
-        return `
-          background: rgba(245, 158, 11, 0.15);
-          color: #d97706;
-        `;
-      default:
-        return `
-          background: rgba(100, 116, 139, 0.1);
-          color: #64748b;
-        `;
-    }
-  }}
-`;
-
-const ExpandButton = styled.button<{ $expanded?: boolean }>`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
-  color: #6366f1;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1.5px solid rgba(99, 102, 241, 0.2);
-  flex-shrink: 0;
-
-  svg {
-    width: 16px;
-    height: 16px;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    ${({ $expanded }) => $expanded && 'transform: rotate(90deg);'}
-  }
-
-  &:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
-    transform: scale(1.08);
-    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.25);
-  }
-
-  &:active {
-    transform: scale(0.98);
-  }
-
-  &:focus-visible {
-    outline: 2px solid rgba(99, 102, 241, 0.4);
-    outline-offset: 2px;
-  }
-`;
-
-// P&C Attributes Display - Shows key coverage configuration at a glance
-const CoverageAttributesRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.6) 100%);
-  border-top: 1px solid rgba(226, 232, 240, 0.5);
-  border-radius: 0 0 12px 12px;
-`;
-
-const AttributeChip = styled.div<{ $variant?: 'trigger' | 'valuation' | 'coinsurance' | 'territory' | 'default' }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 16px;
-  font-size: 11px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-
-  ${({ $variant }) => {
-    switch ($variant) {
-      case 'trigger':
-        return `
-          background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.1) 100%);
-          color: #6366f1;
-          border: 1px solid rgba(99, 102, 241, 0.2);
-        `;
-      case 'valuation':
-        return `
-          background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.1) 100%);
-          color: #059669;
-          border: 1px solid rgba(16, 185, 129, 0.2);
-        `;
-      case 'coinsurance':
-        return `
-          background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.1) 100%);
-          color: #d97706;
-          border: 1px solid rgba(245, 158, 11, 0.2);
-        `;
-      case 'territory':
-        return `
-          background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(37, 99, 235, 0.1) 100%);
-          color: #2563eb;
-          border: 1px solid rgba(59, 130, 246, 0.2);
-        `;
-      default:
-        return `
-          background: rgba(107, 114, 128, 0.08);
-          color: #6b7280;
-          border: 1px solid rgba(107, 114, 128, 0.15);
-        `;
-    }
-  }}
-
-  svg {
-    width: 12px;
-    height: 12px;
-  }
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  }
-`;
-
-const AttributeLabel = styled.span`
-  font-weight: 600;
-  opacity: 0.8;
-`;
-
-const AttributeValue = styled.span`
-  font-weight: 500;
-`;
-
-const WideModal = styled(Modal)`
-  max-width: 1000px;
-  width: 95%;
-  border-radius: 24px;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-`;
-
-// Empty State - Enhanced with illustration and better CTAs
-const EmptyState = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 80px 40px;
-  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.6) 100%);
-  border-radius: 24px;
-  border: 2px dashed rgba(203, 213, 225, 0.6);
-  animation: ${fadeInUp} 0.5s ease-out;
-`;
-
-const EmptyStateIcon = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 80px;
-  height: 80px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
-  border-radius: 24px;
-  margin-bottom: 24px;
-
-  svg {
-    width: 40px;
-    height: 40px;
-    color: #6366f1;
-  }
-`;
-
-const EmptyStateTitle = styled.h3`
-  font-size: 22px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0 0 12px 0;
-  letter-spacing: -0.02em;
-`;
-
-const EmptyStateText = styled.p`
-  font-size: 15px;
-  color: #64748b;
-  margin: 0 0 28px 0;
-  max-width: 400px;
-  line-height: 1.6;
-`;
-
-const EmptyStateButton = styled.button`
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 24px;
-  font-size: 14px;
-  font-weight: 600;
-  color: white;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
-  }
-
-  svg {
-    width: 18px;
-    height: 18px;
-  }
-`;
-
-// Skeleton Loading State
-const SkeletonCard = styled.div`
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  animation: ${pulse} 1.5s ease-in-out infinite;
-`;
-
-const SkeletonLine = styled.div<{ $width?: string; $height?: string }>`
-  background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
-  background-size: 200% 100%;
-  animation: ${shimmer} 1.5s ease-in-out infinite;
-  border-radius: 6px;
-  height: ${({ $height }) => $height || '16px'};
-  width: ${({ $width }) => $width || '100%'};
-  margin-bottom: 12px;
-`;
-
-// Actions container for modal buttons
-const Actions = styled.div`
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  margin-top: 24px;
-`;
-
-// Enhanced form linking styles
-const FormLinkContainer = styled.div`
-  max-height: 360px;
-  overflow-y: auto;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 12px;
-  padding: 8px;
-  margin-bottom: 16px;
-  background: rgba(248, 250, 252, 0.5);
-`;
-
-const FormLinkItem = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-bottom: 4px;
-
-  &:hover {
-    background: rgba(99, 102, 241, 0.05);
-  }
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-`;
-
-const FormCheckbox = styled.input`
-  width: 18px;
-  height: 18px;
-  accent-color: #6366f1;
-  cursor: pointer;
-`;
-
-const FormLabel = styled.span`
-  flex: 1;
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
-`;
-
-const FormLinkActions = styled.div`
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-`;
-
-
+// Import styled components from extracted styles file (form-related moved to LinkFormsModal)
+import {
+  CoverageGrid,
+  CoverageGroup,
+  SubCoverageContainer,
+  CommandBar,
+  CommandBarLeft,
+  CommandBarCenter,
+  CommandBarRight,
+  SearchWrapper,
+  SearchInputStyled,
+  SearchIconWrapper,
+  ToolbarLabel,
+  CopilotButton,
+  ParentCoverageCard,
+  CoverageCard,
+  CardHeader,
+  CardHeaderRow,
+  CardTitleGroup,
+  CardTitle,
+  CardCode,
+  CardActions,
+  IconButton,
+  CoverageTypeBadge,
+  CardMetrics,
+  MetricItem,
+  MetricLabel,
+  MetricBadge,
+  ExpandButton,
+  CoverageAttributesRow,
+  AttributeChip,
+  AttributeLabel,
+  AttributeValue,
+  EmptyState,
+  EmptyStateIcon,
+  EmptyStateTitle,
+  EmptyStateText,
+  EmptyStateButton,
+  SkeletonCard,
+  SkeletonLine
+} from './coverage/CoverageScreen.styles';
 
 /* ---------- main component ---------- */
 export default function CoverageScreen() {
@@ -913,6 +115,7 @@ export default function CoverageScreen() {
   type CoverageWithSub = Coverage & { subCount: number; parentInfo: ParentInfo | null };
   type FormData = { id: string; downloadUrl: string | null; coverageIds: string[]; formName?: string; formNumber?: string; [key: string]: unknown };
   type RuleData = { id: string; ruleType?: string; targetId?: string; [key: string]: unknown };
+  type PricingStepData = { id: string; coverages?: string[]; stepType?: string; [key: string]: unknown };
 
   /* --- derived sub-counts & filtering --- */
   const coveragesWithSub = useMemo((): CoverageWithSub[] => {
@@ -949,6 +152,7 @@ export default function CoverageScreen() {
   const [metaLoading, setMetaLoading] = useState(true);
   const [forms, setForms] = useState<FormData[]>([]);
   const [rules, setRules] = useState<RuleData[]>([]);
+  const [pricingSteps, setPricingSteps] = useState<PricingStepData[]>([]);
   const [productName, setProductName] = useState('');
   const [parentCoverageName, setParentCoverageName] = useState('');
 
@@ -1049,6 +253,13 @@ export default function CoverageScreen() {
     ).length;
   }, [rules]);
 
+  // Get pricing step count for a specific coverage (by name)
+  const getPricingStepCount = useCallback((coverageName: string) => {
+    return pricingSteps.filter(step =>
+      step.stepType === 'factor' && step.coverages?.includes(coverageName)
+    ).length;
+  }, [pricingSteps]);
+
   // Format P&C-specific attributes for display - reserved for future use
   const _formatCoverageTrigger = (trigger?: string) => {
     const triggerLabels: Record<string, string> = {
@@ -1095,8 +306,6 @@ export default function CoverageScreen() {
 
   const [linkFormsModalOpen, setLinkFormsModalOpen] = useState(false);
   const [selectedCoverageForForms, setSelectedCoverageForForms] = useState<Coverage | null>(null);
-  const [linkFormIds, setLinkFormIds] = useState<string[]>([]);
-  const [formSearchQuery, setFormSearchQuery] = useState('');
 
   /* ---------- effect: load meta (forms + names + rules) ---------- */
   const loadMeta = useCallback(async () => {
@@ -1145,6 +354,11 @@ export default function CoverageScreen() {
       const rulesList: RuleData[] = rulesSnap.docs.map(d => ({ id: d.id, ...d.data() } as RuleData));
       setRules(rulesList);
 
+      // pricing steps - fetch all steps for this product
+      const stepsSnap = await getDocs(collection(db, `products/${productId}/steps`));
+      const stepsList: PricingStepData[] = stepsSnap.docs.map(d => ({ id: d.id, ...d.data() } as PricingStepData));
+      setPricingSteps(stepsList);
+
       // product / parent names
       const prodDoc = await getDoc(doc(db, 'products', productId));
       setProductName(prodDoc.exists() ? (prodDoc.data() as { name: string }).name : 'Unknown Product');
@@ -1188,99 +402,18 @@ export default function CoverageScreen() {
     setDeductibleModalOpen(true);
   };
 
-  const openLinkFormsModal = async (c: Coverage) => {
+  const openLinkFormsModal = (c: Coverage) => {
     setSelectedCoverageForForms(c);
-    setFormSearchQuery('');
-
-    // Fetch existing linked forms from junction table
-    try {
-      const linksSnap = await getDocs(
-        query(
-          collection(db, 'formCoverages'),
-          where('coverageId', '==', c.id),
-          where('productId', '==', productId)
-        )
-      );
-      const linkedFormIds = linksSnap.docs.map(linkDoc => (linkDoc.data() as { formId: string }).formId);
-      setLinkFormIds(linkedFormIds);
-    } catch (err) {
-      console.error('Error fetching linked forms:', err);
-      setLinkFormIds([]);
-    }
-
     setLinkFormsModalOpen(true);
   };
-
-
-
-  // Filter forms based on search query
-  const filteredForms = useMemo(() => {
-    if (!formSearchQuery.trim()) return forms;
-    const q = formSearchQuery.toLowerCase();
-    return forms.filter(f =>
-      (f.formName && f.formName.toLowerCase().includes(q)) ||
-      (f.formNumber && f.formNumber.toLowerCase().includes(q))
-    );
-  }, [forms, formSearchQuery]);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this coverage?')) return;
     try {
       await deleteDoc(doc(db, `products/${productId}/coverages`, id));
       await reloadCoverages();
-
     } catch (err) {
       alert('Delete failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
-    }
-  };
-
-  const saveLinkedForms = async () => {
-    if (!selectedCoverageForForms) return;
-    try {
-      const coverage = selectedCoverageForForms;
-      const desired = new Set(linkFormIds);
-
-      // Fetch existing links from junction table
-      const existingSnap = await getDocs(
-        query(
-          collection(db, 'formCoverages'),
-          where('coverageId', '==', coverage.id),
-          where('productId', '==', productId)
-        )
-      );
-
-      const batch = writeBatch(db);
-
-      // Remove deselected links
-      existingSnap.docs.forEach(d => {
-        if (!desired.has(d.data().formId)) {
-          batch.delete(d.ref);
-        }
-      });
-
-      // Add new links
-      const existingIds = new Set(existingSnap.docs.map(d => d.data().formId));
-      desired.forEach(fid => {
-        if (!existingIds.has(fid)) {
-          // Use addDoc pattern with batch instead of doc(collection(...))
-          const linkRef = doc(collection(db, 'formCoverages'));
-          batch.set(linkRef, {
-            formId: fid,
-            coverageId: coverage.id,
-            productId,
-            createdAt: serverTimestamp()
-          });
-        }
-      });
-
-      // The formCoverages junction table is the single source of truth
-
-      await batch.commit();
-      setLinkFormsModalOpen(false);
-      await reloadCoverages();
-    } catch (err) {
-      console.error('Error saving linked forms:', err);
-      alert('Failed to save linked forms: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 
@@ -1469,11 +602,15 @@ export default function CoverageScreen() {
                               </MetricBadge>
                             </MetricItem>
                             <MetricItem
+                              $hasValue={getPricingStepCount(parent.name) > 0}
                               onClick={() => navigate(`/pricing/${productId}?coverage=${encodeURIComponent(parent.name)}`)}
                               title="Configure pricing and rates"
                             >
                               <BanknotesIcon />
                               <MetricLabel>Pricing</MetricLabel>
+                              <MetricBadge $variant={getPricingStepCount(parent.name) > 0 ? 'success' : 'default'}>
+                                {getPricingStepCount(parent.name)}
+                              </MetricBadge>
                             </MetricItem>
                             <MetricItem
                               $hasValue={getRuleCount(parent.id) > 0}
@@ -1592,11 +729,15 @@ export default function CoverageScreen() {
                                   </MetricBadge>
                                 </MetricItem>
                                 <MetricItem
+                                  $hasValue={getPricingStepCount(child.name) > 0}
                                   onClick={() => navigate(`/pricing/${productId}?coverage=${encodeURIComponent(child.name)}`)}
                                   title="Configure pricing"
                                 >
                                   <BanknotesIcon />
                                   <MetricLabel>Pricing</MetricLabel>
+                                  <MetricBadge $variant={getPricingStepCount(child.name) > 0 ? 'success' : 'default'}>
+                                    {getPricingStepCount(child.name)}
+                                  </MetricBadge>
                                 </MetricItem>
                                 <MetricItem
                                   $hasValue={getRuleCount(child.id) > 0}
@@ -1718,77 +859,21 @@ export default function CoverageScreen() {
         />
       )}
 
-      {/* Link Forms Modal - Moved outside PageContent */}
-      {linkFormsModalOpen && (
-        <Overlay onClick={() => setLinkFormsModalOpen(false)}>
-          <WideModal onClick={e => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalTitle>Link Forms to {selectedCoverageForForms?.name}</ModalTitle>
-              <CloseBtn onClick={() => setLinkFormsModalOpen(false)}>
-                <XMarkIcon width={20} height={20}/>
-              </CloseBtn>
-            </ModalHeader>
-
-            <TextInput
-              placeholder="Search forms by name or number..."
-              value={formSearchQuery || ''}
-              onChange={e => setFormSearchQuery(e.target.value)}
-              style={{
-                marginBottom: '12px',
-                border: '1px solid rgba(226, 232, 240, 0.6)',
-                borderRadius: '8px',
-                padding: '10px 12px',
-                fontSize: '14px'
-              }}
-            />
-
-            <FormLinkActions>
-              <Button variant="ghost" onClick={() => setLinkFormIds(filteredForms.map(f => f.id))}>
-                Select All ({filteredForms.length})
-              </Button>
-              <Button variant="ghost" onClick={() => setLinkFormIds([])}>
-                Clear All
-              </Button>
-              <span style={{ fontSize: '14px', color: '#6b7280', marginLeft: 'auto' }}>
-                {linkFormIds.length} selected
-              </span>
-            </FormLinkActions>
-
-            <FormLinkContainer>
-              {filteredForms.map(f => (
-                <FormLinkItem key={f.id}>
-                  <FormCheckbox
-                    type="checkbox"
-                    value={f.id}
-                    checked={linkFormIds.includes(f.id)}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setLinkFormIds(ids =>
-                        ids.includes(val) ? ids.filter(i => i !== val) : [...ids, val]
-                      );
-                    }}
-                  />
-                  <FormLabel>{f.formName || f.formNumber || 'Unnamed Form'}</FormLabel>
-                </FormLinkItem>
-              ))}
-              {filteredForms.length === 0 && (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '32px',
-                  color: '#6b7280',
-                  fontStyle: 'italic'
-                }}>
-                  No forms found matching your search
-                </div>
-              )}
-            </FormLinkContainer>
-
-            <Actions>
-              <Button onClick={saveLinkedForms}>Save Changes</Button>
-              <Button variant="ghost" onClick={() => setLinkFormsModalOpen(false)}>Cancel</Button>
-            </Actions>
-          </WideModal>
-        </Overlay>
+      {/* Link Forms Modal - Lazy-loaded for better code splitting */}
+      {linkFormsModalOpen && selectedCoverageForForms && productId && (
+        <Suspense fallback={null}>
+          <LinkFormsModal
+            isOpen={linkFormsModalOpen}
+            onClose={() => {
+              setLinkFormsModalOpen(false);
+              setSelectedCoverageForForms(null);
+            }}
+            coverage={selectedCoverageForForms}
+            productId={productId}
+            forms={forms}
+            onSave={reloadCoverages}
+          />
+        </Suspense>
       )}
     </PageContainer>
   );
