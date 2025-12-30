@@ -19,20 +19,20 @@ import { TextMuted, Code } from './Typography';
 
 interface CoverageSnapshotProps {
   name: string;
-  coverageCode?: string;
-  isOptional?: boolean;
-  productName?: string;
-  parentCoverageName?: string;
-  statesCount?: number;
-  formsCount?: number;
-  rulesCount?: number;
-  healthLabel?: string;
-  healthScore?: number;
-  healthTooltip?: string;
-  valuationLabel?: string;
-  territoryLabel?: string;
-  coinsuranceLabel?: string;
-  waitingPeriodLabel?: string;
+  coverageCode?: string | undefined;
+  isOptional?: boolean | undefined;
+  productName?: string | undefined;
+  parentCoverageName?: string | undefined;
+  statesCount?: number | undefined;
+  formsCount?: number | undefined;
+  rulesCount?: number | undefined;
+  healthLabel?: string | undefined;
+  healthScore?: number | undefined;
+  healthTooltip?: string | undefined;
+  valuationLabel?: string | undefined;
+  territoryLabel?: string | undefined;
+  coinsuranceLabel?: string | undefined;
+  waitingPeriodLabel?: string | undefined;
 }
 
 interface MetricBadgeProps {

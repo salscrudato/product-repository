@@ -120,13 +120,13 @@ export const ConnectionStatus = ({ showWhenConnected = false }) => {
   const getMessage = () => {
     switch (state) {
       case 'connected':
-        return '✓ Connected to Firebase';
+        return 'Connected to Firebase';
       case 'disconnected':
-        return '⚠ Connection lost - Using cached data';
+        return 'Connection lost - Using cached data';
       case 'reconnecting':
-        return `🔄 Reconnecting... (Attempt ${reconnectAttempts})`;
+        return `Reconnecting... (Attempt ${reconnectAttempts})`;
       case 'reconnect-failed':
-        return '❌ Unable to reconnect - Please check your internet connection';
+        return 'Unable to reconnect - Please check your internet connection';
       default:
         return 'Checking connection...';
     }

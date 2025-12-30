@@ -1,18 +1,20 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
-import { db } from '@/firebase';
+import { db, storage } from '@/firebase';
+import useDebounce from '@hooks/useDebounce';
 import {
   collection, getDocs, addDoc, deleteDoc, doc, updateDoc,
   query, where, getDoc, writeBatch, serverTimestamp
 } from 'firebase/firestore';
+import { ref, getDownloadURL } from 'firebase/storage';
 import { uploadFormPdf, deleteFormPdf } from '@utils/storage';
-import { getFormDisplayName } from '@utils/format';
 import {
   TrashIcon, DocumentTextIcon, PlusIcon, XMarkIcon,
-  LinkIcon, PencilIcon, MagnifyingGlassIcon,
-  Squares2X2Icon
+  LinkIcon, PencilIcon,
+  Squares2X2Icon, FunnelIcon, MapIcon
 } from '@heroicons/react/24/solid';
 import { CoverageSnapshot } from '@components/common/CoverageSnapshot';
+import type { Product, Coverage, FormTemplate } from '@/types';
 
 
 
@@ -255,9 +257,13 @@ const CardContent = styled.div`
   margin-bottom: 12px;
 `;
 
+interface CardCategoryProps {
+  category?: string;
+}
+
 const CardCategory = styled.div.withConfig({
   shouldForwardProp: (prop) => !['category'].includes(prop),
-})`
+})<CardCategoryProps>`
   display: inline-block;
   background: ${({ category }) => {
     switch (category) {
@@ -491,14 +497,26 @@ export default function FormsScreen() {
 
 
   /* data state */
-  const [forms, setForms] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [coverages, setCoverages] = useState([]);
-  const [coverageExclusions, setCoverageExclusions] = useState({}); // Map of coverageId -> exclusions array
+  // Extended form type with runtime data
+  type ExtendedForm = Omit<FormTemplate, 'downloadUrl'> & {
+    downloadUrl?: string | null;
+    productIds: string[];
+    coverageIds: string[];
+  };
+
+  // Extended coverage with productId
+  type ExtendedCoverage = Coverage & {
+    productId: string;
+  };
+
+  const [forms, setForms] = useState<ExtendedForm[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [coverages, setCoverages] = useState<ExtendedCoverage[]>([]);
+  const [coverageExclusions, setCoverageExclusions] = useState<Record<string, string[]>>({}); // Map of coverageId -> exclusions array
 
   /* coverage snapshot state - for when viewing forms for a specific coverage */
-  const [selectedCoverageData, setSelectedCoverageData] = useState<any>(null);
-  const [parentCoverageData, setParentCoverageData] = useState<any>(null);
+  const [selectedCoverageData, setSelectedCoverageData] = useState<Coverage | null>(null);
+  const [parentCoverageData, setParentCoverageData] = useState<Coverage | null>(null);
   const [coverageRulesCount, setCoverageRulesCount] = useState(0);
 
   // --- filter/search state for modals
@@ -508,15 +526,15 @@ export default function FormsScreen() {
   /* search state (debounced) */
   const [rawSearch, setRawSearch] = useState('');
   const searchQuery = useDebounce(rawSearch, 250);
-  const searchRef = useRef(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
 
   /* filter state */
-  const [selectedCoverage, setSelectedCoverage] = useState(null);
-  const [selectedFilterStates, setSelectedFilterStates] = useState([]);
+  const [selectedCoverage, setSelectedCoverage] = useState<string | null>(null);
+  const [selectedFilterStates, setSelectedFilterStates] = useState<string[]>([]);
 
   /* ui state */
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   /* add‑form modal */
   const [showModal, setShowModal] = useState(false);
@@ -526,26 +544,26 @@ export default function FormsScreen() {
   const [type, setType] = useState('ISO');
   const [category, setCategory] = useState('Base Coverage Form');
   const [selectedProduct, setSelectedProduct] = useState(productId || '');
-  const [selectedCoverages, setSelectedCoverages] = useState([]);
-  const [selectedStates, setSelectedStates] = useState([]);
-  const [file, setFile] = useState(null);
+  const [selectedCoverages, setSelectedCoverages] = useState<string[]>([]);
+  const [selectedStates, setSelectedStates] = useState<string[]>([]);
+  const [file, setFile] = useState<File | null>(null);
 
   /* link‑coverage modal */
   const [linkCoverageModalOpen, setLinkCoverageModalOpen] = useState(false);
-  const [selectedForm, setSelectedForm] = useState(null);
-  const [linkCoverageIds, setLinkCoverageIds] = useState([]);
+  const [selectedForm, setSelectedForm] = useState<ExtendedForm | null>(null);
+  const [linkCoverageIds, setLinkCoverageIds] = useState<string[]>([]);
 
   /* link‑product modal */
   const [linkProductModalOpen, setLinkProductModalOpen] = useState(false);
-  const [linkProductIds, setLinkProductIds] = useState([]);
+  const [linkProductIds, setLinkProductIds] = useState<string[]>([]);
 
   /* states modal */
   const [statesModalOpen, setStatesModalOpen] = useState(false);
-  const [selectedFormForStates, setSelectedFormForStates] = useState(null);
-  const [formStates, setFormStates] = useState([]);
+  const [selectedFormForStates, setSelectedFormForStates] = useState<ExtendedForm | null>(null);
+  const [formStates, setFormStates] = useState<string[]>([]);
 
   /* version sidebar */
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [changeSummary, setChangeSummary] = useState('');
 
   // Export/Import states
@@ -574,8 +592,8 @@ export default function FormsScreen() {
 
   /* `/` shortcut to focus */
   useEffect(() => {
-    const handler = e => {
-      if (e.key === '/' && !e.target.matches('input,textarea,select')) {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === '/' && !(e.target as HTMLElement).matches('input,textarea,select')) {
         e.preventDefault();
         searchRef.current?.focus();
       }
@@ -592,29 +610,29 @@ export default function FormsScreen() {
       try {
         /* products */
         const pSnap = await getDocs(collection(db, 'products'));
-        const productList = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        productList.sort((a, b) => a.name.localeCompare(b.name));
+        const productList = pSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+        productList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         setProducts(productList);
 
         /* coverages */
-        let coverageList = [];
+        let coverageList: ExtendedCoverage[] = [];
         if (productId) {
           const cSnap = await getDocs(collection(db, `products/${productId}/coverages`));
-          coverageList = cSnap.docs.map(d => ({ id: d.id, ...d.data(), productId }));
+          coverageList = cSnap.docs.map(d => ({ id: d.id, ...d.data(), productId } as ExtendedCoverage));
         } else {
           for (const product of productList) {
             const cSnap = await getDocs(collection(db, `products/${product.id}/coverages`));
             coverageList = [
               ...coverageList,
-              ...cSnap.docs.map(d => ({ id: d.id, ...d.data(), productId: product.id }))
+              ...cSnap.docs.map(d => ({ id: d.id, ...d.data(), productId: product.id } as ExtendedCoverage))
             ];
           }
         }
-        coverageList.sort((a, b) => a.name.localeCompare(b.name));
+        coverageList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         setCoverages(coverageList);
 
         /* Load exclusions for each coverage */
-        const exclusionsMap = {};
+        const exclusionsMap: Record<string, string[]> = {};
         for (const coverage of coverageList) {
           if (coverage.exclusions && coverage.exclusions.length > 0) {
             exclusionsMap[coverage.id] = coverage.exclusions;
@@ -627,29 +645,30 @@ export default function FormsScreen() {
 
         // Fetch all form-coverage links
         const linksSnap = await getDocs(collection(db, 'formCoverages'));
-        const coveragesByForm = {};
-        linksSnap.docs.forEach(doc => {
-          const { formId, coverageId } = doc.data();
+        const coveragesByForm: Record<string, string[]> = {};
+        linksSnap.docs.forEach(docSnap => {
+          const { formId, coverageId } = docSnap.data() as { formId: string; coverageId: string };
           if (!coveragesByForm[formId]) {
             coveragesByForm[formId] = [];
           }
           coveragesByForm[formId].push(coverageId);
         });
 
-        const formList = await Promise.all(
+        const formList: ExtendedForm[] = await Promise.all(
           fSnap.docs.map(async d => {
             const data = d.data();
-            let url = null;
+            let url: string | null = null;
             if (data.filePath) {
-              try { url = await getDownloadURL(ref(storage, data.filePath)); } catch {}
+              try { url = await getDownloadURL(ref(storage, data.filePath)); } catch { /* ignore */ }
             }
             return {
               ...data,
               id: d.id,
+              formNumber: data.formNumber || '',
               downloadUrl: url,
               productIds: data.productIds || (data.productId ? [data.productId] : []),
               coverageIds: coveragesByForm[d.id] || []
-            };
+            } as ExtendedForm;
           })
         );
         setForms(formList);
@@ -677,7 +696,7 @@ export default function FormsScreen() {
         const coverageRef = doc(db, `products/${productId}/coverages`, coverageId);
         const coverageSnap = await getDoc(coverageRef);
         if (coverageSnap.exists()) {
-          const coverageData = { id: coverageSnap.id, ...coverageSnap.data() };
+          const coverageData = { id: coverageSnap.id, ...coverageSnap.data() } as Coverage;
           setSelectedCoverageData(coverageData);
 
           // Fetch parent coverage if exists
@@ -685,7 +704,7 @@ export default function FormsScreen() {
             const parentRef = doc(db, `products/${productId}/coverages`, coverageData.parentCoverageId);
             const parentSnap = await getDoc(parentRef);
             if (parentSnap.exists()) {
-              setParentCoverageData({ id: parentSnap.id, ...parentSnap.data() });
+              setParentCoverageData({ id: parentSnap.id, ...parentSnap.data() } as Coverage);
             }
           }
 
@@ -709,15 +728,15 @@ export default function FormsScreen() {
 
   /* Get exclusions for a form based on its linked coverages */
   const getFormExclusions = useMemo(() => {
-    const formExclusionsMap = {};
+    const formExclusionsMap: Record<string, Array<{ exclusionText: string; coverageName: string }>> = {};
     forms.forEach(form => {
-      const exclusions = [];
+      const exclusions: Array<{ exclusionText: string; coverageName: string }> = [];
       if (form.coverageIds && form.coverageIds.length > 0) {
-        form.coverageIds.forEach(covId => {
+        form.coverageIds.forEach((covId: string) => {
           if (coverageExclusions[covId]) {
-            coverageExclusions[covId].forEach(exclusion => {
+            coverageExclusions[covId].forEach((exclusion: string) => {
               exclusions.push({
-                ...exclusion,
+                exclusionText: exclusion,
                 coverageName: coverageMap[covId] || 'Unknown Coverage'
               });
             });
@@ -750,7 +769,7 @@ export default function FormsScreen() {
 
       // Apply states filter
       const matchesStates = selectedFilterStates.length > 0 ?
-        f.states && selectedFilterStates.every(state => f.states.includes(state)) : true;
+        (f.states && selectedFilterStates.every(state => f.states?.includes(state))) : true;
 
       return matchesSearch && matchesProduct && matchesCoverage && matchesStates;
     });
@@ -758,12 +777,12 @@ export default function FormsScreen() {
 
   /* ---------- handlers (add, delete, link) ---------- */
   // open the modal pre‑filled for editing an existing form
-  const openEditModal = formObj => {
+  const openEditModal = (formObj: ExtendedForm) => {
     setFormName(formObj.formName || '');
     setFormNumber(formObj.formNumber);
-    setEffectiveDate(formObj.effectiveDate);
-    setType(formObj.type);
-    setCategory(formObj.category);
+    setEffectiveDate(typeof formObj.effectiveDate === 'string' ? formObj.effectiveDate : '');
+    setType(formObj.type || 'ISO');
+    setCategory(formObj.category || 'Base Coverage Form');
     setSelectedProduct(formObj.productIds?.[0] || formObj.productId || '');
     setSelectedCoverages(formObj.coverageIds || []);
     setSelectedStates(formObj.states || []);
@@ -772,7 +791,7 @@ export default function FormsScreen() {
     setChangeSummary('');
     setShowModal(true);
   };
-  const openLinkProductModal = form => {
+  const openLinkProductModal = (form: ExtendedForm) => {
     setSelectedForm(form);
     setLinkProductIds(form.productIds || (form.productId ? [form.productId] : []));
     setLinkProductModalOpen(true);
@@ -844,7 +863,7 @@ export default function FormsScreen() {
         formId = docRef.id;
       }
 
-      // ✅ Link to coverages via junction table only (no array writes)
+      // Link to coverages via junction table only (no array writes)
       const batch = writeBatch(db);
 
       // Delete old links for this form
@@ -884,10 +903,13 @@ export default function FormsScreen() {
 
       // refresh forms list
       const snap = await getDocs(collection(db, 'forms'));
-      const formList = snap.docs.map(d => ({
+      const formList: ExtendedForm[] = snap.docs.map(d => ({
         ...d.data(),
-        id: d.id
-      }));
+        id: d.id,
+        formNumber: d.data().formNumber || '',
+        productIds: d.data().productIds || [],
+        coverageIds: []
+      } as ExtendedForm));
       setForms(formList);
     } catch (err) {
       console.error(err);
@@ -895,7 +917,7 @@ export default function FormsScreen() {
     }
   };
 
-  const handleDeleteForm = async id => {
+  const handleDeleteForm = async (id: string) => {
     if (!window.confirm('Delete this form?')) return;
     try {
       const formDoc = forms.find(f => f.id === id);
@@ -909,7 +931,7 @@ export default function FormsScreen() {
           }
         }
 
-        // ✅ Delete junction table links only (no array writes to coverages)
+        // Delete junction table links only (no array writes to coverages)
         const linksSnap = await getDocs(
           query(collection(db, 'formCoverages'), where('formId', '==', id))
         );
@@ -927,13 +949,13 @@ export default function FormsScreen() {
     }
   };
 
-  const openLinkCoverageModal = form => {
+  const openLinkCoverageModal = (form: ExtendedForm) => {
     setSelectedForm(form);
     setLinkCoverageIds(form.coverageIds || []);
     setLinkCoverageModalOpen(true);
   };
 
-  const openStatesModal = form => {
+  const openStatesModal = (form: ExtendedForm) => {
     setSelectedFormForStates(form);
     setFormStates(form.states || []);
     setStatesModalOpen(true);
@@ -1041,7 +1063,7 @@ export default function FormsScreen() {
         />
 
         {/* Coverage Context Snapshot - show when viewing forms for a specific coverage */}
-        {coverageId && selectedCoverageData && (
+        {coverageId && productId && selectedCoverageData && (
           <div style={{ marginBottom: 24 }}>
             <CoverageSnapshot
               name={selectedCoverageData.name}
@@ -1049,14 +1071,11 @@ export default function FormsScreen() {
               isOptional={selectedCoverageData.isOptional}
               productName={productMap[productId]}
               parentCoverageName={parentCoverageData?.name}
-              statesCount={(selectedCoverageData.states || []).length}
+              statesCount={(selectedCoverageData.states ?? []).length}
               formsCount={filteredForms.length}
               rulesCount={coverageRulesCount}
-              triggerLabel={selectedCoverageData.coverageTrigger}
-              valuationLabel={selectedCoverageData.valuationMethod}
-              territoryLabel={selectedCoverageData.territory}
-              coinsuranceLabel={selectedCoverageData.coinsurance}
-              waitingPeriodLabel={selectedCoverageData.waitingPeriod}
+              valuationLabel={selectedCoverageData.valuationMethod as string | undefined}
+              waitingPeriodLabel={selectedCoverageData.waitingPeriod != null ? String(selectedCoverageData.waitingPeriod) : undefined}
             />
           </div>
         )}
@@ -1108,12 +1127,12 @@ export default function FormsScreen() {
               <FunnelIcon width={16} height={16} style={{ color: '#6B7280' }} />
               <TextInput
                 as="select"
-                value={selectedCoverage || ''}
-                onChange={e => setSelectedCoverage(e.target.value || null)}
+                value={selectedCoverage ?? ''}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedCoverage(e.target.value || null)}
               >
                 <option value="">All Coverages</option>
                 {coverageOptions.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                  <option key={o.value ?? 'all'} value={o.value ?? ''}>{o.label}</option>
                 ))}
               </TextInput>
             </FilterWrapper>
@@ -1127,11 +1146,11 @@ export default function FormsScreen() {
                 as="select"
                 multiple
                 value={selectedFilterStates}
-                onChange={e => setSelectedFilterStates(Array.from(e.target.selectedOptions, option => option.value))}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedFilterStates(Array.from(e.target.selectedOptions, option => option.value))}
                 style={{ minHeight: '100px' }}
               >
                 {stateOptions.filter(o => o.value !== null).map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                  <option key={o.value} value={o.value ?? ''}>{o.label}</option>
                 ))}
               </TextInput>
             </FilterWrapper>
@@ -1157,11 +1176,11 @@ export default function FormsScreen() {
                           </a>
                         ) : (
                           <span>
-                            {getFormDisplayName(f).toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
+                            {(f.formName || f.formNumber || 'Unnamed Form').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
                           </span>
                         )}
                       </CardTitle>
-                      <CardCategory category={f.category}>
+                      <CardCategory category={f.category ?? 'Base Coverage Form'}>
                         {f.category}
                       </CardCategory>
                       <CardCode>{f.formNumber}</CardCode>
@@ -1179,7 +1198,7 @@ export default function FormsScreen() {
                   <CardContent>
                     <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', fontSize: '14px', color: '#64748b' }}>
                       <span><strong>Type:</strong> {f.type}</span>
-                      <span><strong>Edition:</strong> {f.effectiveDate || '—'}</span>
+                      <span><strong>Edition:</strong> {typeof f.effectiveDate === 'string' ? f.effectiveDate : '—'}</span>
                     </div>
 
                     <CardMetrics>
@@ -1198,23 +1217,18 @@ export default function FormsScreen() {
                     </CardMetrics>
 
                     {/* Coverage Exclusions Section */}
-                    {getFormExclusions[f.id] && getFormExclusions[f.id].length > 0 && (
+                    {(getFormExclusions[f.id]?.length ?? 0) > 0 && (
                       <ExclusionsSection>
                         <ExclusionsSectionTitle>
-                          Coverage Exclusions ({getFormExclusions[f.id].length})
+                          Coverage Exclusions ({getFormExclusions[f.id]?.length ?? 0})
                         </ExclusionsSectionTitle>
                         <ExclusionsList>
-                          {getFormExclusions[f.id].map((exclusion, idx) => (
+                          {(getFormExclusions[f.id] ?? []).map((exclusion, idx) => (
                             <ExclusionItem key={idx}>
-                              <ExclusionType>{exclusion.type || 'general'}</ExclusionType>
+                              <ExclusionType>general</ExclusionType>
                               <ExclusionDetails>
-                                <ExclusionName>{exclusion.name}</ExclusionName>
+                                <ExclusionName>{exclusion.exclusionText}</ExclusionName>
                                 <ExclusionCoverage>From: {exclusion.coverageName}</ExclusionCoverage>
-                                {exclusion.description && (
-                                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
-                                    {exclusion.description}
-                                  </div>
-                                )}
                               </ExclusionDetails>
                             </ExclusionItem>
                           ))}
@@ -1410,7 +1424,7 @@ export default function FormsScreen() {
                     type="file"
                     accept=".pdf"
                     style={{ display:'none' }}
-                    onChange={e => setFile(e.target.files[0])}
+                    onChange={e => setFile(e.target.files?.[0] ?? null)}
                   />
                   <label
                     htmlFor="file-upload"
@@ -1436,7 +1450,7 @@ export default function FormsScreen() {
 
               {editingId && (
                 <textarea
-                  rows="3"
+                  rows={3}
                   placeholder="Reason for changes (required)"
                   value={changeSummary}
                   onChange={e => setChangeSummary(e.target.value)}
@@ -1458,7 +1472,7 @@ export default function FormsScreen() {
                 <CloseBtn onClick={() => setLinkCoverageModalOpen(false)}>✕</CloseBtn>
               </ModalHeader>
               <p style={{ margin:'8px 0 12px' }}>
-                Form:&nbsp;<strong>{getFormDisplayName(selectedForm || {})}</strong>
+                Form:&nbsp;<strong>{selectedForm ? (selectedForm.formName || selectedForm.formNumber || 'Unnamed Form') : 'Unnamed Form'}</strong>
               </p>
               <div style={{ marginBottom: 8 }}>
                 <TextInput
@@ -1470,7 +1484,7 @@ export default function FormsScreen() {
               <div style={{ display:'flex', gap:8, marginBottom:8 }}>
                 <Button variant="ghost" onClick={() => setLinkCoverageIds(
                   coverages
-                    .filter(c => (!productId || c.productId === selectedForm.productId))
+                    .filter(c => (!productId || c.productId === selectedForm?.productId))
                     .filter(c => c.name.toLowerCase().includes(coverageSearch.toLowerCase()))
                     .map(c => c.id)
                 )}>Select All</Button>
@@ -1478,7 +1492,7 @@ export default function FormsScreen() {
               </div>
               <div style={{ maxHeight:220, overflowY:'auto', border:'1px solid #E5E7EB', borderRadius:4, padding:8 }}>
                 {coverages
-                  .filter(c => (!productId || c.productId === selectedForm.productId))
+                  .filter(c => (!productId || c.productId === selectedForm?.productId))
                   .filter(c => c.name.toLowerCase().includes(coverageSearch.toLowerCase()))
                   .sort((a, b) => a.name.localeCompare(b.name))
                   .map(c => (
@@ -1516,7 +1530,7 @@ export default function FormsScreen() {
               </ModalHeader>
 
               <p style={{ margin:'8px 0 12px' }}>
-                Form:&nbsp;<strong>{getFormDisplayName(selectedForm || {})}</strong>
+                Form:&nbsp;<strong>{selectedForm ? (selectedForm.formName || selectedForm.formNumber || 'Unnamed Form') : 'Unnamed Form'}</strong>
               </p>
 
               <div style={{ marginBottom: 8 }}>
@@ -1619,11 +1633,4 @@ export default function FormsScreen() {
       </PageContent>
     </PageContainer>
   );
-}
-
-/* ---------- simple debounce hook ---------- */
-function useDebounce(value, ms=250){
-  const [v,setV]=useState(value);
-  useEffect(()=>{const id=setTimeout(()=>setV(value),ms);return ()=>clearTimeout(id);},[value,ms]);
-  return v;
 }

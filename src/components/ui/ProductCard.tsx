@@ -571,7 +571,7 @@ const ProductCard = memo(({
               </MetaChip>
             )}
             {product.effectiveDate && (
-              <MetaChip>{formatFirestoreDate(product.effectiveDate)}</MetaChip>
+              <MetaChip>{formatFirestoreDate(product.effectiveDate, 'MM/YY')}</MetaChip>
             )}
           </MetaChips>
         </HeaderLeft>

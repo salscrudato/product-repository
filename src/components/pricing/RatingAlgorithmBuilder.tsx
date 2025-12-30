@@ -1,11 +1,9 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import {
   PlusIcon,
   TrashIcon,
   PencilIcon,
-  ChevronUpIcon,
-  ChevronDownIcon,
   CalculatorIcon,
   CubeIcon,
   ArrowDownIcon,
@@ -20,13 +18,35 @@ import {
   RocketLaunchIcon,
   BoltIcon,
   ClipboardDocumentIcon,
+  ChevronRightIcon,
+  DocumentDuplicateIcon,
+  EyeSlashIcon,
+  ExclamationTriangleIcon,
+  XCircleIcon,
+  PlayIcon,
+  BeakerIcon,
+  Cog6ToothIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon } from '@heroicons/react/24/solid';
+import type {
+  EnhancedRatingStep,
+  StepValueType,
+  StepScope,
+  StepRoundingMode,
+  StepTemplate,
+  StepGroup,
+  ScenarioInputs,
+  CalculationTraceStep,
+  CalculationResult,
+  ValidationIssue,
+} from '../../types/pricing';
 
 // ============================================================================
 // Types
 // ============================================================================
 
+// Keep old interface for backward compatibility
 export interface RatingStep {
   id: string;
   stepType: 'factor' | 'operand';
@@ -38,6 +58,17 @@ export interface RatingStep {
   table?: string;
   rounding?: string;
   order: number;
+  // Enhanced fields (optional for backward compatibility)
+  valueType?: StepValueType;
+  scope?: StepScope;
+  enabled?: boolean;
+  notes?: string;
+  minCap?: number;
+  maxCap?: number;
+  stepRoundingMode?: StepRoundingMode;
+  template?: StepTemplate;
+  group?: StepGroup;
+  expression?: string;
 }
 
 export interface Coverage {
@@ -50,18 +81,37 @@ export interface RatingAlgorithmBuilderProps {
   steps: RatingStep[];
   coverages: Coverage[];
   onStepsChange: (steps: RatingStep[]) => void;
-  onAddStep: () => void;
+  onAddStep: (template?: StepTemplate) => void;
   onEditStep: (step: RatingStep) => void;
   onDeleteStep: (stepId: string) => Promise<void>;
+  onUpdateStep: (stepId: string, updates: Partial<RatingStep>) => Promise<void>;
   onUpdateStepValue: (stepId: string, value: number) => Promise<void>;
-  onReorderSteps: (stepId: string, direction: 'up' | 'down') => Promise<void>;
+  onReorderStepsByIndex: (fromIndex: number, toIndex: number) => Promise<void>;
   onAddOperand: (operand: string) => void;
   onOpenCoverageModal: (step: RatingStep) => void;
   onOpenStatesModal: (step: RatingStep) => void;
   onOpenTable?: (step: RatingStep) => void;
+  onDuplicateStep?: (step: RatingStep) => Promise<void>;
   selectedCoverage?: string | null;
   selectedStates?: string[];
   isLoading?: boolean;
+  // NEW: Live mode control
+  liveMode?: boolean;
+  onLiveModeChange?: (live: boolean) => void;
+  onRunCalculation?: () => void;
+  // NEW: Scenario inputs
+  scenarioInputs?: ScenarioInputs;
+  onScenarioInputsChange?: (inputs: ScenarioInputs) => void;
+  // NEW: Calculation result
+  calculationResult?: CalculationResult;
+  // NEW: Validation
+  validationIssues?: ValidationIssue[];
+  // NEW: Selected step for inspector
+  selectedStepId?: string | null;
+  onSelectStep?: (stepId: string | null) => void;
+  // NEW: Highlighted trace row (for cross-highlighting)
+  highlightedTraceStepId?: string | null;
+  onHighlightTraceStep?: (stepId: string | null) => void;
 }
 
 // ============================================================================
@@ -119,6 +169,7 @@ const BuilderContainer = styled.div`
   gap: 32px;
   min-height: 600px;
   animation: ${fadeInScale} 0.4s ease-out;
+  align-items: start;
 
   @media (max-width: 1400px) {
     grid-template-columns: 1fr 340px;
@@ -127,6 +178,7 @@ const BuilderContainer = styled.div`
 
   @media (max-width: 1200px) {
     grid-template-columns: 1fr;
+    align-items: auto;
   }
 
   @media (max-width: 768px) {
@@ -475,49 +527,69 @@ const EmptyStateTip = styled.div`
   }
 `;
 
-// Enhanced Step Card with glassmorphism and micro-interactions
+// Enhanced Step Card with glassmorphism and micro-interactions - Premium Design
 const StepCard = styled.div<{ $isOperand?: boolean; $isDragging?: boolean; $isExpanded?: boolean }>`
   position: relative;
   background: ${({ $isOperand }) =>
     $isOperand
-      ? 'linear-gradient(135deg, rgba(255, 251, 235, 0.95) 0%, rgba(254, 243, 199, 0.95) 100%)'
-      : 'rgba(255, 255, 255, 0.98)'};
-  backdrop-filter: blur(10px);
-  border: 1.5px solid ${({ $isOperand, $isDragging }) =>
-    $isDragging ? '#6366f1' : $isOperand ? 'rgba(251, 191, 36, 0.5)' : 'rgba(226, 232, 240, 0.8)'};
-  border-radius: 14px;
+      ? 'linear-gradient(135deg, rgba(255, 251, 235, 0.98) 0%, rgba(254, 243, 199, 0.98) 100%)'
+      : 'linear-gradient(135deg, rgba(255, 255, 255, 0.99) 0%, rgba(250, 251, 252, 0.99) 100%)'};
+  backdrop-filter: blur(20px) saturate(180%);
+  border: ${({ $isOperand }) => $isOperand ? '1.5px' : '1.5px'} solid ${({ $isOperand, $isDragging }) =>
+    $isDragging ? '#6366f1' : $isOperand ? 'rgba(251, 191, 36, 0.5)' : 'rgba(226, 232, 240, 0.7)'};
+  border-radius: ${({ $isOperand }) => $isOperand ? '12px' : '18px'};
   margin-bottom: 0;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: ${slideUp} 0.3s ease-out;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: ${slideUp} 0.35s ease-out;
   animation-fill-mode: both;
-  opacity: ${({ $isDragging }) => $isDragging ? 0.9 : 1};
-  box-shadow: ${({ $isDragging }) =>
+  opacity: ${({ $isDragging }) => $isDragging ? 0.85 : 1};
+  box-shadow: ${({ $isDragging, $isOperand }) =>
     $isDragging
-      ? '0 12px 32px rgba(99, 102, 241, 0.2)'
-      : '0 2px 8px rgba(0, 0, 0, 0.04)'};
+      ? '0 20px 40px rgba(99, 102, 241, 0.25), 0 8px 16px rgba(99, 102, 241, 0.15)'
+      : $isOperand
+        ? '0 2px 8px rgba(251, 191, 36, 0.08)'
+        : '0 4px 16px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02)'};
+
+  /* Inner glow effect */
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent,
+      ${({ $isOperand }) => $isOperand ? 'rgba(251, 191, 36, 0.4)' : 'rgba(255, 255, 255, 0.8)'},
+      transparent);
+    border-radius: ${({ $isOperand }) => $isOperand ? '12px' : '18px'} ${({ $isOperand }) => $isOperand ? '12px' : '18px'} 0 0;
+    pointer-events: none;
+  }
 
   &:hover {
-    border-color: ${({ $isOperand }) => $isOperand ? '#f59e0b' : 'rgba(99, 102, 241, 0.4)'};
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-    transform: translateY(-1px);
+    border-color: ${({ $isOperand }) => $isOperand ? 'rgba(245, 158, 11, 0.6)' : 'rgba(99, 102, 241, 0.45)'};
+    box-shadow: ${({ $isOperand }) => $isOperand
+      ? '0 8px 24px rgba(245, 158, 11, 0.15), 0 4px 8px rgba(245, 158, 11, 0.08)'
+      : '0 12px 32px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(99, 102, 241, 0.08)'};
+    transform: ${({ $isOperand }) => $isOperand ? 'scale(1.01)' : 'translateY(-2px)'};
   }
 
   &::before {
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: 14px;
+    border-radius: ${({ $isOperand }) => $isOperand ? '12px' : '18px'};
     padding: 1.5px;
     background: ${({ $isOperand }) =>
       $isOperand
-        ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.3) 0%, rgba(234, 179, 8, 0.1) 100%)'
-        : 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, transparent 50%)'};
+        ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.4) 0%, rgba(234, 179, 8, 0.15) 100%)'
+        : 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.05) 50%, transparent 100%)'};
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.25s ease;
   }
 
   &:hover::before {
@@ -527,27 +599,40 @@ const StepCard = styled.div<{ $isOperand?: boolean; $isDragging?: boolean; $isEx
 
 const StepNumber = styled.div`
   position: absolute;
-  top: -8px;
-  left: 16px;
-  width: 24px;
-  height: 24px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  top: -10px;
+  left: 18px;
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: white;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35), 0 2px 4px rgba(99, 102, 241, 0.2);
   z-index: 1;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  transition: all 0.25s ease;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%);
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
 
   @media (max-width: 480px) {
-    width: 20px;
-    height: 20px;
-    font-size: 10px;
-    top: -6px;
-    left: 12px;
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
+    top: -8px;
+    left: 14px;
   }
 `;
 
@@ -869,30 +954,47 @@ const StepConnector = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 40px;
+  height: 48px;
   position: relative;
-  margin: 4px 0;
+  margin: 6px 0;
 `;
 
 const ConnectorArrow = styled.div`
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.95) 100%);
-  backdrop-filter: blur(8px);
-  border: 1.5px solid rgba(99, 102, 241, 0.25);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%);
+  backdrop-filter: blur(12px) saturate(180%);
+  border: 2px solid rgba(99, 102, 241, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.18), 0 2px 4px rgba(99, 102, 241, 0.1);
   animation: ${flowDown} 2.5s ease-in-out infinite;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+
+  /* Outer glow ring */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
 
   &:hover {
-    border-color: rgba(99, 102, 241, 0.5);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
-    transform: scale(1.1);
+    border-color: rgba(99, 102, 241, 0.6);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25), 0 4px 8px rgba(99, 102, 241, 0.15);
+    transform: scale(1.15);
+
+    &::before {
+      opacity: 1;
+    }
   }
 
   svg {
@@ -934,34 +1036,33 @@ const AnimatedConnectorLine = styled.div`
 `;
 
 // ============================================================================
-// Operand Components - Enhanced styling
+// Operand Components - Slim styling
 // ============================================================================
 
 const OperandDisplay = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 14px 20px;
-  gap: 12px;
+  padding: 6px 16px;
+  gap: 8px;
 `;
 
 const OperandSymbol = styled.span`
-  font-size: 28px;
-  font-weight: 800;
+  font-size: 18px;
+  font-weight: 700;
   background: linear-gradient(135deg, #f59e0b 0%, #eab308 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  text-shadow: 0 2px 12px rgba(245, 158, 11, 0.2);
 `;
 
 const OperandLabel = styled.span`
-  font-size: 13px;
+  font-size: 11px;
   color: #92400e;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  opacity: 0.9;
+  letter-spacing: 0.3px;
+  opacity: 0.8;
 `;
 
 // ============================================================================
@@ -1168,7 +1269,7 @@ const PreviewTitle = styled.h3`
   font-size: 12px;
   font-weight: 600;
   margin: 0;
-  opacity: 0.85;
+  color: white;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   display: flex;
@@ -1506,7 +1607,7 @@ export const RatingAlgorithmBuilder: React.FC<RatingAlgorithmBuilderProps> = ({
   onEditStep,
   onDeleteStep,
   onUpdateStepValue,
-  onReorderSteps,
+  onReorderStepsByIndex,
   onAddOperand,
   onOpenCoverageModal,
   onOpenStatesModal,
@@ -1518,6 +1619,8 @@ export const RatingAlgorithmBuilder: React.FC<RatingAlgorithmBuilderProps> = ({
   const [editingValueId, setEditingValueId] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
   const valueInputRef = useRef<HTMLInputElement>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Calculate premium based on steps
   const calculation = useMemo(() => {
@@ -1635,43 +1738,43 @@ export const RatingAlgorithmBuilder: React.FC<RatingAlgorithmBuilderProps> = ({
     return 0;
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedIndex !== null && draggedIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, toIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== toIndex) {
+      await onReorderStepsByIndex(draggedIndex, toIndex);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
   return (
     <BuilderContainer>
       {/* Main Algorithm Panel */}
       <AlgorithmPanel>
-        <PanelHeader>
-          <PanelTitle>
-            <CalculatorIcon />
-            <h2>Rating Algorithm</h2>
-            <StepCount>
-              <SparklesIcon style={{ width: 12, height: 12 }} />
-              {factorStepsCount} {factorStepsCount === 1 ? 'step' : 'steps'}
-            </StepCount>
-          </PanelTitle>
-
-          <HeaderActions>
-            <SearchInput>
-              <MagnifyingGlassIcon />
-              <input
-                type="text"
-                placeholder="Search steps..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </SearchInput>
-
-            <ActionButtons>
-              <SecondaryButton title="Export algorithm">
-                <ArrowDownTrayIcon />
-              </SecondaryButton>
-              <AddStepButton onClick={onAddStep}>
-                <PlusIcon />
-                <span>Add Step</span>
-              </AddStepButton>
-            </ActionButtons>
-          </HeaderActions>
-        </PanelHeader>
-
         <StepsList>
           {steps.length === 0 ? (
             <EmptyState>
@@ -1722,7 +1825,19 @@ export const RatingAlgorithmBuilder: React.FC<RatingAlgorithmBuilderProps> = ({
 
                 <StepCard
                   $isOperand={step.stepType === 'operand'}
-                  style={{ animationDelay: `${index * 0.05}s` }}
+                  $isDragging={draggedIndex === index}
+                  style={{
+                    animationDelay: `${index * 0.05}s`,
+                    opacity: draggedIndex === index ? 0.5 : 1,
+                    transform: dragOverIndex === index ? 'scale(1.02)' : undefined,
+                    borderColor: dragOverIndex === index ? '#6366f1' : undefined,
+                  }}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, index)}
+                  onDragEnd={handleDragEnd}
                 >
                   {step.stepType === 'factor' && (
                     <StepNumber>{getFactorStepNumber(step.id)}</StepNumber>
@@ -1730,7 +1845,7 @@ export const RatingAlgorithmBuilder: React.FC<RatingAlgorithmBuilderProps> = ({
 
                   {step.stepType === 'factor' ? (
                     <StepHeader>
-                      <DragHandle title="Drag to reorder">
+                      <DragHandle title="Drag to reorder" style={{ cursor: 'grab' }}>
                         <Bars3Icon />
                       </DragHandle>
                       <StepIcon $type="factor">
@@ -1792,20 +1907,6 @@ export const RatingAlgorithmBuilder: React.FC<RatingAlgorithmBuilderProps> = ({
                       <StepActions>
                         <IconButton onClick={() => onEditStep(step)} title="Edit step (E)">
                           <PencilIcon />
-                        </IconButton>
-                        <IconButton
-                          onClick={() => onReorderSteps(step.id, 'up')}
-                          disabled={index === 0}
-                          title="Move up (↑)"
-                        >
-                          <ChevronUpIcon />
-                        </IconButton>
-                        <IconButton
-                          onClick={() => onReorderSteps(step.id, 'down')}
-                          disabled={index === steps.length - 1}
-                          title="Move down (↓)"
-                        >
-                          <ChevronDownIcon />
                         </IconButton>
                         <IconButton
                           $variant="danger"
@@ -1880,37 +1981,14 @@ export const RatingAlgorithmBuilder: React.FC<RatingAlgorithmBuilderProps> = ({
               <CalculatorIcon />
               Calculated Premium
             </PreviewTitle>
-            <PreviewBadge $positive={calculation.finalPremium > 0}>
-              <CheckCircleIcon />
-              Live
-            </PreviewBadge>
           </PreviewHeaderTop>
           <PreviewAmount>{formatCurrency(calculation.finalPremium)}</PreviewAmount>
-          <PreviewSubtext>
-            <span>
-              <CubeIcon />
-              {factorStepsCount} factors applied
-            </span>
-          </PreviewSubtext>
-          <PreviewActions>
-            <PreviewActionButton title="Export calculation">
-              <ArrowDownTrayIcon />
-              Export
-            </PreviewActionButton>
-            <PreviewActionButton title="Copy formula">
-              <ClipboardDocumentIcon />
-              Copy
-            </PreviewActionButton>
-          </PreviewActions>
+
         </PreviewHeader>
 
         <PreviewBody>
           {calculation.breakdown.length > 0 ? (
             <>
-              <BreakdownTitle>
-                Calculation Breakdown
-                <button>View Details</button>
-              </BreakdownTitle>
               {calculation.breakdown.map((row, idx) => (
                 <CalculationRow key={idx} $index={idx}>
                   <CalculationLabel>
@@ -1942,10 +2020,6 @@ export const RatingAlgorithmBuilder: React.FC<RatingAlgorithmBuilderProps> = ({
             </EmptyPreviewState>
           )}
         </PreviewBody>
-
-        {calculation.breakdown.length > 0 && (
-          <FormulaPreview dangerouslySetInnerHTML={{ __html: formulaString }} />
-        )}
       </PreviewPanel>
     </BuilderContainer>
   );

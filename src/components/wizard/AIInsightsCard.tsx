@@ -82,7 +82,7 @@ const getStepInsights = (stepId: string, draft: Partial<Coverage>): StepInsight[
         }
       }
       if (draft.coverageTrigger === 'occurrence') {
-        insights.push({ type: 'success', message: '✓ Occurrence trigger selected - standard for this coverage type' });
+        insights.push({ type: 'success', message: 'Occurrence trigger selected - standard for this coverage type' });
       }
       break;
 
@@ -98,7 +98,7 @@ const getStepInsights = (stepId: string, draft: Partial<Coverage>): StepInsight[
         insights.push({ type: 'info', message: `${PC_BENCHMARKS.coinsurance80.usage}% of commercial property uses 80% coinsurance` });
       }
       if (draft.valuationMethods && draft.valuationMethods.length > 0 && draft.coinsuranceOptions && draft.coinsuranceOptions.length > 0) {
-        insights.push({ type: 'success', message: '✓ Valuation configuration complete' });
+        insights.push({ type: 'success', message: 'Valuation configuration complete' });
       }
       break;
 
@@ -121,7 +121,7 @@ const getStepInsights = (stepId: string, draft: Partial<Coverage>): StepInsight[
       if (missingFields.length > 0) {
         insights.push({ type: 'warning', message: `Complete required fields: ${missingFields.join(', ')}` });
       } else {
-        insights.push({ type: 'success', message: '✓ Coverage is ready to publish' });
+        insights.push({ type: 'success', message: 'Coverage is ready to publish' });
         insights.push({ type: 'info', message: 'Tip: Review all settings before publishing to production' });
       }
       break;

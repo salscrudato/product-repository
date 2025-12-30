@@ -390,7 +390,7 @@ FOCUS: Pricing - explain steps, compare rates in tables, highlight factors.`,
 FOCUS: Compliance - list rules/requirements, explain implications.`,
 
       task_management: `${basePrompt}
-FOCUS: Tasks - organize by status/priority, show due dates. Use ✓/⏳ indicators.`,
+FOCUS: Tasks - organize by status/priority, show due dates. Use status indicators.`,
 
       strategic_insight: `${basePrompt}
 FOCUS: Strategy - synthesize patterns, provide recommendations with data support.`,

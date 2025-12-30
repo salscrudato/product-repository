@@ -13,6 +13,12 @@ import { Timestamp } from 'firebase/firestore';
 // Re-export limit option types
 export * from './limitOptions';
 
+// Re-export deductible option types
+export * from './deductibleOptions';
+
+// Re-export coverage configuration types
+export * from './coverageConfig';
+
 // ============================================================================
 // Product Types
 // ============================================================================

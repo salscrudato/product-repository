@@ -663,7 +663,7 @@ function ClaimsAnalysisComponent() {
         };
       });
 
-      // ✅ FILTER: Only show forms with PDF uploaded (have downloadUrl or filePath)
+      // FILTER: Only show forms with PDF uploaded (have downloadUrl or filePath)
       const formsWithPDF = formsData.filter(form =>
         form.downloadUrl || form.filePath
       );

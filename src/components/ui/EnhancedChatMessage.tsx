@@ -41,7 +41,7 @@ const MessageContainer = styled.div`
   }
 
   code {
-    background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'};
+    background: rgba(0,0,0,0.06);
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 0.9em;
@@ -49,7 +49,7 @@ const MessageContainer = styled.div`
   }
 
   pre {
-    background: ${({ theme }) => theme.isDarkMode ? '#1e1e1e' : '#f6f6f6'};
+    background: #f6f6f6;
     padding: 16px;
     border-radius: 8px;
     overflow-x: auto;

@@ -17,9 +17,29 @@ import {
   CoverageLimitOptionSet,
   CoverageLimitOption,
   LimitStructure,
-  LegacyMigrationResult
+  LegacyMigrationResult,
+  LimitBasisConfig
 } from '../types';
 import * as limitService from '../services/limitOptionService';
+import { getDefaultBasisForStructure } from '../components/selectors/LimitBasisSelector';
+
+/**
+ * Migrate/infer basis config for option sets that don't have one.
+ * This provides backward compatibility for existing data.
+ */
+function ensureBasisConfig(set: CoverageLimitOptionSet): CoverageLimitOptionSet {
+  if (set.basisConfig && set.basisConfig.primaryBasis) {
+    return set; // Already has basis config
+  }
+
+  // Infer default basis from structure
+  const inferredBasis = getDefaultBasisForStructure(set.structure);
+
+  return {
+    ...set,
+    basisConfig: inferredBasis
+  };
+}
 
 interface UseLimitOptionSetsResult {
   // Data
@@ -75,11 +95,17 @@ export function useLimitOptionSets(
     const unsubscribe = onSnapshot(
       collection(db, path),
       async (snapshot) => {
-        const sets = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as CoverageLimitOptionSet));
-        
+        // Map and ensure basis config for backward compatibility
+        const sets = snapshot.docs.map(doc => {
+          const rawSet = {
+            id: doc.id,
+            ...doc.data()
+          } as CoverageLimitOptionSet;
+
+          // Apply migration to ensure basis config exists
+          return ensureBasisConfig(rawSet);
+        });
+
         setOptionSets(sets);
         
         // If no option sets exist, check for legacy data

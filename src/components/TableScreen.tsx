@@ -150,71 +150,128 @@ const Spinner = styled.div`
   margin:100px auto;
 `;
 
-// Enhanced Excel-like table styling
-const ExcelTable = styled.div`
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  overflow: hidden;
-  background: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+// Enhanced Excel-like table styling - Premium spreadsheet feel
+const ExcelTableWrapper = styled.div`
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 `;
 
-const ExcelRow = styled.div`
-  display: flex;
-  border-bottom: 1px solid #e2e8f0;
+const ExcelTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  font-size: 13px;
+  table-layout: fixed;
+`;
 
-  &:last-child {
-    border-bottom: none;
+const ExcelThead = styled.thead`
+  position: sticky;
+  top: 0;
+  z-index: 10;
+`;
+
+const ExcelTbody = styled.tbody``;
+
+const ExcelTr = styled.tr`
+  &:hover td:not(:first-child) {
+    background: rgba(99, 102, 241, 0.02);
   }
 `;
 
-const ExcelCell = styled.div`
-  min-width: 120px;
-  height: 40px;
-  border-right: 1px solid #e2e8f0;
+const ExcelTh = styled.th<{ $isCorner?: boolean; $width?: string }>`
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #d1d5db;
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #374151;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: ${({ $width }) => $width || '100px'};
+  min-width: ${({ $width }) => $width || '100px'};
+  max-width: ${({ $width }) => $width || '100px'};
+
+  ${({ $isCorner }) => $isCorner && `
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+    border-right: 2px solid #94a3b8;
+    border-bottom: 2px solid #94a3b8;
+  `}
+`;
+
+const ExcelTd = styled.td<{ $isRowHeader?: boolean; $width?: string }>`
+  border: 1px solid #e2e8f0;
+  padding: 0;
+  text-align: center;
+  height: 36px;
+  width: ${({ $width }) => $width || '100px'};
+  min-width: ${({ $width }) => $width || '100px'};
+  max-width: ${({ $width }) => $width || '100px'};
+
+  ${({ $isRowHeader }) => $isRowHeader && `
+    background: linear-gradient(90deg, #f8fafc 0%, #f1f5f9 100%);
+    font-weight: 600;
+    font-size: 13px;
+    color: #374151;
+    padding: 10px 12px;
+    border-right: 2px solid #94a3b8;
+    position: sticky;
+    left: 0;
+    z-index: 5;
+  `}
+`;
+
+const ExcelInput = styled.input`
+  width: 100%;
+  height: 100%;
+  min-height: 36px;
+  border: none;
+  background: transparent;
+  text-align: right;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  padding: 8px 12px;
+  color: #1e293b;
+  transition: background 0.15s ease;
+
+  &::placeholder {
+    color: #cbd5e1;
+    font-family: inherit;
+  }
+
+  &:focus {
+    outline: none;
+    background: rgba(99, 102, 241, 0.08);
+    box-shadow: inset 0 0 0 2px #6366f1;
+  }
+
+  &:hover:not(:focus) {
+    background: rgba(248, 250, 252, 0.8);
+  }
+
+  /* Remove spinner buttons for cleaner look */
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  -moz-appearance: textfield;
+`;
+
+// Legacy support - keeping old names as aliases
+const ExcelRow = styled.div`
+  display: flex;
+`;
+
+const ExcelCell = styled.div<{ isHeader?: boolean; isRowHeader?: boolean }>`
+  min-width: 100px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-
-  &:last-child {
-    border-right: none;
-  }
-
-  ${props => props.isHeader && `
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    font-weight: 600;
-    color: #374151;
-    font-size: 14px;
-    letter-spacing: 0.025em;
-  `}
-
-  ${props => props.isRowHeader && `
-    background: rgba(248, 250, 252, 0.8);
-    font-weight: 600;
-    color: #475569;
-    min-width: 100px;
-  `}
-
-  input {
-    width: 100%;
-    height: 100%;
-    border: none;
-    background: transparent;
-    text-align: center;
-    font-size: 14px;
-    padding: 8px;
-
-    &:focus {
-      outline: 2px solid #6366f1;
-      outline-offset: -2px;
-      background: rgba(99, 102, 241, 0.05);
-    }
-
-    &:hover {
-      background: rgba(248, 250, 252, 0.8);
-    }
-  }
 `;
 
 // Enhanced dimension selection styling
@@ -344,7 +401,12 @@ function TableScreen() {
       try {
         const stepDoc = await getDoc(doc(db, `products/${productId}/steps`, stepId));
         if (stepDoc.exists()) {
-          setStep(stepDoc.data());
+          const stepData = stepDoc.data();
+          setStep(stepData);
+          // Load saved table data from step document
+          if (stepData.tableData) {
+            setTableData(stepData.tableData);
+          }
         } else {
           throw new Error("Step not found");
         }
@@ -378,20 +440,6 @@ function TableScreen() {
         } else if (dimensionList.length === 1) {
           setSelectedDimensions([dimensionList[0]]);
         }
-
-        // Initialize table data
-        const initialData = {};
-        const rowDim = dimensionList.find(dim => dim.type === 'Row') || dimensionList[0];
-        const colDim = dimensionList.find(dim => dim.type === 'Column') || dimensionList[1];
-        const rowValues = getDimValues(rowDim);
-        const colValues = getDimValues(colDim);
-
-        rowValues.forEach(row => {
-          colValues.forEach(col => {
-            initialData[`${row}-${col}`] = '';
-          });
-        });
-        setTableData(initialData);
       } catch (error) {
         console.error("Error fetching data:", error);
         alert("Failed to load table data. Please try again.");
@@ -409,6 +457,19 @@ function TableScreen() {
 
   const handleTableDataChange = (key, value) => {
     setTableData(prev => ({ ...prev, [key]: value }));
+  };
+
+  // Save table data to Firebase
+  const handleSaveTableData = async () => {
+    try {
+      const stepRef = doc(db, `products/${productId}/steps`, stepId);
+      await updateDoc(stepRef, {
+        tableData: tableData,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error saving table data:", error);
+    }
   };
 
   // Dimension selection handlers
@@ -565,7 +626,7 @@ function TableScreen() {
 
 
 
-  // Enhanced Excel-like table renderer
+  // Enhanced Excel-like table renderer with perfect alignment
   const renderExcelTable = () => {
     if (selectedDimensions.length !== 2) return null;
 
@@ -574,49 +635,62 @@ function TableScreen() {
     const rowValues = getDimValues(rowDimension);
     const colValues = getDimValues(colDimension);
 
-    return (
-      <ExcelTable>
-        {/* Header row */}
-        <ExcelRow>
-          <ExcelCell isHeader style={{ minWidth: '100px' }}>
-            {/* Empty corner cell */}
-          </ExcelCell>
-          {colValues.map((col, index) => (
-            <ExcelCell key={index} isHeader>
-              {col}
-            </ExcelCell>
-          ))}
-        </ExcelRow>
+    // Calculate cell width based on number of columns
+    const cellWidth = colValues.length > 6 ? '90px' : '110px';
+    const rowHeaderWidth = '120px';
 
-        {/* Data rows */}
-        {rowValues.map((row, rowIndex) => (
-          <ExcelRow key={rowIndex}>
-            <ExcelCell isRowHeader>
-              {row}
-            </ExcelCell>
-            {colValues.map((col, colIndex) => {
-              const cellKey = `${row}-${col}`;
-              return (
-                <ExcelCell key={colIndex}>
-                  <input
-                    type="number"
-                    value={tableData[cellKey] || ''}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      // Only allow numbers (including decimals)
-                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                        handleTableDataChange(cellKey, value);
-                      }
-                    }}
-                    placeholder="0"
-                    step="any"
-                  />
-                </ExcelCell>
-              );
-            })}
-          </ExcelRow>
-        ))}
-      </ExcelTable>
+    return (
+      <ExcelTableWrapper>
+        <ExcelTable>
+          <ExcelThead>
+            <ExcelTr>
+              {/* Corner cell */}
+              <ExcelTh $isCorner $width={rowHeaderWidth}>
+                {rowDimension.name} / {colDimension.name}
+              </ExcelTh>
+              {/* Column headers */}
+              {colValues.map((col, index) => (
+                <ExcelTh key={index} $width={cellWidth}>
+                  {col}
+                </ExcelTh>
+              ))}
+            </ExcelTr>
+          </ExcelThead>
+          <ExcelTbody>
+            {/* Data rows */}
+            {rowValues.map((row, rowIndex) => (
+              <ExcelTr key={rowIndex}>
+                {/* Row header */}
+                <ExcelTd $isRowHeader $width={rowHeaderWidth}>
+                  {row}
+                </ExcelTd>
+                {/* Data cells */}
+                {colValues.map((col, colIndex) => {
+                  const cellKey = `${row}-${col}`;
+                  return (
+                    <ExcelTd key={colIndex} $width={cellWidth}>
+                      <ExcelInput
+                        type="text"
+                        inputMode="decimal"
+                        value={tableData[cellKey] ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Allow numbers, decimals, and negative numbers
+                          if (value === '' || value === '-' || /^-?\d*\.?\d*$/.test(value)) {
+                            handleTableDataChange(cellKey, value);
+                          }
+                        }}
+                        onBlur={() => handleSaveTableData()}
+                        placeholder="0"
+                      />
+                    </ExcelTd>
+                  );
+                })}
+              </ExcelTr>
+            ))}
+          </ExcelTbody>
+        </ExcelTable>
+      </ExcelTableWrapper>
     );
   };
 

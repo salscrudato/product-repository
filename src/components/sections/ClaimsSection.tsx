@@ -5,6 +5,12 @@
 
 import React, { memo, useCallback } from 'react';
 import styled from 'styled-components';
+import {
+  ClipboardDocumentListIcon,
+  CameraIcon,
+  HandshakeIcon,
+  ScaleIcon
+} from '@heroicons/react/24/outline';
 
 interface ClaimsSectionProps {
   claimsReportingPeriod?: number;
@@ -95,16 +101,16 @@ export const ClaimsSection = memo<ClaimsSectionProps>(({
 
         {hasSubrogationRights ? (
           <InfoBox>
-            <InfoTitle>✓ Subrogation Enabled</InfoTitle>
+            <InfoTitle>Subrogation Enabled</InfoTitle>
             <InfoText>
-              After paying a claim, the insurer may pursue recovery from third parties who caused 
-              the loss. The insured must cooperate with subrogation efforts and cannot waive rights 
+              After paying a claim, the insurer may pursue recovery from third parties who caused
+              the loss. The insured must cooperate with subrogation efforts and cannot waive rights
               against third parties without insurer consent.
             </InfoText>
           </InfoBox>
         ) : (
           <WarningBox>
-            <WarningTitle>⚠️ Subrogation Waived</WarningTitle>
+            <WarningTitle>Subrogation Waived</WarningTitle>
             <WarningText>
               The insurer waives subrogation rights. This is uncommon and typically only used in 
               specific situations such as:
@@ -128,30 +134,30 @@ export const ClaimsSection = memo<ClaimsSectionProps>(({
 
         <NotesList>
           <NoteItem>
-            <NoteIcon>📋</NoteIcon>
+            <NoteIcon><ClipboardDocumentListIcon /></NoteIcon>
             <NoteText>
-              <strong>Notice of Loss:</strong> Insured must provide prompt notice of any occurrence 
+              <strong>Notice of Loss:</strong> Insured must provide prompt notice of any occurrence
               that may result in a claim
             </NoteText>
           </NoteItem>
           <NoteItem>
-            <NoteIcon>📸</NoteIcon>
+            <NoteIcon><CameraIcon /></NoteIcon>
             <NoteText>
-              <strong>Documentation:</strong> Insured should document the loss with photos, receipts, 
+              <strong>Documentation:</strong> Insured should document the loss with photos, receipts,
               and witness statements
             </NoteText>
           </NoteItem>
           <NoteItem>
-            <NoteIcon>🤝</NoteIcon>
+            <NoteIcon><HandshakeIcon /></NoteIcon>
             <NoteText>
-              <strong>Cooperation:</strong> Insured must cooperate with the insurer's investigation 
+              <strong>Cooperation:</strong> Insured must cooperate with the insurer's investigation
               and provide requested information
             </NoteText>
           </NoteItem>
           <NoteItem>
-            <NoteIcon>⚖️</NoteIcon>
+            <NoteIcon><ScaleIcon /></NoteIcon>
             <NoteText>
-              <strong>No Admission:</strong> Insured should not admit liability or make settlements 
+              <strong>No Admission:</strong> Insured should not admit liability or make settlements
               without insurer approval
             </NoteText>
           </NoteItem>
@@ -348,8 +354,15 @@ const NoteItem = styled.div`
 `;
 
 const NoteIcon = styled.div`
-  font-size: 24px;
   flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  color: #6366f1;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
 `;
 
 const NoteText = styled.div`

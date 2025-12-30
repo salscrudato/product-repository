@@ -8,7 +8,19 @@ import { onSnapshot, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
 
+type ConnectionListener = (isConnected: boolean) => void;
+
 class FirebaseConnectionMonitor {
+  isConnected: boolean;
+  listeners: Set<ConnectionListener>;
+  connectionCheckInterval: ReturnType<typeof setInterval> | null;
+  unsubscribeConnectionListener: (() => void) | null;
+  reconnectAttempts: number;
+  maxReconnectAttempts: number;
+  reconnectDelay: number;
+  maxReconnectDelay: number;
+  networkListenersAdded: boolean;
+
   constructor() {
     this.isConnected = true;
     this.listeners = new Set();
@@ -114,14 +126,14 @@ class FirebaseConnectionMonitor {
     if (connected && !wasConnected) {
       // Connection restored - only log if there were previous reconnect attempts
       if (this.reconnectAttempts > 0) {
-        logger.info(LOG_CATEGORIES.FIREBASE, '✅ Firebase connection restored');
+        logger.info(LOG_CATEGORIES.FIREBASE, 'Firebase connection restored');
       }
       this.reconnectAttempts = 0;
       this.reconnectDelay = 2000; // Reset delay
       this.notifyListeners('connected');
     } else if (!connected && wasConnected) {
       // Connection lost - only log warning
-      logger.warn(LOG_CATEGORIES.FIREBASE, '⚠️ Firebase connection lost');
+      logger.warn(LOG_CATEGORIES.FIREBASE, 'Firebase connection lost');
       this.notifyListeners('disconnected');
       this.attemptReconnect();
     }

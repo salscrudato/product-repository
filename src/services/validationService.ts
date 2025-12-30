@@ -14,7 +14,7 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Product, Coverage, Form, PricingStep, Rule, StateApplicability } from '../types';
+import { Product, Coverage, Form, PricingStep, Rule, StateApplicability, CoverageLimit, CoverageDeductible } from '../types';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
 
 export interface ValidationResult {
@@ -838,7 +838,8 @@ export function validateCoverageLimit(limit: Partial<CoverageLimit>): Validation
     errors.push({
       field: 'limitType',
       message: 'Limit type is required',
-      severity: 'error'
+      severity: 'error',
+      code: 'LIMIT_TYPE_REQUIRED'
     });
   }
 
@@ -846,13 +847,15 @@ export function validateCoverageLimit(limit: Partial<CoverageLimit>): Validation
     errors.push({
       field: 'amount',
       message: 'Limit amount is required',
-      severity: 'error'
+      severity: 'error',
+      code: 'LIMIT_AMOUNT_REQUIRED'
     });
   } else if (typeof limit.amount === 'number' && limit.amount < 0) {
     errors.push({
       field: 'amount',
       message: 'Limit amount must be a positive number',
-      severity: 'error'
+      severity: 'error',
+      code: 'LIMIT_AMOUNT_NEGATIVE'
     });
   }
 
@@ -860,7 +863,8 @@ export function validateCoverageLimit(limit: Partial<CoverageLimit>): Validation
     warnings.push({
       field: 'displayValue',
       message: 'Display value is recommended for better readability',
-      severity: 'warning'
+      severity: 'warning',
+      code: 'LIMIT_DISPLAY_VALUE_MISSING'
     });
   }
 
@@ -870,7 +874,8 @@ export function validateCoverageLimit(limit: Partial<CoverageLimit>): Validation
       errors.push({
         field: 'minAmount',
         message: 'Minimum amount cannot be greater than maximum amount',
-        severity: 'error'
+        severity: 'error',
+        code: 'LIMIT_MIN_MAX_INVALID'
       });
     }
   }
@@ -879,7 +884,8 @@ export function validateCoverageLimit(limit: Partial<CoverageLimit>): Validation
     errors.push({
       field: 'amount',
       message: 'Amount cannot be less than minimum amount',
-      severity: 'error'
+      severity: 'error',
+      code: 'LIMIT_AMOUNT_BELOW_MIN'
     });
   }
 
@@ -887,7 +893,8 @@ export function validateCoverageLimit(limit: Partial<CoverageLimit>): Validation
     errors.push({
       field: 'amount',
       message: 'Amount cannot be greater than maximum amount',
-      severity: 'error'
+      severity: 'error',
+      code: 'LIMIT_AMOUNT_ABOVE_MAX'
     });
   }
 
@@ -909,7 +916,8 @@ export function validateCoverageDeductible(deductible: Partial<CoverageDeductibl
     errors.push({
       field: 'deductibleType',
       message: 'Deductible type is required',
-      severity: 'error'
+      severity: 'error',
+      code: 'DEDUCTIBLE_TYPE_REQUIRED'
     });
   }
 
@@ -917,13 +925,15 @@ export function validateCoverageDeductible(deductible: Partial<CoverageDeductibl
     errors.push({
       field: 'amount',
       message: 'Deductible amount is required',
-      severity: 'error'
+      severity: 'error',
+      code: 'DEDUCTIBLE_AMOUNT_REQUIRED'
     });
   } else if (typeof deductible.amount === 'number' && deductible.amount < 0) {
     errors.push({
       field: 'amount',
       message: 'Deductible amount must be a positive number',
-      severity: 'error'
+      severity: 'error',
+      code: 'DEDUCTIBLE_AMOUNT_NEGATIVE'
     });
   }
 
@@ -933,14 +943,16 @@ export function validateCoverageDeductible(deductible: Partial<CoverageDeductibl
       errors.push({
         field: 'amount',
         message: 'Percentage must be between 0 and 100',
-        severity: 'error'
+        severity: 'error',
+        code: 'DEDUCTIBLE_PERCENTAGE_RANGE'
       });
     }
     if (typeof deductible.amount === 'number' && deductible.amount > 50) {
       warnings.push({
         field: 'amount',
         message: 'Percentage deductible above 50% is unusual',
-        severity: 'warning'
+        severity: 'warning',
+        code: 'DEDUCTIBLE_PERCENTAGE_HIGH'
       });
     }
   }
@@ -949,7 +961,8 @@ export function validateCoverageDeductible(deductible: Partial<CoverageDeductibl
     warnings.push({
       field: 'displayValue',
       message: 'Display value is recommended for better readability',
-      severity: 'warning'
+      severity: 'warning',
+      code: 'DEDUCTIBLE_DISPLAY_VALUE_MISSING'
     });
   }
 

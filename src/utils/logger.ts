@@ -160,19 +160,19 @@ class Logger {
     // Console output with appropriate styling
     switch (level) {
       case LOG_LEVELS.ERROR:
-        console.error(`🔴 ${prefix}`, message, logEntry);
+        console.error(`[ERROR] ${prefix}`, message, logEntry);
         break;
       case LOG_LEVELS.WARN:
-        console.warn(`🟡 ${prefix}`, message, logEntry);
+        console.warn(`[WARN] ${prefix}`, message, logEntry);
         break;
       case LOG_LEVELS.INFO:
-        console.info(`🔵 ${prefix}`, message, logEntry);
+        console.info(`[INFO] ${prefix}`, message, logEntry);
         break;
       case LOG_LEVELS.DEBUG:
-        console.debug(`🟢 ${prefix}`, message, logEntry);
+        console.debug(`[DEBUG] ${prefix}`, message, logEntry);
         break;
       case LOG_LEVELS.TRACE:
-        console.trace(`⚪ ${prefix}`, message, logEntry);
+        console.trace(`[TRACE] ${prefix}`, message, logEntry);
         break;
       default:
         console.log(`${prefix}`, message, logEntry);

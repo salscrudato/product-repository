@@ -21,7 +21,6 @@ import {
   PencilIcon,
   InformationCircleIcon,
   PlusIcon,
-  PaperAirplaneIcon,
   Squares2X2Icon,
   TableCellsIcon,
   CubeIcon,
@@ -40,6 +39,8 @@ import { extractPdfText } from '@utils/pdfChunking';
 import LoadingSpinner from './ui/LoadingSpinner';
 import { EmptyState } from './ui/EmptyState';
 import { logAuditEvent } from '@services/auditService';
+import { ProductChatModal } from './modals';
+import logger, { LOG_CATEGORIES } from '@utils/logger';
 
 
 /* ---------- Styled Components ---------- */
@@ -344,9 +345,15 @@ const SuggestionsList = styled.ul`
     position: relative;
 
     &::before {
-      content: '💡';
+      content: '';
       position: absolute;
       left: 0;
+      width: 16px;
+      height: 16px;
+      background: currentColor;
+      mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18' /%3E%3C/svg%3E");
+      mask-size: contain;
+      mask-repeat: no-repeat;
     }
   }
 `;
@@ -1189,53 +1196,6 @@ const DetailLink = styled.a`
   }
 `;
 
-const ChatInput = styled.textarea`
-  flex: 1;
-  padding: 12px 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #111827;
-  background: #ffffff;
-  resize: none;
-  min-height: 44px;
-  max-height: 120px;
-  font-family: inherit;
-
-  &:focus {
-    outline: none;
-    border-color: #7c3aed;
-    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
-  }
-
-  &::placeholder {
-    color: #9ca3af;
-  }
-`;
-
-const ChatSendButton = styled.button`
-  width: 44px;
-  height: 44px;
-  border: none;
-  border-radius: 8px;
-  background: #7c3aed;
-  color: #ffffff;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-
-  &:hover:not(:disabled) {
-    background: #6d28d9;
-  }
-
-  &:disabled {
-    background: #e5e7eb;
-    cursor: not-allowed;
-  }
-`;
-
 /* ---------- system prompts ---------- */
 const SYSTEM_INSTRUCTIONS = `
 Persona: You are an expert in P&C insurance products. Your task is to analyze the provided insurance document text and extract key information into a structured JSON format.
@@ -1325,12 +1285,6 @@ const ProductHub = memo(() => {
   const [modalData, setModalData] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
-  // Chat states
-  const [chatMessages, setChatMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatPdfText, setChatPdfText] = useState('');
-
   // View mode state - Default to card view
   const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
 
@@ -1388,7 +1342,7 @@ const ProductHub = memo(() => {
 
   // Handle keyboard shortcuts
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
       // Escape key - close modals
       if (e.key === 'Escape') {
         setModalOpen(false);
@@ -1537,7 +1491,7 @@ const ProductHub = memo(() => {
       setConfirmDeleteOpen(false);
       setDeleteProductId(null);
     } catch (error) {
-      console.error('Archive action failed:', error);
+      logger.error(LOG_CATEGORIES.DATA, 'Archive action failed', { productId: deleteProductId }, error as Error);
       showToast('Failed to update product. Please try again.', 'error');
     } finally {
       setIsDeleting(false);
@@ -1552,15 +1506,13 @@ const ProductHub = memo(() => {
     setLoadingSummary(prev => ({ ...prev, [id]: true }));
 
     try {
-      console.log('🔍 Starting PDF extraction from URL:', url);
+      logger.debug(LOG_CATEGORIES.AI, 'Starting PDF extraction', { productId: id });
 
       // Extract text from PDF using centralized utility
       const text = await extractPdfText(url);
 
-      console.log('📝 PDF text extracted:', {
+      logger.debug(LOG_CATEGORIES.AI, 'PDF text extracted', {
         textLength: text?.length || 0,
-        textType: typeof text,
-        firstChars: text?.substring(0, 100) || 'EMPTY',
         trimmedLength: text?.trim().length || 0
       });
 
@@ -1572,11 +1524,9 @@ const ProductHub = memo(() => {
       // Keep first ~100k tokens to stay safely under GPT limit
       const snippet = text.split(/\s+/).slice(0, 100000).join(' ');
 
-      console.log('✂️ Text snippet created:', {
+      logger.debug(LOG_CATEGORIES.AI, 'Text snippet created', {
         snippetLength: snippet.length,
-        snippetType: typeof snippet,
-        trimmedSnippetLength: snippet.trim().length,
-        firstChars: snippet.substring(0, 100)
+        trimmedSnippetLength: snippet.trim().length
       });
 
       // Validate snippet before sending
@@ -1588,12 +1538,11 @@ const ProductHub = memo(() => {
       const payloadSize = new Blob([snippet]).size;
       const payloadSizeMB = (payloadSize / (1024 * 1024)).toFixed(2);
 
-      console.log('📄 Sending PDF text to AI:', {
+      logger.debug(LOG_CATEGORIES.AI, 'Sending PDF text to AI', {
         originalLength: text.length,
         snippetLength: snippet.length,
         wordCount: snippet.split(/\s+/).length,
-        payloadSizeMB: payloadSizeMB,
-        pdfTextParam: snippet.substring(0, 200) + '...'
+        payloadSizeMB: payloadSizeMB
       });
 
       // Firebase Callable Functions have a 10MB payload limit
@@ -1610,9 +1559,7 @@ const ProductHub = memo(() => {
         systemPrompt: String(SYSTEM_INSTRUCTIONS.trim())
       };
 
-      console.log('🚀 Calling Cloud Function with payload:', {
-        hasPdfText: !!payload.pdfText,
-        pdfTextType: typeof payload.pdfText,
+      logger.debug(LOG_CATEGORIES.AI, 'Calling Cloud Function', {
         pdfTextLength: payload.pdfText.length,
         hasSystemPrompt: !!payload.systemPrompt
       });
@@ -1644,32 +1591,16 @@ const ProductHub = memo(() => {
       setModalData(summaryJson);
       setSummaryModalOpen(true);
     } catch (err) {
-      console.error(err);
+      logger.error(LOG_CATEGORIES.AI, 'Summary generation failed', { productId: id }, err as Error);
       alert(err.message || 'Summary failed.');
     } finally {
       setLoadingSummary(prev => ({ ...prev, [id]: false }));
     }
   };
 
-  const openChat = async (product) => {
+  const openChat = (product) => {
     setSelectedProduct(product);
     setChatModalOpen(true);
-    setChatMessages([]);
-    setChatInput('');
-    setChatLoading(false);
-
-    // Load PDF text for context if available
-    if (product.formDownloadUrl) {
-      try {
-        const text = await extractPdfText(product.formDownloadUrl);
-        setChatPdfText(text.split(/\s+/).slice(0, 100000).join(' '));
-      } catch (err) {
-        console.error('Failed to load PDF for chat:', err);
-        setChatPdfText('');
-      }
-    } else {
-      setChatPdfText('');
-    }
   };
 
   const resetForm = () => {
@@ -1681,17 +1612,33 @@ const ProductHub = memo(() => {
     setFile(null);
   };
 
-  const formatYear = value => {
-    return value.replace(/\D/g, '').slice(0, 4);
+  // Format MM/YY input with auto-slash insertion
+  const formatEffectiveDate = (value: string): string => {
+    // Remove all non-digits
+    const digits = value.replace(/\D/g, '');
+
+    // Limit to 4 digits (MMYY)
+    const limited = digits.slice(0, 4);
+
+    // Auto-insert slash after 2 digits
+    if (limited.length >= 2) {
+      return `${limited.slice(0, 2)}/${limited.slice(2)}`;
+    }
+    return limited;
   };
 
   const validateForm = () => {
     const errors = {};
     if (!name?.trim()) errors.name = 'Product name is required';
     if (!formNumber?.trim()) errors.formNumber = 'Form number is required';
-    if (!effectiveDate?.trim()) errors.effectiveDate = 'Year is required';
-    if (effectiveDate && !/^\d{4}$/.test(effectiveDate)) {
-      errors.effectiveDate = 'Please enter a 4-digit year (e.g., 2024)';
+    if (!effectiveDate?.trim()) errors.effectiveDate = 'Effective date is required';
+    if (effectiveDate && !/^\d{2}\/\d{2}$/.test(effectiveDate)) {
+      errors.effectiveDate = 'Please enter MM/YY format';
+    } else if (effectiveDate) {
+      const [month] = effectiveDate.split('/').map(Number);
+      if (month < 1 || month > 12) {
+        errors.effectiveDate = 'Month must be 01-12';
+      }
     }
     return errors;
   };
@@ -1745,63 +1692,13 @@ const ProductHub = memo(() => {
       resetForm();
       setFormErrors({});
     } catch (error) {
-      console.error('Save failed:', error);
+      logger.error(LOG_CATEGORIES.DATA, 'Save failed', { productName: name }, error as Error);
       setFormErrors({ submit: 'Failed to save product. Please try again.' });
       showToast('Failed to save product. Please try again.', 'error');
     } finally {
       setIsSaving(false);
     }
   };
-
-  const handleChatSend = async () => {
-    if (!chatInput.trim() || chatLoading) return;
-
-    const userMessage = chatInput.trim();
-    setChatInput('');
-    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-    setChatLoading(true);
-
-    try {
-      const systemPrompt = `You are an expert insurance assistant helping with questions about the product "${selectedProduct?.name}". ${
-        chatPdfText ? 'Use the following form text as context for your answers:\n\n' + chatPdfText.slice(0, 50000) : 'No form text is available for this product.'
-      }`;
-
-      // Call Cloud Function (secure proxy to OpenAI)
-      const generateChat = httpsCallable(functions, 'generateChatResponse');
-      const result = await generateChat({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...chatMessages.slice(-10), // Keep last 10 messages for context
-          { role: 'user', content: userMessage }
-        ],
-        model: 'gpt-4o-mini',
-        maxTokens: 1000,
-        temperature: 0.7
-      });
-
-      if (!result.data.success) {
-        throw new Error('Failed to generate chat response');
-      }
-
-      const aiResponse = result.data.content?.trim();
-
-      if (aiResponse) {
-        setChatMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
-      } else {
-        throw new Error('No response from AI');
-      }
-    } catch (error) {
-      console.error('Chat failed:', error);
-      setChatMessages(prev => [...prev, {
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.'
-      }]);
-    } finally {
-      setChatLoading(false);
-    }
-  };
-
-
 
   if (loading) {
     return (
@@ -2078,14 +1975,14 @@ const ProductHub = memo(() => {
 
               <FormField>
                 <FormLabel>
-                  Year
+                  Effective Date
                   {formErrors.effectiveDate && <FormLabelHint style={{ color: '#dc2626' }}>✕ {formErrors.effectiveDate}</FormLabelHint>}
                 </FormLabel>
                 <FormInput
-                  placeholder="e.g., 2024"
-                  maxLength={4}
+                  placeholder="MM/YY"
+                  maxLength={5}
                   value={effectiveDate}
-                  onChange={e => { setEffectiveDate(formatYear(e.target.value)); if (formErrors.effectiveDate) setFormErrors(prev => ({ ...prev, effectiveDate: '' })); }}
+                  onChange={e => { setEffectiveDate(formatEffectiveDate(e.target.value)); if (formErrors.effectiveDate) setFormErrors(prev => ({ ...prev, effectiveDate: '' })); }}
                   style={{ borderColor: formErrors.effectiveDate ? '#dc2626' : undefined }}
                 />
               </FormField>
@@ -2227,98 +2124,11 @@ const ProductHub = memo(() => {
         onClose={() => setDictModalOpen(false)}
       />
 
-      {/* Enhanced Chat Modal */}
-      {chatModalOpen && selectedProduct && (
-        <Modal onClick={() => setChatModalOpen(false)}>
-          <EnhancedModalContent onClick={e => e.stopPropagation()}>
-            <StickyModalHeader>
-              <EnhancedModalTitle>Chat with {selectedProduct.name}</EnhancedModalTitle>
-              <CloseButton onClick={() => setChatModalOpen(false)}>
-                <XMarkIcon />
-              </CloseButton>
-            </StickyModalHeader>
-            <div style={{ display: 'flex', flexDirection: 'column', height: '500px' }}>
-              <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px 16px', background: '#f8fafc' }}>
-                {chatMessages.length === 0 && (
-                  <div style={{
-                    textAlign: 'center',
-                    color: '#6b7280',
-                    fontStyle: 'italic',
-                    padding: '40px 20px',
-                    background: '#ffffff',
-                    borderRadius: '12px',
-                    border: '1px solid #e5e7eb'
-                  }}>
-                    Ask me anything about this insurance product. I have access to the form content to help answer your questions.
-                  </div>
-                )}
-                {chatMessages.map((msg, idx) => (
-                  <div key={idx} style={{
-                    marginBottom: '16px',
-                    display: 'flex',
-                    justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start'
-                  }}>
-                    <div style={{
-                      maxWidth: '80%',
-                      padding: '12px 16px',
-                      borderRadius: '12px',
-                      background: msg.role === 'user' ? '#6366f1' : '#ffffff',
-                      color: msg.role === 'user' ? '#ffffff' : '#374151',
-                      border: msg.role === 'user' ? 'none' : '1px solid #e5e7eb',
-                      fontSize: '14px',
-                      lineHeight: '1.5',
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                    }}>
-                      {msg.role === 'user' ? (
-                        msg.content
-                      ) : (
-                        <div style={{ color: '#374151' }}>
-                          <MarkdownRenderer>{msg.content}</MarkdownRenderer>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {chatLoading && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '16px' }}>
-                    <div style={{
-                      padding: '12px 16px',
-                      borderRadius: '12px',
-                      background: '#ffffff',
-                      border: '1px solid #e5e7eb',
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                    }}>
-                      <LoadingSpinner />
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div style={{
-                padding: '16px 32px 32px',
-                borderTop: '1px solid #e5e7eb',
-                background: '#ffffff'
-              }}>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
-                  <ChatInput
-                    placeholder="Ask a question about this product..."
-                    value={chatInput}
-                    onChange={e => setChatInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleChatSend())}
-                  />
-                  <ChatSendButton onClick={handleChatSend} disabled={!chatInput.trim() || chatLoading}>
-                    <PaperAirplaneIcon width={16} height={16} />
-                  </ChatSendButton>
-                </div>
-              </div>
-            </div>
-          </EnhancedModalContent>
-        </Modal>
-      )}
-
-      {/* Data Dictionary Modal */}
-      <DataDictionaryModal
-        open={dictModalOpen}
-        onClose={() => setDictModalOpen(false)}
+      {/* Modern Product Chat Modal */}
+      <ProductChatModal
+        isOpen={chatModalOpen}
+        onClose={() => setChatModalOpen(false)}
+        product={selectedProduct}
       />
 
       {/* Archive/Unarchive Confirmation Modal */}

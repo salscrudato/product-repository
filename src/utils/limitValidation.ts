@@ -11,7 +11,8 @@ import {
   LimitOptionSetValidationResult,
   LimitValidationError,
   LimitValidationWarning,
-  LimitOptionValue
+  LimitOptionValue,
+  LimitBasisConfig
 } from '../types';
 
 type ValidationMode = 'draft' | 'publish';
@@ -53,6 +54,12 @@ export function validateLimitOptionSet(
         code: 'MISSING_SPLIT_COMPONENTS'
       });
     }
+  }
+
+  // Validate basis config for non-custom structures
+  if (optionSet.structure !== 'custom') {
+    const basisErrors = validateBasisConfig(optionSet.basisConfig, optionSet.structure, mode);
+    errors.push(...basisErrors);
   }
 
   // Publish mode: require at least one option
@@ -203,6 +210,68 @@ export function validateLimitOption(
         field: 'amount',
         message: `Amount must not exceed ${formatCurrency(max)}`,
         code: 'ABOVE_MAX'
+      });
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Validate basis configuration
+ */
+export function validateBasisConfig(
+  basisConfig: LimitBasisConfig | undefined,
+  structure: string,
+  mode: ValidationMode = 'draft'
+): LimitValidationError[] {
+  const errors: LimitValidationError[] = [];
+
+  // In publish mode, basis is required for non-custom structures
+  if (mode === 'publish' && structure !== 'custom') {
+    if (!basisConfig || !basisConfig.primaryBasis) {
+      errors.push({
+        field: 'basisConfig.primaryBasis',
+        message: 'Limit basis must be selected',
+        code: 'REQUIRED_FIELD'
+      });
+      return errors; // Can't validate further without primary basis
+    }
+  }
+
+  if (!basisConfig) {
+    return errors; // No config to validate in draft mode
+  }
+
+  // Validate "other" requires customBasisDescription
+  if (basisConfig.primaryBasis === 'other' || basisConfig.aggregateBasis === 'other') {
+    if (!basisConfig.customBasisDescription?.trim()) {
+      errors.push({
+        field: 'basisConfig.customBasisDescription',
+        message: 'Custom basis description is required when "Other" is selected',
+        code: 'REQUIRED_FIELD'
+      });
+    }
+  }
+
+  // Validate aggregate basis for occAgg/claimAgg structures
+  if ((structure === 'occAgg' || structure === 'claimAgg') && mode === 'publish') {
+    if (!basisConfig.aggregateBasis) {
+      errors.push({
+        field: 'basisConfig.aggregateBasis',
+        message: 'Aggregate basis must be selected for this structure',
+        code: 'REQUIRED_FIELD'
+      });
+    }
+  }
+
+  // Validate scheduled structure has item basis
+  if (structure === 'scheduled' && mode === 'publish') {
+    if (!basisConfig.itemBasis) {
+      errors.push({
+        field: 'basisConfig.itemBasis',
+        message: 'Item basis must be selected for scheduled limits',
+        code: 'REQUIRED_FIELD'
       });
     }
   }

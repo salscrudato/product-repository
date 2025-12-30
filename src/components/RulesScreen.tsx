@@ -1,10 +1,11 @@
-// src/components/RulesScreen.js
+// src/components/RulesScreen.tsx
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { CoverageSnapshot } from '@components/common/CoverageSnapshot';
+import type { Rule, Coverage, PricingStep } from '@/types';
 import {
   PlusIcon,
   TrashIcon,
@@ -1035,8 +1036,8 @@ export default function RulesScreen() {
 
   // Keyboard shortcuts
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === '/' && !e.target.matches('input, textarea')) {
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === '/' && !(e.target as Element).matches('input, textarea')) {
         e.preventDefault();
         searchRef.current?.focus();
       }
@@ -1141,7 +1142,7 @@ export default function RulesScreen() {
     setEditingRule(null);
   };
 
-  const openModal = async (rule = null) => {
+  const openModal = async (rule: Rule | null = null): Promise<void> => {
     if (rule) {
       setFormData({
         name: rule.name || '',
@@ -1168,13 +1169,13 @@ export default function RulesScreen() {
     setModalOpen(true);
   };
 
-  const closeModal = () => {
+  const closeModal = (): void => {
     setModalOpen(false);
     resetForm();
   };
 
   // Load coverages when product is selected
-  const loadCoveragesForProduct = async (productId) => {
+  const loadCoveragesForProduct = async (productId: string): Promise<void> => {
     if (!productId) {
       setCoverages([]);
       return;
@@ -1183,7 +1184,7 @@ export default function RulesScreen() {
     setLoadingTargets(true);
     try {
       const coveragesSnap = await getDocs(collection(db, `products/${productId}/coverages`));
-      const coveragesList = coveragesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const coveragesList = coveragesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Coverage));
       setCoverages(coveragesList);
     } catch (error) {
       console.error('Error loading coverages:', error);
@@ -1194,7 +1195,7 @@ export default function RulesScreen() {
   };
 
   // Load pricing steps when product is selected
-  const loadPricingStepsForProduct = async (productId) => {
+  const loadPricingStepsForProduct = async (productId: string): Promise<void> => {
     if (!productId) {
       setPricingSteps([]);
       return;
@@ -1202,7 +1203,7 @@ export default function RulesScreen() {
 
     try {
       const stepsSnap = await getDocs(collection(db, `products/${productId}/steps`));
-      const stepsList = stepsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const stepsList = stepsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as PricingStep));
       setPricingSteps(stepsList);
     } catch (error) {
       console.error('Error loading pricing steps:', error);
@@ -1211,7 +1212,7 @@ export default function RulesScreen() {
   };
 
   // Handle product selection
-  const handleProductChange = (productId) => {
+  const handleProductChange = (productId: string): void => {
     setFormData(prev => ({
       ...prev,
       productId,
@@ -1223,7 +1224,7 @@ export default function RulesScreen() {
   };
 
   // Handle rule type change
-  const handleRuleTypeChange = (ruleType) => {
+  const handleRuleTypeChange = (ruleType: string): void => {
     setFormData(prev => ({
       ...prev,
       ruleType,
@@ -1285,7 +1286,7 @@ export default function RulesScreen() {
     }
   };
 
-  const handleDelete = async (ruleId) => {
+  const handleDelete = async (ruleId: string): Promise<void> => {
     if (!window.confirm('Are you sure you want to delete this rule?')) return;
 
     try {
@@ -1297,33 +1298,36 @@ export default function RulesScreen() {
     }
   };
 
-  const getProductName = useCallback((productId) => {
+  const getProductName = useCallback((productId: string): string => {
     const product = products.find(p => p.id === productId);
     return product?.name || 'Unknown Product';
   }, [products]);
 
-  const getTargetName = useCallback((rule) => {
+  const getTargetName = useCallback((rule: Rule): string => {
     if (!rule.ruleType) return 'Product Level';
     if (rule.ruleType === 'Product') return 'Product Level';
     if (!rule.targetId) return 'No Target';
 
     switch (rule.ruleType) {
-      case 'Coverage':
+      case 'Coverage': {
         // For coverages, we need to find it in the current coverages or make a call
         const coverage = coverages.find(c => c.id === rule.targetId);
         return coverage?.name || 'Unknown Coverage';
-      case 'Forms':
+      }
+      case 'Forms': {
         const form = forms.find(f => f.id === rule.targetId);
         return form?.formName || form?.formNumber || 'Unknown Form';
-      case 'Pricing':
+      }
+      case 'Pricing': {
         const step = pricingSteps.find(s => s.id === rule.targetId);
         return step?.stepName || 'Unknown Pricing Step';
+      }
       default:
         return 'Unknown Target';
     }
   }, [coverages, forms, pricingSteps]);
 
-  const getRuleTypeColor = useCallback((ruleType) => {
+  const getRuleTypeColor = useCallback((ruleType: string): string => {
     switch (ruleType) {
       case 'Product': return '#6366f1';
       case 'Coverage': return '#10b981';

@@ -22,14 +22,28 @@ import {
   where
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { Coverage } from '../types';
 
-export default function useCoverages(productId) {
-  const [coverages, setCoverages] = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState(null);
+interface EnrichedCoverage extends Coverage {
+  formIds: string[];
+  limitsCount: number;
+  deductiblesCount: number;
+}
+
+interface UseCoveragesResult {
+  coverages: EnrichedCoverage[];
+  loading: boolean;
+  error: Error | null;
+  reload: () => Promise<void>;
+}
+
+export default function useCoverages(productId: string | null | undefined): UseCoveragesResult {
+  const [coverages, setCoverages] = useState<EnrichedCoverage[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<Error | null>(null);
 
   // Helper function to enrich coverages with linked forms and subcollection counts
-  const enrichCoveragesWithForms = useCallback(async (coveragesList) => {
+  const enrichCoveragesWithForms = useCallback(async (coveragesList: Coverage[]): Promise<EnrichedCoverage[]> => {
     try {
       // Fetch all form-coverage links for this product
       const linksSnap = await getDocs(
@@ -40,9 +54,11 @@ export default function useCoverages(productId) {
       );
 
       // Build a map of coverageId -> [formIds]
-      const formsByCoverage = {};
-      linksSnap.docs.forEach(doc => {
-        const { coverageId, formId } = doc.data();
+      const formsByCoverage: Record<string, string[]> = {};
+      linksSnap.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        const coverageId = data.coverageId as string;
+        const formId = data.formId as string;
         if (!formsByCoverage[coverageId]) {
           formsByCoverage[coverageId] = [];
         }
@@ -53,21 +69,56 @@ export default function useCoverages(productId) {
       const enrichedCoverages = await Promise.all(
         coveragesList.map(async (coverage) => {
           try {
-            // Count limits from subcollection
-            const limitsSnap = await getDocs(
-              collection(db, `products/${productId}/coverages/${coverage.id}/limits`)
+            let limitsCount = 0;
+            let deductiblesCount = 0;
+
+            // Count limits from new limitOptionSets structure
+            const limitOptionSetsSnap = await getDocs(
+              collection(db, `products/${productId}/coverages/${coverage.id}/limitOptionSets`)
             );
 
-            // Count deductibles from subcollection
-            const deductiblesSnap = await getDocs(
-              collection(db, `products/${productId}/coverages/${coverage.id}/deductibles`)
+            // If we have option sets, count the options inside them
+            if (!limitOptionSetsSnap.empty) {
+              for (const setDoc of limitOptionSetsSnap.docs) {
+                const optionsSnap = await getDocs(
+                  collection(db, `products/${productId}/coverages/${coverage.id}/limitOptionSets/${setDoc.id}/options`)
+                );
+                limitsCount += optionsSnap.size;
+              }
+            } else {
+              // Fallback: check legacy limits subcollection
+              const legacyLimitsSnap = await getDocs(
+                collection(db, `products/${productId}/coverages/${coverage.id}/limits`)
+              );
+              limitsCount = legacyLimitsSnap.size;
+            }
+
+            // Count deductibles from new deductibleOptionSets structure
+            const deductibleOptionSetsSnap = await getDocs(
+              collection(db, `products/${productId}/coverages/${coverage.id}/deductibleOptionSets`)
             );
+
+            // If we have option sets, count the options inside them
+            if (!deductibleOptionSetsSnap.empty) {
+              for (const setDoc of deductibleOptionSetsSnap.docs) {
+                const optionsSnap = await getDocs(
+                  collection(db, `products/${productId}/coverages/${coverage.id}/deductibleOptionSets/${setDoc.id}/options`)
+                );
+                deductiblesCount += optionsSnap.size;
+              }
+            } else {
+              // Fallback: check legacy deductibles subcollection
+              const legacyDeductiblesSnap = await getDocs(
+                collection(db, `products/${productId}/coverages/${coverage.id}/deductibles`)
+              );
+              deductiblesCount = legacyDeductiblesSnap.size;
+            }
 
             return {
               ...coverage,
               formIds: formsByCoverage[coverage.id] || [],
-              limitsCount: limitsSnap.size,
-              deductiblesCount: deductiblesSnap.size
+              limitsCount,
+              deductiblesCount
             };
           } catch (err) {
             console.error(`Error enriching coverage ${coverage.id}:`, err);
@@ -84,7 +135,13 @@ export default function useCoverages(productId) {
       return enrichedCoverages;
     } catch (err) {
       console.error('Error enriching coverages with forms:', err);
-      return coveragesList;
+      // Return with default enrichment values when error occurs
+      return coveragesList.map(c => ({
+        ...c,
+        formIds: [],
+        limitsCount: 0,
+        deductiblesCount: 0
+      }));
     }
   }, [productId]);
 
@@ -101,14 +158,14 @@ export default function useCoverages(productId) {
     const unsub = onSnapshot(
       q,
       async snap => {
-        const baseCoverages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const baseCoverages = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coverage));
         const enriched = await enrichCoveragesWithForms(baseCoverages);
         setCoverages(enriched);
         setLoading(false);
       },
       err => {
         console.error('Coverages snapshot failed:', err);
-        setError(err);
+        setError(err as Error);
         setLoading(false);
       }
     );
@@ -117,20 +174,20 @@ export default function useCoverages(productId) {
   }, [productId, enrichCoveragesWithForms]);
 
   /* manual reload helper ----------------------------------------- */
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (): Promise<void> => {
     if (!productId) return;
     setLoading(true);
     try {
       const snap = await getDocs(
         query(collection(db, `products/${productId}/coverages`))
       );
-      const baseCoverages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const baseCoverages = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coverage));
       const enriched = await enrichCoveragesWithForms(baseCoverages);
       setCoverages(enriched);
       setLoading(false);
     } catch (err) {
       console.error('Coverages reload failed:', err);
-      setError(err);
+      setError(err as Error);
       setLoading(false);
     }
   }, [productId, enrichCoveragesWithForms]);

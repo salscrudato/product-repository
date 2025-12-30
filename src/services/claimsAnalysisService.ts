@@ -1,7 +1,8 @@
-// src/services/claimsAnalysisService.js
+// src/services/claimsAnalysisService.ts
 import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 import type { FormChunk } from '../utils/pdfChunking';
+import logger, { LOG_CATEGORIES } from '../utils/logger';
 
 const CLAIMS_ANALYSIS_SYSTEM_PROMPT = `
 You are an expert P&C insurance claims analyst. Your role is to analyze claim scenarios against insurance policy forms and determine coverage.
@@ -129,7 +130,7 @@ TOTAL SECTIONS: ${formChunks.length}
     return content;
 
   } catch (error) {
-    console.error('Error in claim analysis:', error);
+    logger.error(LOG_CATEGORIES.CLAIMS, 'Error in claim analysis', { error: error.message }, error as Error);
 
     // Provide more specific error messages
     if (error.message.includes('timeout')) {
@@ -161,7 +162,7 @@ export async function analyzeClaimWithChunking(
   formChunks: FormChunk[],
   conversationHistory: ConversationMessage[] = []
 ): Promise<string> {
-  console.log(`Starting analysis with ${formChunks.length} form chunks`);
+  logger.debug(LOG_CATEGORIES.CLAIMS, `Starting analysis with ${formChunks.length} form chunks`, { chunkCount: formChunks.length });
 
   // Filter out error chunks for initial processing
   const validChunks = formChunks.filter(chunk => !chunk.error);
@@ -182,11 +183,11 @@ export async function analyzeClaimWithChunking(
   }, {});
 
   const formGroups = Object.values(chunksByForm);
-  console.log(`Organized into ${formGroups.length} form groups`);
+  logger.debug(LOG_CATEGORIES.CLAIMS, `Organized into ${formGroups.length} form groups`, { formGroupCount: formGroups.length });
 
   // If we have few forms or small total content, process all together
   if (formGroups.length <= 3 && validChunks.length <= 8) {
-    console.log('Processing all forms together (small dataset)');
+    logger.debug(LOG_CATEGORIES.CLAIMS, 'Processing all forms together (small dataset)');
     return await analyzeClaimCoverage(claimDescription, validChunks, conversationHistory);
   }
 
@@ -198,7 +199,7 @@ export async function analyzeClaimWithChunking(
     const formName = formGroup[0].formName;
 
     try {
-      console.log(`Analyzing form group ${i + 1}/${formGroups.length}: ${formName}`);
+      logger.debug(LOG_CATEGORIES.CLAIMS, `Analyzing form group ${i + 1}/${formGroups.length}: ${formName}`, { formName, progress: `${i + 1}/${formGroups.length}` });
       const analysis = await analyzeClaimCoverage(claimDescription, formGroup, conversationHistory);
       analyses.push({
         analysis,
@@ -208,7 +209,7 @@ export async function analyzeClaimWithChunking(
         chunkCount: formGroup.length
       });
     } catch (error) {
-      console.error(`Failed to analyze form ${formName}:`, error);
+      logger.error(LOG_CATEGORIES.CLAIMS, `Failed to analyze form ${formName}`, { formName }, error as Error);
       analyses.push({
         analysis: `**Error analyzing ${formName}**: ${error.message}`,
         formName,
@@ -239,7 +240,7 @@ export async function analyzeClaimWithChunking(
   }
 
   // Synthesize all analyses into a final response
-  console.log(`Synthesizing ${analyses.length} form analyses`);
+  logger.debug(LOG_CATEGORIES.CLAIMS, `Synthesizing ${analyses.length} form analyses`, { analysisCount: analyses.length });
   return await synthesizeAnalyses(claimDescription, analyses);
 }
 
@@ -334,7 +335,7 @@ Use the standard structured format with clear sections and specific form referen
     return content;
 
   } catch (error) {
-    console.error('Error synthesizing analyses:', error);
+    logger.error(LOG_CATEGORIES.CLAIMS, 'Error synthesizing analyses', { error: error.message }, error as Error);
 
     // Return a structured fallback synthesis
     return `## Coverage Analysis Summary

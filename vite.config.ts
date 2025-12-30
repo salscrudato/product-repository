@@ -68,7 +68,7 @@ export default defineConfig({
       '@utils': path.resolve(__dirname, './src/utils'),
       '@styles': path.resolve(__dirname, './src/styles'),
       '@config': path.resolve(__dirname, './src/config'),
-      '@types': path.resolve(__dirname, './src/types'),
+      '@app-types': path.resolve(__dirname, './src/types'),
     },
   },
 

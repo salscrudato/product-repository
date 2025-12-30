@@ -4,20 +4,20 @@ import { useParams, useLocation, useNavigate, Link as RouterLink } from 'react-r
 import {
   collection,
   getDocs,
-  addDoc,
   deleteDoc,
   doc,
-  updateDoc,
   getDoc,
   query,
   where,
   writeBatch,
   serverTimestamp
 } from 'firebase/firestore';
+import type { Coverage } from '../types';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/firebase';
 import useCoverages from '@hooks/useCoverages';
 import { useCoverageFormCounts } from '@hooks/useCoverageFormCounts';
+import useDebounce from '@hooks/useDebounce';
 
 import { Button } from '../components/ui/Button';
 import { TextInput } from '../components/ui/Input';
@@ -25,8 +25,8 @@ import MainNavigation from '../components/ui/Navigation';
 import { PageContainer, PageContent } from '../components/ui/PageContainer';
 import EnhancedHeader from '../components/ui/EnhancedHeader';
 
-import { LimitsModal } from '../components/modals/LimitsModal';
-import { DeductiblesModal } from '../components/modals/DeductiblesModal';
+import { LimitOptionsModal } from '../components/limits/LimitOptionsModal';
+import { DeductibleOptionsModal } from '../components/deductibles/DeductibleOptionsModal';
 import { CoverageCopilotWizard } from '../components/wizard/CoverageCopilotWizard';
 
 import styled, { keyframes } from 'styled-components';
@@ -37,7 +37,6 @@ import {
   ModalTitle,
   CloseBtn
 } from '../components/ui/Table';
-import { StatsDashboard } from '../components/common/DesignSystem';
 import {
   PencilIcon,
   PlusIcon,
@@ -274,37 +273,6 @@ const SearchIconWrapper = styled.div`
   svg {
     width: 18px;
     height: 18px;
-  }
-`;
-
-const ToolbarButton = styled.button<{ $active?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 16px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 10px;
-  background: ${({ $active }) => $active ? 'rgba(99, 102, 241, 0.1)' : 'white'};
-  color: ${({ $active }) => $active ? '#6366f1' : '#475569'};
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  &:hover {
-    background: rgba(99, 102, 241, 0.08);
-    border-color: rgba(99, 102, 241, 0.3);
-    color: #6366f1;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 `;
 
@@ -940,10 +908,16 @@ export default function CoverageScreen() {
     coverages.map(c => c.id)
   );
 
+  // Type definitions for internal use
+  type ParentInfo = { id: string; name: string; coverageCode?: string | undefined };
+  type CoverageWithSub = Coverage & { subCount: number; parentInfo: ParentInfo | null };
+  type FormData = { id: string; downloadUrl: string | null; coverageIds: string[]; formName?: string; formNumber?: string; [key: string]: unknown };
+  type RuleData = { id: string; ruleType?: string; targetId?: string; [key: string]: unknown };
+
   /* --- derived sub-counts & filtering --- */
-  const coveragesWithSub = useMemo(() => {
-    const counts = {};
-    const parentMap = {};
+  const coveragesWithSub = useMemo((): CoverageWithSub[] => {
+    const counts: Record<string, number> = {};
+    const parentMap: Record<string, ParentInfo> = {};
 
     // Build parent map and count children
     coverages.forEach(c => {
@@ -952,11 +926,14 @@ export default function CoverageScreen() {
         // Find parent coverage for name lookup
         const parent = coverages.find(p => p.id === c.parentCoverageId);
         if (parent) {
-          parentMap[c.id] = {
+          const info: ParentInfo = {
             id: parent.id,
-            name: parent.name,
-            coverageCode: parent.coverageCode
+            name: parent.name
           };
+          if (parent.coverageCode) {
+            info.coverageCode = parent.coverageCode;
+          }
+          parentMap[c.id] = info;
         }
       }
     });
@@ -970,8 +947,8 @@ export default function CoverageScreen() {
 
   /* ---------------- UI/Meta state ---------------- */
   const [metaLoading, setMetaLoading] = useState(true);
-  const [forms, setForms] = useState([]);
-  const [rules, setRules] = useState([]);
+  const [forms, setForms] = useState<FormData[]>([]);
+  const [rules, setRules] = useState<RuleData[]>([]);
   const [productName, setProductName] = useState('');
   const [parentCoverageName, setParentCoverageName] = useState('');
 
@@ -983,24 +960,25 @@ export default function CoverageScreen() {
   void _setTypeFilter; // Suppress unused variable warning
 
   // Tree expand/collapse state
-  const [expandedIds, setExpandedIds] = useState([]);
-  const toggleExpand = id => {
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
+  const toggleExpand = (id: string) => {
     setExpandedIds(ids =>
       ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id]
     );
   };
 
-  // Sub-coverage add button state
-  const [addingParentId, setAddingParentId] = useState(null);
+  // Sub-coverage add button state - reserved for future use
+  const [_addingParentId, _setAddingParentId] = useState<string | null>(null);
+  void _addingParentId; void _setAddingParentId; // Suppress unused variable warning
 
   // Coverage Copilot wizard state
   const [copilotWizardOpen, setCopilotWizardOpen] = useState(false);
-  const [editingCoverageForWizard, setEditingCoverageForWizard] = useState<any>(null);
+  const [editingCoverageForWizard, setEditingCoverageForWizard] = useState<Partial<Coverage> | null>(null);
 
   // Tree structure generation for proper parent-child rendering
   const treeStructure = useMemo(() => {
-    const childrenMap = {};
-    const parentCoverages = [];
+    const childrenMap: Record<string, CoverageWithSub[]> = {};
+    const parentCoverages: CoverageWithSub[] = [];
 
     // Build children map and identify parent coverages
     coveragesWithSub.forEach(c => {
@@ -1071,8 +1049,8 @@ export default function CoverageScreen() {
     ).length;
   }, [rules]);
 
-  // Format P&C-specific attributes for display
-  const formatCoverageTrigger = (trigger?: string) => {
+  // Format P&C-specific attributes for display - reserved for future use
+  const _formatCoverageTrigger = (trigger?: string) => {
     const triggerLabels: Record<string, string> = {
       'occurrence': 'Occurrence',
       'claimsMade': 'Claims-Made',
@@ -1080,6 +1058,7 @@ export default function CoverageScreen() {
     };
     return triggerLabels[trigger || ''] || null;
   };
+  void _formatCoverageTrigger; // Suppress unused variable warning
 
   const formatValuationMethod = (method?: string) => {
     const methodLabels: Record<string, string> = {
@@ -1104,7 +1083,7 @@ export default function CoverageScreen() {
   };
 
   // Check if coverage has any P&C attributes configured (excluding trigger)
-  const hasPCAttributes = (coverage: any) => {
+  const hasPCAttributes = (coverage: Coverage | CoverageWithSub) => {
     return coverage.valuationMethod ||
            coverage.coinsurancePercentage || coverage.territoryType ||
            coverage.waitingPeriod;
@@ -1112,11 +1091,11 @@ export default function CoverageScreen() {
 
   const [limitModalOpen, setLimitModalOpen] = useState(false);
   const [deductibleModalOpen, setDeductibleModalOpen] = useState(false);
-  const [currentCoverage, setCurrentCoverage] = useState(null);
+  const [currentCoverage, setCurrentCoverage] = useState<Coverage | null>(null);
 
   const [linkFormsModalOpen, setLinkFormsModalOpen] = useState(false);
-  const [selectedCoverageForForms, setSelectedCoverageForForms] = useState(null);
-  const [linkFormIds, setLinkFormIds] = useState([]);
+  const [selectedCoverageForForms, setSelectedCoverageForForms] = useState<Coverage | null>(null);
+  const [linkFormIds, setLinkFormIds] = useState<string[]>([]);
   const [formSearchQuery, setFormSearchQuery] = useState('');
 
   /* ---------- effect: load meta (forms + names + rules) ---------- */
@@ -1133,28 +1112,28 @@ export default function CoverageScreen() {
       const linksSnap = await getDocs(
         query(collection(db, 'formCoverages'), where('productId', '==', productId))
       );
-      const coveragesByForm = {};
-      linksSnap.docs.forEach(doc => {
-        const { formId, coverageId } = doc.data();
+      const coveragesByForm: Record<string, string[]> = {};
+      linksSnap.docs.forEach(linkDoc => {
+        const { formId, coverageId } = linkDoc.data() as { formId: string; coverageId: string };
         if (!coveragesByForm[formId]) {
           coveragesByForm[formId] = [];
         }
         coveragesByForm[formId].push(coverageId);
       });
 
-      const list = await Promise.all(
+      const list: FormData[] = await Promise.all(
         formsSnap.docs.map(async d => {
           const data = d.data();
-          let url = null;
+          let url: string | null = null;
           if (data.filePath) {
-            try { url = await getDownloadURL(ref(storage, data.filePath)); } catch {}
+            try { url = await getDownloadURL(ref(storage, data.filePath)); } catch { /* ignore */ }
           }
           return {
             ...data,
             id: d.id,
             downloadUrl: url,
             coverageIds: coveragesByForm[d.id] || []
-          };
+          } as FormData;
         })
       );
       setForms(list);
@@ -1163,21 +1142,21 @@ export default function CoverageScreen() {
       const rulesSnap = await getDocs(
         query(collection(db, 'rules'), where('productId', '==', productId))
       );
-      const rulesList = rulesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const rulesList: RuleData[] = rulesSnap.docs.map(d => ({ id: d.id, ...d.data() } as RuleData));
       setRules(rulesList);
 
       // product / parent names
       const prodDoc = await getDoc(doc(db, 'products', productId));
-      setProductName(prodDoc.exists() ? prodDoc.data().name : 'Unknown Product');
+      setProductName(prodDoc.exists() ? (prodDoc.data() as { name: string }).name : 'Unknown Product');
 
       if (parentCoverageId) {
         const parDoc = await getDoc(doc(db, `products/${productId}/coverages`, parentCoverageId));
-        setParentCoverageName(parDoc.exists() ? parDoc.data().name : 'Unknown Coverage');
+        setParentCoverageName(parDoc.exists() ? (parDoc.data() as { name: string }).name : 'Unknown Coverage');
       } else {
         setParentCoverageName('');
       }
     } catch (err) {
-      alert('Failed to load data: ' + err.message);
+      alert('Failed to load data: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setMetaLoading(false);
     }
@@ -1187,29 +1166,29 @@ export default function CoverageScreen() {
 
   /* ---------- helpers ---------- */
   // Open Coverage Copilot wizard for editing
-  const openEditModal = c => {
+  const openEditModal = (c: Coverage): void => {
     setEditingCoverageForWizard(c);
     setCopilotWizardOpen(true);
   };
 
   // Open Coverage Copilot wizard for adding new coverage
-  const openAddModal = (parentId = null) => {
+  const openAddModal = (parentId: string | null = null): void => {
     setEditingCoverageForWizard(parentId ? { parentCoverageId: parentId } : null);
     setCopilotWizardOpen(true);
   };
 
   /* ---------- Modal handlers ---------- */
-  const openLimitModal = c => {
+  const openLimitModal = (c: Coverage): void => {
     setCurrentCoverage(c);
     setLimitModalOpen(true);
   };
 
-  const openDeductibleModal = c => {
+  const openDeductibleModal = (c: Coverage): void => {
     setCurrentCoverage(c);
     setDeductibleModalOpen(true);
   };
 
-  const openLinkFormsModal = async c => {
+  const openLinkFormsModal = async (c: Coverage) => {
     setSelectedCoverageForForms(c);
     setFormSearchQuery('');
 
@@ -1222,7 +1201,7 @@ export default function CoverageScreen() {
           where('productId', '==', productId)
         )
       );
-      const linkedFormIds = linksSnap.docs.map(doc => doc.data().formId);
+      const linkedFormIds = linksSnap.docs.map(linkDoc => (linkDoc.data() as { formId: string }).formId);
       setLinkFormIds(linkedFormIds);
     } catch (err) {
       console.error('Error fetching linked forms:', err);
@@ -1237,21 +1216,21 @@ export default function CoverageScreen() {
   // Filter forms based on search query
   const filteredForms = useMemo(() => {
     if (!formSearchQuery.trim()) return forms;
-    const query = formSearchQuery.toLowerCase();
+    const q = formSearchQuery.toLowerCase();
     return forms.filter(f =>
-      (f.formName && f.formName.toLowerCase().includes(query)) ||
-      (f.formNumber && f.formNumber.toLowerCase().includes(query))
+      (f.formName && f.formName.toLowerCase().includes(q)) ||
+      (f.formNumber && f.formNumber.toLowerCase().includes(q))
     );
   }, [forms, formSearchQuery]);
 
-  const handleDelete = async id => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this coverage?')) return;
     try {
       await deleteDoc(doc(db, `products/${productId}/coverages`, id));
       await reloadCoverages();
 
     } catch (err) {
-      alert('Delete failed: ' + err.message);
+      alert('Delete failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 
@@ -1283,7 +1262,7 @@ export default function CoverageScreen() {
       const existingIds = new Set(existingSnap.docs.map(d => d.data().formId));
       desired.forEach(fid => {
         if (!existingIds.has(fid)) {
-          // ✅ FIXED: Use addDoc pattern with batch instead of doc(collection(...))
+          // Use addDoc pattern with batch instead of doc(collection(...))
           const linkRef = doc(collection(db, 'formCoverages'));
           batch.set(linkRef, {
             formId: fid,
@@ -1294,7 +1273,6 @@ export default function CoverageScreen() {
         }
       });
 
-      // ✅ REMOVED: No longer updating coverage.formIds array
       // The formCoverages junction table is the single source of truth
 
       await batch.commit();
@@ -1302,7 +1280,7 @@ export default function CoverageScreen() {
       await reloadCoverages();
     } catch (err) {
       console.error('Error saving linked forms:', err);
-      alert('Failed to save linked forms: ' + (err.message || 'Unknown error'));
+      alert('Failed to save linked forms: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 
@@ -1446,48 +1424,48 @@ export default function CoverageScreen() {
 
                         <CardMetrics>
                             <MetricItem
-                              $hasValue={parent.limitsCount > 0}
+                              $hasValue={((parent as any).limitsCount ?? parent.limitCount ?? 0) > 0}
                               onClick={() => openLimitModal(parent)}
                               title="Configure coverage limits"
                             >
                               <ChartBarIcon />
                               <MetricLabel>Limits</MetricLabel>
-                              <MetricBadge $variant={parent.limitsCount > 0 ? 'success' : 'default'}>
-                                {parent.limitsCount || 0}
+                              <MetricBadge $variant={((parent as any).limitsCount ?? parent.limitCount ?? 0) > 0 ? 'success' : 'default'}>
+                                {(parent as any).limitsCount ?? parent.limitCount ?? 0}
                               </MetricBadge>
                             </MetricItem>
                             <MetricItem
-                              $hasValue={parent.deductiblesCount > 0}
+                              $hasValue={((parent as any).deductiblesCount ?? parent.deductibleCount ?? 0) > 0}
                               onClick={() => openDeductibleModal(parent)}
                               title="Configure deductible options"
                             >
                               <ScaleIcon />
                               <MetricLabel>Deductibles</MetricLabel>
-                              <MetricBadge $variant={parent.deductiblesCount > 0 ? 'success' : 'default'}>
-                                {parent.deductiblesCount || 0}
+                              <MetricBadge $variant={((parent as any).deductiblesCount ?? parent.deductibleCount ?? 0) > 0 ? 'success' : 'default'}>
+                                {(parent as any).deductiblesCount ?? parent.deductibleCount ?? 0}
                               </MetricBadge>
                             </MetricItem>
                             <MetricItem
-                              $hasValue={parent.states?.length > 0}
+                              $hasValue={(parent.states?.length ?? 0) > 0}
                               as={RouterLink}
                               to={`/coverage-states/${productId}/${parent.id}`}
                               title="Manage state availability"
                             >
                               <MapIcon />
                               <MetricLabel>States</MetricLabel>
-                              <MetricBadge $variant={parent.states?.length > 0 ? 'success' : 'default'}>
-                                {parent.states?.length || 0}
+                              <MetricBadge $variant={(parent.states?.length ?? 0) > 0 ? 'success' : 'default'}>
+                                {parent.states?.length ?? 0}
                               </MetricBadge>
                             </MetricItem>
                             <MetricItem
-                              $hasValue={formCounts[parent.id] > 0}
+                              $hasValue={(formCounts[parent.id] ?? 0) > 0}
                               onClick={() => openLinkFormsModal(parent)}
                               title="Link coverage forms and endorsements"
                             >
                               <ClipboardDocumentCheckIcon />
                               <MetricLabel>Forms</MetricLabel>
-                              <MetricBadge $variant={formCounts[parent.id] > 0 ? 'success' : 'default'}>
-                                {formCounts[parent.id] || 0}
+                              <MetricBadge $variant={(formCounts[parent.id] ?? 0) > 0 ? 'success' : 'default'}>
+                                {formCounts[parent.id] ?? 0}
                               </MetricBadge>
                             </MetricItem>
                             <MetricItem
@@ -1543,7 +1521,7 @@ export default function CoverageScreen() {
                     {/* Sub-Coverages */}
 	                    {filteredTreeStructure.childrenMap[parent.id] && isExpanded && (
 	                      <SubCoverageContainer $isExpanded={isExpanded}>
-	                        {filteredTreeStructure.childrenMap[parent.id].map((child, childIndex) => (
+	                        {(filteredTreeStructure.childrenMap[parent.id] ?? []).map((child, childIndex) => (
 	                            <CoverageCard key={child.id} $isSubCoverage $delay={childIndex}>
 	                              <CardHeader>
 	                                <CardHeaderRow>
@@ -1569,48 +1547,48 @@ export default function CoverageScreen() {
 
                               <CardMetrics>
                                 <MetricItem
-                                  $hasValue={child.limitsCount > 0}
+                                  $hasValue={((child as any).limitsCount ?? child.limitCount ?? 0) > 0}
                                   onClick={() => openLimitModal(child)}
                                   title="Configure coverage limits"
                                 >
                                   <ChartBarIcon />
                                   <MetricLabel>Limits</MetricLabel>
-                                  <MetricBadge $variant={child.limitsCount > 0 ? 'success' : 'default'}>
-                                    {child.limitsCount || 0}
+                                  <MetricBadge $variant={((child as any).limitsCount ?? child.limitCount ?? 0) > 0 ? 'success' : 'default'}>
+                                    {(child as any).limitsCount ?? child.limitCount ?? 0}
                                   </MetricBadge>
                                 </MetricItem>
                                 <MetricItem
-                                  $hasValue={child.deductiblesCount > 0}
+                                  $hasValue={((child as any).deductiblesCount ?? child.deductibleCount ?? 0) > 0}
                                   onClick={() => openDeductibleModal(child)}
                                   title="Configure deductible options"
                                 >
                                   <ScaleIcon />
                                   <MetricLabel>Deductibles</MetricLabel>
-                                  <MetricBadge $variant={child.deductiblesCount > 0 ? 'success' : 'default'}>
-                                    {child.deductiblesCount || 0}
+                                  <MetricBadge $variant={((child as any).deductiblesCount ?? child.deductibleCount ?? 0) > 0 ? 'success' : 'default'}>
+                                    {(child as any).deductiblesCount ?? child.deductibleCount ?? 0}
                                   </MetricBadge>
                                 </MetricItem>
                                 <MetricItem
-                                  $hasValue={child.states?.length > 0}
+                                  $hasValue={(child.states?.length ?? 0) > 0}
                                   as={RouterLink}
                                   to={`/coverage-states/${productId}/${child.id}`}
                                   title="Manage state availability"
                                 >
                                   <MapIcon />
                                   <MetricLabel>States</MetricLabel>
-                                  <MetricBadge $variant={child.states?.length > 0 ? 'success' : 'default'}>
-                                    {child.states?.length || 0}
+                                  <MetricBadge $variant={(child.states?.length ?? 0) > 0 ? 'success' : 'default'}>
+                                    {child.states?.length ?? 0}
                                   </MetricBadge>
                                 </MetricItem>
                                 <MetricItem
-                                  $hasValue={formCounts[child.id] > 0}
+                                  $hasValue={(formCounts[child.id] ?? 0) > 0}
                                   onClick={() => openLinkFormsModal(child)}
                                   title="Link coverage forms"
                                 >
                                   <ClipboardDocumentCheckIcon />
                                   <MetricLabel>Forms</MetricLabel>
-                                  <MetricBadge $variant={formCounts[child.id] > 0 ? 'success' : 'default'}>
-                                    {formCounts[child.id] || 0}
+                                  <MetricBadge $variant={(formCounts[child.id] ?? 0) > 0 ? 'success' : 'default'}>
+                                    {formCounts[child.id] ?? 0}
                                   </MetricBadge>
                                 </MetricItem>
                                 <MetricItem
@@ -1694,27 +1672,31 @@ export default function CoverageScreen() {
 
       </PageContent>
 
-      {/* ----- Limits Modal (Enhanced) ----- */}
-      {limitModalOpen && currentCoverage && (
-        <LimitsModal
+      {/* ----- Limits Modal (Enhanced - New Two-Pane Design) ----- */}
+      {limitModalOpen && currentCoverage && productId && (
+        <LimitOptionsModal
           isOpen={limitModalOpen}
-          onClose={() => setLimitModalOpen(false)}
+          onClose={() => {
+            setLimitModalOpen(false);
+            reloadCoverages();
+          }}
           productId={productId}
           coverageId={currentCoverage.id}
           coverageName={currentCoverage.name}
-          onSave={reloadCoverages}
         />
       )}
 
-      {/* ----- Deductibles Modal (Enhanced) ----- */}
-      {deductibleModalOpen && currentCoverage && (
-        <DeductiblesModal
+      {/* ----- Deductibles Modal (Enhanced - New Two-Pane Design) ----- */}
+      {deductibleModalOpen && currentCoverage && productId && (
+        <DeductibleOptionsModal
           isOpen={deductibleModalOpen}
-          onClose={() => setDeductibleModalOpen(false)}
+          onClose={() => {
+            setDeductibleModalOpen(false);
+            reloadCoverages();
+          }}
           productId={productId}
           coverageId={currentCoverage.id}
           coverageName={currentCoverage.name}
-          onSave={reloadCoverages}
         />
       )}
 
@@ -1727,7 +1709,7 @@ export default function CoverageScreen() {
             setEditingCoverageForWizard(null);
           }}
           productId={productId}
-          existingCoverage={editingCoverageForWizard}
+          existingCoverage={editingCoverageForWizard ?? undefined}
           onSave={async () => {
             setCopilotWizardOpen(false);
             setEditingCoverageForWizard(null);
@@ -1811,11 +1793,3 @@ export default function CoverageScreen() {
     </PageContainer>
   );
 }
-
-/* ---------- simple debounce hook ---------- */
-function useDebounce(value, ms=250){
-  const [v,setV]=useState(value);
-  useEffect(()=>{const id=setTimeout(()=>setV(value),ms);return ()=>clearTimeout(id);},[value,ms]);
-  return v;
-}
-

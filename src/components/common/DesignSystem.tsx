@@ -167,21 +167,6 @@ export const StatLabel = styled.div`
   }
 `;
 
-export const StatTrend = styled.span<{ $positive?: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: ${({ $positive }) => $positive ? colors.success : colors.error};
-  margin-top: 8px;
-
-  svg {
-    width: 12px;
-    height: 12px;
-  }
-`;
-
 // ============ Enhanced Card Components ============
 
 export const EnhancedCard = styled.div<{ $variant?: 'default' | 'elevated' | 'outlined'; $delay?: number }>`
@@ -461,101 +446,6 @@ export const ActionBar = styled.div<{ $visible?: boolean }>`
   pointer-events: ${({ $visible }) => $visible ? 'auto' : 'none'};
 `;
 
-export const ActionBarCount = styled.span`
-  font-size: 14px;
-  font-weight: 600;
-  color: ${colors.gray700};
-  padding-right: 16px;
-  border-right: 1px solid ${colors.gray200};
-`;
-
-export const ActionBarButton = styled.button<{ $variant?: 'default' | 'danger' }>`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  ${({ $variant }) => $variant === 'danger' ? css`
-    background: rgba(239, 68, 68, 0.1);
-    color: ${colors.error};
-    &:hover { background: rgba(239, 68, 68, 0.2); }
-  ` : css`
-    background: rgba(99, 102, 241, 0.1);
-    color: ${colors.primary};
-    &:hover { background: rgba(99, 102, 241, 0.2); }
-  `}
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-`;
-
-// ============ Slider Component ============
-
-export const SliderContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-export const SliderTrack = styled.div`
-  position: relative;
-  height: 8px;
-  background: ${colors.gray100};
-  border-radius: 4px;
-  cursor: pointer;
-`;
-
-export const SliderFill = styled.div<{ $percentage: number; $color?: string }>`
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: ${({ $percentage }) => $percentage}%;
-  background: ${({ $color }) => $color || gradients.primary};
-  border-radius: 4px;
-  transition: width 0.2s ease;
-`;
-
-export const SliderThumb = styled.div<{ $percentage: number }>`
-  position: absolute;
-  top: 50%;
-  left: ${({ $percentage }) => $percentage}%;
-  transform: translate(-50%, -50%);
-  width: 20px;
-  height: 20px;
-  background: white;
-  border: 2px solid ${colors.primary};
-  border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  cursor: grab;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-
-  &:hover {
-    transform: translate(-50%, -50%) scale(1.15);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
-  }
-
-  &:active {
-    cursor: grabbing;
-    transform: translate(-50%, -50%) scale(1.1);
-  }
-`;
-
-export const SliderLabels = styled.div`
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: ${colors.gray400};
-`;
-
 // ============ Quick Amount Buttons ============
 
 export const QuickAmountContainer = styled.div`
@@ -601,46 +491,6 @@ export const SectionTitle = styled.h2`
   gap: 10px;
 `;
 
-export const SectionSubtitle = styled.p`
-  font-size: 14px;
-  color: ${colors.gray500};
-  margin: 4px 0 0 0;
-`;
-
-// ============ Filter Chips ============
-
-export const FilterChipsContainer = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 20px;
-`;
-
-export const FilterChip = styled.button<{ $active?: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 24px;
-  font-size: 13px;
-  font-weight: 500;
-  border: 1.5px solid ${({ $active }) => $active ? colors.primary : colors.gray200};
-  background: ${({ $active }) => $active ? 'rgba(99, 102, 241, 0.1)' : 'white'};
-  color: ${({ $active }) => $active ? colors.primary : colors.gray600};
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: ${colors.primary};
-    background: rgba(99, 102, 241, 0.05);
-  }
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-`;
-
 // ============ Gradient Bar ============
 
 export const GradientBar = styled.div<{ $gradient?: string }>`
@@ -651,5 +501,71 @@ export const GradientBar = styled.div<{ $gradient?: string }>`
   height: 4px;
   background: ${({ $gradient }) => $gradient || gradients.primary};
   border-radius: 16px 16px 0 0;
+`;
+
+// ============ Filter Bar ============
+
+export const FilterBar = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 16px 24px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  margin-bottom: 24px;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+`;
+
+export const FilterSelect = styled.select`
+  padding: 8px 12px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 8px;
+  background: white;
+  font-size: 13px;
+  font-weight: 500;
+  color: ${colors.gray700};
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${colors.primary};
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: ${colors.primary};
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+`;
+
+// ============ Command Bar (Apple-inspired) ============
+
+export const CommandBar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 32px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  position: relative;
 `;
 

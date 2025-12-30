@@ -118,11 +118,11 @@ export function buildSaveConfirmation(
   let message = `Save changes to ${entityName}?\n\n`;
 
   if (summary.added.length > 0) {
-    message += `✓ Add ${summary.added.length} state(s): ${summary.added.join(', ')}\n`;
+    message += `+ Add ${summary.added.length} state(s): ${summary.added.join(', ')}\n`;
   }
 
   if (summary.removed.length > 0) {
-    message += `✗ Remove ${summary.removed.length} state(s): ${summary.removed.join(', ')}\n`;
+    message += `- Remove ${summary.removed.length} state(s): ${summary.removed.join(', ')}\n`;
   }
 
   if (summary.added.length === 0 && summary.removed.length === 0) {

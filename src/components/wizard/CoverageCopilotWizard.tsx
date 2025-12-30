@@ -1334,7 +1334,7 @@ interface CoverageCopilotWizardProps {
   isOpen: boolean;
   onClose: () => void;
   productId: string;
-  existingCoverage?: Partial<Coverage>;
+  existingCoverage?: Partial<Coverage> | undefined;
   onSave: (coverage: Partial<Coverage>) => Promise<void>;
 }
 
@@ -3810,12 +3810,12 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ draft, validation, selectedForm
 
   // Calculate completeness for visual indicator
   const sections = [
-    { name: 'Basics', complete: !!(draft.name && draft.coverageCode), icon: '📋' },
-    { name: 'Triggers', complete: !!draft.coverageTrigger, icon: '⚡' },
-    { name: 'Valuation', complete: !!(draft.valuationMethod && draft.coinsurancePercentage), icon: '💰' },
-    { name: 'Underwriting', complete: !!(draft.eligibilityCriteria || draft.riskFactors), icon: '📊' },
-    { name: 'Claims', complete: !!draft.claimsProcedure, icon: '📝' },
-    { name: 'Forms', complete: linkedForms.length > 0, icon: '📄' },
+    { name: 'Basics', complete: !!(draft.name && draft.coverageCode), icon: 'clipboard' },
+    { name: 'Triggers', complete: !!draft.coverageTrigger, icon: 'bolt' },
+    { name: 'Valuation', complete: !!(draft.valuationMethod && draft.coinsurancePercentage), icon: 'currency' },
+    { name: 'Underwriting', complete: !!(draft.eligibilityCriteria || draft.riskFactors), icon: 'chart' },
+    { name: 'Claims', complete: !!draft.claimsProcedure, icon: 'document' },
+    { name: 'Forms', complete: linkedForms.length > 0, icon: 'file' },
   ];
   const completedSections = sections.filter(s => s.complete).length;
 

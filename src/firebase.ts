@@ -46,7 +46,7 @@ const validateConfig = (): void => {
   const missing = requiredFields.filter(field => !firebaseConfig[field]);
 
   if (missing.length > 0) {
-    console.error('❌ Missing Firebase configuration:', missing);
+    console.error('[ERROR] Missing Firebase configuration:', missing);
     throw new Error(`Missing required Firebase config: ${missing.join(', ')}`);
   }
 };
@@ -57,7 +57,7 @@ try {
   validateConfig();
   app = initializeApp(firebaseConfig as Record<string, string>);
 } catch (error) {
-  console.error('❌ Firebase initialization failed:', error);
+  console.error('[ERROR] Firebase initialization failed:', error);
   throw error;
 }
 
@@ -85,14 +85,14 @@ if (USE_EMULATORS) {
     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
     connectFunctionsEmulator(functions, 'localhost', 5001);
     connectStorageEmulator(storage, 'localhost', 9199);
-    console.log('🔧 Firebase: Connected to emulators (Firestore:8080, Auth:9099, Functions:5001, Storage:9199)');
+    console.log('[DEV] Firebase: Connected to emulators (Firestore:8080, Auth:9099, Functions:5001, Storage:9199)');
   } catch (error) {
     const err = error as Error;
-    console.warn('⚠️ Firebase: Emulator connection failed:', err.message);
+    console.warn('[WARN] Firebase: Emulator connection failed:', err.message);
   }
 } else {
   // Single consolidated log for production Firebase
-  console.log('✅ Firebase: Initialized with persistent cache');
+  console.log('[OK] Firebase: Initialized with persistent cache');
 }
 
 // Export app instance for advanced use cases

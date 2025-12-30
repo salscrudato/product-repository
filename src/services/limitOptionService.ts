@@ -29,6 +29,7 @@ import {
   LimitOptionValue,
   SingleLimitValue,
   OccAggLimitValue,
+  ClaimAggLimitValue,
   SplitLimitValue,
   SplitLimitComponent
 } from '../types';
@@ -87,6 +88,19 @@ export async function getLimitOptionSetWithOptions(
 }
 
 /**
+ * Remove undefined values from an object (Firebase doesn't accept undefined)
+ */
+function removeUndefined<T extends Record<string, any>>(obj: T): Partial<T> {
+  const result: Partial<T> = {};
+  for (const key of Object.keys(obj)) {
+    if (obj[key] !== undefined) {
+      result[key as keyof T] = obj[key];
+    }
+  }
+  return result;
+}
+
+/**
  * Create or update a limit option set
  */
 export async function upsertLimitOptionSet(
@@ -96,17 +110,20 @@ export async function upsertLimitOptionSet(
 ): Promise<string> {
   const path = getOptionSetsPath(productId, coverageId);
   const now = Timestamp.now();
-  
+
+  // Clean undefined values
+  const cleanedSet = removeUndefined(optionSet);
+
   if (optionSet.id) {
     const docRef = doc(db, path, optionSet.id);
     await updateDoc(docRef, {
-      ...optionSet,
+      ...cleanedSet,
       updatedAt: now
     });
     return optionSet.id;
   } else {
     const docRef = await addDoc(collection(db, path), {
-      ...optionSet,
+      ...cleanedSet,
       productId,
       coverageId,
       createdAt: now,
@@ -169,13 +186,16 @@ export async function upsertLimitOption(
   const path = getOptionsPath(productId, coverageId, setId);
   const now = Timestamp.now();
 
+  // Clean undefined values
+  const cleanedOption = removeUndefined(option);
+
   if (option.id) {
     const docRef = doc(db, path, option.id);
-    await updateDoc(docRef, { ...option, updatedAt: now });
+    await updateDoc(docRef, { ...cleanedOption, updatedAt: now });
     return option.id;
   } else {
     const docRef = await addDoc(collection(db, path), {
-      ...option,
+      ...cleanedOption,
       createdAt: now,
       updatedAt: now
     });
@@ -272,9 +292,11 @@ function inferStructureFromLegacy(limits: CoverageLimit[]): LimitStructure {
     return 'csl';
   }
 
-  // Check for sublimits
+  // Note: 'sublimit' as a structure is deprecated
+  // Legacy sublimits will be migrated to 'single' + sublimitsEnabled=true
+  // We still detect them here for migration purposes
   if (limits.some(l => l.limitType === 'sublimit')) {
-    return 'sublimit';
+    return 'single'; // Will be handled specially in migration
   }
 
   return 'single';
@@ -303,10 +325,11 @@ function convertLegacyToOptionValue(
       return { structure: 'csl', amount: primary?.amount || 0 };
 
     case 'sublimit':
+      // Deprecated: sublimit structure is now handled as single + sublimitsEnabled
+      // This case is kept for backward compatibility during migration
       return {
-        structure: 'sublimit',
-        amount: primary?.amount || 0,
-        sublimitTag: primary?.appliesTo?.[0]
+        structure: 'single',
+        amount: primary?.amount || 0
       };
 
     case 'split': {
@@ -343,6 +366,9 @@ export function generateDisplayValue(value: LimitOptionValue): string {
 
     case 'occAgg':
       return `${formatCurrency(value.perOccurrence)} / ${formatCurrency(value.aggregate)}`;
+
+    case 'claimAgg':
+      return `${formatCurrency((value as ClaimAggLimitValue).perClaim)} / ${formatCurrency((value as ClaimAggLimitValue).aggregate)}`;
 
     case 'split': {
       const amounts = value.components
@@ -446,6 +472,9 @@ export async function migrateLegacyLimitsToOptionSet(
     });
   }
 
+  // Check if legacy data had sublimits
+  const hadSublimits = legacyLimits.some(l => l.limitType === 'sublimit');
+
   const optionSet: CoverageLimitOptionSet = {
     id: 'primary',
     productId,
@@ -453,8 +482,13 @@ export async function migrateLegacyLimitsToOptionSet(
     structure,
     name: 'Legacy Limits (Migrated)',
     selectionMode: 'single',
-    isRequired: legacyLimits.some(l => l.isRequired)
+    isRequired: legacyLimits.some(l => l.isRequired),
+    sublimitsEnabled: hadSublimits // Enable sublimits if legacy data had them
   };
+
+  if (hadSublimits) {
+    warnings.push('Legacy sublimit structure detected. Migrated to single + sublimitsEnabled=true');
+  }
 
   if (structure !== inferStructureFromLegacy(legacyLimits)) {
     warnings.push('Limit structure could not be fully inferred and may need review');
@@ -564,5 +598,165 @@ export async function syncToLegacyLimits(
   });
 
   await batch.commit();
+}
+
+// ============================================================================
+// Validation Utilities
+// ============================================================================
+
+/**
+ * Parse shorthand amount notation (100k, 1m, 2.5m, etc.)
+ */
+export function parseShorthandAmount(value: string): number {
+  const trimmed = value.trim().toLowerCase();
+
+  const shorthandMatch = trimmed.match(/^[\$]?\s*([\d,.]+)\s*(k|m|b)?$/i);
+  if (shorthandMatch) {
+    const numPart = parseFloat(shorthandMatch[1].replace(/,/g, '')) || 0;
+    const suffix = shorthandMatch[2]?.toLowerCase();
+
+    switch (suffix) {
+      case 'k':
+        return numPart * 1000;
+      case 'm':
+        return numPart * 1000000;
+      case 'b':
+        return numPart * 1000000000;
+      default:
+        return numPart;
+    }
+  }
+
+  const cleaned = value.replace(/[^0-9.-]/g, '');
+  return parseFloat(cleaned) || 0;
+}
+
+/**
+ * Validate that aggregate >= primary for occAgg/claimAgg structures
+ */
+export function validateAggregatePrimary(
+  primary: number,
+  aggregate: number
+): { valid: boolean; message?: string } {
+  if (aggregate < primary) {
+    return {
+      valid: false,
+      message: 'Aggregate must be greater than or equal to the primary limit'
+    };
+  }
+  return { valid: true };
+}
+
+/**
+ * Check for duplicate option tuples in a set
+ * Returns array of duplicate pairs (indices)
+ */
+export function findDuplicateOptions(
+  options: CoverageLimitOption[]
+): Array<[number, number]> {
+  const duplicates: Array<[number, number]> = [];
+
+  for (let i = 0; i < options.length; i++) {
+    for (let j = i + 1; j < options.length; j++) {
+      if (areOptionsEqual(options[i], options[j])) {
+        duplicates.push([i, j]);
+      }
+    }
+  }
+
+  return duplicates;
+}
+
+/**
+ * Check if two options have the same value (ignoring metadata)
+ */
+function areOptionsEqual(a: CoverageLimitOption, b: CoverageLimitOption): boolean {
+  if (a.structure !== b.structure) return false;
+
+  switch (a.structure) {
+    case 'single':
+    case 'csl':
+      return (a as SingleLimitValue).amount === (b as SingleLimitValue).amount;
+    case 'occAgg':
+      return (
+        (a as OccAggLimitValue).perOccurrence === (b as OccAggLimitValue).perOccurrence &&
+        (a as OccAggLimitValue).aggregate === (b as OccAggLimitValue).aggregate
+      );
+    case 'claimAgg':
+      return (
+        (a as any).perClaim === (b as any).perClaim &&
+        (a as any).aggregate === (b as any).aggregate
+      );
+    case 'split':
+      const aComps = (a as SplitLimitValue).components || [];
+      const bComps = (b as SplitLimitValue).components || [];
+      if (aComps.length !== bComps.length) return false;
+      return aComps.every((comp, idx) => comp.amount === bComps[idx]?.amount);
+    default:
+      return false;
+  }
+}
+
+/**
+ * Validate a limit option before saving
+ */
+export function validateLimitOption(
+  option: Partial<CoverageLimitOption>,
+  existingOptions: CoverageLimitOption[] = []
+): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  // Check required fields
+  if (!option.structure) {
+    errors.push('Structure is required');
+  }
+
+  // Structure-specific validation
+  switch (option.structure) {
+    case 'single':
+    case 'csl':
+      if ((option as any).amount === undefined || (option as any).amount < 0) {
+        errors.push('Amount must be a positive number');
+      }
+      break;
+    case 'occAgg':
+      const occAgg = option as any;
+      if (occAgg.perOccurrence === undefined || occAgg.perOccurrence < 0) {
+        errors.push('Per Occurrence must be a positive number');
+      }
+      if (occAgg.aggregate === undefined || occAgg.aggregate < 0) {
+        errors.push('Aggregate must be a positive number');
+      }
+      if (occAgg.aggregate < occAgg.perOccurrence) {
+        errors.push('Aggregate must be >= Per Occurrence');
+      }
+      break;
+    case 'claimAgg':
+      const claimAgg = option as any;
+      if (claimAgg.perClaim === undefined || claimAgg.perClaim < 0) {
+        errors.push('Per Claim must be a positive number');
+      }
+      if (claimAgg.aggregate === undefined || claimAgg.aggregate < 0) {
+        errors.push('Aggregate must be a positive number');
+      }
+      if (claimAgg.aggregate < claimAgg.perClaim) {
+        errors.push('Aggregate must be >= Per Claim');
+      }
+      break;
+  }
+
+  // Check for duplicates
+  if (option.id) {
+    const otherOptions = existingOptions.filter(o => o.id !== option.id);
+    const fullOption = { ...option } as CoverageLimitOption;
+    for (const existing of otherOptions) {
+      if (areOptionsEqual(fullOption, existing)) {
+        errors.push('This limit option already exists');
+        break;
+      }
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
 }
 

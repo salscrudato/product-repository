@@ -18,15 +18,110 @@ import { Timestamp } from 'firebase/firestore';
 
 /**
  * LimitStructure defines the shape of limit options for a coverage
+ * Note: 'sublimit' was removed as a primary structure - sublimits are now
+ * a toggle/section under any primary structure via sublimitsEnabled flag
  */
-export type LimitStructure = 
+export type LimitStructure =
   | 'single'     // Single amount (e.g., $1,000,000)
   | 'occAgg'     // Occurrence + Aggregate pair (e.g., $1M/$2M)
+  | 'claimAgg'   // Each Claim + Aggregate (e.g., $1M/$3M) - for claims-made coverages
   | 'split'      // Split limits (e.g., 100/300/100 for BI per person/BI per occ/PD)
   | 'csl'        // Combined Single Limit
-  | 'sublimit'   // Sublimit tied to parent/base limit
   | 'scheduled'  // Per-item / scheduled limits (like inland marine)
   | 'custom';    // Advanced/custom configuration
+
+/**
+ * LimitBasis defines what the limit applies to
+ * Used in conjunction with LimitStructure
+ *
+ * NOTE: The basis captures the insurance semantics (what the limit applies to),
+ * while the LimitStructure captures the shape (single vs paired vs split).
+ */
+export type LimitBasis =
+  | 'perOccurrence'   // Per occurrence/per event - common for GL, Property
+  | 'perClaim'        // Per claim (claims-made) - common for E&O, D&O, Cyber
+  | 'perAccident'     // Per accident - common for Auto liability
+  | 'perPerson'       // Per person - common for BI component
+  | 'perLocation'     // Per location - common for Property
+  | 'perItem'         // Per scheduled item - common for Inland Marine
+  | 'policyTerm'      // Policy term aggregate
+  | 'annual'          // Annual aggregate
+  | 'lifetime'        // Lifetime aggregate
+  | 'other';          // Other (custom description) - requires otherLabel
+
+/**
+ * Human-readable labels for LimitBasis values
+ */
+export const LIMIT_BASIS_LABELS: Record<LimitBasis, string> = {
+  perOccurrence: 'Per Occurrence',
+  perClaim: 'Per Claim',
+  perAccident: 'Per Accident',
+  perPerson: 'Per Person',
+  perLocation: 'Per Location',
+  perItem: 'Per Item',
+  policyTerm: 'Policy Term',
+  annual: 'Annual',
+  lifetime: 'Lifetime',
+  other: 'Other',
+};
+
+/**
+ * Default split component bases for Auto Liability
+ * Used when no component bases are explicitly configured
+ */
+export const DEFAULT_SPLIT_COMPONENT_BASES: Record<string, LimitBasis> = {
+  biPerPerson: 'perPerson',
+  biPerAccident: 'perAccident',
+  biPerOccurrence: 'perOccurrence',
+  pd: 'perAccident',
+};
+
+/**
+ * Basis configuration for a limit structure
+ * Captures the insurance semantics (what limits apply to) separately from structure
+ */
+export interface LimitBasisConfig {
+  /** Primary limit basis (for single/csl: the one basis, for occAgg: occurrence basis) */
+  primaryBasis: LimitBasis;
+  /** Aggregate basis (for occAgg/claimAgg) */
+  aggregateBasis?: LimitBasis;
+  /** Custom description if primaryBasis or aggregateBasis is 'other' */
+  customBasisDescription?: string;
+  /**
+   * For split limits - basis per component
+   * Keys match the component keys (e.g., 'biPerPerson', 'biPerAccident', 'pd')
+   */
+  splitComponentBases?: Record<string, LimitBasis>;
+  /**
+   * For scheduled/per-item limits - basis for each item
+   * @default 'perItem'
+   */
+  itemBasis?: LimitBasis;
+  /**
+   * For scheduled limits with a total cap - basis for the cap
+   * @default 'policyTerm'
+   */
+  scheduleCapBasis?: LimitBasis;
+}
+
+/**
+ * Sublimit entry for when sublimits are enabled
+ */
+export interface SublimitEntry {
+  id: string;
+  /** Display label (e.g., "Theft Sublimit") */
+  label: string;
+  /** Amount for this sublimit */
+  amount: number;
+  /** What this sublimit applies to (e.g., "Theft", "Water Damage", "Earthquake") */
+  appliesTo: string;
+  /** Optional peril or category tag */
+  perilTag?: string;
+  /** Whether this is enabled */
+  isEnabled: boolean;
+  /** Display order */
+  displayOrder: number;
+}
 
 /**
  * Selection mode for limit options
@@ -177,6 +272,13 @@ export interface OccAggLimitValue {
   aggregate: number;
 }
 
+/** Each Claim + Aggregate pair (for claims-made coverages like E&O, D&O, Cyber) */
+export interface ClaimAggLimitValue {
+  structure: 'claimAgg';
+  perClaim: number;
+  aggregate: number;
+}
+
 /** Split limits with multiple components */
 export interface SplitLimitValue {
   structure: 'split';
@@ -220,11 +322,17 @@ export interface CustomLimitValue {
 export type LimitOptionValue =
   | SingleLimitValue
   | OccAggLimitValue
+  | ClaimAggLimitValue
   | SplitLimitValue
   | CSLLimitValue
-  | SublimitValue
   | ScheduledLimitValue
   | CustomLimitValue;
+
+/**
+ * @deprecated Use sublimitsEnabled + sublimits[] on CoverageLimitOptionSet instead
+ * Kept for backward compatibility during migration
+ */
+export { SublimitValue };
 
 // ============================================================================
 // Coverage Limit Option (Individual selectable option)
@@ -293,6 +401,24 @@ export interface CoverageLimitOptionSet {
 
   /** Split limit component definitions (for split structure) */
   splitComponents?: Omit<SplitLimitComponent, 'amount'>[];
+
+  /**
+   * Limit basis configuration
+   * Specifies what the limits apply to (per occurrence, per claim, etc.)
+   */
+  basisConfig?: LimitBasisConfig;
+
+  /**
+   * Whether sublimits are enabled for this option set
+   * When true, shows sublimits section for peril/category-specific caps
+   */
+  sublimitsEnabled?: boolean;
+
+  /**
+   * Sublimit entries when sublimitsEnabled is true
+   * These are peril/category-specific caps within the primary limit
+   */
+  sublimits?: SublimitEntry[];
 
   /** Feature flag for UI mode */
   useLegacyUI?: boolean;

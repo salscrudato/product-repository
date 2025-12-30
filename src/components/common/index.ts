@@ -24,7 +24,6 @@ export {
   SkeletonStats,
   SkeletonPageHeader
 } from './Skeleton';
-export { ProgressBar, StepProgress } from './ProgressBar';
 
 // Typography
 export {
@@ -34,14 +33,8 @@ export {
   Label, LabelSmall, Caption, Code, TextLink, TruncatedText
 } from './Typography';
 
-// Badges
-export { Badge, StatusBadge, CountBadge as BadgeCount } from './Badge';
-
 // Summary/snapshot components
 export { CoverageSnapshot } from './CoverageSnapshot';
-
-// Navigation
-export { CommandPalette, useCommandPalette } from './CommandPalette';
 
 // Design System
 export {
@@ -108,5 +101,11 @@ export {
   FilterChipsContainer,
   FilterChip,
   // Gradient
-  GradientBar
+  GradientBar,
+  // Page Layout Components
+  PageActionBar,
+  FilterBar,
+  FilterSelect,
+  CommandBar,
+  CommandBarSection
 } from './DesignSystem';

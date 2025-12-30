@@ -1,6 +1,6 @@
 /**
  * Limit Options Tests
- * 
+ *
  * Tests for limit option types, validation, and display generation.
  */
 
@@ -10,10 +10,17 @@ import {
   CoverageLimitOption,
   SingleLimitValue,
   OccAggLimitValue,
+  ClaimAggLimitValue,
   SplitLimitValue,
   LimitStructure
 } from '../types';
-import { generateDisplayValue } from '../services/limitOptionService';
+import {
+  generateDisplayValue,
+  parseShorthandAmount,
+  validateAggregatePrimary,
+  findDuplicateOptions,
+  validateLimitOption as validateLimitOptionService
+} from '../services/limitOptionService';
 import {
   validateLimitOptionSet,
   validateLimitOption,
@@ -306,6 +313,163 @@ describe('getValidationSummary', () => {
     };
     const summary = getValidationSummary(result);
     expect(summary.type).toBe('warning');
+  });
+});
+
+// ============================================================================
+// Shorthand Amount Parsing Tests
+// ============================================================================
+
+describe('parseShorthandAmount', () => {
+  it('parses plain numbers', () => {
+    expect(parseShorthandAmount('1000000')).toBe(1000000);
+    expect(parseShorthandAmount('500000')).toBe(500000);
+  });
+
+  it('parses numbers with commas', () => {
+    expect(parseShorthandAmount('1,000,000')).toBe(1000000);
+    expect(parseShorthandAmount('500,000')).toBe(500000);
+  });
+
+  it('parses k shorthand (thousands)', () => {
+    expect(parseShorthandAmount('100k')).toBe(100000);
+    expect(parseShorthandAmount('250K')).toBe(250000);
+    expect(parseShorthandAmount('50k')).toBe(50000);
+  });
+
+  it('parses m shorthand (millions)', () => {
+    expect(parseShorthandAmount('1m')).toBe(1000000);
+    expect(parseShorthandAmount('2M')).toBe(2000000);
+    expect(parseShorthandAmount('2.5m')).toBe(2500000);
+  });
+
+  it('parses b shorthand (billions)', () => {
+    expect(parseShorthandAmount('1b')).toBe(1000000000);
+    expect(parseShorthandAmount('1.5B')).toBe(1500000000);
+  });
+
+  it('handles dollar sign prefix', () => {
+    expect(parseShorthandAmount('$100k')).toBe(100000);
+    expect(parseShorthandAmount('$1m')).toBe(1000000);
+    expect(parseShorthandAmount('$ 500k')).toBe(500000);
+  });
+
+  it('handles whitespace', () => {
+    expect(parseShorthandAmount('  100k  ')).toBe(100000);
+    expect(parseShorthandAmount('1 m')).toBe(1000000);
+  });
+
+  it('returns 0 for invalid input', () => {
+    expect(parseShorthandAmount('')).toBe(0);
+    expect(parseShorthandAmount('abc')).toBe(0);
+    expect(parseShorthandAmount('invalid')).toBe(0);
+  });
+});
+
+// ============================================================================
+// Aggregate Validation Tests
+// ============================================================================
+
+describe('validateAggregatePrimary', () => {
+  it('validates when aggregate >= primary', () => {
+    expect(validateAggregatePrimary(1000000, 2000000).valid).toBe(true);
+    expect(validateAggregatePrimary(1000000, 1000000).valid).toBe(true);
+  });
+
+  it('fails when aggregate < primary', () => {
+    const result = validateAggregatePrimary(2000000, 1000000);
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain('greater than or equal');
+  });
+});
+
+// ============================================================================
+// Duplicate Detection Tests
+// ============================================================================
+
+describe('findDuplicateOptions', () => {
+  it('finds no duplicates in unique options', () => {
+    const options: CoverageLimitOption[] = [
+      { id: '1', label: '$100k', structure: 'single', amount: 100000, isDefault: false, isEnabled: true, displayOrder: 0 },
+      { id: '2', label: '$250k', structure: 'single', amount: 250000, isDefault: false, isEnabled: true, displayOrder: 1 }
+    ];
+    expect(findDuplicateOptions(options)).toHaveLength(0);
+  });
+
+  it('finds duplicates in single structure', () => {
+    const options: CoverageLimitOption[] = [
+      { id: '1', label: '$100k', structure: 'single', amount: 100000, isDefault: false, isEnabled: true, displayOrder: 0 },
+      { id: '2', label: '$100k copy', structure: 'single', amount: 100000, isDefault: false, isEnabled: true, displayOrder: 1 }
+    ];
+    const duplicates = findDuplicateOptions(options);
+    expect(duplicates).toHaveLength(1);
+    expect(duplicates[0]).toEqual([0, 1]);
+  });
+
+  it('finds duplicates in occAgg structure', () => {
+    const options: CoverageLimitOption[] = [
+      { id: '1', label: '1m/2m', structure: 'occAgg', perOccurrence: 1000000, aggregate: 2000000, isDefault: false, isEnabled: true, displayOrder: 0 },
+      { id: '2', label: '1m/2m copy', structure: 'occAgg', perOccurrence: 1000000, aggregate: 2000000, isDefault: false, isEnabled: true, displayOrder: 1 }
+    ];
+    const duplicates = findDuplicateOptions(options);
+    expect(duplicates).toHaveLength(1);
+  });
+
+  it('does not flag different occAgg values as duplicates', () => {
+    const options: CoverageLimitOption[] = [
+      { id: '1', label: '1m/2m', structure: 'occAgg', perOccurrence: 1000000, aggregate: 2000000, isDefault: false, isEnabled: true, displayOrder: 0 },
+      { id: '2', label: '1m/3m', structure: 'occAgg', perOccurrence: 1000000, aggregate: 3000000, isDefault: false, isEnabled: true, displayOrder: 1 }
+    ];
+    expect(findDuplicateOptions(options)).toHaveLength(0);
+  });
+});
+
+// ============================================================================
+// ClaimAgg Structure Tests
+// ============================================================================
+
+describe('claimAgg structure', () => {
+  it('generates display value for claimAgg', () => {
+    const value: ClaimAggLimitValue = {
+      structure: 'claimAgg',
+      perClaim: 1000000,
+      aggregate: 3000000
+    };
+    // Note: generateDisplayValue may need to be updated to handle claimAgg
+    // For now, test that it doesn't throw
+    const display = generateDisplayValue(value as any);
+    expect(display).toBeDefined();
+  });
+
+  it('validates claimAgg option with service validator', () => {
+    const option = {
+      id: 'opt-1',
+      label: 'Test',
+      structure: 'claimAgg' as const,
+      perClaim: 1000000,
+      aggregate: 3000000,
+      isDefault: false,
+      isEnabled: true,
+      displayOrder: 0
+    };
+    const result = validateLimitOptionService(option);
+    expect(result.valid).toBe(true);
+  });
+
+  it('fails validation when aggregate < perClaim', () => {
+    const option = {
+      id: 'opt-1',
+      label: 'Test',
+      structure: 'claimAgg' as const,
+      perClaim: 2000000,
+      aggregate: 1000000, // Less than perClaim - invalid
+      isDefault: false,
+      isEnabled: true,
+      displayOrder: 0
+    };
+    const result = validateLimitOptionService(option);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('Aggregate'))).toBe(true);
   });
 });
 

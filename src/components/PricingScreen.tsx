@@ -12,6 +12,10 @@ import {
   ChevronUpIcon,
   ChevronDownIcon,
   CurrencyDollarIcon,
+  CalculatorIcon,
+  PlusCircleIcon,
+  ShieldCheckIcon,
+  MapIcon,
 } from '@heroicons/react/24/solid';
 import { ArrowDownTrayIcon as DownloadIcon20, ArrowUpTrayIcon as UploadIcon20 } from '@heroicons/react/20/solid';
 
@@ -34,10 +38,12 @@ import {
 import styled, { keyframes } from 'styled-components';
 import { TextInput } from '../components/ui/Input';
 import RatingAlgorithmBuilder from './pricing/RatingAlgorithmBuilder';
+import EnhancedRatingBuilder from './pricing/EnhancedRatingBuilder';
+import type { StepTemplate } from '../types/pricing';
 
 /* ========== MODERN STYLED COMPONENTS ========== */
 
-// Enhanced animations
+// Enhanced animations - Premium micro-interactions
 const slideIn = keyframes`
   from {
     opacity: 0;
@@ -49,6 +55,32 @@ const slideIn = keyframes`
   }
 `;
 
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const shimmer = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`;
+
+const pulseGlow = keyframes`
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+  50% { box-shadow: 0 0 20px 4px rgba(99, 102, 241, 0.2); }
+`;
+
+const countUp = keyframes`
+  from { opacity: 0; transform: scale(0.8) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+`;
+
 // Ensures any button/link used inside table cells fills the cell width and centers its text
 const CellButton = styled(Button)`
   width: 100%;
@@ -56,55 +88,225 @@ const CellButton = styled(Button)`
 `;
 
 const FormGroup = styled.div`
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+
   label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 500;
-    color: #1F2937;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-weight: 600;
+    font-size: 14px;
+    color: #374151;
+    letter-spacing: -0.01em;
+
+    svg {
+      width: 16px;
+      height: 16px;
+      color: #6366f1;
+      opacity: 0.8;
+    }
+  }
+
+  .error-text {
+    color: #ef4444;
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: 4px;
+  }
+
+  .helper-text {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+`;
+
+const ModernSelect = styled.select`
+  width: 100%;
+  padding: 12px 16px;
+  padding-right: 40px;
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+  background: rgba(255, 255, 255, 0.95);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+    background-color: rgba(248, 250, 252, 0.8);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+
+  option {
+    padding: 12px;
+  }
+`;
+
+const SectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+
+  h4 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+    color: #6366f1;
   }
 `;
 
 const CoverageGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 8px;
-  max-height: 200px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+  max-height: 220px;
   overflow-y: auto;
-  padding: 8px;
-  border: 1px solid #D1D5DB;
-  border-radius: 8px;
-  background: #F9FAFB;
+  padding: 12px;
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.8) 100%);
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.5);
+    border-radius: 3px;
+  }
 `;
 
 const StateGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-  gap: 8px;
-  max-height: 200px;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 6px;
+  max-height: 180px;
   overflow-y: auto;
-  padding: 8px;
-  border: 1px solid #D1D5DB;
-  border-radius: 8px;
-  background: #F9FAFB;
+  padding: 12px;
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.8) 100%);
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.5);
+    border-radius: 3px;
+  }
 `;
 
 const OptionLabel = styled.label`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   font-size: 14px;
   color: #1F2937;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid transparent;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.06);
+    border-color: rgba(99, 102, 241, 0.15);
+  }
+
   input[type="checkbox"] {
-    accent-color: #6B46C1;
+    width: 18px;
+    height: 18px;
+    accent-color: #6366f1;
+    cursor: pointer;
   }
 `;
 
 const SelectAllContainer = styled.div`
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(139, 92, 246, 0.06) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+`;
+
+// Enhanced Tooltip Component
+const Tooltip = styled.div`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: help;
+
+  &:hover .tooltip-content {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  .tooltip-content {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    padding: 10px 14px;
+    background: #1e293b;
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 8px;
+    white-space: nowrap;
+    max-width: 280px;
+    white-space: normal;
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 100;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    line-height: 1.5;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #1e293b;
+    }
+  }
 `;
 
 // State filter options
@@ -120,20 +322,35 @@ const MainContent = styled.div`
 `;
 
 const Card = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  padding: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(24px) saturate(180%);
+  border-radius: 24px;
+  padding: 32px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
   margin-bottom: 32px;
-  transition: all 0.3s ease;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  }
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    transform: translateY(-3px);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+    border-color: rgba(99, 102, 241, 0.15);
   }
 `;
+
+
 
 const FiltersBar = styled.div`
   display: flex;
@@ -174,11 +391,16 @@ const OverlayFixed = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px) saturate(150%);
   z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: ${keyframes`
+    from { opacity: 0; backdrop-filter: blur(0px); }
+    to { opacity: 1; backdrop-filter: blur(8px); }
+  `} 0.2s ease-out;
 `;
 
 // Loading spinner
@@ -295,86 +517,308 @@ const CoveragePageTitle = styled.h1`
 // Editable value cell component
 const EditableValueCell = styled.div`
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
   input {
-    width: 120px;
-    padding: 4px 8px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    background: transparent;
+    width: 100px;
+    padding: 10px 14px;
+    border: 1.5px solid rgba(226, 232, 240, 0.8);
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.9) 100%);
     text-align: center;
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1e293b;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    letter-spacing: -0.01em;
 
     &:hover {
-      border-color: #e2e8f0;
-      background: #f8fafc;
+      border-color: rgba(99, 102, 241, 0.4);
+      background: white;
+      transform: scale(1.02);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
     }
 
     &:focus {
       outline: none;
       border-color: #6366f1;
       background: white;
-      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15), 0 4px 16px rgba(99, 102, 241, 0.15);
+      transform: scale(1.05);
+    }
+
+    &::-webkit-inner-spin-button,
+    &::-webkit-outer-spin-button {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    &:hover::-webkit-inner-spin-button,
+    &:hover::-webkit-outer-spin-button,
+    &:focus::-webkit-inner-spin-button,
+    &:focus::-webkit-outer-spin-button {
+      opacity: 1;
+    }
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%) scaleX(0);
+    width: 60%;
+    height: 2px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    border-radius: 1px;
+    transition: transform 0.2s ease;
+  }
+
+  &:focus-within::after {
+    transform: translateX(-50%) scaleX(1);
+  }
+`;
+
+// Coverage Modal Styled Components - Premium Design
+const WideModal = styled(ModalBox)`
+  width: 90%;
+  max-width: 640px;
+  max-height: 85vh;
+  overflow-y: auto;
+  border-radius: 24px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15), 0 8px 24px rgba(0, 0, 0, 0.08);
+  animation: ${fadeInUp} 0.3s ease-out;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 8px 0;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+
+    &:hover {
+      background: rgba(148, 163, 184, 0.6);
     }
   }
 `;
 
-// Coverage Modal Styled Components (similar to forms modal)
-const WideModal = styled(ModalBox)`
-  width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
+const ModalHeaderEnhanced = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 28px;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.95) 100%);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+`;
+
+const ModalContent = styled.div`
+  padding: 24px 28px;
+`;
+
+const ModalFooter = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 28px;
+  background: rgba(248, 250, 252, 0.5);
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
+  position: sticky;
+  bottom: 0;
+`;
+
+const StepModalWide = styled(ModalBox)`
+  width: 95%;
+  max-width: 1000px;
+  max-height: 90vh;
   overflow-y: auto;
+  border-radius: 24px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.18), 0 12px 32px rgba(0, 0, 0, 0.1);
+  animation: ${fadeInUp} 0.35s ease-out;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 8px 0;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 4px;
+
+    &:hover {
+      background: rgba(148, 163, 184, 0.6);
+    }
+  }
+`;
+
+const TwoColumnGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ModalColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const FullWidthSection = styled.div`
+  grid-column: 1 / -1;
 `;
 
 const CoverageSearchInput = styled(TextInput)`
-  margin-bottom: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 8px;
-  padding: 10px 12px;
+  margin-bottom: 16px;
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  padding: 14px 16px;
   font-size: 14px;
+  background: rgba(248, 250, 252, 0.8);
+  transition: all 0.2s ease;
+
+  &:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    background: white;
+  }
+
+  &::placeholder {
+    color: #94a3b8;
+  }
 `;
 
 const CoverageLinkActions = styled.div`
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-bottom: 16px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.04) 0%, rgba(139, 92, 246, 0.04) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(99, 102, 241, 0.08);
 `;
 
 const CoverageLinkContainer = styled.div`
-  max-height: 360px;
+  max-height: 380px;
   overflow-y: auto;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 12px;
-  padding: 8px;
-  margin-bottom: 16px;
-  background: rgba(248, 250, 252, 0.5);
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.8) 100%);
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.5);
+    border-radius: 3px;
+  }
 `;
 
 const CoverageLinkItem = styled.label`
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  margin-bottom: 4px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1.5px solid rgba(226, 232, 240, 0.6);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
 
   &:hover {
-    background: rgba(99, 102, 241, 0.05);
+    background: rgba(99, 102, 241, 0.06);
+    border-color: rgba(99, 102, 241, 0.25);
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+
+    &::before {
+      opacity: 0.5;
+    }
   }
 
   &:last-child {
     margin-bottom: 0;
   }
+
+  &:has(input:checked) {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+
+    &::before {
+      opacity: 1;
+    }
+  }
 `;
 
 const CoverageCheckbox = styled.input`
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   accent-color: #6366f1;
   cursor: pointer;
+  border-radius: 6px;
+  transition: transform 0.2s ease;
+
+  &:checked {
+    transform: scale(1.05);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(99, 102, 241, 0.5);
+    outline-offset: 2px;
+  }
 `;
 
 const CoverageLabel = styled.span`
@@ -382,6 +826,19 @@ const CoverageLabel = styled.span`
   font-size: 14px;
   font-weight: 500;
   color: #374151;
+  letter-spacing: -0.01em;
+`;
+
+const SelectedBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: auto;
 `;
 
 const Actions = styled.div`
@@ -391,74 +848,7 @@ const Actions = styled.div`
   margin-top: 16px;
 `;
 
-// Pricing Stats Dashboard
-const PricingStatsDashboard = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-  animation: ${slideIn} 0.4s ease-out;
-`;
-
-const PricingStatCard = styled.div<{ $color?: string }>`
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: ${({ $color }) => $color || 'linear-gradient(90deg, #6366f1, #8b5cf6)'};
-  }
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-    border-color: transparent;
-  }
-`;
-
-const PricingStatValue = styled.div`
-  font-size: 28px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 4px;
-  letter-spacing: -0.02em;
-`;
-
-const PricingStatLabel = styled.div`
-  font-size: 13px;
-  font-weight: 500;
-  color: #64748b;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-
-  svg {
-    width: 14px;
-    height: 14px;
-    opacity: 0.7;
-  }
-`;
-
-const PricingStatTrend = styled.span<{ $positive?: boolean }>`
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-left: 8px;
-  background: ${({ $positive }) => $positive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'};
-  color: ${({ $positive }) => $positive ? '#059669' : '#dc2626'};
-`;
+// Note: Stats dashboard is now in EnhancedRatingBuilder component
 
 // StepModal Component
 function StepModal({ onClose, onSubmit, editingStep, coverages, dataCodes }) {
@@ -531,9 +921,6 @@ function StepModal({ onClose, onSubmit, editingStep, coverages, dataCodes }) {
     } else if (!stepData.operand) {
       newErrors.operand = 'Operand is required';
     }
-    if (editingStep && (!comment.trim() || comment.trim().length < 10)) {
-      newErrors.comment = 'Reason must be at least 10 characters';
-    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -551,12 +938,106 @@ function StepModal({ onClose, onSubmit, editingStep, coverages, dataCodes }) {
       <ModalBox onClick={e => e.stopPropagation()}>
         <CloseBtn onClick={onClose} aria-label="Close modal"><XMarkIcon width={24} height={24} /></CloseBtn>
         <ModalHeader>
-          <ModalTitle>{editingStep ? 'Edit Step' : 'Add Step'}</ModalTitle>
+          <ModalTitle>{editingStep ? 'Edit Rating Step' : 'Add Rating Step'}</ModalTitle>
         </ModalHeader>
         {stepData.stepType === 'factor' ? (
           <>
             <FormGroup>
-              <label>Coverages {errors.coverages && <span style={{ color: '#EF4444' }}>{errors.coverages}</span>}</label>
+              <label>
+                Step Name
+                <Tooltip>
+                  <InformationCircleIcon style={{ width: 16, height: 16 }} />
+                  <span className="tooltip-content">
+                    A descriptive name for this rating factor (e.g., "Base Rate", "Territory Factor")
+                  </span>
+                </Tooltip>
+                {errors.stepName && <span className="error-text">{errors.stepName}</span>}
+              </label>
+              <TextInput
+                name="stepName"
+                value={stepData.stepName}
+                onChange={handleChange}
+                placeholder="e.g., Base Rate, Territory Factor"
+                className={errors.stepName ? 'error' : ''}
+              />
+            </FormGroup>
+
+            <FormGroup>
+              <label>
+                Value Source
+                <Tooltip>
+                  <InformationCircleIcon style={{ width: 16, height: 16 }} />
+                  <span className="tooltip-content">
+                    How the factor value is determined: User Input, Table Lookup, or Custom calculation.
+                  </span>
+                </Tooltip>
+              </label>
+              <ModernSelect name="type" value={stepData.type} onChange={handleChange}>
+                <option value="User Input">User Input - Direct entry</option>
+                <option value="Table">Table Lookup - From rating table</option>
+                <option value="Other">Other - Custom calculation</option>
+              </ModernSelect>
+            </FormGroup>
+
+            {stepData.type === 'Table' && (
+              <FormGroup>
+                <label>Table Name</label>
+                <TextInput name="table" value={stepData.table} onChange={handleChange} placeholder="Enter rating table name" />
+              </FormGroup>
+            )}
+
+            <FormGroup>
+              <label>
+                Rounding Mode
+                <Tooltip>
+                  <InformationCircleIcon style={{ width: 16, height: 16 }} />
+                  <span className="tooltip-content">
+                    How to round the result after this step.
+                  </span>
+                </Tooltip>
+              </label>
+              <ModernSelect name="rounding" value={stepData.rounding} onChange={handleChange}>
+                <option value="none">None - No rounding</option>
+                <option value="Whole Number">Whole Number - Round to integer</option>
+                <option value="1 Decimal">1 Decimal - Round to 0.0</option>
+                <option value="2 Decimals">2 Decimals - Round to 0.00</option>
+                <option value="Other">Other - Custom rounding</option>
+              </ModernSelect>
+            </FormGroup>
+
+            <FormGroup>
+              <label>
+                Upstream Data Code
+                <Tooltip>
+                  <InformationCircleIcon style={{ width: 16, height: 16 }} />
+                  <span className="tooltip-content">
+                    Link this step to an IT data code for integration with upstream systems.
+                  </span>
+                </Tooltip>
+              </label>
+              <ModernSelect
+                name="upstreamId"
+                value={stepData.upstreamId}
+                onChange={handleChange}
+              >
+                <option value="">Select IT Code (Optional)</option>
+                {dataCodes.map(code => (
+                  <option key={code} value={code}>{code}</option>
+                ))}
+              </ModernSelect>
+            </FormGroup>
+
+            <FormGroup>
+              <label>
+                Coverages
+                <Tooltip>
+                  <InformationCircleIcon style={{ width: 16, height: 16 }} />
+                  <span className="tooltip-content">
+                    Select which coverages this rating factor applies to.
+                  </span>
+                </Tooltip>
+                {errors.coverages && <span className="error-text">{errors.coverages}</span>}
+              </label>
               <SelectAllContainer>
                 <OptionLabel>
                   <input
@@ -564,7 +1045,7 @@ function StepModal({ onClose, onSubmit, editingStep, coverages, dataCodes }) {
                     checked={stepData.coverages.length === coverages.length}
                     onChange={e => handleSelectAllCoverages(e.target.checked)}
                   />
-                  All
+                  Select All Coverages
                 </OptionLabel>
               </SelectAllContainer>
               <CoverageGrid>
@@ -580,41 +1061,19 @@ function StepModal({ onClose, onSubmit, editingStep, coverages, dataCodes }) {
                   </OptionLabel>
                 ))}
               </CoverageGrid>
+              <div className="helper-text">Selected: {stepData.coverages.length} of {coverages.length} coverages</div>
             </FormGroup>
+
             <FormGroup>
-              <label>Step Name {errors.stepName && <span style={{ color: '#EF4444' }}>{errors.stepName}</span>}</label>
-              <TextInput name="stepName" value={stepData.stepName} onChange={handleChange} className={errors.stepName ? 'error' : ''} />
-            </FormGroup>
-            {editingStep && (
-              <FormGroup>
-                <label>Value</label>
-                <TextInput type="number" name="value" value={stepData.value} onChange={handleChange} placeholder="Enter factor value" />
-              </FormGroup>
-            )}
-            <FormGroup>
-              <label>Type</label>
-              <select name="type" value={stepData.type} onChange={handleChange} style={{ width: '100%', padding: 12, borderRadius: 8, border: '1px solid #D1D5DB' }}>
-                <option value="User Input">User Input</option>
-                <option value="Table">Table</option>
-                <option value="Other">Other</option>
-              </select>
-            </FormGroup>
-            <FormGroup>
-              <label>Table Name (Optional)</label>
-              <TextInput name="table" value={stepData.table} onChange={handleChange} />
-            </FormGroup>
-            <FormGroup>
-              <label>Rounding</label>
-              <select name="rounding" value={stepData.rounding} onChange={handleChange} style={{ width: '100%', padding: 12, borderRadius: 8, border: '1px solid #D1D5DB' }}>
-                <option value="none">None</option>
-                <option value="Whole Number">Whole Number</option>
-                <option value="1 Decimal">1 Decimal</option>
-                <option value="2 Decimals">2 Decimals</option>
-                <option value="Other">Other</option>
-              </select>
-            </FormGroup>
-            <FormGroup>
-              <label>States <InformationCircleIcon style={{ width: '16px', color: '#6B7280' }} title="Select applicable states" /></label>
+              <label>
+                States
+                <Tooltip>
+                  <InformationCircleIcon style={{ width: 16, height: 16 }} />
+                  <span className="tooltip-content">
+                    Select states where this factor applies.
+                  </span>
+                </Tooltip>
+              </label>
               <SelectAllContainer>
                 <OptionLabel>
                   <input
@@ -622,7 +1081,7 @@ function StepModal({ onClose, onSubmit, editingStep, coverages, dataCodes }) {
                     checked={stepData.states.length === allStates.length}
                     onChange={e => handleSelectAllStates(e.target.checked)}
                   />
-                  All
+                  Select All States
                 </OptionLabel>
               </SelectAllContainer>
               <StateGrid>
@@ -638,21 +1097,12 @@ function StepModal({ onClose, onSubmit, editingStep, coverages, dataCodes }) {
                   </OptionLabel>
                 ))}
               </StateGrid>
+              <div className="helper-text">Selected: {stepData.states.length} of {allStates.length} states</div>
             </FormGroup>
-            <FormGroup>
-              <label>Upstream ID</label>
-              <select
-                name="upstreamId"
-                value={stepData.upstreamId}
-                onChange={handleChange}
-                style={{ width:'100%', padding:12, borderRadius:8, border:'1px solid #D1D5DB' }}
-              >
-                <option value="">Select IT Code</option>
-                {dataCodes.map(code => (
-                  <option key={code} value={code}>{code}</option>
-                ))}
-              </select>
-            </FormGroup>
+
+            <Button onClick={handleSubmit} aria-label={editingStep ? 'Update step' : 'Add step'} style={{ marginTop: 16 }}>
+              {editingStep ? 'Update Step' : 'Add Step'}
+            </Button>
           </>
         ) : stepData.stepType === 'operand' ? (
           <>
@@ -723,28 +1173,11 @@ function StepModal({ onClose, onSubmit, editingStep, coverages, dataCodes }) {
                 ))}
               </StateGrid>
             </FormGroup>
+            <Button onClick={handleSubmit} aria-label={editingStep ? 'Update step' : 'Add step'} style={{ marginTop: 16, width: '100%' }}>
+              {editingStep ? 'Update Step' : 'Add Step'}
+            </Button>
           </>
         ) : null}
-        {editingStep && (
-          <textarea
-            rows="3"
-            placeholder="Reason for changes (required)"
-            value={comment}
-            onChange={e => setComment(e.target.value)}
-            style={{
-              width: '100%',
-              padding: 10,
-              borderRadius: 6,
-              border: '1px solid #e5e7eb',
-              fontSize: 14,
-              marginBottom: 12
-            }}
-          />
-        )}
-        {editingStep && errors.comment && <div style={{ color: '#EF4444', marginBottom: 8 }}>{errors.comment}</div>}
-        <Button onClick={handleSubmit} aria-label={editingStep ? 'Update step' : 'Add step'} style={{ marginTop: 16 }}>
-          {editingStep ? 'Update Step' : 'Add Step'}
-        </Button>
       </ModalBox>
     </OverlayFixed>
   );
@@ -1332,6 +1765,25 @@ function operandGlyph(op) {
     setSteps(newSteps);
   };
 
+  // Drag and drop reordering
+  const reorderStepsByIndex = async (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+
+    const newSteps = [...steps];
+    const [movedStep] = newSteps.splice(fromIndex, 1);
+    newSteps.splice(toIndex, 0, movedStep);
+
+    // Update order for all affected steps
+    const updates = newSteps.map((step, index) =>
+      updateDoc(doc(db, `products/${productId}/steps`, step.id), { order: index })
+    );
+    await Promise.all(updates);
+
+    // Update local state with new order values
+    const reorderedSteps = newSteps.map((step, index) => ({ ...step, order: index }));
+    setSteps(reorderedSteps);
+  };
+
   // Handle inline value editing
   const handleValueUpdate = async (stepId, newValue) => {
     try {
@@ -1346,6 +1798,45 @@ function operandGlyph(op) {
       console.error("Error updating step value:", error);
       alert("Failed to update step value. Please try again.");
     }
+  };
+
+  // Handle updating any step property (for enhanced builder)
+  const handleUpdateStep = async (stepId: string, updates: Partial<typeof steps[0]>) => {
+    try {
+      await updateDoc(doc(db, `products/${productId}/steps`, stepId), updates);
+      const updatedSteps = steps.map(s =>
+        s.id === stepId ? { ...s, ...updates } : s
+      );
+      setSteps(updatedSteps);
+    } catch (error) {
+      console.error("Error updating step:", error);
+      alert("Failed to update step. Please try again.");
+    }
+  };
+
+  // Handle duplicating a step
+  const handleDuplicateStep = async (step: typeof steps[0]) => {
+    try {
+      const newStep = {
+        ...step,
+        stepName: `${step.stepName || 'Step'} (Copy)`,
+        order: steps.length,
+      };
+      delete (newStep as { id?: string }).id;
+
+      const docRef = await addDoc(collection(db, `products/${productId}/steps`), newStep);
+      const createdStep = { ...newStep, id: docRef.id };
+      setSteps([...steps, createdStep]);
+    } catch (error) {
+      console.error("Error duplicating step:", error);
+      alert("Failed to duplicate step. Please try again.");
+    }
+  };
+
+  // Handle adding step with template
+  const handleAddStepWithTemplate = (template?: StepTemplate) => {
+    // For now, just open the modal - template handling can be added later
+    openAddModal();
   };
 
   const renderCalculationPreview = () => {
@@ -1379,10 +1870,50 @@ function operandGlyph(op) {
       <PricingTable>
         <TableHead>
           <TableRow>
-            <TableHeader style={{ textAlign: 'center' }}>Coverage</TableHeader>
-            <TableHeader style={{ textAlign: 'center' }}>Step Name</TableHeader>
-            <TableHeader style={{ textAlign: 'center' }}>States</TableHeader>
-            <TableHeader style={{ textAlign: 'center' }}>Value</TableHeader>
+            <TableHeader style={{ textAlign: 'center' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                Coverage
+                <Tooltip>
+                  <InformationCircleIcon style={{ width: 14, height: 14, opacity: 0.6 }} />
+                  <span className="tooltip-content">
+                    The insurance coverage(s) this rating step applies to. Click to modify.
+                  </span>
+                </Tooltip>
+              </span>
+            </TableHeader>
+            <TableHeader style={{ textAlign: 'center' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                Step Name
+                <Tooltip>
+                  <InformationCircleIcon style={{ width: 14, height: 14, opacity: 0.6 }} />
+                  <span className="tooltip-content">
+                    The name of the rating factor or operand. Factors multiply the premium, operands combine results.
+                  </span>
+                </Tooltip>
+              </span>
+            </TableHeader>
+            <TableHeader style={{ textAlign: 'center' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                States
+                <Tooltip>
+                  <InformationCircleIcon style={{ width: 14, height: 14, opacity: 0.6 }} />
+                  <span className="tooltip-content">
+                    Geographic applicability. Different states may have different regulatory requirements.
+                  </span>
+                </Tooltip>
+              </span>
+            </TableHeader>
+            <TableHeader style={{ textAlign: 'center' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                Value
+                <Tooltip>
+                  <InformationCircleIcon style={{ width: 14, height: 14, opacity: 0.6 }} />
+                  <span className="tooltip-content">
+                    The multiplier value for this factor. Click to edit inline. Values are typically between 0.5 and 2.0.
+                  </span>
+                </Tooltip>
+              </span>
+            </TableHeader>
             <TableHeader style={{ width: 110, textAlign: 'center' }}>Actions</TableHeader>
           </TableRow>
         </TableHead>
@@ -1524,33 +2055,33 @@ function operandGlyph(op) {
           onBackClick={() => navigate(-1)}
         />
 
-        {/* Rating Algorithm Builder */}
-        <RatingAlgorithmBuilder
+        {/* Enhanced Rating Algorithm Builder */}
+        <EnhancedRatingBuilder
           steps={filteredSteps}
-          coverages={coverages}
-          onStepsChange={setSteps}
-          onAddStep={openAddModal}
-          onEditStep={(step) => openEditModal(step)}
-          onDeleteStep={async (stepId) => {
-            if (window.confirm("Are you sure you want to delete this step?")) {
-              await handleDeleteStep(stepId);
-            }
-          }}
-          onUpdateStepValue={handleValueUpdate}
-          onReorderSteps={async (stepId, direction) => {
-            const idx = steps.findIndex(s => s.id === stepId);
-            if (idx !== -1) {
-              await moveStep(stepId, idx, direction);
-            }
-          }}
-          onAddOperand={addOperand}
-          onOpenCoverageModal={openCovModal}
-          onOpenStatesModal={openStatesModal}
-          onOpenTable={(step) => navigate(`/table/${productId}/${step.id}`)}
-          selectedCoverage={selectedCoverage}
-          selectedStates={selectedStates}
-          isLoading={loading}
-        />
+          onAddStep={handleAddStepWithTemplate}
+        >
+          <RatingAlgorithmBuilder
+            steps={filteredSteps}
+            coverages={coverages}
+            onStepsChange={setSteps}
+            onAddStep={openAddModal}
+            onEditStep={(step) => openEditModal(step)}
+            onDeleteStep={async (stepId) => {
+              if (window.confirm("Are you sure you want to delete this step?")) {
+                await handleDeleteStep(stepId);
+              }
+            }}
+            onUpdateStepValue={handleValueUpdate}
+            onReorderStepsByIndex={reorderStepsByIndex}
+            onAddOperand={addOperand}
+            onOpenCoverageModal={openCovModal}
+            onOpenStatesModal={openStatesModal}
+            onOpenTable={(step) => navigate(`/table/${productId}/${step.id}`)}
+            selectedCoverage={selectedCoverage}
+            selectedStates={selectedStates}
+            isLoading={loading}
+          />
+        </EnhancedRatingBuilder>
         {modalOpen && (
           <StepModal
             onClose={() => setModalOpen(false)}
@@ -1565,14 +2096,21 @@ function operandGlyph(op) {
           <OverlayFixed onClick={() => setCovModalOpen(false)}>
             <WideModal onClick={e => e.stopPropagation()}>
               <ModalHeader>
-                <ModalTitle>Select Coverages for {currentEditingStep?.stepName}</ModalTitle>
+                <ModalTitle>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    Select Coverages
+                    <span style={{ fontSize: '14px', fontWeight: 400, color: '#6b7280' }}>
+                      for {currentEditingStep?.stepName}
+                    </span>
+                  </span>
+                </ModalTitle>
                 <CloseBtn onClick={() => setCovModalOpen(false)}>
                   <XMarkIcon width={20} height={20}/>
                 </CloseBtn>
               </ModalHeader>
 
               <CoverageSearchInput
-                placeholder="Search coverages by name or code..."
+                placeholder="🔍 Search coverages by name or code..."
                 value={coverageSearchQuery || ''}
                 onChange={e => setCoverageSearchQuery(e.target.value)}
               />
@@ -1584,9 +2122,9 @@ function operandGlyph(op) {
                 <Button variant="ghost" onClick={() => setSelectedCoveragesForStep([])}>
                   Clear All
                 </Button>
-                <span style={{ fontSize: '14px', color: '#6b7280', marginLeft: 'auto' }}>
+                <SelectedBadge>
                   {selectedCoveragesForStep.length} selected
-                </span>
+                </SelectedBadge>
               </CoverageLinkActions>
 
               <CoverageLinkContainer>
@@ -1611,10 +2149,13 @@ function operandGlyph(op) {
                 {filteredCoverages.length === 0 && (
                   <div style={{
                     textAlign: 'center',
-                    padding: '32px',
-                    color: '#6b7280',
-                    fontStyle: 'italic'
+                    padding: '40px 32px',
+                    color: '#94a3b8',
+                    fontStyle: 'italic',
+                    background: 'rgba(248, 250, 252, 0.5)',
+                    borderRadius: '12px'
                   }}>
+                    <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔍</div>
                     No coverages found matching your search
                   </div>
                 )}
@@ -1633,14 +2174,21 @@ function operandGlyph(op) {
           <OverlayFixed onClick={() => setStatesModalOpen(false)}>
             <WideModal onClick={e => e.stopPropagation()}>
               <ModalHeader>
-                <ModalTitle>Select States for {currentEditingStepForStates?.stepName}</ModalTitle>
+                <ModalTitle>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    Select States
+                    <span style={{ fontSize: '14px', fontWeight: 400, color: '#6b7280' }}>
+                      for {currentEditingStepForStates?.stepName}
+                    </span>
+                  </span>
+                </ModalTitle>
                 <CloseBtn onClick={() => setStatesModalOpen(false)}>
                   <XMarkIcon width={20} height={20}/>
                 </CloseBtn>
               </ModalHeader>
 
               <CoverageSearchInput
-                placeholder="Search states by abbreviation..."
+                placeholder="🔍 Search states by abbreviation..."
                 value={stateSearchQuery || ''}
                 onChange={e => setStateSearchQuery(e.target.value)}
               />
@@ -1652,9 +2200,9 @@ function operandGlyph(op) {
                 <Button variant="ghost" onClick={() => setSelectedStatesForStep([])}>
                   Clear All
                 </Button>
-                <span style={{ fontSize: '14px', color: '#6b7280', marginLeft: 'auto' }}>
+                <SelectedBadge>
                   {selectedStatesForStep.length} selected
-                </span>
+                </SelectedBadge>
               </CoverageLinkActions>
 
               <CoverageLinkContainer>
@@ -1679,10 +2227,13 @@ function operandGlyph(op) {
                 {filteredStates.length === 0 && (
                   <div style={{
                     textAlign: 'center',
-                    padding: '32px',
-                    color: '#6b7280',
-                    fontStyle: 'italic'
+                    padding: '40px 32px',
+                    color: '#94a3b8',
+                    fontStyle: 'italic',
+                    background: 'rgba(248, 250, 252, 0.5)',
+                    borderRadius: '12px'
                   }}>
+                    <div style={{ fontSize: '32px', marginBottom: '8px' }}>🗺️</div>
                     No states found matching your search
                   </div>
                 )}

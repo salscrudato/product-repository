@@ -9,7 +9,7 @@ if ('serviceWorker' in navigator && env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
-        console.log('🎯 Service Worker registered successfully:', registration.scope);
+        console.log('[OK] Service Worker registered successfully:', registration.scope);
 
         // Listen for updates
         registration.addEventListener('updatefound', () => {
@@ -17,14 +17,14 @@ if ('serviceWorker' in navigator && env.PROD) {
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('🔄 New content available, please refresh');
+                console.log('[INFO] New content available, please refresh');
               }
             });
           }
         });
       })
       .catch((error) => {
-        console.error('❌ Service Worker registration failed:', error);
+        console.error('[ERROR] Service Worker registration failed:', error);
       });
   });
 }

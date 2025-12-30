@@ -25,7 +25,7 @@ import {
   ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
-import { CoverageLimit } from '@types';
+import { CoverageLimit } from '@app-types';
 import { useCoverageData } from '@hooks/useCoverageData';
 import { LimitTypeSelector } from '../selectors/LimitTypeSelector';
 import { validateCoverageLimit, formatValidationResult } from '@services/validationService';
@@ -222,6 +222,38 @@ export const LimitsModal: React.FC<LimitsModalProps> = ({
             </LoadingContainer>
           ) : (
             <>
+              {/* Statistics Dashboard */}
+              <StatsDashboard>
+                <StatCard $color={gradients.primary}>
+                  <StatValue>{stats.total}</StatValue>
+                  <StatLabel>
+                    <ChartBarIcon />
+                    Total Limits
+                  </StatLabel>
+                </StatCard>
+                <StatCard $color={gradients.success}>
+                  <StatValue>{stats.defaults}</StatValue>
+                  <StatLabel>
+                    <StarIcon />
+                    Defaults
+                  </StatLabel>
+                </StatCard>
+                <StatCard $color={gradients.warning}>
+                  <StatValue>{stats.required}</StatValue>
+                  <StatLabel>
+                    <CheckCircleIcon />
+                    Required
+                  </StatLabel>
+                </StatCard>
+                <StatCard $color={gradients.info}>
+                  <StatValue>{formatAmount(stats.avgAmount)}</StatValue>
+                  <StatLabel>
+                    <CurrencyDollarIcon />
+                    Avg Amount
+                  </StatLabel>
+                </StatCard>
+              </StatsDashboard>
+
               {/* Add New Limit Section */}
               {isAdding ? (
                 <AddSection>

@@ -141,7 +141,7 @@ export const validateEnvironment = (): void => {
 
   if (missing.length > 0 && env.DEV) {
     console.warn(
-      `⚠️ Missing environment variables: ${missing.join(', ')}\n` +
+      `[WARN] Missing environment variables: ${missing.join(', ')}\n` +
       `Some features may not work correctly.`
     );
   }

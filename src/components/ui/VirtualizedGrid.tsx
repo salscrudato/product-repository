@@ -1,11 +1,34 @@
-// src/components/ui/VirtualizedGrid.js
-import React, { memo, useMemo } from 'react';
-import { Grid } from 'react-window';
+// src/components/ui/VirtualizedGrid.tsx
+import React, { memo, useMemo, CSSProperties, ReactNode } from 'react';
+import { Grid, GridChildComponentProps } from 'react-window';
 import styled from 'styled-components';
 
-const GridContainer = styled.div`
+// Type definitions
+interface GridContainerProps {
+  $height: number | string;
+}
+
+interface VirtualizedGridProps<T = unknown> {
+  items: T[];
+  renderItem: (item: T, index: number) => ReactNode;
+  columnCount?: number;
+  rowHeight?: number;
+  height?: number;
+  overscanRowCount?: number;
+  className?: string;
+}
+
+interface CellData<T = unknown> {
+  items: T[];
+  columnCount: number;
+  renderItem: (item: T, index: number) => ReactNode;
+}
+
+interface CellProps<T = unknown> extends GridChildComponentProps<CellData<T>> {}
+
+const GridContainer = styled.div<GridContainerProps>`
   width: 100%;
-  height: ${props => props.height || '600px'};
+  height: ${props => typeof props.$height === 'number' ? `${props.$height}px` : props.$height};
   margin-bottom: 60px;
 `;
 
@@ -17,18 +40,18 @@ const GridItem = styled.div`
 `;
 
 // Memoized cell renderer to prevent unnecessary re-renders
-const Cell = memo(({ columnIndex, rowIndex, style, data }) => {
+const Cell = memo(<T,>({ columnIndex, rowIndex, style, data }: CellProps<T>) => {
   const { items, columnCount, renderItem } = data;
   const index = rowIndex * columnCount + columnIndex;
-  
+
   if (index >= items.length) {
-    return <div style={style} />;
+    return <div style={style as CSSProperties} />;
   }
 
   const item = items[index];
-  
+
   return (
-    <div style={style}>
+    <div style={style as CSSProperties}>
       <GridItem>
         {renderItem(item, index)}
       </GridItem>
@@ -39,15 +62,15 @@ const Cell = memo(({ columnIndex, rowIndex, style, data }) => {
 Cell.displayName = 'VirtualizedGridCell';
 
 // Main VirtualizedGrid component
-const VirtualizedGrid = memo(({ 
-  items = [], 
-  renderItem, 
-  columnCount = 2, 
-  rowHeight = 350, 
+function VirtualizedGridComponent<T = unknown>({
+  items = [] as T[],
+  renderItem,
+  columnCount = 2,
+  rowHeight = 350,
   height = 600,
   overscanRowCount = 2,
-  className 
-}) => {
+  className
+}: VirtualizedGridProps<T>): React.ReactElement | null {
   // Calculate grid dimensions
   const rowCount = Math.ceil(items.length / columnCount);
   const columnWidth = useMemo(() => {
@@ -56,7 +79,7 @@ const VirtualizedGrid = memo(({
   }, [columnCount]);
 
   // Memoized item data to prevent unnecessary re-renders
-  const itemData = useMemo(() => ({
+  const itemData = useMemo((): CellData<T> => ({
     items,
     columnCount,
     renderItem
@@ -68,8 +91,8 @@ const VirtualizedGrid = memo(({
   }
 
   return (
-    <GridContainer height={height} className={className}>
-      <Grid
+    <GridContainer $height={height} className={className}>
+      <Grid<CellData<T>>
         columnCount={columnCount}
         columnWidth={columnWidth}
         height={height}
@@ -78,13 +101,15 @@ const VirtualizedGrid = memo(({
         itemData={itemData}
         overscanRowCount={overscanRowCount}
         overscanColumnCount={1}
+        width={1400}
       >
-        {(props) => <Cell {...props} />}
+        {Cell as React.ComponentType<GridChildComponentProps<CellData<T>>>}
       </Grid>
     </GridContainer>
   );
-});
+}
 
-VirtualizedGrid.displayName = 'VirtualizedGrid';
+const VirtualizedGrid = memo(VirtualizedGridComponent) as typeof VirtualizedGridComponent;
 
 export default VirtualizedGrid;
+export type { VirtualizedGridProps };

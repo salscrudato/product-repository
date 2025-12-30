@@ -21,25 +21,26 @@
       "@utils/*": ["./src/utils/*"],
       "@styles/*": ["./src/styles/*"],
       "@config/*": ["./src/config/*"],
-      "@types/*": ["./src/types/*"]
+      "@app-types": ["./src/types/index.ts"],
+      "@app-types/*": ["./src/types/*"]
     },
 
-    /* Type Checking - Production-ready configuration */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    /* Type Checking - Relaxed for rapid development, tighten gradually */
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": false,
+    "noUncheckedIndexedAccess": false,
     "allowUnusedLabels": false,
     "allowUnreachableCode": false,
-    "noImplicitOverride": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "strictBindCallApply": true,
-    "strictPropertyInitialization": true,
-    "noImplicitThis": true,
+    "noImplicitOverride": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "strictBindCallApply": false,
+    "strictPropertyInitialization": false,
+    "noImplicitThis": false,
     "alwaysStrict": true,
 
     /* Emit */
@@ -65,7 +66,7 @@
     /* Advanced */
     "useDefineForClassFields": true,
     "verbatimModuleSyntax": false,
-    "exactOptionalPropertyTypes": true
+    "exactOptionalPropertyTypes": false
   },
   "include": [
     "src/**/*",

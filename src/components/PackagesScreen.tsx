@@ -150,7 +150,6 @@ const PackagesScreen: React.FC = () => {
 
       {filteredPackages.length === 0 ? (
         <EmptyState>
-          <EmptyStateIcon>📦</EmptyStateIcon>
           <EmptyStateTitle>No packages found</EmptyStateTitle>
           <EmptyStateText>
             {filterType === 'all' 

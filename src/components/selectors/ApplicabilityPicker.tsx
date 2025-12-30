@@ -22,7 +22,7 @@ import {
   CoveragePart,
   LossType,
   Peril
-} from '@types';
+} from '@app-types';
 import { colors } from '../common/DesignSystem';
 
 interface ApplicabilityPickerProps {
@@ -90,11 +90,20 @@ export const ApplicabilityPicker: React.FC<ApplicabilityPickerProps> = ({
   }, []);
 
   const handleAllStatesToggle = useCallback((checked: boolean) => {
-    onChange({
-      ...value,
-      allStates: checked,
-      states: checked ? undefined : value.states
-    });
+    if (checked) {
+      // When selecting "All States", set allStates true and populate states with all US states
+      onChange({
+        ...value,
+        allStates: true,
+        states: [...US_STATES]
+      });
+    } else {
+      onChange({
+        ...value,
+        allStates: false,
+        states: undefined
+      });
+    }
   }, [value, onChange]);
 
   const handleStateToggle = useCallback((state: string) => {
@@ -102,10 +111,15 @@ export const ApplicabilityPicker: React.FC<ApplicabilityPickerProps> = ({
     const newStates = currentStates.includes(state)
       ? currentStates.filter(s => s !== state)
       : [...currentStates, state];
+
+    // If all states were selected and we're deselecting one, turn off allStates
+    const allStatesNowSelected = newStates.length === US_STATES.length &&
+      US_STATES.every(s => newStates.includes(s));
+
     onChange({
       ...value,
       states: newStates.length > 0 ? newStates : undefined,
-      allStates: false
+      allStates: allStatesNowSelected
     });
   }, [value, onChange]);
 
@@ -132,10 +146,11 @@ export const ApplicabilityPicker: React.FC<ApplicabilityPickerProps> = ({
     });
   }, [value, onChange]);
 
-  // Collect all selected tags for display
+  // Collect all selected tags for display (excluding states when allStates or many states)
   const allTags: { field: keyof LimitApplicability; value: string; label: string }[] = [];
 
-  if (value.states?.length) {
+  // Only add individual state tags if not all states and less than 6 states selected
+  if (!value.allStates && value.states?.length && value.states.length < 6) {
     value.states.forEach(s => allTags.push({ field: 'states', value: s, label: s }));
   }
   if (value.coverageParts?.length) {
@@ -157,19 +172,31 @@ export const ApplicabilityPicker: React.FC<ApplicabilityPickerProps> = ({
     });
   }
 
+  // Calculate excluded states when allStates is true
+  const excludedStates = value.allStates && value.states
+    ? US_STATES.filter(s => !value.states?.includes(s))
+    : [];
+
   return (
     <Container>
       <Label>Applicability</Label>
 
       {/* Selected Tags Display */}
-      {(value.allStates || allTags.length > 0) && (
+      {(value.allStates || value.states?.length || allTags.length > 0) && (
         <TagsContainer>
           {value.allStates && (
             <Tag $color={colors.primary}>
-              All States
+              {excludedStates.length > 0
+                ? `All States except ${excludedStates.length}`
+                : 'All States'}
               <TagRemove onClick={() => handleAllStatesToggle(false)}>
                 <XMarkIcon />
               </TagRemove>
+            </Tag>
+          )}
+          {!value.allStates && value.states && value.states.length >= 6 && (
+            <Tag $color={colors.info}>
+              {value.states.length} States
             </Tag>
           )}
           {allTags.map((tag, i) => (
@@ -202,21 +229,20 @@ export const ApplicabilityPicker: React.FC<ApplicabilityPickerProps> = ({
                     onChange={(e) => handleAllStatesToggle(e.target.checked)}
                   />
                   <span>All States</span>
+                  {value.allStates && <AllStatesHint>(click states below to exclude)</AllStatesHint>}
                 </AllStatesToggle>
-                {!value.allStates && (
-                  <StatesGrid>
-                    {US_STATES.map(state => (
-                      <StateChip
-                        key={state}
-                        $selected={value.states?.includes(state) || false}
-                        onClick={() => handleStateToggle(state)}
-                      >
-                        {state}
-                        {value.states?.includes(state) && <CheckIcon />}
-                      </StateChip>
-                    ))}
-                  </StatesGrid>
-                )}
+                <StatesGrid>
+                  {US_STATES.map(state => (
+                    <StateChip
+                      key={state}
+                      $selected={value.states?.includes(state) || false}
+                      onClick={() => handleStateToggle(state)}
+                    >
+                      {state}
+                      {value.states?.includes(state) && <CheckIcon />}
+                    </StateChip>
+                  ))}
+                </StatesGrid>
               </SectionContent>
             )}
           </Section>
@@ -442,6 +468,13 @@ const Checkbox = styled.input`
   width: 16px;
   height: 16px;
   accent-color: ${colors.primary};
+`;
+
+const AllStatesHint = styled.span`
+  font-size: 11px;
+  color: ${colors.gray500};
+  font-weight: 400;
+  margin-left: 4px;
 `;
 
 const StatesGrid = styled.div`

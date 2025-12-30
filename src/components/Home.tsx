@@ -4,8 +4,6 @@ import {
   SparklesIcon,
   TrashIcon,
   ArrowUpIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
   ClipboardDocumentIcon,
   CheckIcon
 } from '@heroicons/react/24/solid';
@@ -109,9 +107,7 @@ type QueryType =
 /* ---------- styled components ---------- */
 const Page = styled.div`
   min-height: 100vh;
-  background: ${({ theme }) => theme.isDarkMode
-    ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)'
-    : 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%)'};
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -124,7 +120,7 @@ const Page = styled.div`
     right: 0;
     height: 300px;
     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-    opacity: ${({ theme }) => theme.isDarkMode ? '0.05' : '0.08'};
+    opacity: 0.08;
     z-index: 0;
     pointer-events: none;
   }
@@ -142,14 +138,19 @@ const MainContent = styled.main<{ $isEmpty: boolean }>`
   position: relative;
   z-index: 1;
 
-  /* Center content when empty */
+  /* Center content when empty - position it slightly above center */
   ${({ $isEmpty }) => $isEmpty && `
     justify-content: center;
     align-items: center;
+    padding-top: 60px;
   `}
 
   @media (max-width: 768px) {
     height: calc(100vh - 56px);
+
+    ${({ $isEmpty }: { $isEmpty: boolean }) => $isEmpty && `
+      padding-top: 40px;
+    `}
   }
 `;
 
@@ -171,12 +172,12 @@ const ChatContainer = styled.div`
   }
 
   &::-webkit-scrollbar-thumb {
-    background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'};
+    background: 'rgba(0,0,0,0.15)';
     border-radius: 3px;
   }
 
   &::-webkit-scrollbar-thumb:hover {
-    background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)'};
+    background: 'rgba(0,0,0,0.25)';
   }
 
   @media (max-width: 768px) {
@@ -190,47 +191,48 @@ const EmptyState = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 24px 32px;
+  padding: 32px 24px 24px;
   text-align: center;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
   max-width: 700px;
 
   svg {
-    width: 64px;
-    height: 64px;
-    color: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
-    margin-bottom: 8px;
+    width: 48px;
+    height: 48px;
+    color: #94a3b8;
+    margin-bottom: 4px;
   }
 
   h2 {
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 600;
-    color: ${({ theme }) => theme.isDarkMode ? '#e2e8f0' : '#1e293b'};
+    color: #1e293b;
     margin: 0;
   }
 
   p {
-    font-size: 15px;
-    color: ${({ theme }) => theme.isDarkMode ? '#94a3b8' : '#64748b'};
+    font-size: 14px;
+    color: #64748b;
     margin: 0;
-    max-width: 500px;
+    max-width: 480px;
+    line-height: 1.6;
   }
 
   @media (max-width: 768px) {
-    padding: 32px 16px 24px;
+    padding: 24px 16px 20px;
 
     svg {
-      width: 48px;
-      height: 48px;
+      width: 40px;
+      height: 40px;
     }
 
     h2 {
-      font-size: 20px;
+      font-size: 18px;
     }
 
     p {
-      font-size: 14px;
+      font-size: 13px;
     }
   }
 `;
@@ -267,7 +269,7 @@ const UserMessage = styled.div`
   animation: ${slideInRight} 0.25s ease-out;
 
   .content {
-    background: ${({ theme }) => theme.isDarkMode ? '#3b82f6' : '#3b82f6'};
+    background: '#3b82f6';
     color: #ffffff;
     padding: 12px 16px;
     border-radius: 20px;
@@ -297,9 +299,7 @@ const AssistantMessage = styled.div`
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: ${({ theme }) => theme.isDarkMode
-      ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
-      : 'linear-gradient(135deg, #6366f1, #8b5cf6)'};
+    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)';
     display: flex;
     align-items: center;
     justify-content: center;
@@ -316,8 +316,8 @@ const AssistantMessage = styled.div`
   .content {
     flex: 1;
     min-width: 0;
-    background: ${({ theme }) => theme.isDarkMode ? 'rgba(30, 41, 59, 0.6)' : '#f8f9fa'};
-    color: ${({ theme }) => theme.isDarkMode ? '#ececec' : '#1a1a1a'};
+    background: '#f8f9fa';
+    color: '#1a1a1a';
     padding: 16px 20px;
     border-radius: 4px 20px 20px 20px;
   }
@@ -365,7 +365,7 @@ const ActionButton = styled.button<{ $active?: boolean }>`
   color: ${({ $active, theme }) =>
     $active
       ? '#10b981'
-      : (theme.isDarkMode ? '#9b9b9b' : '#666666')};
+      : ('#666666')};
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -377,11 +377,11 @@ const ActionButton = styled.button<{ $active?: boolean }>`
   }
 
   &:hover {
-    background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'};
+    background: 'rgba(0,0,0,0.05)';
     color: ${({ $active, theme }) =>
       $active
         ? '#10b981'
-        : (theme.isDarkMode ? '#e0e0e0' : '#1a1a1a')};
+        : ('#1a1a1a')};
   }
 `;
 
@@ -410,37 +410,37 @@ const InputWrapper = styled.div`
 
 const InputField = styled.textarea`
   width: 100%;
-  padding: 16px 56px 16px 20px;
-  border: 1.5px solid ${({ theme }) => theme.isDarkMode ? '#334155' : 'rgba(226, 232, 240, 0.8)'};
+  padding: 14px 56px 14px 20px;
+  border: 1px solid #e2e8f0;
   border-radius: 28px;
-  font-size: 15px;
+  font-size: 14px;
   font-family: inherit;
   resize: none;
-  min-height: 56px;
+  min-height: 48px;
   max-height: 200px;
-  background: ${({ theme }) => theme.isDarkMode ? '#1e293b' : 'rgba(255, 255, 255, 0.98)'};
-  color: ${({ theme }) => theme.isDarkMode ? '#e2e8f0' : '#1e293b'};
+  background: #ffffff;
+  color: #1e293b;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   box-sizing: border-box;
 
   &:hover:not(:focus):not(:disabled) {
-    border-color: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
+    border-color: #cbd5e1;
   }
 
   &:focus {
     outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
+    border-color: #a78bfa;
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.15), 0 1px 3px rgba(0, 0, 0, 0.05);
   }
 
   &::placeholder {
-    color: ${({ theme }) => theme.isDarkMode ? '#64748b' : '#94a3b8'};
-    transition: color 0.2s ease;
+    color: #94a3b8;
+    font-size: 14px;
   }
 
   &:focus::placeholder {
-    color: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
+    color: #cbd5e1;
   }
 
   &:disabled {
@@ -450,21 +450,21 @@ const InputField = styled.textarea`
 
   @media (max-width: 768px) {
     font-size: 14px;
-    padding: 14px 52px 14px 18px;
-    min-height: 52px;
-    border-radius: 26px;
+    padding: 12px 52px 12px 16px;
+    min-height: 44px;
+    border-radius: 24px;
   }
 `;
 
 const SendButton = styled.button`
   position: absolute;
-  right: 10px;
+  right: 6px;
   top: 50%;
   transform: translateY(-50%);
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: #7c3aed;
   border: none;
   color: white;
   cursor: pointer;
@@ -472,41 +472,40 @@ const SendButton = styled.button`
   align-items: center;
   justify-content: center;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3);
 
   svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     stroke-width: 2.5;
   }
 
   &:hover:not(:disabled) {
-    background: linear-gradient(135deg, #5b5bf6 0%, #7c3aed 100%);
-    transform: translateY(-50%) scale(1.08);
-    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+    background: #6d28d9;
+    transform: translateY(-50%) scale(1.05);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
   }
 
   &:active:not(:disabled) {
     transform: translateY(-50%) scale(0.95);
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
   }
 
   &:disabled {
     opacity: 0.4;
     cursor: not-allowed;
     transform: translateY(-50%);
-    background: ${({ theme }) => theme.isDarkMode ? '#475569' : '#cbd5e1'};
+    background: #cbd5e1;
     box-shadow: none;
   }
 
   @media (max-width: 768px) {
-    width: 34px;
-    height: 34px;
-    right: 9px;
+    width: 32px;
+    height: 32px;
+    right: 6px;
 
     svg {
-      width: 16px;
-      height: 16px;
+      width: 14px;
+      height: 14px;
     }
   }
 `;
@@ -518,9 +517,9 @@ const ClearButton = styled.button`
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: ${({ theme }) => theme.isDarkMode ? '#1e293b' : '#ffffff'};
-  border: 1px solid ${({ theme }) => theme.isDarkMode ? '#334155' : '#e2e8f0'};
-  color: ${({ theme }) => theme.isDarkMode ? '#e2e8f0' : '#64748b'};
+  background: '#ffffff';
+  border: 1px solid '#e2e8f0';
+  color: '#64748b';
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -535,7 +534,7 @@ const ClearButton = styled.button`
   }
 
   &:hover {
-    background: ${({ theme }) => theme.isDarkMode ? '#334155' : '#f8fafc'};
+    background: '#f8fafc';
     transform: scale(1.05);
   }
 
@@ -549,40 +548,6 @@ const ClearButton = styled.button`
       width: 18px;
       height: 18px;
     }
-  }
-`;
-
-
-const SystemStatus = styled.div<{ $isReady: boolean }>`
-  position: absolute;
-  top: 16px;
-  right: 24px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: ${({ $isReady }) =>
-    $isReady
-      ? 'rgba(34, 197, 94, 0.1)'
-      : 'rgba(249, 115, 22, 0.1)'};
-  border: 1px solid ${({ $isReady }) =>
-    $isReady ? 'rgba(34, 197, 94, 0.3)' : 'rgba(249, 115, 22, 0.3)'};
-  font-size: 12px;
-  font-weight: 600;
-  color: ${({ $isReady }) => ($isReady ? '#22c55e' : '#f97316')};
-  z-index: 5;
-
-  svg {
-    width: 14px;
-    height: 14px;
-  }
-
-  @media (max-width: 768px) {
-    top: 12px;
-    right: 16px;
-    font-size: 11px;
-    padding: 6px 10px;
   }
 `;
 
@@ -614,8 +579,8 @@ const LoadingIndicator = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: ${({ theme }) => theme.isDarkMode ? 'rgba(30, 41, 59, 0.8)' : 'rgba(255, 255, 255, 0.95)'};
-    border: 1px solid ${({ theme }) => theme.isDarkMode ? '#334155' : '#e2e8f0'};
+    background: 'rgba(255, 255, 255, 0.95)';
+    border: 1px solid '#e2e8f0';
     border-radius: 4px 20px 20px 20px;
     padding: 16px 20px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -623,7 +588,7 @@ const LoadingIndicator = styled.div`
 
   .typing-text {
     font-size: 13px;
-    color: ${({ theme }) => theme.isDarkMode ? '#94a3b8' : '#64748b'};
+    color: '#64748b';
     font-weight: 500;
   }
 
@@ -727,18 +692,6 @@ export default function Home() {
         setDataDictionary(dictList || []);
         setFormCoverages(formCoverageList || []);
         setTasks(taskList || []);
-
-        // Log context data loading for debugging
-        console.log('📊 Context data loaded:', {
-          coverages: coverageList?.length || 0,
-          forms: formList?.length || 0,
-          rules: rulesList?.length || 0,
-          pricingSteps: pricingList?.length || 0,
-          dataDictionary: dictList?.length || 0,
-          formCoverages: formCoverageList?.length || 0,
-          tasks: taskList?.length || 0
-        });
-
       } catch (error) {
         logger.error(LOG_CATEGORIES.CACHE, 'Error fetching context data', { error });
       } finally {
@@ -956,14 +909,6 @@ export default function Home() {
         temperature: Number(AI_PARAMETERS.HOME_CHAT.temperature)
       };
 
-      console.log('🚀 Calling generateChatResponse with:', {
-        messagesCount: payload.messages.length,
-        model: payload.model,
-        maxTokens: payload.maxTokens,
-        temperature: payload.temperature,
-        contextSize: JSON.stringify(contextSummary).length
-      });
-
       const result = await generateChat(payload);
 
       if (!result.data.success) {
@@ -1064,21 +1009,6 @@ export default function Home() {
     <Page>
       <MainNavigation />
 
-      {/* System Status Indicator */}
-      <SystemStatus $isReady={isSystemReady}>
-        {isSystemReady ? (
-          <>
-            <CheckCircleIcon />
-            <span>System Ready</span>
-          </>
-        ) : (
-          <>
-            <ExclamationTriangleIcon />
-            <span>Loading...</span>
-          </>
-        )}
-      </SystemStatus>
-
       <MainContent id="main-content" $isEmpty={isEmpty}>
         {isEmpty ? (
           /* Centered Empty State with Input */
@@ -1087,14 +1017,10 @@ export default function Home() {
               <SparklesIcon />
               <h2>Product Hub Assistant</h2>
               <p>
-                Ask me anything about your insurance products, coverages, forms, pricing, rules, and tasks.
-                I have access to all your data and can provide comprehensive insights.
+                Ask me anything about your insurance products, coverages, forms,
+                pricing, rules, and tasks. I have access to all your data and can
+                provide comprehensive insights.
               </p>
-              {!isSystemReady && (
-                <p style={{ fontSize: '13px', marginTop: '8px' }}>
-                  Loading system data...
-                </p>
-              )}
             </EmptyState>
 
             {/* Centered Input */}

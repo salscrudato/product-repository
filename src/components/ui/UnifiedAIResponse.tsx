@@ -19,7 +19,7 @@ const ResponseContainer = styled.div`
   width: 100%;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   line-height: 1.6;
-  color: ${({ theme }) => theme.isDarkMode ? '#e4e4e7' : '#18181b'};
+  color: #18181b;
 
   /* Paragraphs */
   p {
@@ -37,7 +37,7 @@ const ResponseContainer = styled.div`
     margin: 1.5em 0 0.75em 0;
     font-weight: 600;
     line-height: 1.3;
-    color: ${({ theme }) => theme.isDarkMode ? '#fafafa' : '#09090b'};
+    color: #09090b;
 
     &:first-child {
       margin-top: 0;
@@ -87,8 +87,8 @@ const ResponseContainer = styled.div`
 
   /* Inline code */
   code {
-    background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'};
-    color: ${({ theme }) => theme.isDarkMode ? '#f472b6' : '#be185d'};
+    background: rgba(0,0,0,0.06);
+    color: #be185d;
     padding: 2px 6px;
     border-radius: 4px;
     font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', monospace;
@@ -98,16 +98,16 @@ const ResponseContainer = styled.div`
 
   /* Code blocks */
   pre {
-    background: ${({ theme }) => theme.isDarkMode ? '#1e1e1e' : '#f4f4f5'};
+    background: #f4f4f5;
     border-radius: 8px;
     padding: 16px;
     margin: 1em 0;
     overflow-x: auto;
-    border: 1px solid ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'};
+    border: 1px solid rgba(0,0,0,0.08);
 
     code {
       background: none;
-      color: ${({ theme }) => theme.isDarkMode ? '#d4d4d8' : '#3f3f46'};
+      color: #3f3f46;
       padding: 0;
       font-size: 0.85em;
       line-height: 1.6;
@@ -122,20 +122,20 @@ const ResponseContainer = styled.div`
     border-collapse: collapse;
     margin: 1em 0;
     font-size: 14px;
-    border: 1px solid ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
+    border: 1px solid rgba(0,0,0,0.1);
     border-radius: 8px;
     overflow: hidden;
 
     th, td {
       padding: 10px 14px;
       text-align: left;
-      border-bottom: 1px solid ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};
+      border-bottom: 1px solid rgba(0,0,0,0.06);
     }
 
     th {
       font-weight: 600;
-      background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'};
-      color: ${({ theme }) => theme.isDarkMode ? '#fafafa' : '#09090b'};
+      background: rgba(0,0,0,0.03);
+      color: #09090b;
     }
 
     tr:last-child td {
@@ -143,18 +143,18 @@ const ResponseContainer = styled.div`
     }
 
     tbody tr:hover {
-      background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'};
+      background: rgba(0,0,0,0.02);
     }
   }
 
   /* Blockquotes */
   blockquote {
-    border-left: 3px solid ${({ theme }) => theme.isDarkMode ? '#6366f1' : '#6366f1'};
-    background: ${({ theme }) => theme.isDarkMode ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.05)'};
+    border-left: 3px solid #6366f1;
+    background: rgba(99,102,241,0.05);
     padding: 12px 16px;
     margin: 1em 0;
     border-radius: 0 6px 6px 0;
-    color: ${({ theme }) => theme.isDarkMode ? '#a1a1aa' : '#52525b'};
+    color: #52525b;
 
     p {
       margin: 0;
@@ -177,7 +177,7 @@ const ResponseContainer = styled.div`
   /* Strong and emphasis */
   strong {
     font-weight: 600;
-    color: ${({ theme }) => theme.isDarkMode ? '#fafafa' : '#09090b'};
+    color: #09090b;
   }
 
   em {
@@ -188,7 +188,7 @@ const ResponseContainer = styled.div`
   hr {
     border: none;
     height: 1px;
-    background: ${({ theme }) => theme.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
+    background: rgba(0,0,0,0.1);
     margin: 1.5em 0;
   }
 

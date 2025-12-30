@@ -211,10 +211,10 @@ export const AIReviewSummary: React.FC<AIReviewSummaryProps> = ({ draft, onEditS
         </PublishConfidenceBar>
         <PublishConfidenceText $score={overallScore}>
           {overallScore >= 80
-            ? '✓ Ready to publish - all key fields are complete'
+            ? 'Ready to publish - all key fields are complete'
             : overallScore >= 60
-              ? '⚠ Almost ready - complete recommended fields for best results'
-              : '○ Not ready - complete required fields before publishing'}
+              ? 'Almost ready - complete recommended fields for best results'
+              : 'Not ready - complete required fields before publishing'}
         </PublishConfidenceText>
       </PublishConfidenceSection>
 

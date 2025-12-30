@@ -819,7 +819,7 @@ const Builder = () => {
         }
       }
 
-      // ✅ AUTO-ADD FORM: If form was uploaded, create form document and link to coverages
+      // AUTO-ADD FORM: If form was uploaded, create form document and link to coverages
       if (file && formDownloadUrl) {
         const newFormRef = await addDoc(collection(db, 'forms'), {
           formName: file.name.replace(/\.[^/.]+$/, ''), // Remove file extension
@@ -855,8 +855,6 @@ const Builder = () => {
           });
         }
         await batch.commit();
-
-        console.log(`✅ Form auto-added: ${newFormId} linked to ${newCoverageIdsList.length} coverages`);
       }
 
       // Navigate to product hub with the new product ID
@@ -1033,7 +1031,7 @@ const Builder = () => {
                       onChange={(e) => setFile(e.target.files?.[0] || null)}
                     />
                     <FileInputLabel htmlFor="form-file">
-                      {file ? `✓ ${file.name}` : '📄 Click to upload PDF form'}
+                      {file ? file.name : 'Click to upload PDF form'}
                     </FileInputLabel>
                   </FormGroup>
 

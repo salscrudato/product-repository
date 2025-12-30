@@ -193,60 +193,73 @@ export async function getUserActivity(
  * Helper to detect changes between old and new objects
  */
 export function detectChanges(
-  oldData: Record<string, any>,
-  newData: Record<string, any>,
+  oldData: Record<string, unknown>,
+  newData: Record<string, unknown>,
   fieldsToTrack?: string[]
-): { field: string; oldValue: any; newValue: any }[] {
-  const changes: { field: string; oldValue: any; newValue: any }[] = [];
-  
+): AuditChange[] {
+  const changes: AuditChange[] = [];
+
   const fields = fieldsToTrack || Object.keys({ ...oldData, ...newData });
-  
+
   for (const field of fields) {
     const oldValue = oldData[field];
     const newValue = newData[field];
-    
+
     // Skip if values are the same
     if (JSON.stringify(oldValue) === JSON.stringify(newValue)) {
       continue;
     }
-    
+
     // Skip internal fields
     if (field.startsWith('_') || field === 'updatedAt' || field === 'createdAt') {
       continue;
     }
-    
+
     changes.push({
       field,
       oldValue,
       newValue
     });
   }
-  
+
   return changes;
+}
+
+// Type for Firestore timestamp that may have toDate method
+interface FirestoreTimestamp {
+  toDate(): Date;
 }
 
 /**
  * Format audit entry for display
  */
 export function formatAuditEntry(entry: AuditLogEntry): string {
-  const timestamp = entry.timestamp?.toDate?.() || new Date();
+  // Handle Firestore timestamp which may be a FieldValue or have toDate method
+  let timestamp: Date;
+  const ts = entry.timestamp as unknown;
+  if (ts && typeof ts === 'object' && 'toDate' in ts && typeof (ts as FirestoreTimestamp).toDate === 'function') {
+    timestamp = (ts as FirestoreTimestamp).toDate();
+  } else {
+    timestamp = new Date();
+  }
+
   const date = timestamp.toLocaleDateString();
   const time = timestamp.toLocaleTimeString();
-  
+
   let message = `${date} ${time} - ${entry.userName || entry.userEmail} ${entry.action.toLowerCase()}d ${entry.entityType.toLowerCase()}`;
-  
+
   if (entry.entityName) {
     message += ` "${entry.entityName}"`;
   }
-  
+
   if (entry.changes && entry.changes.length > 0) {
     message += ` (${entry.changes.length} field${entry.changes.length > 1 ? 's' : ''} changed)`;
   }
-  
+
   if (entry.reason) {
     message += ` - Reason: ${entry.reason}`;
   }
-  
+
   return message;
 }
 

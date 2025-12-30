@@ -25,7 +25,7 @@ import {
   BanknotesIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
-import { CoverageDeductible } from '@types';
+import { CoverageDeductible } from '@app-types';
 import { useCoverageData } from '@hooks/useCoverageData';
 import { DeductibleTypeSelector } from '../selectors/DeductibleTypeSelector';
 import { validateCoverageDeductible, formatValidationResult } from '@services/validationService';

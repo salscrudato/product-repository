@@ -38,7 +38,7 @@ export const timestampToDate = (timestamp: TimestampLike): Date | null => {
   return null;
 };
 
-type DateFormat = 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'MMM DD, YYYY' | 'MMMM DD, YYYY';
+type DateFormat = 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'MMM DD, YYYY' | 'MMMM DD, YYYY' | 'MM/YY';
 
 /**
  * Convert Firestore Timestamp to formatted date string
@@ -66,6 +66,8 @@ export const formatFirestoreDate = (timestamp: TimestampLike, format: DateFormat
       return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     case 'MMMM DD, YYYY':
       return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    case 'MM/YY':
+      return `${month}/${String(year).slice(-2)}`;
     default:
       return `${month}/${day}/${year}`;
   }

@@ -99,7 +99,6 @@ const loadPdfJs = async () => {
       pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
     }
 
-    // PDF.js loaded successfully (removed console.log to reduce noise)
     return pdfjsLib;
   } catch (error) {
     console.error('Failed to load PDF.js:', error);
@@ -138,17 +137,9 @@ const cleanupCache = () => {
 export async function extractPdfText(source, timeout = 30000) {
   const cacheKey = typeof source === 'string' ? source : `file_${source.name}_${source.size}`;
 
-  console.log('🔍 extractPdfText called with:', {
-    sourceType: typeof source,
-    isString: typeof source === 'string',
-    source: typeof source === 'string' ? source.substring(0, 100) : 'File object',
-    cacheKey: cacheKey.substring(0, 100)
-  });
-
   // Check cache first
   const cached = pdfCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log('✅ PDF cache hit, returning cached text');
     return cached.text;
   }
 
@@ -168,7 +159,6 @@ export async function extractPdfText(source, timeout = 30000) {
 
       // Check if source is a Firebase Storage path or already a download URL
       if (!source.startsWith('http://') && !source.startsWith('https://')) {
-        console.log('📁 Source is a Firebase Storage path, getting download URL...');
         // It's a Firebase Storage path, get the download URL
         url = await Promise.race([
           getDownloadURL(ref(storage, source)),
@@ -176,12 +166,8 @@ export async function extractPdfText(source, timeout = 30000) {
             setTimeout(() => reject(new Error('Firebase URL fetch timeout')), urlTimeout)
           )
         ]);
-        console.log('✅ Got download URL:', url.substring(0, 100));
-      } else {
-        console.log('🌐 Source is already a URL, using directly');
       }
 
-      console.log('⬇️ Fetching PDF from URL...');
       const response = await Promise.race([
         fetch(url),
         new Promise((_, reject) =>
@@ -189,31 +175,21 @@ export async function extractPdfText(source, timeout = 30000) {
         )
       ]);
 
-      console.log('📦 Fetch response:', {
-        ok: response.ok,
-        status: response.status,
-        statusText: response.statusText,
-        contentType: response.headers.get('content-type')
-      });
-
       if (!response.ok) {
         throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
       }
 
-      console.log('📥 Downloading PDF data...');
       pdfData = await Promise.race([
         response.arrayBuffer(),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error('PDF download timeout')), fetchTimeout)
         )
       ]);
-      console.log('✅ PDF data downloaded:', pdfData.byteLength, 'bytes');
     } else {
       // File object
       pdfData = await source.arrayBuffer();
     }
 
-    console.log('📖 Parsing PDF document...');
     pdf = await Promise.race([
       pdfjsLib.getDocument({
         data: new Uint8Array(pdfData),
@@ -227,16 +203,9 @@ export async function extractPdfText(source, timeout = 30000) {
       )
     ]);
 
-    console.log('✅ PDF parsed successfully:', {
-      numPages: pdf.numPages,
-      fingerprint: pdf.fingerprints?.[0]?.substring(0, 20)
-    });
-
     let text = '';
     const maxPages = Math.min(pdf.numPages, 50); // Limit to 50 pages to prevent memory issues
     const pages = [];
-
-    console.log(`📄 Extracting text from ${maxPages} pages...`);
 
     // Process pages in batches to manage memory
     const batchSize = 5;
@@ -282,12 +251,6 @@ export async function extractPdfText(source, timeout = 30000) {
     }
 
     const finalText = text.trim();
-
-    console.log('✅ Text extraction complete:', {
-      textLength: finalText.length,
-      firstChars: finalText.substring(0, 100),
-      isEmpty: finalText.length === 0
-    });
 
     // Cache the result
     pdfCache.set(cacheKey, {

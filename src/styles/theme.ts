@@ -341,16 +341,4 @@ export const theme = {
     away: '#fb923c',
     error: '#ef4444',
   },
-
-  /** Dark mode preparation - color mappings */
-  darkMode: {
-    background: '#0f172a',
-    backgroundAlt: '#1e293b',
-    backgroundElevated: '#334155',
-    text: '#f1f5f9',
-    textSecondary: '#94a3b8',
-    textMuted: '#64748b',
-    border: '#334155',
-    borderLight: '#475569',
-  },
 };

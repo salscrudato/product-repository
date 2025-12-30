@@ -391,7 +391,7 @@ const App: React.FC = () => {
     try {
       initBundleOptimizations();
       // Single consolidated log for app initialization
-      console.log(`🚀 App initialized (${env.NODE_ENV})`);
+      console.log(`[OK] App initialized (${env.NODE_ENV})`);
     } catch (error) {
       logger.error(LOG_CATEGORIES.ERROR, 'App initialization failed', {
         environment: env.NODE_ENV

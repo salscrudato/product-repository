@@ -250,7 +250,7 @@ export default function ProductExplorer() {
         {searchQuery && (
           <SearchInfo>
             <span>
-              🔍 Showing all related items for "{searchQuery}" - click any item to auto-select its dependencies
+              Showing all related items for "{searchQuery}" - click any item to auto-select its dependencies
             </span>
             <ClearSearchButton onClick={() => setSearchQuery('')}>
               Clear search

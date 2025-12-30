@@ -10,7 +10,6 @@ export { DepreciationMethodSelector } from './DepreciationMethodSelector';
 export { LimitTypeSelector } from './LimitTypeSelector';
 export { TerritorySelector } from './TerritorySelector';
 export { UnderwritingApprovalSelector } from './UnderwritingApprovalSelector';
-export { ValuationMethodChips } from './ValuationMethodChips';
 export { ValuationMethodSelector } from './ValuationMethodSelector';
 
 // Limit Options Selectors
