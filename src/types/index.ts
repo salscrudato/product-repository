@@ -19,6 +19,9 @@ export * from './deductibleOptions';
 // Re-export coverage configuration types
 export * from './coverageConfig';
 
+// Re-export programmable rules DSL types
+export * from './rulesDsl';
+
 // ============================================================================
 // Product Types
 // ============================================================================
@@ -931,6 +934,26 @@ export interface Rule {
   createdBy?: string;
   updatedBy?: string;
   changeReason?: string;
+
+  // ========== Programmable Rule Fields (New) ==========
+
+  /**
+   * Programmable rule logic structure (IF/THEN DSL)
+   * When present, the rule can be evaluated by the rule engine
+   */
+  logic?: import('./rulesDsl').RuleLogic;
+
+  /**
+   * Original plain English text used to generate this rule
+   * Stored for reference and re-generation
+   */
+  sourceText?: string;
+
+  /**
+   * AI generation metadata
+   * Tracks whether rule was AI-generated and confidence scores
+   */
+  ai?: import('./rulesDsl').RuleAIMetadata;
 }
 
 

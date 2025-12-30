@@ -49,10 +49,14 @@ const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 /**
  * Generate cache key
+ * Uses more of the content to avoid collisions with long system prompts
  */
 const getCacheKey = (type, content, prompt) => {
+  // Use a larger portion of content and include the end to capture unique user messages
+  const contentStart = content.substring(0, 2000);
+  const contentEnd = content.length > 2000 ? content.substring(content.length - 1000) : '';
   const hash = crypto.createHash('md5')
-    .update(type + content.substring(0, 1000) + (prompt || ''))
+    .update(type + contentStart + contentEnd + (prompt || ''))
     .digest('hex');
   return hash;
 };
@@ -198,6 +202,7 @@ exports.generateProductSummary = onCall({ secrets: [openaiKey] }, async (request
 /**
  * Generate chat response
  * COMPLETE: Full context support, generous token limits, cost-effective model
+ * NOTE: No caching for multi-turn conversations to ensure fresh responses
  */
 exports.generateChatResponse = onCall({ secrets: [openaiKey] }, async (request) => {
   const startTime = Date.now();
@@ -213,13 +218,8 @@ exports.generateChatResponse = onCall({ secrets: [openaiKey] }, async (request) 
     // Use gpt-4o-mini for cost savings, but allow full token output
     const effectiveMaxTokens = maxTokens || config.maxTokens;
 
-    // Check cache for identical conversations
-    const conversationKey = getCacheKey('chat', JSON.stringify(messages), '');
-    const cached = getFromCache(conversationKey);
-    if (cached) {
-      console.log(`✅ Chat cache hit - ${Date.now() - startTime}ms`);
-      return { ...cached, fromCache: true };
-    }
+    // NO CACHING for chat - conversations are dynamic and unique
+    // Caching causes issues with multi-turn conversations where context matters
 
     const apiKey = openaiKey.value()?.trim();
     if (!apiKey) {
@@ -233,6 +233,9 @@ exports.generateChatResponse = onCall({ secrets: [openaiKey] }, async (request) 
         ? smartTruncate(msg.content, AI_CONFIG.maxInputChars.chat)
         : msg.content
     }));
+
+    // Debug log for conversation context
+    console.log(`📝 Chat request - ${messages.length} messages, temp=${temperature}`);
 
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: config.model,
@@ -254,9 +257,6 @@ exports.generateChatResponse = onCall({ secrets: [openaiKey] }, async (request) 
       model: config.model,
       latencyMs: Date.now() - startTime
     };
-
-    // Cache for repeated questions
-    setCache(conversationKey, result);
 
     console.log(`✅ Chat response - ${result.latencyMs}ms, ${response.data.usage?.total_tokens} tokens`);
     return result;

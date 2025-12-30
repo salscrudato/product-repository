@@ -4,7 +4,6 @@ import styled from 'styled-components';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
-import { CoverageSnapshot } from '@components/common/CoverageSnapshot';
 import type { Rule, Coverage, PricingStep } from '@/types';
 import {
   PlusIcon,
@@ -16,12 +15,6 @@ import {
   Cog6ToothIcon,
   ShieldCheckIcon,
   DocumentTextIcon,
-
-  Squares2X2Icon,
-  TableCellsIcon,
-  ListBulletIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
   TagIcon,
   BuildingOfficeIcon,
   CurrencyDollarIcon
@@ -30,6 +23,11 @@ import {
 import MainNavigation from '../components/ui/Navigation';
 import { PageContainer, PageContent } from '../components/ui/PageContainer';
 import EnhancedHeader from '../components/ui/EnhancedHeader';
+import { RuleBuilderChat } from './rules/RuleBuilderChat';
+import { RuleLogicViewer } from './rules/RuleLogicViewer';
+import { SparklesIcon } from '@heroicons/react/24/outline';
+import { saveRuleFromDraft } from '../services/ruleBuilderService';
+import type { RuleDraft, RuleLogic } from '../types';
 
 
 /* ---------- Modern Styled Components ---------- */
@@ -39,65 +37,6 @@ import { keyframes } from 'styled-components';
 const slideIn = keyframes`
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
-`;
-
-// Rules Stats Dashboard
-const RulesStatsDashboard = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-  animation: ${slideIn} 0.4s ease-out;
-`;
-
-const RulesStatCard = styled.div<{ $color?: string }>`
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: ${({ $color }) => $color || 'linear-gradient(90deg, #6366f1, #8b5cf6)'};
-  }
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-    border-color: transparent;
-  }
-`;
-
-const RulesStatValue = styled.div`
-  font-size: 28px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 4px;
-  letter-spacing: -0.02em;
-`;
-
-const RulesStatLabel = styled.div`
-  font-size: 13px;
-  font-weight: 500;
-  color: #64748b;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-
-  svg {
-    width: 14px;
-    height: 14px;
-    opacity: 0.7;
-  }
 `;
 
 // Main Container
@@ -186,22 +125,77 @@ const PageTitle = styled.h1`
   letter-spacing: -0.02em;
 `;
 
-// Search Container
-const SearchContainer = styled.div`
+// Command Bar - Apple-inspired search + actions bar (matching CoverageScreen)
+const CommandBar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 32px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
   position: relative;
-  margin-bottom: 24px;
-  max-width: 500px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.2) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
 `;
 
-const SearchInput = styled.input`
+const CommandBarLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const CommandBarCenter = styled.div`
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  max-width: 480px;
+  min-width: 200px;
+`;
+
+const CommandBarRight = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const SearchWrapper = styled.div`
+  position: relative;
   width: 100%;
-  padding: 12px 16px 12px 44px;
-  font-size: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 12px;
+`;
+
+const SearchInputStyled = styled.input`
+  width: 100%;
+  padding: 10px 16px 10px 42px;
+  font-size: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  transition: all 0.3s ease;
+  color: #1e293b;
+  transition: all 0.2s ease;
 
   &:focus {
     outline: none;
@@ -215,53 +209,60 @@ const SearchInput = styled.input`
   }
 `;
 
-const SearchIcon = styled.div`
+const SearchIconWrapper = styled.div`
   position: absolute;
   left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: #8e8e93;
   pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
   }
 `;
 
-// Enhanced Filter Controls
-const FilterContainer = styled.div`
+const CopilotButton = styled.button`
   display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
   align-items: center;
-`;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 
-const FilterRow = styled.div`
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  align-items: center;
-  width: 100%;
-  margin-bottom: 16px;
+  svg {
+    width: 18px;
+    height: 18px;
+  }
 
-  &:last-child {
-    margin-bottom: 0;
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
   }
 `;
 
 const FilterSelect = styled.select`
   padding: 8px 12px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.6);
   border-radius: 8px;
   background: white;
-  font-size: 14px;
+  font-size: 13px;
   color: #374151;
   cursor: pointer;
   transition: all 0.2s ease;
-  height: 40px;
-  min-width: 140px;
+  height: 38px;
+  min-width: 130px;
 
   &:focus {
     outline: none;
@@ -272,9 +273,8 @@ const FilterSelect = styled.select`
 
 const FilterLabel = styled.label`
   font-size: 13px;
-  font-weight: 600;
-  color: #374151;
-  margin-right: 8px;
+  font-weight: 500;
+  color: #64748b;
   white-space: nowrap;
 `;
 
@@ -282,105 +282,13 @@ const FilterGroup = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.8);
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
 `;
-
-
-
-const ViewModeToggle = styled.div`
-  display: flex;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 8px;
-  padding: 4px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-`;
-
-const ViewModeButton = styled.button.withConfig({
-  shouldForwardProp: (prop) => !['active'].includes(prop),
-})`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 6px;
-  background: ${({ active }) => active ? '#6366f1' : 'transparent'};
-  color: ${({ active }) => active ? 'white' : '#64748b'};
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: ${({ active }) => active ? '#5b5bd6' : 'rgba(99, 102, 241, 0.1)'};
-    color: ${({ active }) => active ? 'white' : '#6366f1'};
-  }
-
-  svg {
-    width: 14px;
-    height: 14px;
-  }
-`;
-
-const SortControls = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-`;
-
-const SortSelect = styled.select`
-  padding: 6px 10px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 6px;
-  background: white;
-  font-size: 13px;
-  color: #374151;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:focus {
-    outline: none;
-    border-color: #6366f1;
-  }
-`;
-
-const SortOrderButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 6px;
-  background: white;
-  color: #6b7280;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: #6366f1;
-    background: rgba(99, 102, 241, 0.05);
-    color: #6366f1;
-  }
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-`;
-
-
 
 // Toggle Switch for Proprietary Filter
 const ToggleContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
 `;
 
 const ToggleLabel = styled.span`
@@ -389,24 +297,24 @@ const ToggleLabel = styled.span`
   color: #374151;
 `;
 
-const ToggleSwitch = styled.div`
+const ToggleSwitch = styled.div<{ $active?: boolean }>`
   position: relative;
   width: 44px;
   height: 24px;
-  background: ${props => props.active ? '#6366f1' : '#e5e7eb'};
+  background: ${props => props.$active ? '#6366f1' : '#e5e7eb'};
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background: ${props => props.active ? '#5b5bd6' : '#d1d5db'};
+    background: ${props => props.$active ? '#5b5bd6' : '#d1d5db'};
   }
 `;
 
-const ToggleKnob = styled.div`
+const ToggleKnob = styled.div<{ $active?: boolean }>`
   position: absolute;
   top: 2px;
-  left: ${props => props.active ? '22px' : '2px'};
+  left: ${props => props.$active ? '22px' : '2px'};
   width: 20px;
   height: 20px;
   background: white;
@@ -793,6 +701,34 @@ const EmptyStateText = styled.p`
   line-height: 1.5;
 `;
 
+// AI Builder Container
+const AIBuilderContainer = styled.div`
+  height: 600px;
+  margin-bottom: 24px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+`;
+
+// Rule Logic Badge
+const LogicBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  color: #6366f1;
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+`;
+
 /**
  * Memoized Rule Card Item Component
  * Prevents unnecessary re-renders when parent component updates
@@ -819,6 +755,12 @@ const RuleCardItem = React.memo(({
       <CardTitleContainer>
         <CardTitle>
           {rule.name || 'Unnamed Rule'}
+          {rule.logic && (
+            <LogicBadge title="This rule has programmable logic">
+              <SparklesIcon />
+              AI
+            </LogicBadge>
+          )}
         </CardTitle>
         <CardSubtitle>
           <span>{getProductName(rule.productId)}</span>
@@ -932,10 +874,6 @@ export default function RulesScreen() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
   const [selectedCoverageName, setSelectedCoverageName] = useState('');
-  const [selectedCoverageData, setSelectedCoverageData] = useState<any>(null);
-  const [parentCoverageData, setParentCoverageData] = useState<any>(null);
-  const [coverageFormsCount, setCoverageFormsCount] = useState(0);
-  const [coverageStatesCount, setCoverageStatesCount] = useState(0);
 
   // Enhanced form state with comprehensive rule structure
   const [formData, setFormData] = useState({
@@ -963,11 +901,10 @@ export default function RulesScreen() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProductFilter, setSelectedProductFilter] = useState('');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState('');
+
+  // AI Rule Builder state
+  const [showAIBuilder, setShowAIBuilder] = useState(false);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState('');
-  const [sortBy, setSortBy] = useState('name');
-  const [sortOrder, setSortOrder] = useState('asc');
-  const [viewMode, setViewMode] = useState('cards'); // 'cards', 'table', 'hierarchy'
   const searchRef = useRef(null);
 
   // Load data on mount
@@ -1001,28 +938,13 @@ export default function RulesScreen() {
           loadPricingStepsForProduct(preselectedProductId);
         }
 
-        // If we have a preselected coverage, load full coverage data for snapshot
+        // If we have a preselected coverage, load coverage name for title
         if (preselectedProductId && preselectedCoverageId) {
           const coverageDocRef = doc(db, `products/${preselectedProductId}/coverages`, preselectedCoverageId);
           const coverageSnap = await getDoc(coverageDocRef);
           if (coverageSnap.exists()) {
-            const coverageData = { id: coverageSnap.id, ...coverageSnap.data() };
+            const coverageData = coverageSnap.data();
             setSelectedCoverageName(coverageData.name || 'Unknown Coverage');
-            setSelectedCoverageData(coverageData);
-            setCoverageStatesCount((coverageData.states || []).length);
-
-            // Load parent coverage if exists
-            if (coverageData.parentCoverageId) {
-              const parentRef = doc(db, `products/${preselectedProductId}/coverages`, coverageData.parentCoverageId);
-              const parentSnap = await getDoc(parentRef);
-              if (parentSnap.exists()) {
-                setParentCoverageData({ id: parentSnap.id, ...parentSnap.data() });
-              }
-            }
-
-            // Load forms count for this coverage
-            const formsSnap = await getDocs(collection(db, `products/${preselectedProductId}/coverages/${preselectedCoverageId}/forms`));
-            setCoverageFormsCount(formsSnap.size);
           }
         }
       } catch (error) {
@@ -1082,11 +1004,6 @@ export default function RulesScreen() {
       filtered = filtered.filter(rule => rule.ruleCategory === selectedCategoryFilter);
     }
 
-    // Status filter
-    if (selectedStatusFilter) {
-      filtered = filtered.filter(rule => rule.status === selectedStatusFilter);
-    }
-
     // Type filter (proprietary/standard)
     if (selectedTypeFilter === 'proprietary') {
       filtered = filtered.filter(rule => rule.proprietary);
@@ -1094,26 +1011,16 @@ export default function RulesScreen() {
       filtered = filtered.filter(rule => !rule.proprietary);
     }
 
-    // Sorting
+    // Sort by name
     filtered.sort((a, b) => {
-      let aValue = a[sortBy] || '';
-      let bValue = b[sortBy] || '';
-
-      if (typeof aValue === 'string') {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
-      }
-
-      if (sortOrder === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
+      const aName = (a.name || '').toLowerCase();
+      const bName = (b.name || '').toLowerCase();
+      return aName.localeCompare(bName);
     });
 
     return filtered;
-  }, [rules, searchTerm, selectedProductFilter, selectedCategoryFilter, selectedStatusFilter,
-      selectedTypeFilter, sortBy, sortOrder, preselectedProductId, preselectedCoverageId]);
+  }, [rules, searchTerm, selectedProductFilter, selectedCategoryFilter,
+      selectedTypeFilter, preselectedProductId, preselectedCoverageId]);
 
   // Get unique products for filter (memoized to prevent unnecessary re-renders)
   const uniqueProducts = useMemo(
@@ -1231,6 +1138,66 @@ export default function RulesScreen() {
       targetId: ''
     }));
   };
+
+  // Handle saving a rule from the AI builder
+  const handleSaveAIRule = async (draft: RuleDraft): Promise<void> => {
+    const productIdToUse = preselectedProductId || selectedProductFilter;
+    if (!productIdToUse) {
+      alert('Please select a product first.');
+      return;
+    }
+
+    // If we're on a coverage-specific page, ensure the rule is linked to this coverage
+    const enhancedDraft = { ...draft };
+    if (preselectedCoverageId) {
+      enhancedDraft.ruleType = 'Coverage';
+      enhancedDraft.targetId = preselectedCoverageId;
+    }
+
+    const result = await saveRuleFromDraft(productIdToUse, enhancedDraft);
+    if (result.success && result.ruleId) {
+      // Optimistically add the new rule to state for instant feedback
+      const newRule = {
+        id: result.ruleId,
+        productId: productIdToUse,
+        ruleType: enhancedDraft.ruleType,
+        ruleCategory: enhancedDraft.ruleCategory,
+        targetId: enhancedDraft.targetId || '',
+        name: enhancedDraft.name,
+        condition: enhancedDraft.conditionText || '',
+        outcome: enhancedDraft.outcomeText || '',
+        proprietary: enhancedDraft.proprietary ?? false,
+        status: enhancedDraft.status || 'Active',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      setRules(prevRules => [...prevRules, newRule] as any);
+    } else if (!result.success) {
+      alert(result.error || 'Failed to save rule');
+    }
+  };
+
+  // Get product context for AI builder (includes current coverage context if applicable)
+  const getProductContext = useCallback(() => {
+    const productIdToUse = preselectedProductId || selectedProductFilter;
+    if (!productIdToUse) return undefined;
+
+    const product = products.find((p: any) => p.id === productIdToUse);
+
+    // If we're on a coverage-specific page, highlight that coverage in context
+    const currentCoverage = preselectedCoverageId
+      ? coverages.find((c: any) => c.id === preselectedCoverageId)
+      : null;
+
+    return {
+      name: product?.name,
+      lineOfBusiness: product?.lineOfBusiness,
+      coverages: coverages.map((c: any) => ({ id: c.id, name: c.name })),
+      forms: forms.map((f: any) => ({ id: f.id, name: f.name })),
+      // Include current coverage context for better AI understanding
+      currentCoverage: currentCoverage ? { id: currentCoverage.id, name: currentCoverage.name } : undefined,
+    };
+  }, [preselectedProductId, selectedProductFilter, products, coverages, forms, preselectedCoverageId]);
 
   const handleSave = async () => {
     // Validation
@@ -1355,55 +1322,11 @@ export default function RulesScreen() {
           icon={Cog6ToothIcon}
           showBackButton={!!preselectedProductId || !!preselectedCoverageId}
           onBackClick={() => navigate(-1)}
-          searchProps={{
-            placeholder: preselectedCoverageId
-              ? "Search rules for this coverage..."
-              : preselectedProductId
-              ? "Search coverage and form rules..."
-              : "Search rules by name, category, condition, or outcome...",
-            value: searchTerm,
-            onChange: (e) => setSearchTerm(e.target.value)
-          }}
         />
 
-        {/* Coverage Context Snapshot - show when viewing rules for a specific coverage */}
-        {preselectedCoverageId && selectedCoverageData && (
-          <div style={{ marginBottom: 24 }}>
-            <CoverageSnapshot
-              name={selectedCoverageData.name}
-              coverageCode={selectedCoverageData.coverageCode}
-              isOptional={selectedCoverageData.isOptional}
-              productName={getProductName(preselectedProductId)}
-              parentCoverageName={parentCoverageData?.name}
-              statesCount={coverageStatesCount}
-              formsCount={coverageFormsCount}
-              rulesCount={filteredRules.length}
-              triggerLabel={selectedCoverageData.coverageTrigger}
-              valuationLabel={selectedCoverageData.valuationMethod}
-              territoryLabel={selectedCoverageData.territory}
-              coinsuranceLabel={selectedCoverageData.coinsurance}
-              waitingPeriodLabel={selectedCoverageData.waitingPeriod}
-            />
-          </div>
-        )}
-
-        <FilterContainer>
-          <FilterRow>
-            <FilterGroup>
-              <FilterLabel>Product:</FilterLabel>
-              <FilterSelect
-                value={selectedProductFilter}
-                onChange={(e) => setSelectedProductFilter(e.target.value)}
-              >
-                <option value="">All Products</option>
-                {uniqueProducts.map(product => (
-                  <option key={product.id} value={product.id}>
-                    {product.name}
-                  </option>
-                ))}
-              </FilterSelect>
-            </FilterGroup>
-
+        {/* Command Bar with Search, Filters, and AI Builder */}
+        <CommandBar>
+          <CommandBarLeft>
             <FilterGroup>
               <FilterLabel>Category:</FilterLabel>
               <FilterSelect
@@ -1419,78 +1342,54 @@ export default function RulesScreen() {
               </FilterSelect>
             </FilterGroup>
 
-            <FilterGroup>
-              <FilterLabel>Status:</FilterLabel>
-              <FilterSelect
-                value={selectedStatusFilter}
-                onChange={(e) => setSelectedStatusFilter(e.target.value)}
-              >
-                <option value="">All Statuses</option>
-                {statuses.map(status => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </FilterSelect>
-            </FilterGroup>
-
             <ToggleContainer>
               <ToggleLabel>Proprietary</ToggleLabel>
               <ToggleSwitch
-                active={selectedTypeFilter === 'proprietary'}
+                $active={selectedTypeFilter === 'proprietary'}
                 onClick={() => setSelectedTypeFilter(selectedTypeFilter === 'proprietary' ? '' : 'proprietary')}
               >
-                <ToggleKnob active={selectedTypeFilter === 'proprietary'} />
+                <ToggleKnob $active={selectedTypeFilter === 'proprietary'} />
               </ToggleSwitch>
             </ToggleContainer>
+          </CommandBarLeft>
 
+          <CommandBarCenter>
+            <SearchWrapper>
+              <SearchIconWrapper>
+                <MagnifyingGlassIcon />
+              </SearchIconWrapper>
+              <SearchInputStyled
+                type="text"
+                placeholder={preselectedCoverageId
+                  ? "Search rules for this coverage..."
+                  : preselectedProductId
+                  ? "Search coverage and form rules..."
+                  : "Search rules..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </SearchWrapper>
+          </CommandBarCenter>
 
+          <CommandBarRight>
+            <CopilotButton onClick={() => setShowAIBuilder(!showAIBuilder)}>
+              <SparklesIcon />
+              {showAIBuilder ? 'Hide AI Builder' : 'AI Rule Builder'}
+            </CopilotButton>
+          </CommandBarRight>
+        </CommandBar>
 
-            <SortControls>
-              <FilterLabel>Sort:</FilterLabel>
-              <SortSelect
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                <option value="name">Name</option>
-                <option value="status">Status</option>
-                <option value="ruleCategory">Category</option>
-                <option value="updatedAt">Updated</option>
-              </SortSelect>
-              <SortOrderButton
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              >
-                {sortOrder === 'asc' ? <ArrowUpIcon /> : <ArrowDownIcon />}
-              </SortOrderButton>
-            </SortControls>
-
-            <ViewModeToggle>
-              <ViewModeButton
-                active={viewMode === 'cards'}
-                onClick={() => setViewMode('cards')}
-              >
-                <Squares2X2Icon />
-                Cards
-              </ViewModeButton>
-              <ViewModeButton
-                active={viewMode === 'table'}
-                onClick={() => setViewMode('table')}
-              >
-                <TableCellsIcon />
-                Table
-              </ViewModeButton>
-              <ViewModeButton
-                active={viewMode === 'hierarchy'}
-                onClick={() => setViewMode('hierarchy')}
-              >
-                <ListBulletIcon />
-                Hierarchy
-              </ViewModeButton>
-            </ViewModeToggle>
-          </FilterRow>
-
-
-        </FilterContainer>
+        {/* AI Rule Builder Chat */}
+        {showAIBuilder && (
+          <AIBuilderContainer>
+            <RuleBuilderChat
+              productId={preselectedProductId || selectedProductFilter || ''}
+              targetId={preselectedCoverageId || undefined}
+              productContext={getProductContext()}
+              onSaveRule={handleSaveAIRule}
+            />
+          </AIBuilderContainer>
+        )}
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: '#6b7280' }}>

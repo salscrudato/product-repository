@@ -88,3 +88,16 @@ export { stateAvailabilityService } from './stateAvailabilityService';
 // Data Services
 // ============================================================================
 export { dataDictionaryService } from './dataDictionaryService';
+
+// ============================================================================
+// Rule Builder Service - AI-powered programmable rules
+// ============================================================================
+export {
+  generateRuleFromText,
+  saveRuleFromDraft,
+  updateRuleLogic,
+  refineRule,
+  evaluateRule,
+  type RuleBuilderRequest,
+  type RuleBuilderResponse,
+} from './ruleBuilderService';
