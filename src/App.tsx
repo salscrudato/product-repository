@@ -2,6 +2,7 @@ import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from 'styled-components';
 import styled from 'styled-components';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { GlobalStyle } from './styles/GlobalStyle';
 import { theme } from './styles/theme';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -11,6 +12,8 @@ import { PageLoadingSpinner } from './components/ui/LoadingSpinner';
 import { ToastProvider } from './components/common/Toast';
 import { StatusAnnouncerProvider } from './components/common/StatusAnnouncer';
 import { RouteProgressProvider } from './components/ui/RouteProgress';
+import { RoleProvider } from './context/RoleContext';
+import { queryClient } from './lib/queryClient';
 
 // Skip to content link for accessibility
 const SkipLink = styled.a`
@@ -132,6 +135,16 @@ const QuoteSandbox = createOptimizedLazyComponent(
   () => import('./pages/QuoteSandbox'),
   { chunkName: 'QuoteSandbox', fallback: <LoadingSpinner /> }
 );
+const RoleManagement = createOptimizedLazyComponent(
+  () => import('./components/admin/RoleManagement'),
+  { chunkName: 'RoleManagement', fallback: <LoadingSpinner /> }
+);
+
+// Lazy load CommandPalette
+const CommandPalette = createOptimizedLazyComponent(
+  () => import('./components/CommandPalette'),
+  { chunkName: 'CommandPalette', fallback: null }
+);
 
 // ──────────────────────────────────────────────────────────────
 // HistoryWrapper – provides floating toggle + Version sidebar
@@ -139,6 +152,11 @@ const QuoteSandbox = createOptimizedLazyComponent(
 const HistoryWrapper: React.FC = () => {
   return (
     <>
+      {/* Command Palette - Global Search */}
+      <Suspense fallback={null}>
+        <CommandPalette />
+      </Suspense>
+
       {/* Primary route tree */}
       <Routes>
         {/* public */}
@@ -372,6 +390,18 @@ const HistoryWrapper: React.FC = () => {
           }
         />
 
+        {/* Admin routes */}
+        <Route
+          path="/admin/roles"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<LoadingSpinner />}>
+                <RoleManagement />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+
         {/* catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -401,20 +431,24 @@ const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <ThemeProvider theme={theme}>
-        <GlobalStyle />
-        <SkipLink href="#main-content">Skip to main content</SkipLink>
-        <StatusAnnouncerProvider>
-          <ToastProvider>
-            <RouteProgressProvider>
-              <ConnectionStatus />
-              <Router>
-                <HistoryWrapper />
-              </Router>
-            </RouteProgressProvider>
-          </ToastProvider>
-        </StatusAnnouncerProvider>
-      </ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider theme={theme}>
+          <GlobalStyle />
+          <SkipLink href="#main-content">Skip to main content</SkipLink>
+          <RoleProvider>
+            <StatusAnnouncerProvider>
+              <ToastProvider>
+                <RouteProgressProvider>
+                  <ConnectionStatus />
+                  <Router>
+                    <HistoryWrapper />
+                  </Router>
+                </RouteProgressProvider>
+              </ToastProvider>
+            </StatusAnnouncerProvider>
+          </RoleProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 };

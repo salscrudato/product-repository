@@ -4,7 +4,7 @@
  */
 
 const admin = require('firebase-admin');
-const { onCall } = require('firebase-functions/v2/https');
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const axios = require('axios');
 const pdfParse = require('pdf-parse');
@@ -103,9 +103,14 @@ async function createFinalizedProduct(productData, userId) {
  * Create product from PDF using AI analysis
  */
 exports.createProductFromPDF = onCall({ secrets: [openaiKey] }, async (request) => {
+  // Authentication required
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication required');
+  }
+
   try {
     const { storagePath } = request.data;
-    const userId = request.auth?.uid || 'anonymous';
+    const userId = request.auth.uid;
 
     if (!storagePath) {
       throw new Error('storagePath is required');

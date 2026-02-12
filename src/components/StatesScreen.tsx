@@ -1,111 +1,224 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '@/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
-import styled, { keyframes } from 'styled-components';
-import { Page, Container } from '@components/ui/Layout';
-import { Button } from '@components/ui/Button';
-import { TextInput } from '@components/ui/Input';
-import { ArrowLeftIcon, MapIcon } from '@heroicons/react/24/solid';
-import MainNavigation from '@components/ui/Navigation';
-
+import styled, { keyframes, css } from 'styled-components';
+import {
+  ChevronLeftIcon,
+  CheckIcon,
+  MapPinIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
+import { CheckCircleIcon as CheckCircleSolidIcon } from '@heroicons/react/24/solid';
+import { colors } from '@components/common/DesignSystem';
 import { createDirtyState, updateDirtyState, resetDirtyState, buildSaveConfirmation } from '@utils/stateGuards';
 
+// ============ Animations ============
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
 
-// Modern Container
-const ModernContainer = styled.div`
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+// ============ Main Layout ============
+const PageContainer = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
-  display: flex;
-  flex-direction: column;
-`;
-
-const MainContent = styled.div`
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 32px 24px;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 0;
   position: relative;
-  z-index: 1;
-  width: 100%;
+  overflow: hidden;
 `;
 
-// Header Section - Consistent with other pages
-const HeaderSection = styled.div`
+const TopBar = styled.header`
+  position: sticky;
+  top: 0;
+  z-index: 100;
   display: flex;
   align-items: center;
-  margin-bottom: 32px;
-  gap: 16px;
+  justify-content: space-between;
+  padding: 16px 32px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  animation: ${fadeIn} 0.4s ease-out;
 `;
 
 const BackButton = styled.button`
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
+  gap: 8px;
+  padding: 10px 16px;
+  background: transparent;
   border: none;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  color: #6b7280;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: ${colors.gray600};
   cursor: pointer;
   transition: all 0.2s ease;
-  border: 1px solid rgba(226, 232, 240, 0.6);
+
+  svg { width: 20px; height: 20px; }
 
   &:hover {
-    background: rgba(255, 255, 255, 1);
-    color: #374151;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-
-  svg {
-    width: 20px;
-    height: 20px;
+    background: rgba(0, 0, 0, 0.04);
+    color: ${colors.gray800};
   }
 `;
 
-const TitleContainer = styled.div`
+const PageTitle = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+
+  h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: ${colors.gray900};
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+
+  span {
+    font-size: 13px;
+    color: ${colors.gray500};
+    font-weight: 500;
+  }
+`;
+
+const SaveButton = styled.button<{ $saving?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex: 1;
+  gap: 8px;
+  padding: 10px 24px;
+  background: linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%);
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+
+  svg { width: 18px; height: 18px; }
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  ${({ $saving }) => $saving && css`
+    background: ${colors.gray400};
+    pointer-events: none;
+  `}
 `;
 
-const TitleIcon = styled.div`
+// ============ Content Layout ============
+const ContentGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 0;
+  height: calc(100vh - 73px);
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+// ============ Map Section ============
+const MapSection = styled.div`
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
+  padding: 40px;
+  background: linear-gradient(135deg, #667eea08 0%, #764ba208 100%);
+  overflow: hidden;
+`;
+
+const MapContainer = styled.div`
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  animation: ${fadeIn} 0.6s ease-out 0.1s both;
 
   svg {
-    width: 24px;
-    height: 24px;
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.08));
   }
 `;
 
-const PageTitle = styled.h1`
-  font-size: 28px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #1e293b 0%, #475569 50%, #64748b 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0;
-  letter-spacing: -0.02em;
+const StateTooltip = styled.div<{ $x: number; $y: number; $visible: boolean }>`
+  position: fixed;
+  left: ${({ $x }) => $x}px;
+  top: ${({ $y }) => $y}px;
+  transform: translate(-50%, -120%);
+  padding: 10px 16px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(8px);
+  border-radius: 10px;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 1000;
+  opacity: ${({ $visible }) => $visible ? 1 : 0};
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid rgba(15, 23, 42, 0.95);
+  }
+`;
+
+const MapLegend = styled.div`
+  display: flex;
+  gap: 24px;
+  margin-top: 24px;
+  animation: ${fadeIn} 0.6s ease-out 0.2s both;
+`;
+
+const LegendItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: ${colors.gray600};
+  font-weight: 500;
+`;
+
+const LegendDot = styled.div<{ $color: string; $outline?: boolean }>`
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: ${({ $color, $outline }) => $outline ? 'transparent' : $color};
+  border: ${({ $outline, $color }) => $outline ? `2px dashed ${$color}` : 'none'};
 `;
 
 // Spinner for loading state
-const spin = keyframes`
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-`;
 const Spinner = styled.div`
   border: 4px solid #f3f3f3;
   border-top: 4px solid #6366f1;
@@ -116,124 +229,306 @@ const Spinner = styled.div`
   margin: 100px auto;
 `;
 
-// States Stats Dashboard
-const slideIn = keyframes`
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-`;
-
-const StatesStatsDashboard = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-  animation: ${slideIn} 0.4s ease-out;
-`;
-
-const StatesStatCard = styled.div<{ $color?: string }>`
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
+// ============ Selection Panel ============
+const SelectionPanel = styled.aside`
+  background: linear-gradient(180deg, #fafbfc 0%, #ffffff 100%);
+  border-left: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+  animation: ${fadeIn} 0.5s ease-out;
+`;
 
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: ${({ $color }) => $color || 'linear-gradient(90deg, #6366f1, #8b5cf6)'};
+const PanelHeader = styled.div`
+  padding: 28px 24px 24px;
+  background: white;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+`;
+
+const SelectionStats = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, ${colors.primary}08 0%, ${colors.secondary}06 100%);
+  border-radius: 16px;
+  border: 1px solid ${colors.primary}12;
+  margin-bottom: 20px;
+`;
+
+const StatCircle = styled.div`
+  position: relative;
+  width: 88px;
+  height: 88px;
+  flex-shrink: 0;
+`;
+
+const CircleSVG = styled.svg`
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 2px 8px ${colors.primary}25);
+`;
+
+const CircleTrack = styled.circle`
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 7;
+`;
+
+const CircleProgress = styled.circle<{ $percent: number }>`
+  fill: none;
+  stroke: url(#progressGradient);
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-dasharray: ${Math.PI * 60};
+  stroke-dashoffset: ${({ $percent }) => Math.PI * 60 * (1 - $percent / 100)};
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+`;
+
+const CircleCenter = styled.div`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 50%;
+  margin: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+`;
+
+const CircleValue = styled.span`
+  font-size: 26px;
+  font-weight: 800;
+  background: linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+`;
+
+const CircleLabel = styled.span`
+  font-size: 9px;
+  color: ${colors.gray500};
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+`;
+
+const StatDetails = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const StatRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+
+  span:first-child {
+    color: ${colors.gray500};
+    font-weight: 500;
+  }
+  span:last-child {
+    font-weight: 700;
+    color: ${colors.gray800};
+    font-variant-numeric: tabular-nums;
+  }
+`;
+
+// ============ Quick Actions ============
+const QuickActions = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+`;
+
+const QuickButton = styled.button`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background: white;
+  color: ${colors.gray600};
+  border: 1.5px solid ${colors.gray200};
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+
+  svg {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.2s ease;
   }
 
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-    border-color: transparent;
+    background: ${colors.gray50};
+    border-color: ${colors.gray300};
+    color: ${colors.gray800};
+    svg { transform: scale(1.1); }
   }
 `;
 
-const StatesStatValue = styled.div`
-  font-size: 28px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 4px;
-  letter-spacing: -0.02em;
+// ============ Panel Content ============
+const PanelContent = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 20px 32px;
+
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb {
+    background: ${colors.gray300};
+    border-radius: 3px;
+  }
 `;
 
-const StatesStatLabel = styled.div`
-  font-size: 13px;
-  font-weight: 500;
-  color: #64748b;
+const SectionTitle = styled.h3`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: ${colors.gray400};
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 28px 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid ${colors.gray100};
 
   svg {
-    width: 14px;
-    height: 14px;
-    opacity: 0.7;
+    width: 15px;
+    height: 15px;
+    opacity: 0.6;
+    stroke-width: 2;
   }
 `;
 
-// --- NEW UI BITS --------------------------------------------------
-const Panel = styled.div`
-  flex: 1 1 360px;
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  max-width: ${props => (props.collapsed ? '48px' : '420px')};
-  transition: max-width 0.25s ease;
-  overflow: hidden;
+// ============ Search & State List ============
+const SearchContainer = styled.div`
+  position: relative;
+  margin-bottom: 18px;
 `;
 
-const TogglePanelBtn = styled.button`
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 14px 18px 14px 48px;
+  border: 1.5px solid rgba(0, 0, 0, 0.06);
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: ${colors.gray900};
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &::placeholder {
+    color: ${colors.gray400};
+    font-weight: 400;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: ${colors.primary}50;
+    background: white;
+    box-shadow: 0 0 0 4px ${colors.primary}12, 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
+`;
+
+const SearchIcon = styled(MagnifyingGlassIcon)`
   position: absolute;
-  top: 16px;
-  right: -20px;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  color: ${colors.gray400};
+  stroke-width: 2;
+  transition: color 0.2s ease;
+
+  ${SearchContainer}:focus-within & {
+    color: ${colors.primary};
+  }
+`;
+
+const ClearSearch = styled.button`
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
   border: none;
-  background: #7c3aed;
-  color: #fff;
+  background: ${colors.gray200};
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  &:hover { background:#5b21b6; }
+  transition: all 0.2s ease;
+
+  svg { width: 12px; height: 12px; color: ${colors.gray600}; }
+
+  &:hover {
+    background: ${colors.gray300};
+    transform: translateY(-50%) scale(1.1);
+  }
 `;
 
-const Chip = styled.span`
-  display:inline-flex;
-  align-items:center;
-  gap:4px;
-  background:#f3f4f6;
-  color:#374151;
-  border-radius:16px;
-  padding:4px 10px;
-  font-size:14px;
-  margin:4px;
+const StateGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  padding: 4px;
 `;
 
-const ChipDelete = styled.button`
-  background:none;
-  border:none;
-  color:#ef4444;
-  cursor:pointer;
-  line-height:1;
-`;
+const StateChip = styled.button<{ $selected: boolean }>`
+  padding: 10px 6px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  letter-spacing: 0.02em;
 
-const FloatingBar = styled.div`
-  position:fixed;
-  bottom:24px;
-  right:96px;   /* leave 72px gap (56px circle + 16px margin) */
-  display:flex;
-  gap:12px;
-  z-index:1200;
+  ${({ $selected }) => $selected ? css`
+    background: linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%);
+    color: white;
+    border: 1px solid transparent;
+    box-shadow: 0 3px 10px ${colors.primary}35;
+
+    &:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 5px 16px ${colors.primary}45;
+    }
+  ` : css`
+    background: white;
+    color: ${colors.gray600};
+    border: 1.5px solid ${colors.gray200};
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+
+    &:hover {
+      background: linear-gradient(135deg, ${colors.primary}10 0%, ${colors.secondary}08 100%);
+      border-color: ${colors.primary}45;
+      color: ${colors.primary};
+      transform: translateY(-1px);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+    }
+  `}
 `;
 
 const allStates = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
@@ -242,20 +537,18 @@ function StatesScreen() {
   const { productId } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [productName, setProductName] = useState('');
-  const [selectedStates, setSelectedStates] = useState([]);
+  const [selectedStates, setSelectedStates] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [newState, setNewState] = useState('');
   const [dirtyState, setDirtyState] = useState(createDirtyState([]));
-
-  const [panelCollapsed, setPanelCollapsed] = useState(false);
-  const searchRef = useRef(null);
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [tooltip, setTooltip] = useState({ visible: false, content: '', x: 0, y: 0 });
+  const searchRef = useRef<HTMLInputElement>(null);
 
   // keyboard shortcut `/` to jump to search
   useEffect(() => {
-    const handler = e => {
-      if (e.key === '/' && !e.target.matches('input, textarea, select')) {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === '/' && !(e.target as HTMLElement).matches('input, textarea, select')) {
         e.preventDefault();
         searchRef.current?.focus();
       }
@@ -264,11 +557,10 @@ function StatesScreen() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // debounce search
-  useEffect(() => {
-    const t = setTimeout(() => setSearchQuery(debouncedQuery), 250);
-    return () => clearTimeout(t);
-  }, [debouncedQuery]);
+  // Selection statistics
+  const selectionPercent = useMemo(() => {
+    return Math.round((selectedStates.length / allStates.length) * 100);
+  }, [selectedStates]);
 
   const stateNameToCode = {
     "Alabama": "AL",
@@ -339,7 +631,6 @@ function StatesScreen() {
         }
       } catch (error) {
         console.error("Error fetching product:", error);
-        alert("Failed to load product data. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -347,28 +638,11 @@ function StatesScreen() {
     fetchProduct();
   }, [productId]);
 
-  if (loading) {
-    return (
-      <ModernContainer>
-        <MainNavigation />
-        <MainContent>
-          <Spinner />
-        </MainContent>
-      </ModernContainer>
-    );
-  }
-
-  const handleAddState = () => {
-    if (newState && !selectedStates.includes(newState)) {
-      const newStates = [...selectedStates, newState];
-      setSelectedStates(newStates);
-      setDirtyState(updateDirtyState(dirtyState, newStates, 'states'));
-      setNewState('');
-    }
-  };
-
-  const handleRemoveState = (state) => {
-    const newStates = selectedStates.filter(s => s !== state);
+  // Toggle state selection
+  const toggleState = (stateCode: string) => {
+    const newStates = selectedStates.includes(stateCode)
+      ? selectedStates.filter(s => s !== stateCode)
+      : [...selectedStates, stateCode];
     setSelectedStates(newStates);
     setDirtyState(updateDirtyState(dirtyState, newStates, 'states'));
   };
@@ -384,130 +658,115 @@ function StatesScreen() {
   };
 
   const handleSave = async () => {
-    if (!dirtyState.isDirty) {
-      alert('No changes to save.');
-      return;
-    }
+    if (!dirtyState.isDirty) return;
 
-    const confirmation = buildSaveConfirmation(
-      dirtyState.originalValue,
-      selectedStates,
-      productName
-    );
-
-    if (!window.confirm(confirmation)) {
-      return;
-    }
-
+    setSaving(true);
     try {
-      const productRef = doc(db, 'products', productId);
+      const productRef = doc(db, 'products', productId!);
       await updateDoc(productRef, { availableStates: selectedStates });
-
       setDirtyState(resetDirtyState(dirtyState));
-      alert("State availability saved successfully!");
     } catch (error) {
       console.error("Error saving states:", error);
-      alert("Failed to save state availability. Please try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const filteredStates = selectedStates.filter(state =>
-    state.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter states based on search
+  const filteredStates = useMemo(() => {
+    if (!searchQuery.trim()) return allStates;
+    const query = searchQuery.toLowerCase();
+    return allStates.filter(code => {
+      const fullName = Object.entries(stateNameToCode).find(([, c]) => c === code)?.[0] || '';
+      return code.toLowerCase().includes(query) || fullName.toLowerCase().includes(query);
+    });
+  }, [searchQuery]);
+
+  if (loading) {
+    return (
+      <PageContainer>
+        <Spinner />
+      </PageContainer>
+    );
+  }
 
   return (
-    <ModernContainer>
-      <MainNavigation />
-      <MainContent>
-        <HeaderSection>
-          <BackButton onClick={() => navigate(-1)}>
-            <ArrowLeftIcon />
-          </BackButton>
-          <TitleContainer>
-            <TitleIcon>
-              <MapIcon />
-            </TitleIcon>
-            <PageTitle>
-              State Availability for {productName}
-            </PageTitle>
-          </TitleContainer>
-        </HeaderSection>
+    <PageContainer>
+      {/* Top Bar */}
+      <TopBar>
+        <BackButton onClick={() => navigate(-1)}>
+          <ChevronLeftIcon />
+          Back
+        </BackButton>
 
-        {/* States Stats Dashboard */}
-        <StatesStatsDashboard>
-          <StatesStatCard $color="linear-gradient(90deg, #6366f1, #8b5cf6)">
-            <StatesStatValue>{selectedStates.length}</StatesStatValue>
-            <StatesStatLabel>
-              <MapIcon />
-              Selected States
-            </StatesStatLabel>
-          </StatesStatCard>
-          <StatesStatCard $color="linear-gradient(90deg, #10b981, #059669)">
-            <StatesStatValue>{allStates.length - selectedStates.length}</StatesStatValue>
-            <StatesStatLabel>
-              <MapIcon />
-              Available to Add
-            </StatesStatLabel>
-          </StatesStatCard>
-          <StatesStatCard $color="linear-gradient(90deg, #f59e0b, #d97706)">
-            <StatesStatValue>{Math.round((selectedStates.length / allStates.length) * 100)}%</StatesStatValue>
-            <StatesStatLabel>
-              <MapIcon />
-              US Coverage
-            </StatesStatLabel>
-          </StatesStatCard>
-          <StatesStatCard $color={dirtyState.isDirty ? "linear-gradient(90deg, #ef4444, #dc2626)" : "linear-gradient(90deg, #06b6d4, #0891b2)"}>
-            <StatesStatValue>{dirtyState.isDirty ? 'Yes' : 'No'}</StatesStatValue>
-            <StatesStatLabel>
-              <MapIcon />
-              Unsaved Changes
-            </StatesStatLabel>
-          </StatesStatCard>
-        </StatesStatsDashboard>
+        <PageTitle>
+          <h1>State Availability</h1>
+          <span>{productName}</span>
+        </PageTitle>
 
-        <div style={{ display:'flex', flexDirection:'row', gap:24, alignItems:'flex-start', position:'relative' }}>
-          {/* MAP AREA (grows) */}
-          <div style={{ flex:'1 1 auto', background:'#ffffff', borderRadius:12, padding:20, boxShadow:'0 4px 12px rgba(0,0,0,0.1)', marginBottom:24 }}>
-            <h2 style={{ fontSize:24, fontWeight:600, color:'#1F2937', marginBottom:16 }}>US Map</h2>
-            <ComposableMap projection="geoAlbersUsa" style={{ width:'100%', height:'auto', margin:'0 auto' }}>
+        <SaveButton
+          onClick={handleSave}
+          disabled={!dirtyState.isDirty || saving}
+          $saving={saving}
+        >
+          <CheckIcon />
+          Save Changes
+        </SaveButton>
+      </TopBar>
+
+      {/* Content Grid */}
+      <ContentGrid>
+        {/* Map Section */}
+        <MapSection>
+          <MapContainer>
+            <ComposableMap projection="geoAlbersUsa" style={{ width: '100%', height: 'auto' }}>
               <Geographies geography="https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json">
                 {({ geographies }) =>
                   geographies
                     .filter(geo => stateNameToCode[geo.properties.name])
                     .map(geo => {
                       const stateCode = stateNameToCode[geo.properties.name];
+                      const stateName = geo.properties.name;
+                      const isSelected = selectedStates.includes(stateCode);
+
                       return (
                         <Geography
                           key={geo.rsmKey}
                           geography={geo}
-                          onClick={() => {
-                            if (selectedStates.includes(stateCode)) {
-                              setSelectedStates(selectedStates.filter(s => s !== stateCode));
-                            } else {
-                              setSelectedStates([...selectedStates, stateCode]);
-                            }
+                          onMouseEnter={(e) => {
+                            setTooltip({
+                              visible: true,
+                              content: `${stateName} (${stateCode}) — ${isSelected ? 'Selected' : 'Available'}`,
+                              x: e.clientX,
+                              y: e.clientY,
+                            });
                           }}
+                          onMouseMove={(e) => {
+                            setTooltip(prev => ({ ...prev, x: e.clientX, y: e.clientY }));
+                          }}
+                          onMouseLeave={() => setTooltip(prev => ({ ...prev, visible: false }))}
+                          onClick={() => toggleState(stateCode)}
                           style={{
                             default: {
-                              fill: selectedStates.includes(stateCode) ? '#3B82F6' : '#E5E7EB',
+                              fill: isSelected ? colors.primary : colors.gray200,
                               stroke: '#FFFFFF',
-                              strokeWidth: 1,
+                              strokeWidth: 1.5,
                               outline: 'none',
                               cursor: 'pointer',
+                              transition: 'fill 0.2s ease',
                             },
                             hover: {
-                              fill: selectedStates.includes(stateCode) ? '#2563EB' : '#D1D5DB',
+                              fill: isSelected ? colors.primaryDark : colors.gray300,
                               stroke: '#FFFFFF',
-                              strokeWidth: 1,
+                              strokeWidth: 1.5,
                               outline: 'none',
                               cursor: 'pointer',
                             },
                             pressed: {
-                              fill: selectedStates.includes(stateCode) ? '#1E40AF' : '#9CA3AF',
+                              fill: isSelected ? colors.primaryDark : colors.gray400,
                               stroke: '#FFFFFF',
-                              strokeWidth: 1,
+                              strokeWidth: 1.5,
                               outline: 'none',
-                              cursor: 'pointer',
                             },
                           }}
                         />
@@ -516,54 +775,116 @@ function StatesScreen() {
                 }
               </Geographies>
             </ComposableMap>
-          </div>
+          </MapContainer>
 
-          {/* CONTROL PANEL */}
-          <Panel collapsed={panelCollapsed}>
-            <TogglePanelBtn onClick={() => setPanelCollapsed(c=>!c)}>
-              {panelCollapsed ? '⟨' : '⟩'}
-            </TogglePanelBtn>
-            {!panelCollapsed && (
-              <>
-                <h2 style={{ fontSize:24, fontWeight:600, color:'#1F2937', marginBottom:16 }}>Applicable States</h2>
-                <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:16 }}>
-                  <TextInput as="select" value={newState} onChange={e=>setNewState(e.target.value)}>
-                    <option value="">Select State</option>
-                    {allStates.map(s=> <option key={s} value={s}>{s}</option>)}
-                  </TextInput>
-                  <Button primary onClick={handleAddState}>Add</Button>
-                </div>
-                <TextInput
-                  ref={searchRef}
-                  placeholder="Search States"
-                  value={debouncedQuery}
-                  onChange={e=>setDebouncedQuery(e.target.value)}
-                  style={{ marginBottom:16 }}
-                />
-                {filteredStates.length > 0 ? (
-                  <div style={{ maxHeight:260, overflowY:'auto' }}>
-                    {filteredStates.map(state=>(
-                      <Chip key={state}>
-                        {state}
-                        <ChipDelete onClick={()=>handleRemoveState(state)}>×</ChipDelete>
-                      </Chip>
-                    ))}
-                  </div>
-                ) : (
-                  <p style={{ textAlign:'center', fontSize:18, color:'#6B7280' }}>No States Selected</p>
-                )}
-              </>
-            )}
-          </Panel>
-        </div>
-        <FloatingBar>
-          <Button ghost onClick={handleSelectAll}>Select&nbsp;All</Button>
-          <Button ghost onClick={handleClearAll}>Clear&nbsp;All</Button>
-          <Button success onClick={handleSave}>Save</Button>
-        </FloatingBar>
+          <MapLegend>
+            <LegendItem>
+              <LegendDot $color={colors.primary} />
+              Selected
+            </LegendItem>
+            <LegendItem>
+              <LegendDot $color={colors.gray200} />
+              Available
+            </LegendItem>
+          </MapLegend>
+        </MapSection>
 
-      </MainContent>
-    </ModernContainer>
+        {/* Selection Panel */}
+        <SelectionPanel>
+          <PanelHeader>
+            {/* Selection Progress */}
+            <SelectionStats>
+              <StatCircle>
+                <CircleSVG viewBox="0 0 80 80">
+                  <defs>
+                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor={colors.primary} />
+                      <stop offset="100%" stopColor={colors.secondary} />
+                    </linearGradient>
+                  </defs>
+                  <CircleTrack cx="40" cy="40" r="30" />
+                  <CircleProgress cx="40" cy="40" r="30" $percent={selectionPercent} />
+                </CircleSVG>
+                <CircleCenter>
+                  <CircleValue>{selectedStates.length}</CircleValue>
+                  <CircleLabel>States</CircleLabel>
+                </CircleCenter>
+              </StatCircle>
+
+              <StatDetails>
+                <StatRow>
+                  <span>Available</span>
+                  <span>{allStates.length} states</span>
+                </StatRow>
+                <StatRow>
+                  <span>Selected</span>
+                  <span>{selectedStates.length} states</span>
+                </StatRow>
+                <StatRow>
+                  <span>Coverage</span>
+                  <span>{selectionPercent}%</span>
+                </StatRow>
+              </StatDetails>
+            </SelectionStats>
+
+            {/* Quick Actions */}
+            <QuickActions>
+              <QuickButton onClick={handleSelectAll}>
+                <CheckCircleSolidIcon />
+                All
+              </QuickButton>
+              <QuickButton onClick={handleClearAll}>
+                <XMarkIcon />
+                Clear
+              </QuickButton>
+            </QuickActions>
+          </PanelHeader>
+
+          <PanelContent>
+            {/* Individual States */}
+            <SectionTitle>
+              <MapPinIcon />
+              All States
+            </SectionTitle>
+
+            <SearchContainer>
+              <SearchIcon />
+              <SearchInput
+                ref={searchRef}
+                placeholder="Search states... (Press /)"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <ClearSearch onClick={() => setSearchQuery('')}>
+                  <XMarkIcon />
+                </ClearSearch>
+              )}
+            </SearchContainer>
+
+            <StateGrid>
+              {filteredStates.map(stateCode => {
+                const isSelected = selectedStates.includes(stateCode);
+                return (
+                  <StateChip
+                    key={stateCode}
+                    $selected={isSelected}
+                    onClick={() => toggleState(stateCode)}
+                  >
+                    {stateCode}
+                  </StateChip>
+                );
+              })}
+            </StateGrid>
+          </PanelContent>
+        </SelectionPanel>
+      </ContentGrid>
+
+      {/* Tooltip */}
+      <StateTooltip $visible={tooltip.visible} $x={tooltip.x} $y={tooltip.y}>
+        {tooltip.content}
+      </StateTooltip>
+    </PageContainer>
   );
 }
 

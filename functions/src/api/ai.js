@@ -158,8 +158,8 @@ const suggestCoverageNames = onCall(
   {
     // Enable CORS and require authentication
     cors: true,
-    // Secrets for OpenAI
-    secrets: ['OPENAI_API_KEY'],
+    // Secrets for OpenAI - use OPENAI_KEY to match firebase functions:secrets:set
+    secrets: ['OPENAI_KEY'],
   },
   async (request) => {
     // v2 uses request.auth instead of context.auth
@@ -204,9 +204,12 @@ Rules:
     try {
       const result = await openaiService.generateChatResponse(
         messages,
-        'gpt-4o-mini', // Use fast, cheap model for suggestions
-        100, // Low max tokens
-        0.3 // Low temperature for consistent results
+        null, // System prompt already included in messages
+        {
+          model: 'gpt-4o-mini', // Use fast, cheap model for suggestions
+          maxTokens: 100, // Low max tokens
+          temperature: 0.3 // Low temperature for consistent results
+        }
       );
 
       // Parse the response

@@ -11,7 +11,8 @@ const functions = require('firebase-functions');
 const { logger } = require('firebase-functions');
 const openaiService = require('../services/openai');
 
-const openaiKey = defineSecret('OPENAI_API_KEY');
+// Use OPENAI_KEY to match the secret set via `firebase functions:secrets:set OPENAI_KEY`
+const openaiKey = defineSecret('OPENAI_KEY');
 
 // Step-specific field mappings matching Coverage interface
 // Uses canonical field names (arrays) with legacy fallbacks
@@ -246,7 +247,9 @@ const autoDraftCoverageFields = onCall(
     });
 
     try {
-      openaiService.initializeWithKey(openaiKey.value());
+      // The secret is automatically available as process.env.OPENAI_KEY
+      // when the function is configured with secrets: [openaiKey]
+      // No need to manually initialize - openaiService.getOpenAIKey() reads from env
 
       const systemPrompt = `You are a P&C insurance product configuration expert.
 You generate accurate, industry-standard default values for coverage fields based on the coverage name and type.

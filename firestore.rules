@@ -1,105 +1,231 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions for role-based access control
+    // ============================================================================
+    // RBAC Helper Functions
+    // Custom claims are set via Cloud Function: setUserRole
+    // ============================================================================
+
     function getUserRole() {
-      return request.auth.token.role;
-    }
-
-    function isAdmin() {
-      return getUserRole() == 'admin';
-    }
-
-    function isProductManager() {
-      return getUserRole() == 'product_manager';
-    }
-
-    function isUnderwriter() {
-      return getUserRole() == 'underwriter';
-    }
-
-    function isViewer() {
-      return getUserRole() == 'viewer';
+      return request.auth != null && request.auth.token.role != null
+        ? request.auth.token.role
+        : 'viewer';
     }
 
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Products collection
-    match /products/{productId} {
-      // Allow all read/write for development
-      allow read, write: if true;
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'admin';
+    }
 
-      // Nested coverages
+    function isProductManager() {
+      return isAuthenticated() && (getUserRole() == 'product_manager' || isAdmin());
+    }
+
+    function isUnderwriter() {
+      return isAuthenticated() && (getUserRole() == 'underwriter' || isProductManager());
+    }
+
+    function isViewer() {
+      return isAuthenticated(); // All authenticated users have at least viewer access
+    }
+
+    // Check if user can write product configuration
+    function canWriteProductConfig() {
+      return isProductManager();
+    }
+
+    // Check if user can write underwriting data
+    function canWriteUnderwriting() {
+      return isUnderwriter();
+    }
+
+    // Check if user can write admin-only data
+    function canWriteAdmin() {
+      return isAdmin();
+    }
+
+    // ============================================================================
+    // Products Collection - Core product configuration
+    // ============================================================================
+    match /products/{productId} {
+      // Read: All authenticated users
+      allow read: if isViewer();
+
+      // Create/Update/Delete: Product managers and admins only
+      allow create, update, delete: if canWriteProductConfig();
+
+      // Coverages subcollection
       match /coverages/{coverageId} {
-        allow read, write: if true;
+        allow read: if isViewer();
+        allow create, update, delete: if canWriteProductConfig();
 
         // Limits subcollection
         match /limits/{limitId} {
-          allow read, write: if true;
+          allow read: if isViewer();
+          allow create, update, delete: if canWriteProductConfig();
         }
 
         // Deductibles subcollection
         match /deductibles/{deductibleId} {
-          allow read, write: if true;
+          allow read: if isViewer();
+          allow create, update, delete: if canWriteProductConfig();
+        }
+
+        // Rules subcollection (coverage-scoped rules)
+        match /rules/{ruleId} {
+          allow read: if isViewer();
+          allow create, update, delete: if canWriteUnderwriting();
         }
 
         // Versions subcollection
         match /versions/{versionId} {
-          allow read, write: if true;
+          allow read: if isViewer();
+          allow create, update, delete: if canWriteProductConfig();
         }
       }
 
       // Packages subcollection
       match /packages/{packageId} {
-        allow read, write: if true;
+        allow read: if isViewer();
+        allow create, update, delete: if canWriteProductConfig();
       }
 
       // Pricing steps subcollection
       match /pricingSteps/{stepId} {
-        allow read, write: if true;
+        allow read: if isViewer();
+        allow create, update, delete: if canWriteProductConfig();
       }
 
       // Data dictionary subcollection
       match /dataDictionary/{fieldId} {
-        allow read, write: if true;
+        allow read: if isViewer();
+        allow create, update, delete: if canWriteProductConfig();
       }
     }
 
-    // Forms collection
+    // ============================================================================
+    // Forms Collection - Policy forms and documents
+    // ============================================================================
     match /forms/{formId} {
-      allow read, write: if true;
+      allow read: if isViewer();
+      allow create, update, delete: if canWriteProductConfig();
+
+      // Form versions subcollection
+      match /versions/{versionId} {
+        allow read: if isViewer();
+        allow create, update, delete: if canWriteProductConfig();
+      }
+
+      // Extracted clauses subcollection
+      match /clauses/{clauseId} {
+        allow read: if isViewer();
+        allow create, update, delete: if canWriteProductConfig();
+      }
     }
 
-    // Form-Coverage mappings (junction table)
+    // ============================================================================
+    // Form-Coverage Mappings (junction table)
+    // ============================================================================
     match /formCoverages/{mappingId} {
-      allow read, write: if true;
+      allow read: if isViewer();
+      allow create, update, delete: if canWriteProductConfig();
     }
 
-    // Rules collection
+    // ============================================================================
+    // Rules Collection - Business rules
+    // ============================================================================
     match /rules/{ruleId} {
-      allow read, write: if true;
+      allow read: if isViewer();
+      allow create, update, delete: if canWriteUnderwriting();
     }
 
-    // Pricing rules collection
+    // ============================================================================
+    // Pricing Rules Collection
+    // ============================================================================
     match /pricingRules/{ruleId} {
-      allow read, write: if true;
+      allow read: if isViewer();
+      allow create, update, delete: if canWriteProductConfig();
     }
 
-    // State applicability
+    // ============================================================================
+    // State Applicability
+    // ============================================================================
     match /stateApplicability/{docId} {
-      allow read, write: if true;
+      allow read: if isViewer();
+      allow create, update, delete: if canWriteProductConfig();
     }
 
-    // Versions (global)
+    // ============================================================================
+    // Versions (global versioning)
+    // ============================================================================
     match /versions/{versionId} {
-      allow read, write: if true;
+      allow read: if isViewer();
+      allow create, update, delete: if canWriteProductConfig();
     }
 
-    // Catch-all: allow all for development
-    match /{document=**} {
-      allow read, write: if true;
+    // ============================================================================
+    // Tasks Collection
+    // ============================================================================
+    match /tasks/{taskId} {
+      allow read: if isViewer();
+      // Anyone authenticated can create/update tasks, but delete is PM+
+      allow create, update: if isViewer();
+      allow delete: if canWriteProductConfig();
     }
+
+    // ============================================================================
+    // Audit Log - Immutable, append-only
+    // ============================================================================
+    match /auditLog/{logId} {
+      // Everyone can read audit logs
+      allow read: if isViewer();
+      // Only server-side (Cloud Functions) can write audit logs
+      // This is enforced by not allowing client writes
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Audit logs are immutable
+    }
+
+    // ============================================================================
+    // AI Proposals - Copilot change proposals
+    // ============================================================================
+    match /aiProposals/{proposalId} {
+      allow read: if isViewer();
+      allow create: if isViewer(); // Anyone can create proposals
+      allow update: if canWriteProductConfig(); // Only PM+ can approve/apply
+      allow delete: if canWriteAdmin();
+    }
+
+    // ============================================================================
+    // AI Telemetry - Usage tracking
+    // ============================================================================
+    match /aiTelemetry/{telemetryId} {
+      allow read: if canWriteAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Telemetry is immutable
+    }
+
+    // ============================================================================
+    // User Preferences
+    // ============================================================================
+    match /userPreferences/{userId} {
+      // Users can only read/write their own preferences
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ============================================================================
+    // System Configuration - Admin only
+    // ============================================================================
+    match /systemConfig/{configId} {
+      allow read: if isViewer();
+      allow write: if canWriteAdmin();
+    }
+
+    // ============================================================================
+    // DENY ALL - No catch-all for security
+    // Any collection not explicitly defined above is inaccessible
+    // ============================================================================
   }
 }

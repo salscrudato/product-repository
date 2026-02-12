@@ -16,7 +16,7 @@ const rateLimitStore = new Map();
 const cleanupRateLimitStore = () => {
   const now = Date.now();
   const oneHourAgo = now - 3600000;
-  
+
   for (const [key, data] of rateLimitStore.entries()) {
     if (data.resetTime < oneHourAgo) {
       rateLimitStore.delete(key);
@@ -24,8 +24,10 @@ const cleanupRateLimitStore = () => {
   }
 };
 
-// Clean up every 10 minutes
-setInterval(cleanupRateLimitStore, 600000);
+// Note: Removed setInterval cleanup as it interferes with Cloud Run container lifecycle
+// Cleanup now happens lazily during rate limit checks
+let lastCleanup = Date.now();
+const CLEANUP_INTERVAL = 600000; // 10 minutes
 
 /**
  * Rate limit middleware
@@ -37,12 +39,17 @@ setInterval(cleanupRateLimitStore, 600000);
  */
 const rateLimit = (context, options = {}) => {
   const { maxRequests = 100, windowMs = 3600000 } = options; // Default: 100 requests per hour
-  
+
+  // Lazy cleanup: run cleanup if interval has passed
+  const now = Date.now();
+  if (now - lastCleanup > CLEANUP_INTERVAL) {
+    cleanupRateLimitStore();
+    lastCleanup = now;
+  }
+
   // Get user identifier
   const userId = context.auth?.uid || context.rawRequest?.ip || 'anonymous';
   const key = `${userId}:${context.rawRequest?.url || 'unknown'}`;
-  
-  const now = Date.now();
   const data = rateLimitStore.get(key);
   
   if (!data || now > data.resetTime) {

@@ -125,10 +125,11 @@ const isRetryableError = (error) => {
 
 /**
  * Get OpenAI API key from environment
- * Checks both OPENAI_API_KEY (for v2 functions secrets) and OPENAI_KEY (legacy)
+ * Checks OPENAI_KEY (primary, set via firebase functions:secrets:set)
+ * or OPENAI_API_KEY (fallback)
  */
 const getOpenAIKey = () => {
-  const key = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY;
+  const key = process.env.OPENAI_KEY || process.env.OPENAI_API_KEY;
   if (key) {
     const trimmedKey = key.trim();
     if (!trimmedKey) {
@@ -136,7 +137,7 @@ const getOpenAIKey = () => {
     }
     return trimmedKey;
   }
-  throw new Error('OpenAI API key not configured. Set OPENAI_API_KEY environment variable.');
+  throw new Error('OpenAI API key not configured. Set OPENAI_KEY secret via firebase functions:secrets:set OPENAI_KEY');
 };
 
 /**
@@ -203,7 +204,10 @@ const chatCompletion = async (options = {}) => {
   // Store for deduplication
   if (deduplicate) {
     pendingRequests.set(cacheKey, requestPromise);
-    requestPromise.finally(() => pendingRequests.delete(cacheKey));
+    // Use .then().catch() pattern to avoid unhandled rejection from .finally()
+    requestPromise
+      .then(() => pendingRequests.delete(cacheKey))
+      .catch(() => pendingRequests.delete(cacheKey));
   }
 
   return requestPromise;

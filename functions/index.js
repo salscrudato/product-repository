@@ -132,6 +132,11 @@ const aiAPI = require('./src/api/ai'); // Used for suggestCoverageNames
  * COMPLETE: Full document processing, generous token limits, cost-effective model
  */
 exports.generateProductSummary = onCall({ secrets: [openaiKey] }, async (request) => {
+  // Authentication required
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+  }
+
   const startTime = Date.now();
 
   try {
@@ -205,6 +210,11 @@ exports.generateProductSummary = onCall({ secrets: [openaiKey] }, async (request
  * NOTE: No caching for multi-turn conversations to ensure fresh responses
  */
 exports.generateChatResponse = onCall({ secrets: [openaiKey] }, async (request) => {
+  // Authentication required
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+  }
+
   const startTime = Date.now();
 
   try {
@@ -272,6 +282,11 @@ exports.generateChatResponse = onCall({ secrets: [openaiKey] }, async (request) 
  * COMPLETE: Full claim context, comprehensive analysis, cost-effective model
  */
 exports.analyzeClaim = onCall({ secrets: [openaiKey] }, async (request) => {
+  // Authentication required
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+  }
+
   const startTime = Date.now();
 
   try {
@@ -375,3 +390,13 @@ exports.autoDraftCoverageFields = autoDraftAPI.autoDraftCoverageFields;
 
 // Coverage Name Suggestions (AI-powered autocomplete)
 exports.suggestCoverageNames = aiAPI.suggestCoverageNames;
+
+// Admin API - Role Management
+const adminAPI = require('./src/api/admin');
+exports.setUserRole = adminAPI.setUserRole;
+exports.getUserRole = adminAPI.getUserRole;
+exports.listUsersWithRoles = adminAPI.listUsersWithRoles;
+
+// AI Gateway - Centralized AI with guardrails
+const aiGateway = require('./aiGateway');
+exports.aiGateway = aiGateway.aiGateway;
