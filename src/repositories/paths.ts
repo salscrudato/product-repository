@@ -378,9 +378,7 @@ export function orgWizardManifestsPath(orgId: string): string {
 
 export function wizardManifestDocPath(orgId: string, manifestId: string): string {
   return `orgs/${orgId}/wizardManifests/${manifestId}`;
-}
-
-// ============================================================================
+}// ============================================================================
 // Coverage Templates
 // ============================================================================
 
