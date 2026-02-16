@@ -10,7 +10,7 @@
  * - Relevance scoring
  */
 
-import Fuse from 'fuse.js';
+import Fuse, { IFuseOptions } from 'fuse.js';
 import { COVERAGE_DATABASE, CoverageEntry } from '../data/coverageDatabase';
 
 export interface SearchResult {
@@ -23,7 +23,7 @@ export interface SearchResult {
 }
 
 // Configure Fuse.js for optimal fuzzy matching
-const fuseOptions: Fuse.IFuseOptions<CoverageEntry> = {
+const fuseOptions: IFuseOptions<CoverageEntry> = {
   // Keys to search with weights
   keys: [
     { name: 'name', weight: 1.0 },           // Primary name - highest weight
@@ -238,7 +238,7 @@ export function getRelatedCoverages(
         description: relatedCoverage.description,
       };
     })
-    .filter((r): r is SearchResult => r !== null)
+    .filter((r): r is NonNullable<typeof r> => r !== null)
     .slice(0, maxResults);
 }
 

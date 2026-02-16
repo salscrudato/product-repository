@@ -4,9 +4,23 @@
  *
  * Features:
  * - Structured logging with categories and levels
+ * - Correlation ID support for tracing operations across client + server
  * - Session storage for debugging
  * - Global error handlers
  */
+
+// ── Correlation ID generator ────────────────────────────────────────────────
+/**
+ * Generate a short, unique correlation ID for tracing an operation across
+ * client logs and Cloud Function calls.
+ *
+ * Format: `corr-<timestamp36>-<random6>`  (~20 chars, URL-safe)
+ */
+export function generateCorrelationId(): string {
+  const ts = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `corr-${ts}-${rand}`;
+}
 
 // Log levels
 export const LOG_LEVELS = {
@@ -38,7 +52,8 @@ export const LOG_CATEGORIES = {
   EARNINGS: 'EARNINGS',
   CLAIMS: 'CLAIMS',
   PERFORMANCE: 'PERFORMANCE',
-  SECURITY: 'SECURITY'
+  SECURITY: 'SECURITY',
+  UI: 'UI'
 } as const;
 
 export type LogCategory = typeof LOG_CATEGORIES[keyof typeof LOG_CATEGORIES];
@@ -54,6 +69,7 @@ interface LogEntry {
   data: Record<string, unknown>;
   url: string;
   userAgent: string;
+  correlationId?: string;
   error?: {
     name: string;
     message: string;
@@ -374,6 +390,60 @@ class Logger {
     
     this.info(LOG_CATEGORIES.EXPORT, 'Logs exported');
   }
+
+  // ── Correlation-scoped logger ───────────────────────────────────────────
+  /**
+   * Return a lightweight wrapper that automatically injects a correlationId
+   * into every log entry's data, so callers don't have to thread it manually.
+   *
+   * Usage:
+   *   const corrId = generateCorrelationId();
+   *   const scopedLog = logger.withCorrelation(corrId);
+   *   scopedLog.info('DATA', 'Starting publish', { changeSetId });
+   */
+  withCorrelation(correlationId: string): ScopedLogger {
+    return new ScopedLogger(this, correlationId);
+  }
+}
+
+/**
+ * Thin wrapper that delegates to the main Logger while injecting a
+ * correlationId into every call.  Keeps the same convenience API
+ * (error / warn / info / debug / trace) so call-sites are unchanged.
+ */
+class ScopedLogger {
+  constructor(
+    private parent: Logger,
+    private correlationId: string,
+  ) {}
+
+  private enrich(data: Record<string, unknown>): Record<string, unknown> {
+    return { ...data, correlationId: this.correlationId };
+  }
+
+  /** The correlation ID this scoped logger is bound to. */
+  get id(): string {
+    return this.correlationId;
+  }
+
+  log(level: LogLevel, category: LogCategory, message: string, data: Record<string, unknown> = {}, error: Error | null = null): void {
+    this.parent.log(level, category, message, this.enrich(data), error);
+  }
+  error(category: LogCategory, message: string, data: Record<string, unknown> = {}, error: Error | null = null): void {
+    this.parent.error(category, message, this.enrich(data), error);
+  }
+  warn(category: LogCategory, message: string, data: Record<string, unknown> = {}): void {
+    this.parent.warn(category, message, this.enrich(data));
+  }
+  info(category: LogCategory, message: string, data: Record<string, unknown> = {}): void {
+    this.parent.info(category, message, this.enrich(data));
+  }
+  debug(category: LogCategory, message: string, data: Record<string, unknown> = {}): void {
+    this.parent.debug(category, message, this.enrich(data));
+  }
+  trace(category: LogCategory, message: string, data: Record<string, unknown> = {}): void {
+    this.parent.trace(category, message, this.enrich(data));
+  }
 }
 
 // Create singleton instance
@@ -397,5 +467,6 @@ if (typeof window !== 'undefined') {
   });
 }
 
+export type { ScopedLogger };
 export default logger;
 

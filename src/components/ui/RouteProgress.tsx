@@ -121,8 +121,8 @@ export const RouteProgressProvider: React.FC<RouteProgressProviderProps> = ({
   const [progress, setProgress] = useState(0);
   
   const startTimeRef = useRef<number>(0);
-  const showTimeoutRef = useRef<NodeJS.Timeout>();
-  const progressIntervalRef = useRef<NodeJS.Timeout>();
+  const showTimeoutRef = useRef<NodeJS.Timeout>(undefined);
+  const progressIntervalRef = useRef<NodeJS.Timeout>(undefined);
 
   const start = useCallback(() => {
     // Clear any existing timers

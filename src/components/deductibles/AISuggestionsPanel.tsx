@@ -33,21 +33,21 @@ const formatDeductibleAmount = (amount: number): string => {
 // Get deductible range from template options
 const getDeductibleRange = (options: Partial<CoverageDeductibleOption>[]): string => {
   // Handle percentage-based deductibles
-  const percentages = options.filter(o => o.percentage).map(o => o.percentage!).sort((a, b) => a - b);
+  const percentages = options.filter(o => (o as any).percentage).map(o => (o as any).percentage! as number).sort((a, b) => a - b);
   if (percentages.length > 0) {
     if (percentages.length === 1) return `${percentages[0]}%`;
     return `${percentages[0]}% – ${percentages[percentages.length - 1]}%`;
   }
 
   // Handle waiting periods
-  const periods = options.filter(o => o.waitingPeriodDays).map(o => o.waitingPeriodDays!).sort((a, b) => a - b);
+  const periods = options.filter(o => (o as any).duration).map(o => (o as any).duration! as number).sort((a, b) => a - b);
   if (periods.length > 0) {
     if (periods.length === 1) return `${periods[0]} days`;
     return `${periods[0]} – ${periods[periods.length - 1]} days`;
   }
 
   // Handle flat amounts
-  const amounts = options.map(o => o.amount || 0).filter(a => a >= 0).sort((a, b) => a - b);
+  const amounts = options.map(o => (o as any).amount || 0).filter((a: number) => a >= 0).sort((a: number, b: number) => a - b);
   if (amounts.length === 0) return '';
   if (amounts.length === 1) return formatDeductibleAmount(amounts[0]);
   return `${formatDeductibleAmount(amounts[0])} – ${formatDeductibleAmount(amounts[amounts.length - 1])}`;

@@ -150,7 +150,7 @@ export const EnhancedRatingBuilder: React.FC<EnhancedRatingBuilderProps> = ({
   // Handlers
   const handleIssueClick = useCallback((stepId: string) => {
     // Just focus the step in the builder - could scroll to it
-    console.log('Issue clicked for step:', stepId);
+    // TODO: Scroll to or highlight the problematic step
   }, []);
 
   const handleSelectTemplate = useCallback((template: StepTemplate) => {

@@ -1,6 +1,6 @@
 // src/components/ui/VirtualizedGrid.tsx
 import React, { memo, useMemo, CSSProperties, ReactNode } from 'react';
-import { Grid, GridChildComponentProps } from 'react-window';
+import { FixedSizeGrid as Grid, GridChildComponentProps } from 'react-window';
 import styled from 'styled-components';
 
 // Type definitions

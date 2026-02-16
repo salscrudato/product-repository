@@ -8,7 +8,7 @@ import styled from 'styled-components';
 import {
   ClipboardDocumentListIcon,
   CameraIcon,
-  HandshakeIcon,
+  HandRaisedIcon,
   ScaleIcon
 } from '@heroicons/react/24/outline';
 
@@ -148,7 +148,7 @@ export const ClaimsSection = memo<ClaimsSectionProps>(({
             </NoteText>
           </NoteItem>
           <NoteItem>
-            <NoteIcon><HandshakeIcon /></NoteIcon>
+            <NoteIcon><HandRaisedIcon /></NoteIcon>
             <NoteText>
               <strong>Cooperation:</strong> Insured must cooperate with the insurer's investigation
               and provide requested information

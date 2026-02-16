@@ -117,7 +117,7 @@ const CheckboxItem = styled.div<{ $selected: boolean }>`
 
   &:hover {
     border-color: ${({ $selected }) => $selected ? '#6366f1' : '#a5b4fc'};
-    background: ${({ $selected, theme }) => $selected ? 'rgba(99, 102, 241, 0.08)' : theme.colours?.surface || '#f9fafb'};
+    background: ${({ $selected }) => $selected ? 'rgba(99, 102, 241, 0.08)' : '#f9fafb'};
   }
 `;
 

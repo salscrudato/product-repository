@@ -259,7 +259,8 @@ describe('isReadyToPublish', () => {
       name: 'Test Limits',
       structure: 'single',
       selectionMode: 'single',
-      isRequired: false
+      isRequired: false,
+      basisConfig: { primaryBasis: 'perOccurrence' }
     };
     const options: CoverageLimitOption[] = [{
       id: 'opt-1',

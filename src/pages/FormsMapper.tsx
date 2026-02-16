@@ -7,18 +7,25 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import styled from 'styled-components';
+import MainNavigation from '../components/ui/Navigation';
 import { collection, getDocs, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { FormTemplate, Coverage, FormCoverageMapping } from '@app-types';
 import logger, { LOG_CATEGORIES } from '@utils/logger';
+
+const PageWrapper = styled.div`
+  min-height: 100vh;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+`;
 
 const Container = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
   padding: 20px;
-  height: 100vh;
-  background: #f5f5f5;
+  flex: 1;
 `;
 
 const Panel = styled.div`
@@ -250,13 +257,18 @@ const FormsMapper: React.FC<FormsMapperProps> = () => {
 
   if (loading) {
     return (
-      <Container>
-        <LoadingSpinner>Loading...</LoadingSpinner>
-      </Container>
+      <PageWrapper>
+        <MainNavigation />
+        <Container>
+          <LoadingSpinner>Loading...</LoadingSpinner>
+        </Container>
+      </PageWrapper>
     );
   }
 
   return (
+    <PageWrapper>
+    <MainNavigation />
     <Container>
       {/* Left Panel: Forms */}
       <Panel>
@@ -336,6 +348,7 @@ const FormsMapper: React.FC<FormsMapperProps> = () => {
         </div>
       </Panel>
     </Container>
+    </PageWrapper>
   );
 };
 

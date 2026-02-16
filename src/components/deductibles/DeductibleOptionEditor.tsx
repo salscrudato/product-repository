@@ -80,19 +80,19 @@ export const DeductibleOptionEditor: React.FC<DeductibleOptionEditorProps> = ({
   }, [option]);
 
   const handlePercentageChange = useCallback((percentage: number) => {
-    onChange({ ...option, percentage });
+    onChange({ ...option, percentage } as Partial<CoverageDeductibleOption>);
   }, [option, onChange]);
 
   const handleBasisChange = useCallback((basis: string) => {
-    onChange({ ...option, basis });
+    onChange({ ...option, basis } as Partial<CoverageDeductibleOption>);
   }, [option, onChange]);
 
   const handleDurationChange = useCallback((duration: number) => {
-    onChange({ ...option, duration });
+    onChange({ ...option, duration } as Partial<CoverageDeductibleOption>);
   }, [option, onChange]);
 
   const handleUnitChange = useCallback((unit: WaitingPeriodUnit) => {
-    onChange({ ...option, unit });
+    onChange({ ...option, unit } as Partial<CoverageDeductibleOption>);
   }, [option, onChange]);
 
   const handleApplicabilityChange = useCallback((applicability: DeductibleApplicability) => {
@@ -249,7 +249,7 @@ export const DeductibleOptionEditor: React.FC<DeductibleOptionEditorProps> = ({
             <FieldLabel>Custom Value</FieldLabel>
             <TextInput
               value={(option as any).customValue || ''}
-              onChange={(e) => onChange({ ...option, customValue: e.target.value })}
+              onChange={(e) => onChange({ ...option, customValue: e.target.value } as any)}
               placeholder="Enter custom deductible value"
             />
           </FieldGroup>
@@ -270,8 +270,8 @@ export const DeductibleOptionEditor: React.FC<DeductibleOptionEditorProps> = ({
         {/* State Applicability */}
         <ApplicabilitySection>
           <ApplicabilityPicker
-            value={option.applicability || {}}
-            onChange={handleApplicabilityChange}
+            value={(option.applicability || {}) as any}
+            onChange={handleApplicabilityChange as any}
             showStates={true}
             showCoverageParts={false}
             showPerils={false}

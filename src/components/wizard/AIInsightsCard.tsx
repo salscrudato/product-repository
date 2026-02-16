@@ -255,7 +255,7 @@ const breathe = keyframes`0%, 100% { opacity: 0.4; } 50% { opacity: 0.7; }`;
 
 // Styled Components - Premium V2
 const Container = styled.div`
-  background: ${({ theme }) => theme.colours.surface};
+  background: ${({ theme }) => theme.colours.background};
   border: 1px solid ${({ theme }) => theme.colours.border};
   border-radius: 16px;
   overflow: hidden;

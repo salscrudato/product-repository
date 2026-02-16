@@ -3,6 +3,6 @@
  * Centralized exports for coverage package components
  */
 
-export { default as PackageBuilder } from './PackageBuilder';
-export { default as PackageCard } from './PackageCard';
+export { PackageBuilder } from './PackageBuilder';
+export { PackageCard } from './PackageCard';
 

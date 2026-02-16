@@ -1,5 +1,9 @@
 import React, { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import styled from 'styled-components';
+import {
+  color, neutral, accent, semantic, space, radius, shadow,
+  fontFamily, type as typeScale, transition, focusRingStyle,
+} from '../ui/tokens';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
 import { PageContainer, PageContent } from './ui/PageContainer';
@@ -50,59 +54,27 @@ const HeaderActionButton = styled.button.withConfig({
 })<{ variant?: 'primary' | 'secondary' }>`
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: ${props => props.variant === 'secondary'
-    ? 'rgba(255, 255, 255, 0.9)'
-    : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'};
-  color: ${props => props.variant === 'secondary' ? '#6366f1' : '#ffffff'};
-  border: ${props => props.variant === 'secondary' ? '1px solid rgba(99, 102, 241, 0.2)' : 'none'};
-  border-radius: 12px;
-  padding: 12px 20px;
-  font-weight: 600;
-  font-size: 14px;
+  gap: ${space[2]};
+  background: ${props => props.variant === 'secondary' ? neutral[0] : accent[600]};
+  color: ${props => props.variant === 'secondary' ? color.text : neutral[0]};
+  border: ${props => props.variant === 'secondary' ? `1px solid ${neutral[200]}` : '1px solid transparent'};
+  border-radius: ${radius.md};
+  padding: ${space[2]} ${space[4]};
+  font-weight: 500;
+  font-size: ${typeScale.bodySm.size};
+  font-family: ${fontFamily.sans};
   cursor: pointer;
-  box-shadow: ${props => props.variant === 'secondary'
-    ? '0 2px 8px rgba(99, 102, 241, 0.1)'
-    : '0 4px 16px rgba(99, 102, 241, 0.25)'};
-  transition: all 0.3s ease;
-  letter-spacing: -0.01em;
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.5s ease;
-  }
+  transition: background ${transition.fast}, border-color ${transition.fast};
 
   &:hover {
-    background: ${props => props.variant === 'secondary'
-      ? 'rgba(99, 102, 241, 0.1)'
-      : 'linear-gradient(135deg, #5b5bf6 0%, #7c3aed 100%)'};
-    transform: translateY(-2px);
-    box-shadow: ${props => props.variant === 'secondary'
-      ? '0 4px 16px rgba(99, 102, 241, 0.2)'
-      : '0 8px 24px rgba(99, 102, 241, 0.35)'};
-    border-color: ${props => props.variant === 'secondary' ? 'rgba(99, 102, 241, 0.3)' : 'transparent'};
-
-    &::before {
-      left: 100%;
-    }
+    background: ${props => props.variant === 'secondary' ? neutral[50] : accent[700]};
+    border-color: ${props => props.variant === 'secondary' ? neutral[300] : 'transparent'};
   }
 
-  &:active {
-    transform: translateY(0);
-  }
+  &:focus-visible { ${focusRingStyle} }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  svg {
-    width: 16px;
-    height: 16px;
-  }
+  svg { width: 15px; height: 15px; flex-shrink: 0; }
 `;
 
 // Action Bar
@@ -110,15 +82,9 @@ const ActionBar = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 32px;
-  gap: 20px;
+  margin-bottom: ${space[6]};
+  gap: ${space[4]};
   flex-wrap: wrap;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  padding: 20px 24px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
@@ -127,72 +93,59 @@ const ActionBar = styled.div`
 // Filter Bar
 const FilterBar = styled.div`
   display: flex;
-  gap: 12px;
+  gap: ${space[3]};
   align-items: center;
   flex-wrap: wrap;
-  padding: 16px 24px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  margin-bottom: 24px;
+  padding: ${space[3]} ${space[4]};
+  background: ${neutral[0]};
+  border-radius: ${radius.lg};
+  border: 1px solid ${neutral[200]};
+  margin-bottom: ${space[5]};
   max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 `;
 
 const FilterSelect = styled.select`
-  padding: 8px 12px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 8px;
-  background: white;
-  font-size: 13px;
+  padding: ${space[1.5]} ${space[3]};
+  border: 1px solid ${neutral[200]};
+  border-radius: ${radius.sm};
+  background: ${neutral[0]};
+  font-size: ${typeScale.caption.size};
   font-weight: 500;
-  color: #374151;
+  font-family: ${fontFamily.sans};
+  color: ${color.text};
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: border-color ${transition.fast};
 
-  &:hover {
-    border-color: #6366f1;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
-  }
-
-  &:focus {
-    outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-  }
+  &:hover { border-color: ${neutral[300]}; }
+  &:focus { outline: none; border-color: ${accent[500]}; box-shadow: 0 0 0 3px ${accent[500]}1a; }
 `;
 
 const ClearFiltersButton = styled.button`
-  padding: 8px 12px;
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 8px;
-  font-size: 13px;
+  padding: ${space[1.5]} ${space[3]};
+  background: transparent;
+  color: ${semantic.error};
+  border: 1px solid ${neutral[200]};
+  border-radius: ${radius.sm};
+  font-size: ${typeScale.caption.size};
   font-weight: 500;
+  font-family: ${fontFamily.sans};
   cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.3);
-  }
+  transition: background ${transition.fast};
+  &:hover { background: ${semantic.errorLight}; }
 `;
 
 // Keyboard shortcuts hint
 const KeyboardHint = styled.div`
   display: flex;
-  gap: 16px;
-  padding: 12px 16px;
-  background: rgba(99, 102, 241, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(99, 102, 241, 0.1);
-  font-size: 12px;
-  color: #6b7280;
-  margin-bottom: 16px;
+  gap: ${space[4]};
+  padding: ${space[2.5]} ${space[4]};
+  background: ${neutral[50]};
+  border-radius: ${radius.md};
+  font-size: ${typeScale.captionSm.size};
+  color: ${neutral[500]};
+  margin-bottom: ${space[4]};
   max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
@@ -201,16 +154,17 @@ const KeyboardHint = styled.div`
 const KeyboardShortcut = styled.span`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${space[1]};
 
   kbd {
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    border-radius: 4px;
-    padding: 2px 6px;
-    font-size: 11px;
+    background: ${neutral[0]};
+    border: 1px solid ${neutral[200]};
+    border-radius: ${radius.xs};
+    padding: 1px ${space[1.5]};
+    font-size: 10px;
     font-weight: 600;
-    color: #374151;
+    font-family: ${fontFamily.sans};
+    color: ${neutral[600]};
   }
 `;
 
@@ -218,43 +172,38 @@ const KeyboardShortcut = styled.span`
 const StatsBar = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 16px;
-  padding: 16px 24px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
-  border-radius: 12px;
-  border: 1px solid rgba(99, 102, 241, 0.1);
-  margin-bottom: 24px;
+  gap: ${space[3]};
+  margin-bottom: ${space[5]};
   max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
 
   @media (max-width: 640px) {
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    padding: 12px 16px;
+    gap: ${space[2]};
   }
 `;
 
 const StatBox = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 8px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
+  gap: ${space[0.5]};
+  padding: ${space[3]} ${space[4]};
+  background: ${neutral[0]};
+  border-radius: ${radius.lg};
+  border: 1px solid ${neutral[200]};
 `;
 
 const StatBoxValue = styled.div`
   font-size: 18px;
   font-weight: 700;
-  color: #6366f1;
+  color: ${accent[500]};
 `;
 
 const StatBoxLabel = styled.div`
   font-size: 12px;
   font-weight: 600;
-  color: #6b7280;
+  color: ${neutral[500]};
   text-transform: uppercase;
   letter-spacing: 0.5px;
 `;
@@ -263,12 +212,12 @@ const StatBoxLabel = styled.div`
 const BulkActionsToolbar = styled.div`
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
-  border-radius: 8px;
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  margin-bottom: 16px;
+  gap: ${space[4]};
+  padding: ${space[3]} ${space[4]};
+  background: ${accent[50]};
+  border-radius: ${radius.md};
+  border: 1px solid ${accent[200]};
+  margin-bottom: ${space[4]};
   animation: slideDown 0.2s ease;
 
   @keyframes slideDown {
@@ -286,23 +235,23 @@ const BulkActionsToolbar = styled.div`
 const BulkActionCount = styled.span`
   font-size: 13px;
   font-weight: 600;
-  color: #6366f1;
+  color: ${accent[600]};
 `;
 
 const BulkActionButton = styled.button`
-  padding: 8px 12px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
+  padding: ${space[2]} ${space[3]};
+  background: ${accent[600]};
+  color: ${neutral[0]};
   border: none;
-  border-radius: 6px;
+  border-radius: ${radius.sm};
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all ${transition.fast};
 
   &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    background: ${accent[700]};
+    box-shadow: ${shadow.sm};
   }
 
   &:disabled {
@@ -313,21 +262,21 @@ const BulkActionButton = styled.button`
 
 // AI Suggestions Banner
 const SuggestionsBanner = styled.div`
-  padding: 16px;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%);
-  border-radius: 8px;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  margin-bottom: 16px;
+  padding: ${space[4]};
+  background: ${semantic.infoLight};
+  border-radius: ${radius.md};
+  border: 1px solid ${semantic.info}33;
+  margin-bottom: ${space[4]};
 `;
 
 const SuggestionsTitle = styled.div`
-  font-size: 13px;
+  font-size: ${typeScale.caption.size};
   font-weight: 600;
-  color: #1e40af;
-  margin-bottom: 8px;
+  color: ${semantic.infoDark};
+  margin-bottom: ${space[2]};
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${space[1.5]};
 `;
 
 const SuggestionsList = styled.ul`
@@ -336,11 +285,11 @@ const SuggestionsList = styled.ul`
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: ${space[1.5]};
 
   li {
     font-size: 12px;
-    color: #1e40af;
+    color: ${semantic.infoDark};
     padding-left: 20px;
     position: relative;
 
@@ -361,113 +310,80 @@ const SuggestionsList = styled.ul`
 // Toast notification
 const ToastContainer = styled.div`
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: ${space[6]};
+  right: ${space[6]};
   z-index: 2000;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 400px;
+  gap: ${space[2]};
+  max-width: 380px;
 
   @media (max-width: 640px) {
-    bottom: 16px;
-    right: 16px;
-    left: 16px;
+    bottom: ${space[4]};
+    right: ${space[4]};
+    left: ${space[4]};
     max-width: none;
   }
 `;
 
 const Toast = styled.div<{ $type?: 'success' | 'error' | 'info' }>`
-  padding: 16px 20px;
-  border-radius: 12px;
+  padding: ${space[3]} ${space[4]};
+  border-radius: ${radius.md};
   background: ${props => {
     switch (props.$type) {
-      case 'success': return '#dcfce7';
-      case 'error': return '#fee2e2';
-      case 'info': return '#dbeafe';
-      default: return '#f3f4f6';
+      case 'success': return semantic.successLight;
+      case 'error': return semantic.errorLight;
+      case 'info': return semantic.infoLight;
+      default: return neutral[100];
     }
   }};
   border: 1px solid ${props => {
     switch (props.$type) {
-      case 'success': return '#86efac';
-      case 'error': return '#fca5a5';
-      case 'info': return '#93c5fd';
-      default: return '#e5e7eb';
+      case 'success': return `${semantic.success}33`;
+      case 'error': return `${semantic.error}33`;
+      case 'info': return `${semantic.info}33`;
+      default: return neutral[200];
     }
   }};
   color: ${props => {
     switch (props.$type) {
-      case 'success': return '#166534';
-      case 'error': return '#991b1b';
-      case 'info': return '#1e40af';
-      default: return '#374151';
+      case 'success': return semantic.successDark;
+      case 'error': return semantic.errorDark;
+      case 'info': return semantic.infoDark;
+      default: return color.text;
     }
   }};
-  font-size: 14px;
+  font-size: ${typeScale.bodySm.size};
   font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  animation: slideIn 0.3s ease-out;
-
-  @keyframes slideIn {
-    from {
-      transform: translateX(400px);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
+  box-shadow: ${shadow.md};
 `;
 
 const ActionGroup = styled.div`
   display: flex;
-  gap: 12px;
+  gap: ${space[3]};
   align-items: center;
 `;
 
-// Unified Command Bar - Apple-inspired search + actions header
+// Unified Command Bar
 const CommandBar = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 32px;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 4px 12px rgba(0, 0, 0, 0.03),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  gap: ${space[4]};
+  margin-bottom: ${space[6]};
+  padding: ${space[3]} ${space[4]};
+  background: ${neutral[0]};
+  border-radius: ${radius.lg};
+  border: 1px solid ${neutral[200]};
   max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
-  position: relative;
-
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 16px;
-    padding: 1px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.2) 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-  }
 `;
 
 const CommandBarLeft = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: ${space[3]};
 `;
 
 const CommandBarCenter = styled.div`
@@ -481,7 +397,7 @@ const CommandBarCenter = styled.div`
 const CommandBarRight = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: ${space[3]};
 `;
 
 const SearchWrapper = styled.div`
@@ -493,57 +409,37 @@ const SearchWrapper = styled.div`
 
 const SearchInputStyled = styled.input`
   width: 100%;
-  padding: 12px 16px 12px 44px;
-  background: rgba(0, 0, 0, 0.03);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 450;
-  color: #1a1a1a;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  letter-spacing: -0.01em;
+  padding: ${space[2.5]} ${space[4]} ${space[2.5]} ${space[10]};
+  background: ${neutral[50]};
+  border: 1px solid ${neutral[200]};
+  border-radius: ${radius.md};
+  font-size: ${typeScale.bodySm.size};
+  font-family: ${fontFamily.sans};
+  color: ${color.text};
+  transition: border-color ${transition.fast}, box-shadow ${transition.fast};
 
-  &::placeholder {
-    color: #8e8e93;
-    font-weight: 400;
-  }
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.04);
-    border-color: rgba(0, 0, 0, 0.08);
-  }
-
-  &:focus {
-    outline: none;
-    background: #ffffff;
-    border-color: rgba(99, 102, 241, 0.5);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
-  }
+  &::placeholder { color: ${neutral[400]}; }
+  &:hover { border-color: ${neutral[300]}; }
+  &:focus { outline: none; border-color: ${accent[500]}; box-shadow: 0 0 0 3px ${accent[500]}1a; }
 `;
 
 const SearchIconWrapper = styled.div`
   position: absolute;
-  left: 14px;
+  left: ${space[3]};
   top: 50%;
   transform: translateY(-50%);
-  color: #8e8e93;
+  color: ${neutral[400]};
   pointer-events: none;
   display: flex;
-  align-items: center;
-  justify-content: center;
-
-  svg {
-    width: 18px;
-    height: 18px;
-  }
+  svg { width: 16px; height: 16px; }
 `;
 
 const ViewToggleGroup = styled.div`
   display: flex;
-  gap: 2px;
-  background: rgba(0, 0, 0, 0.04);
-  padding: 4px;
-  border-radius: 10px;
+  gap: 1px;
+  background: ${neutral[100]};
+  padding: 3px;
+  border-radius: ${radius.md};
 `;
 
 const ViewToggleButton = styled.button.withConfig({
@@ -552,102 +448,78 @@ const ViewToggleButton = styled.button.withConfig({
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: ${space[1]};
+  padding: ${space[1.5]} ${space[3]};
   border: none;
-  border-radius: 8px;
-  background: ${({ active }) => active ? '#ffffff' : 'transparent'};
-  color: ${({ active }) => active ? '#1a1a1a' : '#6b7280'};
-  font-size: 13px;
+  border-radius: ${radius.sm};
+  background: ${({ active }) => active ? neutral[0] : 'transparent'};
+  color: ${({ active }) => active ? color.text : neutral[500]};
+  font-size: ${typeScale.caption.size};
   font-weight: 500;
+  font-family: ${fontFamily.sans};
   cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: ${({ active }) => active ? '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)' : 'none'};
+  transition: background ${transition.fast}, color ${transition.fast};
+  box-shadow: ${({ active }) => active ? shadow.xs : 'none'};
 
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  &:hover {
-    background: ${({ active }) => active ? '#ffffff' : 'rgba(255,255,255,0.6)'};
-    color: ${({ active }) => active ? '#1a1a1a' : '#4b5563'};
-  }
-
-  &:active {
-    transform: scale(0.98);
-  }
+  svg { width: 14px; height: 14px; }
+  &:hover { color: ${({ active }) => active ? color.text : neutral[700]}; }
 `;
 
 const AddProductButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: #ffffff;
+  gap: ${space[2]};
+  padding: ${space[2]} ${space[4]};
+  background: ${accent[600]};
+  color: ${neutral[0]};
   border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
+  border-radius: ${radius.md};
+  font-size: ${typeScale.bodySm.size};
+  font-weight: 500;
+  font-family: ${fontFamily.sans};
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
-  letter-spacing: -0.01em;
+  transition: background ${transition.fast};
   white-space: nowrap;
 
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
-    background: linear-gradient(135deg, #5b5ce6 0%, #7c4dff 100%);
-  }
-
-  &:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
-  }
+  svg { width: 15px; height: 15px; }
+  &:hover { background: ${accent[700]}; }
+  &:focus-visible { ${focusRingStyle} }
 `;
 
 const ProductsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 32px;
-  margin-bottom: 60px;
+  gap: ${space[5]};
+  margin-bottom: ${space[12]};
   max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
 
   @media (max-width: 1024px) {
     grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
+    gap: ${space[4]};
   }
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
-    gap: 20px;
-    margin-bottom: 40px;
+    gap: ${space[4]};
+    margin-bottom: ${space[10]};
   }
 
   @media (max-width: 480px) {
-    gap: 16px;
+    gap: ${space[3]};
   }
 `;
 
 // Table Container for table view
 const TableContainer = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  padding: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  background: ${neutral[0]};
+  border-radius: ${radius.xl};
+  padding: ${space[6]};
+  border: 1px solid ${neutral[200]};
+  box-shadow: ${shadow.card};
   overflow: hidden;
-  margin-bottom: 60px;
+  margin-bottom: ${space[16]};
   max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
@@ -659,18 +531,16 @@ const Table = styled.table`
 `;
 
 const TableHead = styled.thead`
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background: ${neutral[50]};
 `;
 
 const TableRow = styled.tr`
-  border-bottom: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
+  border-bottom: 1px solid ${neutral[200]};
+  transition: background ${transition.fast};
   cursor: pointer;
 
   &:hover {
-    background: rgba(99, 102, 241, 0.05);
-    transform: translateX(2px);
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+    background: ${neutral[50]};
   }
 
   &:last-child {
@@ -679,25 +549,25 @@ const TableRow = styled.tr`
 `;
 
 const TableHeader = styled.th`
-  padding: 16px 12px;
+  padding: ${space[4]} ${space[3]};
   text-align: left;
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 600;
-  color: #475569;
+  color: ${neutral[500]};
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
 `;
 
 const TableCell = styled.td`
-  padding: 16px 12px;
+  padding: ${space[4]} ${space[3]};
   font-size: 14px;
-  color: #64748b;
+  color: ${color.text};
   vertical-align: middle;
 `;
 
 const TableActions = styled.div`
   display: flex;
-  gap: 8px;
+  gap: ${space[2]};
   justify-content: center;
 `;
 
@@ -708,28 +578,26 @@ const IconButton = styled.button`
   width: 36px;
   height: 36px;
   border: none;
-  border-radius: 12px;
-  background: rgba(248, 250, 252, 0.8);
-  backdrop-filter: blur(10px);
-  color: #64748b;
+  border-radius: ${radius.lg};
+  background: ${neutral[50]};
+  color: ${neutral[500]};
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
-  border: 1px solid rgba(226, 232, 240, 0.6);
+  transition: all ${transition.fast};
+  border: 1px solid ${neutral[200]};
 
   &:hover {
-    background: rgba(99, 102, 241, 0.08);
-    color: #6366f1;
-    border-color: rgba(99, 102, 241, 0.3);
-    transform: translateY(-1px);
+    background: ${accent[50]};
+    color: ${accent[600]};
+    border-color: ${accent[200]};
   }
 
   &.danger:hover {
-    background: rgba(239, 68, 68, 0.08);
-    color: #ef4444;
-    border-color: rgba(239, 68, 68, 0.3);
+    background: ${semantic.errorLight};
+    color: ${semantic.error};
+    border-color: ${semantic.error}33;
   }
 
   @media (max-width: 768px) {
@@ -742,29 +610,26 @@ const IconButton = styled.button`
 const AddButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
+  gap: ${space[2]};
+  padding: ${space[2.5]} ${space[4]};
+  background: ${accent[600]};
+  color: ${neutral[0]};
   border: none;
-  border-radius: 8px;
+  border-radius: ${radius.md};
   font-size: 14px;
   font-weight: 600;
+  font-family: ${fontFamily.sans};
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+  transition: background ${transition.fast};
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    background: ${accent[700]};
   }
 
-  &:active {
-    transform: translateY(0);
-  }
+  &:focus-visible { ${focusRingStyle} }
 
   @media (max-width: 768px) {
-    padding: 8px 12px;
+    padding: ${space[2]} ${space[3]};
     font-size: 12px;
   }
 `;
@@ -773,25 +638,24 @@ const AddButton = styled.button`
 const Modal = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: ${color.overlay};
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
+  padding: ${space[5]};
   backdrop-filter: blur(4px);
 `;
 
 const ModalContent = styled.div`
-  background: #ffffff;
-  border-radius: 16px;
+  background: ${neutral[0]};
+  border-radius: ${radius.xl};
   padding: 0;
   width: 100%;
   max-width: 650px;
   max-height: 90vh;
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: ${shadow.overlay};
 `;
 
 /* ---------- Enhanced AI Content Modal Components ---------- */
@@ -803,8 +667,7 @@ const EnhancedModalContent = styled.div`
   max-width: 768px;
   max-height: 90vh;
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: ${shadow.overlay};
   display: flex;
   flex-direction: column;
 `;
@@ -813,9 +676,9 @@ const StickyModalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 32px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #ffffff;
+  padding: ${space[6]} ${space[8]};
+  border-bottom: 1px solid ${neutral[200]};
+  background: ${neutral[0]};
   position: sticky;
   top: 0;
   z-index: 10;
@@ -825,100 +688,74 @@ const EnhancedModalTitle = styled.h2`
   margin: 0;
   font-size: 20px;
   font-weight: 700;
-  color: #111827;
+  color: ${color.text};
   letter-spacing: -0.01em;
 `;
 
 const ScrollableModalBody = styled.div`
   max-height: 70vh;
   overflow-y: auto;
-  padding: 32px;
-  background: #ffffff;
+  padding: ${space[8]};
+  background: ${neutral[0]};
 
-  /* Custom scrollbar */
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: #f1f5f9;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-  }
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: ${neutral[100]}; }
+  &::-webkit-scrollbar-thumb { background: ${neutral[300]}; border-radius: 3px; }
+  &::-webkit-scrollbar-thumb:hover { background: ${neutral[400]}; }
 `;
 
 const AIContentContainer = styled.div`
-  /* Typography hierarchy for AI content */
   h1, h2 {
     font-size: 20px;
     font-weight: 700;
-    color: #111827;
-    margin: 0 0 16px 0;
+    color: ${color.text};
+    margin: 0 0 ${space[4]} 0;
     line-height: 1.3;
   }
 
   h3 {
     font-size: 16px;
     font-weight: 600;
-    color: #374151;
-    margin: 24px 0 12px 0;
+    color: ${neutral[700]};
+    margin: ${space[6]} 0 ${space[3]} 0;
     line-height: 1.4;
   }
 
   p {
     font-size: 14px;
-    color: #4b5563;
+    color: ${neutral[600]};
     line-height: 1.6;
-    margin: 0 0 16px 0;
+    margin: 0 0 ${space[4]} 0;
   }
 
   strong, b {
     font-weight: 600;
-    color: #374151;
+    color: ${neutral[700]};
   }
 
   ul, ol {
-    margin: 16px 0;
-    padding-left: 20px;
+    margin: ${space[4]} 0;
+    padding-left: ${space[5]};
   }
 
   li {
     font-size: 14px;
-    color: #4b5563;
+    color: ${neutral[600]};
     line-height: 1.6;
-    margin: 4px 0;
+    margin: ${space[1]} 0;
   }
 
-  /* Visual rhythm and spacing */
   > * + * {
-    margin-top: 16px;
-  }
-
-  /* Highlight key terms */
-  strong:contains("Limits:"),
-  strong:contains("Perils:"),
-  strong:contains("Coverage:"),
-  strong:contains("Deductible:") {
-    color: #6366f1;
-    background: rgba(99, 102, 241, 0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
+    margin-top: ${space[4]};
   }
 `;
 
 const ContentSection = styled.div`
-  margin-bottom: 32px;
-  padding: 24px;
-  background: #f8fafc;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  margin-bottom: ${space[8]};
+  padding: ${space[6]};
+  background: ${neutral[50]};
+  border-radius: ${radius.lg};
+  border: 1px solid ${neutral[200]};
 
   &:last-child {
     margin-bottom: 0;
@@ -928,18 +765,18 @@ const ContentSection = styled.div`
 const SectionHeader = styled.h3`
   font-size: 16px;
   font-weight: 600;
-  color: #374151;
-  margin: 0 0 16px 0;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #e5e7eb;
+  color: ${neutral[700]};
+  margin: 0 0 ${space[4]} 0;
+  padding-bottom: ${space[2]};
+  border-bottom: 2px solid ${neutral[200]};
 `;
 
 const ModalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 24px 0;
-  margin-bottom: 24px;
+  padding: ${space[6]} ${space[6]} 0;
+  margin-bottom: ${space[6]};
   position: relative;
 `;
 
@@ -947,29 +784,29 @@ const ModalTitle = styled.h3`
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #111827;
+  color: ${color.text};
 `;
 
 const CloseButton = styled.button`
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: ${space[4]};
+  right: ${space[4]};
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 8px;
-  background: rgba(107, 114, 128, 0.1);
-  color: #6b7280;
+  border-radius: ${radius.md};
+  background: ${neutral[100]};
+  color: ${neutral[500]};
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all ${transition.fast};
   z-index: 20;
 
   &:hover {
-    background: rgba(107, 114, 128, 0.2);
-    color: #374151;
+    background: ${neutral[200]};
+    color: ${neutral[700]};
   }
 
   svg {
@@ -1012,8 +849,8 @@ const renderAIContent = (content) => {
 };
 
 const FormField = styled.div`
-  margin-bottom: 24px;
-  padding: 0 24px;
+  margin-bottom: ${space[6]};
+  padding: 0 ${space[6]};
 
   &:last-of-type {
     margin-bottom: 0;
@@ -1024,8 +861,8 @@ const FormLabel = styled.label`
   display: block;
   font-size: 13px;
   font-weight: 600;
-  color: #111827;
-  margin-bottom: 8px;
+  color: ${color.text};
+  margin-bottom: ${space[2]};
   text-transform: uppercase;
   letter-spacing: 0.5px;
 `;
@@ -1034,92 +871,89 @@ const FormLabelHint = styled.span`
   display: block;
   font-size: 12px;
   font-weight: 400;
-  color: #6b7280;
+  color: ${neutral[500]};
   text-transform: none;
   letter-spacing: normal;
-  margin-top: 4px;
+  margin-top: ${space[1]};
 `;
 
 const FormInput = styled.input`
   width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  padding: ${space[3]} ${space[4]};
+  border: 1px solid ${neutral[200]};
+  border-radius: ${radius.md};
   font-size: 14px;
-  color: #111827;
-  background: #ffffff;
-  transition: all 0.2s ease;
+  font-family: ${fontFamily.sans};
+  color: ${color.text};
+  background: ${neutral[0]};
+  transition: border-color ${transition.fast}, box-shadow ${transition.fast};
 
   &:focus {
     outline: none;
-    border-color: #7c3aed;
-    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    border-color: ${accent[500]};
+    box-shadow: 0 0 0 3px ${accent[500]}1a;
   }
 
   &::placeholder {
-    color: #9ca3af;
+    color: ${neutral[400]};
   }
 
   &:disabled {
-    background: #f3f4f6;
-    color: #9ca3af;
+    background: ${neutral[100]};
+    color: ${neutral[400]};
     cursor: not-allowed;
   }
 `;
 
 const FileInput = styled.input`
   width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  padding: ${space[3]} ${space[4]};
+  border: 1px solid ${neutral[200]};
+  border-radius: ${radius.md};
   font-size: 14px;
-  color: #111827;
-  background: #ffffff;
+  color: ${color.text};
+  background: ${neutral[0]};
   cursor: pointer;
 
   &:focus {
     outline: none;
-    border-color: #7c3aed;
-    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    border-color: ${accent[500]};
+    box-shadow: 0 0 0 3px ${accent[500]}1a;
   }
 `;
 
 const FileName = styled.div`
-  margin-top: 8px;
+  margin-top: ${space[2]};
   font-size: 12px;
-  color: #6b7280;
-  padding: 8px 12px;
-  background: #f9fafb;
-  border-radius: 6px;
+  color: ${neutral[500]};
+  padding: ${space[2]} ${space[3]};
+  background: ${neutral[50]};
+  border-radius: ${radius.sm};
 `;
 
 const ModalActions = styled.div`
   display: flex;
-  gap: 12px;
-  padding: 24px;
+  gap: ${space[3]};
+  padding: ${space[6]};
   justify-content: flex-end;
-  border-top: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border-top: 1px solid ${neutral[200]};
+  background: ${neutral[50]};
 `;
 
 const SaveButton = styled.button`
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a855f7 100%);
-  color: #ffffff;
+  padding: ${space[3]} ${space[6]};
+  background: ${accent[600]};
+  color: ${neutral[0]};
   border: none;
-  border-radius: 8px;
+  border-radius: ${radius.md};
   font-weight: 600;
   font-size: 14px;
+  font-family: ${fontFamily.sans};
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background ${transition.fast};
 
   &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
+    background: ${accent[700]};
   }
 
   &:disabled {
@@ -1129,46 +963,46 @@ const SaveButton = styled.button`
 `;
 
 const CancelButton = styled.button`
-  padding: 12px 24px;
-  background: #ffffff;
-  color: #6b7280;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  padding: ${space[3]} ${space[6]};
+  background: ${neutral[0]};
+  color: ${neutral[600]};
+  border: 1px solid ${neutral[200]};
+  border-radius: ${radius.md};
   font-weight: 600;
   font-size: 14px;
+  font-family: ${fontFamily.sans};
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all ${transition.fast};
 
   &:hover {
-    background: #f9fafb;
-    color: #374151;
-    border-color: #d1d5db;
+    background: ${neutral[50]};
+    color: ${neutral[700]};
+    border-color: ${neutral[300]};
   }
 `;
 
 const FormError = styled.div`
-  padding: 12px 16px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 8px;
-  color: #dc2626;
+  padding: ${space[3]} ${space[4]};
+  background: ${semantic.errorLight};
+  border: 1px solid ${semantic.error}33;
+  border-radius: ${radius.md};
+  color: ${semantic.error};
   font-size: 13px;
   font-weight: 500;
-  margin-bottom: 20px;
+  margin-bottom: ${space[5]};
 `;
 
-/* ---------- summary modal components ---------- */
 /* ---------- details modal components ---------- */
 const DetailsList = styled.div`
-  padding: 0 24px 24px;
+  padding: 0 ${space[6]} ${space[6]};
 `;
 
 const DetailItem = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid #f3f4f6;
+  padding: ${space[3]} 0;
+  border-bottom: 1px solid ${neutral[100]};
 
   &:last-child {
     border-bottom: none;
@@ -1178,16 +1012,16 @@ const DetailItem = styled.div`
 const DetailLabel = styled.div`
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: ${neutral[700]};
 `;
 
 const DetailValue = styled.div`
   font-size: 14px;
-  color: #6b7280;
+  color: ${neutral[500]};
 `;
 
 const DetailLink = styled.a`
-  color: #7c3aed;
+  color: ${accent[600]};
   text-decoration: none;
   font-weight: 500;
 
@@ -1277,7 +1111,7 @@ const ProductHub = memo(() => {
   const [productCode, setProductCode] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
   const [file, setFile] = useState(null);
-  const [formErrors, setFormErrors] = useState({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
   // AI states
@@ -1330,7 +1164,7 @@ const ProductHub = memo(() => {
 
   // Optimized debounced search
   const debouncedSetSearchTerm = useCallback(
-    debounce((term) => {
+    debounce((term: string) => {
       setSearchTerm(term.trim());
     }, 300),
     []
@@ -1566,12 +1400,13 @@ const ProductHub = memo(() => {
 
       const result = await generateSummary(payload);
 
-      if (!result.data.success) {
+      const resData = result.data as { success?: boolean; content?: string };
+      if (!resData.success) {
         throw new Error('Failed to generate summary');
       }
 
       // Clean response
-      const cleaned = result.data.content
+      const cleaned = (resData.content ?? '')
         .replace(/```json\n?/, '')
         .replace(/\n?```/, '')
         .replace(/[\u200B-\u200D\uFEFF]/g, '')
@@ -1627,8 +1462,8 @@ const ProductHub = memo(() => {
     return limited;
   };
 
-  const validateForm = () => {
-    const errors = {};
+  const validateForm = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
     if (!name?.trim()) errors.name = 'Product name is required';
     if (!formNumber?.trim()) errors.formNumber = 'Form number is required';
     if (!effectiveDate?.trim()) errors.effectiveDate = 'Effective date is required';
@@ -1707,7 +1542,7 @@ const ProductHub = memo(() => {
         <PageContent>
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
             <LoadingSpinner type="circular" size="40px" />
-            <p style={{ marginTop: '16px', color: '#6b7280', fontSize: '14px' }}>Loading products...</p>
+            <p style={{ marginTop: space[4], color: neutral[500], fontSize: '14px' }}>Loading products...</p>
           </div>
         </PageContent>
       </PageContainer>
@@ -1865,7 +1700,7 @@ const ProductHub = memo(() => {
                             href={product.formDownloadUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ color: '#6366f1', textDecoration: 'none' }}
+                            style={{ color: accent[600], textDecoration: 'none' }}
                           >
                             {product.formNumber || 'Download'}
                           </a>
@@ -1874,7 +1709,7 @@ const ProductHub = memo(() => {
                         )}
                       </TableCell>
                       <TableCell>{product.productCode || '-'}</TableCell>
-                      <TableCell>{product.effectiveDate || '-'}</TableCell>
+                      <TableCell>{product.effectiveDate ? String(product.effectiveDate) : '-'}</TableCell>
                       <TableCell>
                         <TableActions>
                           <IconButton onClick={() => handleOpenDetails(product)}>
@@ -1937,14 +1772,14 @@ const ProductHub = memo(() => {
               <FormField>
                 <FormLabel htmlFor="product-name">
                   Product Name
-                  {formErrors.name && <FormLabelHint style={{ color: '#dc2626' }}>✕ {formErrors.name}</FormLabelHint>}
+                  {formErrors.name && <FormLabelHint style={{ color: semantic.error }}>✕ {formErrors.name}</FormLabelHint>}
                 </FormLabel>
                 <FormInput
                   id="product-name"
                   placeholder="e.g., Commercial Property"
                   value={name}
                   onChange={e => { setName(e.target.value); if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' })); }}
-                  style={{ borderColor: formErrors.name ? '#dc2626' : undefined }}
+                  style={{ borderColor: formErrors.name ? semantic.error : undefined }}
                   aria-invalid={!!formErrors.name}
                   aria-describedby={formErrors.name ? 'product-name-error' : undefined}
                 />
@@ -1954,13 +1789,13 @@ const ProductHub = memo(() => {
               <FormField>
                 <FormLabel>
                   Form Number
-                  {formErrors.formNumber && <FormLabelHint style={{ color: '#dc2626' }}>✕ {formErrors.formNumber}</FormLabelHint>}
+                  {formErrors.formNumber && <FormLabelHint style={{ color: semantic.error }}>✕ {formErrors.formNumber}</FormLabelHint>}
                 </FormLabel>
                 <FormInput
                   placeholder="e.g., CP 00 10"
                   value={formNumber}
                   onChange={e => { setFormNumber(e.target.value); if (formErrors.formNumber) setFormErrors(prev => ({ ...prev, formNumber: '' })); }}
-                  style={{ borderColor: formErrors.formNumber ? '#dc2626' : undefined }}
+                  style={{ borderColor: formErrors.formNumber ? semantic.error : undefined }}
                 />
               </FormField>
 
@@ -1976,14 +1811,14 @@ const ProductHub = memo(() => {
               <FormField>
                 <FormLabel>
                   Effective Date
-                  {formErrors.effectiveDate && <FormLabelHint style={{ color: '#dc2626' }}>✕ {formErrors.effectiveDate}</FormLabelHint>}
+                  {formErrors.effectiveDate && <FormLabelHint style={{ color: semantic.error }}>✕ {formErrors.effectiveDate}</FormLabelHint>}
                 </FormLabel>
                 <FormInput
                   placeholder="MM/YY"
                   maxLength={5}
                   value={effectiveDate}
                   onChange={e => { setEffectiveDate(formatEffectiveDate(e.target.value)); if (formErrors.effectiveDate) setFormErrors(prev => ({ ...prev, effectiveDate: '' })); }}
-                  style={{ borderColor: formErrors.effectiveDate ? '#dc2626' : undefined }}
+                  style={{ borderColor: formErrors.effectiveDate ? semantic.error : undefined }}
                 />
               </FormField>
 
@@ -2030,23 +1865,23 @@ const ProductHub = memo(() => {
                 <ContentSection>
                   <SectionHeader>Coverages ({modalData.coverages.length})</SectionHeader>
                   {modalData.coverages.map((c, idx) => (
-                    <div key={idx} style={{ marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #e5e7eb' }}>
-                      <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '600', color: '#111827' }}>
+                    <div key={idx} style={{ marginBottom: space[6], paddingBottom: space[4], borderBottom: `1px solid ${neutral[200]}` }}>
+                      <h3 style={{ margin: `0 0 ${space[3]} 0`, fontSize: '16px', fontWeight: '600', color: color.text }}>
                         {c.coverageName || 'Unnamed Coverage'}
                       </h3>
                       {c.scopeOfCoverage && (
-                        <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#4b5563', lineHeight: '1.6' }}>
+                        <p style={{ margin: `0 0 ${space[2]} 0`, fontSize: '14px', color: neutral[600], lineHeight: '1.6' }}>
                           {c.scopeOfCoverage}
                         </p>
                       )}
                       {c.limits && (
-                        <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#4b5563' }}>
-                          <strong style={{ color: '#6366f1' }}>Limits:</strong> {c.limits}
+                        <p style={{ margin: `0 0 ${space[2]} 0`, fontSize: '14px', color: neutral[600] }}>
+                          <strong style={{ color: accent[600] }}>Limits:</strong> {c.limits}
                         </p>
                       )}
                       {Array.isArray(c.perilsCovered) && c.perilsCovered.length > 0 && (
-                        <p style={{ margin: '0', fontSize: '14px', color: '#4b5563' }}>
-                          <strong style={{ color: '#6366f1' }}>Perils:</strong> {c.perilsCovered.join(', ')}
+                        <p style={{ margin: '0', fontSize: '14px', color: neutral[600] }}>
+                          <strong style={{ color: accent[600] }}>Perils:</strong> {c.perilsCovered.join(', ')}
                         </p>
                       )}
                     </div>

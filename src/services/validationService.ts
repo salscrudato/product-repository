@@ -472,9 +472,9 @@ export function validateForm(form: Partial<Form>): ValidationResult {
   }
 
   // Edition date validation
-  if (form.edition && !/^\d{2}\/\d{2}$/.test(form.edition)) {
+  if (form.formEditionDate && !/^\d{2}\/\d{2}$/.test(form.formEditionDate)) {
     warnings.push({
-      field: 'edition',
+      field: 'formEditionDate',
       message: 'Edition should be in MM/YY format (e.g., 05/16)',
       severity: 'warning',
       code: 'INVALID_EDITION_FORMAT'
@@ -747,7 +747,7 @@ export async function checkReferentialIntegrity(productId: string): Promise<Refe
 
     for (const coverageDoc of coveragesSnap.docs) {
       const coverage = coverageDoc.data() as Coverage;
-      if (!coverage.name || !coverage.coverageType) {
+      if (!coverage.name || !coverage.type) {
         report.orphanedCoverages.push(coverageDoc.id);
       }
     }

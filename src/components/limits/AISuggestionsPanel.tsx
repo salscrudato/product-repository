@@ -9,8 +9,9 @@ import React, { useMemo } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { SparklesIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { detectCoverageType, getRecommendedLimitTemplates, CoverageCategory } from '../../utils/coverageTypeDetector';
-import { ALL_LIMIT_TEMPLATES, LimitOptionTemplate } from '../../data/limitTemplates';
-import { LimitStructure, CoverageLimitOption } from '@app-types';
+import { ALL_LIMIT_TEMPLATES } from '../../data/limitTemplates';
+import type { LimitOptionTemplate } from '../../types/limitOptions';
+import type { LimitStructure, CoverageLimitOption } from '@app-types';
 import { colors } from '../common/DesignSystem';
 
 interface AISuggestionsPanelProps {
@@ -34,9 +35,9 @@ const formatLimitAmount = (amount: number): string => {
 // Get limit range from template options
 const getLimitRange = (options: Partial<CoverageLimitOption>[]): string => {
   const amounts = options
-    .map(o => o.amount || 0)
-    .filter(a => a > 0)
-    .sort((a, b) => a - b);
+    .map(o => (o as any).amount || 0)
+    .filter((a: number) => a > 0)
+    .sort((a: number, b: number) => a - b);
 
   if (amounts.length === 0) return '';
   if (amounts.length === 1) return formatLimitAmount(amounts[0]);
@@ -55,7 +56,7 @@ const CATEGORY_LABELS: Record<CoverageCategory, string> = {
   unknown: 'General',
 };
 
-const STRUCTURE_LABELS: Record<LimitStructure, string> = {
+const STRUCTURE_LABELS: Record<string, string> = {
   single: 'Per Occurrence',
   occAgg: 'Occ/Aggregate',
   split: 'Split Limits',

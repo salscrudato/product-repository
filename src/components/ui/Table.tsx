@@ -1,4 +1,9 @@
 import styled, { css, keyframes } from 'styled-components';
+import {
+  color, neutral, accent, space, radius, shadow, border as borderToken,
+  fontFamily, type as typeScale, transition, focusRingStyle,
+  reducedMotion, z,
+} from '../../ui/tokens';
 
 /* ---------- Animations ---------- */
 const fadeIn = keyframes`
@@ -41,37 +46,49 @@ interface TdProps {
   $maxWidth?: string;
 }
 
-/* ---------- Size Styles ---------- */
+/* ---------- Size Styles — token-based ---------- */
 const sizeStyles = {
   sm: css`
-    th, td { padding: 8px 12px; font-size: 13px; }
+    th, td {
+      padding: ${space[2]} ${space[3]};
+      font-size: ${typeScale.caption.size};
+    }
   `,
   md: css`
-    th, td { padding: 12px 16px; font-size: 14px; }
+    th, td {
+      padding: ${space[3]} ${space[4]};
+      font-size: ${typeScale.bodySm.size};
+    }
   `,
   lg: css`
-    th, td { padding: 16px 20px; font-size: 15px; }
+    th, td {
+      padding: ${space[4]} ${space[5]};
+      font-size: ${typeScale.bodyMd.size};
+    }
   `,
 };
 
-/* ---------- Variant Styles ---------- */
+/* ---------- Variant Styles — token-based ---------- */
 const variantStyles = {
   default: css`
-    tr { border-bottom: 1px solid ${({ theme }) => theme.colours.border}; }
+    tr { border-bottom: 1px solid ${neutral[100]}; }
     tbody tr:last-child { border-bottom: none; }
   `,
   striped: css`
-    tr { border-bottom: 1px solid ${({ theme }) => theme.colours.border}; }
-    tbody tr:nth-child(even) { background: ${({ theme }) => theme.colours.backgroundAlt}; }
+    tr { border-bottom: 1px solid ${neutral[100]}; }
+    tbody tr:nth-child(even) { background: ${color.bgSubtle}; }
     tbody tr:last-child { border-bottom: none; }
   `,
   bordered: css`
-    border: 1px solid ${({ theme }) => theme.colours.border};
-    th, td { border: 1px solid ${({ theme }) => theme.colours.border}; }
+    border: ${borderToken.default};
+    th, td { border: 1px solid ${neutral[200]}; }
   `,
   compact: css`
-    th, td { padding: 6px 10px; font-size: 13px; }
-    tr { border-bottom: 1px solid ${({ theme }) => theme.colours.borderLight}; }
+    th, td {
+      padding: ${space[1.5]} ${space[2.5]};
+      font-size: ${typeScale.caption.size};
+    }
+    tr { border-bottom: 1px solid ${neutral[100]}; }
   `,
 };
 
@@ -81,59 +98,59 @@ export const TableWrapper = styled.div<{ $maxHeight?: string }>`
   overflow-x: auto;
   overflow-y: ${({ $maxHeight }) => $maxHeight ? 'auto' : 'visible'};
   max-height: ${({ $maxHeight }) => $maxHeight || 'none'};
-  border-radius: ${({ theme }) => theme.radius};
-  background: ${({ theme }) => theme.colours.background};
-  box-shadow: ${({ theme }) => theme.shadow};
+  border-radius: ${radius.lg};
+  background: ${color.bg};
+  border: ${borderToken.default};
 
-  /* Custom scrollbar for table */
+  /* Custom scrollbar */
   &::-webkit-scrollbar {
     height: 8px;
     width: 8px;
   }
 
   &::-webkit-scrollbar-track {
-    background: ${({ theme }) => theme.colours.backgroundAlt};
-    border-radius: 4px;
+    background: ${color.bgSubtle};
+    border-radius: ${radius.xs};
   }
 
   &::-webkit-scrollbar-thumb {
-    background: ${({ theme }) => theme.colours.border};
-    border-radius: 4px;
+    background: ${neutral[300]};
+    border-radius: ${radius.xs};
   }
 
   &::-webkit-scrollbar-thumb:hover {
-    background: ${({ theme }) => theme.colours.textSecondary};
+    background: ${neutral[400]};
   }
 
   @media (max-width: 768px) {
     border-radius: 0;
-    margin: 0 -16px;
-    width: calc(100% + 32px);
+    margin: 0 -${space[4]};
+    width: calc(100% + ${space[8]});
   }
 `;
 
 /* ---------- Main Table ---------- */
 export const Table = styled.table<TableProps>`
   width: 100%;
-  background: ${({ theme }) => theme.colours.background};
-  border-radius: ${({ theme }) => theme.radius};
+  background: ${color.bg};
   border-collapse: collapse;
   border-spacing: 0;
+  font-family: ${fontFamily.sans};
 
   ${({ $size = 'md' }) => sizeStyles[$size]}
   ${({ $variant = 'default' }) => variantStyles[$variant]}
 
   ${({ $hoverable }) => $hoverable && css`
     tbody tr {
-      transition: background-color 0.15s ease;
+      transition: background-color ${transition.fast};
       cursor: pointer;
 
       &:hover {
-        background: ${({ theme }) => theme.colours.hover};
+        background: ${color.bgSubtle};
       }
 
       &:active {
-        background: ${({ theme }) => theme.colours.backgroundAlt};
+        background: ${color.bgMuted};
       }
     }
   `}
@@ -142,32 +159,32 @@ export const Table = styled.table<TableProps>`
     thead {
       position: sticky;
       top: 0;
-      z-index: 10;
+      z-index: ${z.sticky};
     }
   `}
 `;
 
 /* ---------- Table Head ---------- */
 export const THead = styled.thead`
-  background: ${({ theme }) => theme.colours.tableHeader};
-  border-bottom: 2px solid ${({ theme }) => theme.colours.border};
+  background: ${color.bgSubtle};
+  border-bottom: 1px solid ${neutral[200]};
 `;
 
 /* ---------- Table Body ---------- */
 export const TBody = styled.tbody`
-  /* Animation for rows */
   tr {
     animation: ${fadeIn} 0.2s ease-out;
+    @media ${reducedMotion} { animation: none; }
   }
 `;
 
 /* ---------- Table Row ---------- */
 export const Tr = styled.tr<{ $selected?: boolean; $disabled?: boolean }>`
-  transition: background-color 0.15s ease;
+  transition: background-color ${transition.fast};
 
-  ${({ $selected, theme }) => $selected && css`
-    background: ${theme.colours.primaryLight} !important;
-    border-left: 3px solid ${theme.colours.primary};
+  ${({ $selected }) => $selected && css`
+    background: ${accent[50]} !important;
+    border-left: 3px solid ${accent[500]};
   `}
 
   ${({ $disabled }) => $disabled && css`
@@ -176,8 +193,7 @@ export const Tr = styled.tr<{ $selected?: boolean; $disabled?: boolean }>`
   `}
 
   &:focus-within {
-    outline: 2px solid ${({ theme }) => theme.colours.primary};
-    outline-offset: -2px;
+    ${focusRingStyle}
   }
 `;
 
@@ -186,8 +202,12 @@ export const Th = styled.th.withConfig({
   shouldForwardProp: (prop) => !['align', '$sortable', '$sortDirection', '$width'].includes(prop as string),
 })<ThProps>`
   text-align: ${({ align = 'left' }) => align};
-  font-weight: 600;
-  color: ${({ theme }) => theme.colours.textSecondary};
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.labelSm.size};
+  font-weight: ${typeScale.labelSm.weight};
+  line-height: ${typeScale.labelSm.lineHeight};
+  letter-spacing: ${typeScale.labelSm.letterSpacing};
+  color: ${color.textSecondary};
   white-space: nowrap;
   position: relative;
   user-select: none;
@@ -195,22 +215,21 @@ export const Th = styled.th.withConfig({
 
   ${({ $sortable }) => $sortable && css`
     cursor: pointer;
-    padding-right: 28px;
-    transition: color 0.15s ease, background-color 0.15s ease;
+    padding-right: ${space[7]};
+    transition: color ${transition.fast}, background-color ${transition.fast};
 
     &:hover {
-      color: ${({ theme }) => theme.colours.text};
-      background: rgba(0, 0, 0, 0.02);
+      color: ${color.text};
+      background: ${neutral[100]};
     }
 
     &:focus-visible {
-      outline: 2px solid ${({ theme }) => theme.colours.primary};
-      outline-offset: -2px;
+      ${focusRingStyle}
     }
   `}
 
   ${({ $sortDirection }) => $sortDirection && css`
-    color: ${({ theme }) => theme.colours.primary};
+    color: ${accent[600]};
     font-weight: 700;
   `}
 `;
@@ -218,14 +237,14 @@ export const Th = styled.th.withConfig({
 /* ---------- Sort Indicator ---------- */
 export const SortIndicator = styled.span<{ $direction: 'asc' | 'desc' | null; $active?: boolean }>`
   position: absolute;
-  right: 8px;
+  right: ${space[2]};
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
   flex-direction: column;
   gap: 2px;
   opacity: ${({ $active }) => $active ? 1 : 0.3};
-  transition: opacity 0.15s ease;
+  transition: opacity ${transition.fast};
 
   &::before,
   &::after {
@@ -237,14 +256,14 @@ export const SortIndicator = styled.span<{ $direction: 'asc' | 'desc' | null; $a
   }
 
   &::before {
-    border-bottom: 4px solid ${({ $direction, $active, theme }) =>
-      $active && $direction === 'asc' ? theme.colours.primary : 'currentColor'};
+    border-bottom: 4px solid ${({ $direction, $active }) =>
+      $active && $direction === 'asc' ? accent[500] : 'currentColor'};
     opacity: ${({ $direction }) => $direction === 'asc' ? 1 : 0.4};
   }
 
   &::after {
-    border-top: 4px solid ${({ $direction, $active, theme }) =>
-      $active && $direction === 'desc' ? theme.colours.primary : 'currentColor'};
+    border-top: 4px solid ${({ $direction, $active }) =>
+      $active && $direction === 'desc' ? accent[500] : 'currentColor'};
     opacity: ${({ $direction }) => $direction === 'desc' ? 1 : 0.4};
   }
 `;
@@ -254,7 +273,11 @@ export const Td = styled.td.withConfig({
   shouldForwardProp: (prop) => !['align', '$truncate', '$maxWidth'].includes(prop as string),
 })<TdProps>`
   text-align: ${({ align = 'left' }) => align};
-  color: ${({ theme }) => theme.colours.text};
+  color: ${color.text};
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.bodySm.size};
+  line-height: ${typeScale.bodySm.lineHeight};
+  letter-spacing: ${typeScale.bodySm.letterSpacing};
   vertical-align: middle;
 
   ${({ $truncate, $maxWidth }) => $truncate && css`
@@ -268,42 +291,45 @@ export const Td = styled.td.withConfig({
 /* ---------- Empty State for Table ---------- */
 export const TableEmptyState = styled.td`
   text-align: center;
-  padding: 48px 24px !important;
-  color: ${({ theme }) => theme.colours.textSecondary};
-  font-size: 14px;
+  padding: ${space[12]} ${space[6]} !important;
+  color: ${color.textSecondary};
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.bodySm.size};
 `;
 
 /* ---------- Loading State for Table ---------- */
 export const TableLoadingState = styled.td`
   text-align: center;
-  padding: 48px 24px !important;
+  padding: ${space[12]} ${space[6]} !important;
 `;
 
 /* ---------- Modal & Overlay ---------- */
 export const Overlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: ${color.overlay};
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: ${({ theme }) => theme.zIndex?.overlay || 300};
+  z-index: ${z.overlay};
   animation: ${fadeIn} 0.2s ease-out;
-  padding: 16px;
+  padding: ${space[4]};
 `;
 
 export const Modal = styled.div<{ $size?: 'sm' | 'md' | 'lg' | 'xl' }>`
   position: relative;
-  z-index: ${({ theme }) => theme.zIndex?.modal || 400};
-  background: #ffffff;
-  border-radius: ${({ theme }) => theme.radiusLg};
-  padding: 24px;
+  z-index: ${z.modal};
+  background: ${color.bg};
+  border-radius: ${radius.xl};
+  padding: ${space[6]};
   width: 100%;
   max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: ${shadow.overlay};
   animation: ${slideUp} 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  @media ${reducedMotion} { animation: none; }
 
   max-width: ${({ $size }) => {
     switch ($size) {
@@ -323,50 +349,51 @@ export const ModalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 20px;
-  gap: 16px;
+  margin-bottom: ${space[5]};
+  gap: ${space[4]};
 `;
 
 export const ModalTitle = styled.h3`
   margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.colours.text};
-  line-height: 1.3;
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.headingMd.size};
+  font-weight: ${typeScale.headingMd.weight};
+  line-height: ${typeScale.headingMd.lineHeight};
+  letter-spacing: ${typeScale.headingMd.letterSpacing};
+  color: ${color.text};
 `;
 
 export const ModalBody = styled.div`
-  margin-bottom: 24px;
+  margin-bottom: ${space[6]};
 `;
 
 export const ModalFooter = styled.div`
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  padding-top: 16px;
-  border-top: 1px solid ${({ theme }) => theme.colours.border};
+  gap: ${space[3]};
+  padding-top: ${space[4]};
+  border-top: ${borderToken.light};
 `;
 
 export const CloseBtn = styled.button`
   background: none;
   border: none;
-  padding: 8px;
+  padding: ${space[2]};
   cursor: pointer;
-  color: ${({ theme }) => theme.colours.textSecondary};
-  border-radius: 8px;
-  transition: all 0.15s ease;
+  color: ${color.textSecondary};
+  border-radius: ${radius.md};
+  transition: background-color ${transition.fast}, color ${transition.fast};
   display: flex;
   align-items: center;
   justify-content: center;
 
   &:hover {
-    background: ${({ theme }) => theme.colours.hover};
-    color: ${({ theme }) => theme.colours.text};
+    background: ${color.bgMuted};
+    color: ${color.text};
   }
 
   &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.colours.primary};
-    outline-offset: 2px;
+    ${focusRingStyle}
   }
 
   svg {

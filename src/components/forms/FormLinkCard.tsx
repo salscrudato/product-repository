@@ -45,9 +45,12 @@ export const FormLinkCard: React.FC<FormLinkCardProps> = ({
   const [showActions, setShowActions] = useState(false);
   const roleColor = getFormRoleColor(link.role);
 
-  const formatDate = (date: Date | undefined) => {
+  const formatDate = (date: Date | { toDate(): Date } | undefined) => {
     if (!date) return null;
-    return new Date(date).toLocaleDateString('en-US', {
+    const d = typeof (date as { toDate?: () => Date }).toDate === 'function'
+      ? (date as { toDate(): Date }).toDate()
+      : date as Date;
+    return d.toLocaleDateString('en-US', {
       month: 'short',
       year: 'numeric'
     });
@@ -99,7 +102,7 @@ export const FormLinkCard: React.FC<FormLinkCardProps> = ({
             </MetaItem>
           )}
 
-          {link.isRequired && (
+          {link.isMandatory && (
             <MetaItem $highlight>
               <CheckCircleIcon />
               <span>Required</span>

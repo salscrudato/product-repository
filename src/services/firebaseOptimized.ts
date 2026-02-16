@@ -16,7 +16,6 @@ import {
   doc,
   getDocs,
   getDoc,
-  onSnapshot,
   query,
   where,
   orderBy,
@@ -26,7 +25,7 @@ import {
   disableNetwork,
   QueryConstraint
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, safeOnSnapshot } from '../firebase';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
 import { CACHE } from '../config/constants';
 
@@ -196,7 +195,14 @@ class FirebaseOptimizedService {
   }
 
   // Optimized collection fetching with enhanced caching and query optimization
-  async getCollection(collectionName, options = {}) {
+  async getCollection(collectionName: string, options: {
+    useCache?: boolean;
+    orderByField?: string | null;
+    orderDirection?: 'asc' | 'desc';
+    limitCount?: number | null;
+    whereConditions?: [string, any, any][];
+    enableQueryOptimization?: boolean;
+  } = {}) {
     const startTime = Date.now();
     const {
       useCache = true,
@@ -231,17 +237,17 @@ class FirebaseOptimizedService {
     const queryFn = async () => {
       try {
         const queryStartTime = Date.now();
-        let q = collection(db, collectionName);
+        let q: any = collection(db, collectionName);
 
         // Optimize query order for better performance
         if (enableQueryOptimization && whereConditions.length > 0) {
           // Sort where conditions by selectivity (most selective first)
           const optimizedConditions = this.optimizeWhereConditions(whereConditions, collectionName);
-          optimizedConditions.forEach(([field, operator, value]) => {
+          optimizedConditions.forEach(([field, operator, value]: [string, any, any]) => {
             q = query(q, where(field, operator, value));
           });
         } else {
-          whereConditions.forEach(([field, operator, value]) => {
+          whereConditions.forEach(([field, operator, value]: [string, any, any]) => {
             q = query(q, where(field, operator, value));
           });
         }
@@ -257,9 +263,9 @@ class FirebaseOptimizedService {
 
         const snapshot = await getDocs(q);
 
-        const data = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
+        const data = snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Record<string, any>)
         }));
 
         const queryTime = Date.now() - queryStartTime;
@@ -269,9 +275,7 @@ class FirebaseOptimizedService {
           this.setCachedData(cacheKey, data);
           this.queryCache.set(cacheKey, {
             data,
-            timestamp: Date.now(),
-            queryTime,
-            resultCount: data.length
+            timestamp: Date.now()
           });
         }
 
@@ -281,8 +285,9 @@ class FirebaseOptimizedService {
         logger.error(LOG_CATEGORIES.FIREBASE, `Error fetching ${collectionName}`, { collectionName }, error as Error);
 
         // Provide index optimization hints
-        if (error.code === 'failed-precondition' && error.message.includes('index')) {
-          this.suggestIndexOptimization(collectionName, options, error);
+        const err = error instanceof Error ? error : new Error(String(error));
+        if ((error as any).code === 'failed-precondition' && err.message.includes('index')) {
+          this.suggestIndexOptimization(collectionName, options, error as Error);
         }
 
         throw error;
@@ -293,7 +298,7 @@ class FirebaseOptimizedService {
   }
 
   // Collection group query for subcollections (e.g., all coverages across all products)
-  async getCollectionGroup(collectionName, options = {}) {
+  async getCollectionGroup(collectionName: string, options: { useCache?: boolean } = {}) {
     const { useCache = true } = options;
     const cacheKey = `collectionGroup_${collectionName}_${JSON.stringify(options)}`;
 
@@ -335,7 +340,7 @@ class FirebaseOptimizedService {
   }
 
   // Optimize where conditions based on field selectivity
-  optimizeWhereConditions(conditions, collectionName) {
+  optimizeWhereConditions(conditions: [string, any, any][], collectionName: string) {
     const hints = this.indexHints.get(collectionName) || {};
 
     return [...conditions].sort((a, b) => {
@@ -353,7 +358,7 @@ class FirebaseOptimizedService {
 
 
   // Suggest index optimizations
-  suggestIndexOptimization(collectionName, options, error) {
+  suggestIndexOptimization(collectionName: string, options: Record<string, any>, error: Error) {
     const indexMatch = error.message.match(/https:\/\/console\.firebase\.google\.com[^\s]+/);
     logger.warn(LOG_CATEGORIES.FIREBASE, 'Index optimization needed', {
       collectionName,
@@ -364,7 +369,7 @@ class FirebaseOptimizedService {
   }
 
   // Optimized document fetching
-  async getDocument(collectionName, docId, useCache = true) {
+  async getDocument(collectionName: string, docId: string, useCache = true) {
     const cacheKey = `${collectionName}_${docId}`;
 
     // Silently track Firebase operation (batched logging in logger)
@@ -396,13 +401,18 @@ class FirebaseOptimizedService {
       logger.error(LOG_CATEGORIES.FIREBASE, `Error fetching document ${docId}`, {
         collectionName,
         docId
-      }, error);
+      }, error as Error);
       throw error;
     }
   }
 
   // Optimized real-time subscription with cleanup
-  subscribeToCollection(collectionName, callback, options = {}) {
+  subscribeToCollection(collectionName: string, callback: (data: any, error: any) => void, options: {
+    orderByField?: string | null;
+    orderDirection?: 'asc' | 'desc';
+    limitCount?: number | null;
+    whereConditions?: [string, any, any][];
+  } = {}) {
     const { 
       orderByField = null, 
       orderDirection = 'asc',
@@ -418,10 +428,10 @@ class FirebaseOptimizedService {
     }
 
     try {
-      let q = collection(db, collectionName);
+      let q: any = collection(db, collectionName);
       
       // Apply conditions
-      whereConditions.forEach(([field, operator, value]) => {
+      whereConditions.forEach(([field, operator, value]: [string, any, any]) => {
         q = query(q, where(field, operator, value));
       });
       
@@ -433,11 +443,11 @@ class FirebaseOptimizedService {
         q = query(q, limit(limitCount));
       }
 
-      const unsubscribe = onSnapshot(q, 
+      const unsubscribe = safeOnSnapshot(q, 
         (snapshot) => {
-          const data = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
+          const data = snapshot.docs.map(docSnap => ({
+            id: docSnap.id,
+            ...docSnap.data()
           }));
           
           // Update cache
@@ -461,7 +471,7 @@ class FirebaseOptimizedService {
   }
 
   // Batch write operations for better performance
-  addToBatch(operation) {
+  addToBatch(operation: { type: string; ref: any; data?: any }) {
     this.batchQueue.push(operation);
     
     // Auto-execute batch when it reaches size limit
@@ -526,7 +536,7 @@ class FirebaseOptimizedService {
   }
 
   // Clear cache by pattern
-  clearCacheByPattern(pattern) {
+  clearCacheByPattern(pattern: string) {
     const keysToDelete = [];
 
     for (const key of this.cache.keys()) {

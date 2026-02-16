@@ -10,14 +10,13 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   collection,
   query,
-  onSnapshot,
   addDoc,
   updateDoc,
   deleteDoc,
   doc,
   Timestamp
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, isAuthReady, safeOnSnapshot } from '../firebase';
 import { CoverageLimit, CoverageDeductible } from '../types';
 
 interface UseCoverageDataResult {
@@ -55,13 +54,14 @@ export function useCoverageData(
 
   // Real-time listener for limits
   useEffect(() => {
-    if (!productId || !coverageId) {
+    // Wait for auth to fully propagate before subscribing
+    if (!isAuthReady() || !productId || !coverageId) {
       setLimits([]);
       return;
     }
 
     const limitsRef = collection(db, `products/${productId}/coverages/${coverageId}/limits`);
-    const unsubscribe = onSnapshot(
+    const unsubscribe = safeOnSnapshot(
       query(limitsRef),
       (snapshot) => {
         const limitsData = snapshot.docs.map((doc) => ({
@@ -83,13 +83,14 @@ export function useCoverageData(
 
   // Real-time listener for deductibles
   useEffect(() => {
-    if (!productId || !coverageId) {
+    // Wait for auth to fully propagate before subscribing
+    if (!isAuthReady() || !productId || !coverageId) {
       setDeductibles([]);
       return;
     }
 
     const deductiblesRef = collection(db, `products/${productId}/coverages/${coverageId}/deductibles`);
-    const unsubscribe = onSnapshot(
+    const unsubscribe = safeOnSnapshot(
       query(deductiblesRef),
       (snapshot) => {
         const deductiblesData = snapshot.docs.map((doc) => ({

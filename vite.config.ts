@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
 import path from 'path';
@@ -50,13 +50,21 @@ if (process.env.ANALYZE) {
       gzipSize: true,
       brotliSize: true,
       filename: 'dist/stats.html',
-    })
+    }) as any
   );
 }
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins,
+
+  // Test configuration (Vitest)
+  test: {
+    globals: true,
+    environment: 'node',
+    include: ['src/**/*.test.{ts,tsx}'],
+    exclude: ['functions/**', 'node_modules/**'],
+  },
 
   // Path resolution
   resolve: {
@@ -154,17 +162,40 @@ export default defineConfig({
 
   // Optimizations
   optimizeDeps: {
+    // Force re-optimization on every dev server start to prevent stale
+    // "504 Outdated Optimize Dep" errors from cached dep bundles.
+    force: true,
+    // Pre-bundle ALL runtime dependencies so Vite never discovers them
+    // lazily at runtime (which triggers re-optimization and 504 errors
+    // for already-loaded pages).
     include: [
+      // Core framework
       'react',
       'react-dom',
       'react-router-dom',
       'styled-components',
-      '@heroicons/react',
+      '@heroicons/react/24/solid',
+      '@heroicons/react/24/outline',
+      '@heroicons/react/20/solid',
+      '@tanstack/react-query',
+      // Firebase
       'firebase/app',
       'firebase/auth',
       'firebase/firestore',
       'firebase/functions',
       'firebase/storage',
+      // Lazy-loaded component dependencies
+      'react-simple-maps',
+      'react-window',
+      'react-markdown',
+      'remark-gfm',
+      'uuid',
+      'xlsx',
+      'file-saver',
+      'fuse.js',
+      'axios',
+      'zod',
+      'prop-types',
     ],
     exclude: ['pdfjs-dist'],
     esbuildOptions: {

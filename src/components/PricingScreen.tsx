@@ -2,6 +2,10 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { useAuth } from '../context/AuthContext';
+import { orgDataDictionaryService } from '../services/orgDataDictionaryService';
+import { DataDictionaryField } from '../types/dataDictionary';
+import { FieldCodeInput } from './ui/FieldCodeInput';
 import {
   TrashIcon,
   PencilIcon,
@@ -21,8 +25,10 @@ import { ArrowDownTrayIcon as DownloadIcon20, ArrowUpTrayIcon as UploadIcon20 } 
 
 import { Button } from '../components/ui/Button';
 import MainNavigation from '../components/ui/Navigation';
-import { PageContainer, PageContent } from '../components/ui/PageContainer';
 import EnhancedHeader from '../components/ui/EnhancedHeader';
+
+// ── Design System v2 ──
+import { PageShell, PageBody } from '@/ui/components';
 
 import {
   Table,
@@ -39,7 +45,10 @@ import styled, { keyframes } from 'styled-components';
 import { TextInput } from '../components/ui/Input';
 import RatingAlgorithmBuilder from './pricing/RatingAlgorithmBuilder';
 import EnhancedRatingBuilder from './pricing/EnhancedRatingBuilder';
+import { ScenarioRunner } from './pricing/ScenarioRunner';
 import type { StepTemplate } from '../types/pricing';
+import type { RatingStep as EngineRatingStep, RatingTableData } from '../types/ratingEngine';
+import { BeakerIcon } from '@heroicons/react/24/outline';
 
 /* ========== MODERN STYLED COMPONENTS ========== */
 
@@ -66,20 +75,7 @@ const fadeInUp = keyframes`
   }
 `;
 
-const shimmer = keyframes`
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-`;
-
-const pulseGlow = keyframes`
-  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-  50% { box-shadow: 0 0 20px 4px rgba(99, 102, 241, 0.2); }
-`;
-
-const countUp = keyframes`
-  from { opacity: 0; transform: scale(0.8) translateY(10px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-`;
+/* shimmer, pulseGlow, countUp animations removed — keeping simple fade-in only */
 
 // Ensures any button/link used inside table cells fills the cell width and centers its text
 const CellButton = styled(Button)`
@@ -187,7 +183,7 @@ const CoverageGrid = styled.div`
   padding: 12px;
   border: 1.5px solid rgba(226, 232, 240, 0.8);
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.8) 100%);
+  background: #f8fafc;
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -210,9 +206,9 @@ const StateGrid = styled.div`
   max-height: 180px;
   overflow-y: auto;
   padding: 12px;
-  border: 1.5px solid rgba(226, 232, 240, 0.8);
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.8) 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -257,9 +253,9 @@ const OptionLabel = styled.label`
 const SelectAllContainer = styled.div`
   margin-bottom: 12px;
   padding: 12px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(139, 92, 246, 0.06) 100%);
-  border-radius: 12px;
-  border: 1px solid rgba(99, 102, 241, 0.1);
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 `;
 
 // Enhanced Tooltip Component
@@ -322,32 +318,11 @@ const MainContent = styled.div`
 `;
 
 const Card = styled.div`
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(24px) saturate(180%);
-  border-radius: 24px;
-  padding: 32px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
-  margin-bottom: 32px;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
-  }
-
-  &:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
-    border-color: rgba(99, 102, 241, 0.15);
-  }
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 24px;
 `;
 
 
@@ -391,16 +366,12 @@ const OverlayFixed = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(8px) saturate(150%);
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
   z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: ${keyframes`
-    from { opacity: 0; backdrop-filter: blur(0px); }
-    to { opacity: 1; backdrop-filter: blur(8px); }
-  `} 0.2s ease-out;
 `;
 
 // Loading spinner
@@ -443,29 +414,23 @@ const BackButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border: none;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.9);
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
   color: #64748b;
   cursor: pointer;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  transition: background 0.15s, color 0.15s;
 
   &:hover {
-    background: rgba(99, 102, 241, 0.1);
-    color: #6366f1;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.2);
+    background: #f1f5f9;
+    color: #1e293b;
   }
 
   svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
   }
 `;
 
@@ -482,8 +447,8 @@ const TitleIcon = styled.div`
   justify-content: center;
   width: 28px;
   height: 28px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  border-radius: 8px;
+  background: #4f46e5;
+  border-radius: 6px;
   color: white;
 
   svg {
@@ -502,10 +467,7 @@ const CoveragePageHeaderSection = styled.div`
 const CoveragePageTitle = styled.h1`
   font-size: 24px;
   font-weight: 700;
-  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #1e293b;
   margin: 0;
   letter-spacing: -0.025em;
 
@@ -523,36 +485,30 @@ const EditableValueCell = styled.div`
 
   input {
     width: 100px;
-    padding: 10px 14px;
-    border: 1.5px solid rgba(226, 232, 240, 0.8);
-    border-radius: 10px;
-    background: linear-gradient(135deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.9) 100%);
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
     text-align: center;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     color: #1e293b;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    letter-spacing: -0.01em;
+    transition: border-color 0.15s;
 
     &:hover {
-      border-color: rgba(99, 102, 241, 0.4);
-      background: white;
-      transform: scale(1.02);
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+      border-color: #cbd5e1;
     }
 
     &:focus {
       outline: none;
-      border-color: #6366f1;
-      background: white;
-      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15), 0 4px 16px rgba(99, 102, 241, 0.15);
-      transform: scale(1.05);
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
     }
 
     &::-webkit-inner-spin-button,
     &::-webkit-outer-spin-button {
       opacity: 0;
-      transition: opacity 0.2s ease;
+      transition: opacity 0.15s;
     }
 
     &:hover::-webkit-inner-spin-button,
@@ -562,23 +518,6 @@ const EditableValueCell = styled.div`
       opacity: 1;
     }
   }
-
-  &::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 50%;
-    transform: translateX(-50%) scaleX(0);
-    width: 60%;
-    height: 2px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
-    border-radius: 1px;
-    transition: transform 0.2s ease;
-  }
-
-  &:focus-within::after {
-    transform: translateX(-50%) scaleX(1);
-  }
 `;
 
 // Coverage Modal Styled Components - Premium Design
@@ -587,13 +526,12 @@ const WideModal = styled(ModalBox)`
   max-width: 640px;
   max-height: 85vh;
   overflow-y: auto;
-  border-radius: 24px;
+  border-radius: 12px;
   padding: 0;
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(226, 232, 240, 0.5);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15), 0 8px 24px rgba(0, 0, 0, 0.08);
-  animation: ${fadeInUp} 0.3s ease-out;
+  background: white;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+  animation: ${fadeInUp} 0.2s ease-out;
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -650,13 +588,12 @@ const StepModalWide = styled(ModalBox)`
   max-width: 1000px;
   max-height: 90vh;
   overflow-y: auto;
-  border-radius: 24px;
+  border-radius: 12px;
   padding: 0;
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(226, 232, 240, 0.5);
-  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.18), 0 12px 32px rgba(0, 0, 0, 0.1);
-  animation: ${fadeInUp} 0.35s ease-out;
+  background: white;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+  animation: ${fadeInUp} 0.2s ease-out;
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -723,19 +660,19 @@ const CoverageLinkActions = styled.div`
   gap: 8px;
   margin-bottom: 16px;
   padding: 12px 16px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.04) 0%, rgba(139, 92, 246, 0.04) 100%);
-  border-radius: 12px;
-  border: 1px solid rgba(99, 102, 241, 0.08);
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 `;
 
 const CoverageLinkContainer = styled.div`
   max-height: 380px;
   overflow-y: auto;
   border: 1.5px solid rgba(226, 232, 240, 0.8);
-  border-radius: 16px;
+  border-radius: 10px;
   padding: 12px;
   margin-bottom: 20px;
-  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.8) 100%);
+  background: #f8fafc;
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -754,38 +691,17 @@ const CoverageLinkContainer = styled.div`
 const CoverageLinkItem = styled.label`
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px 18px;
-  border-radius: 14px;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-bottom: 8px;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1.5px solid rgba(226, 232, 240, 0.6);
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    opacity: 0;
-    transition: opacity 0.2s ease;
-  }
+  transition: background 0.15s;
+  margin-bottom: 4px;
+  background: white;
+  border: 1px solid #e2e8f0;
 
   &:hover {
-    background: rgba(99, 102, 241, 0.06);
-    border-color: rgba(99, 102, 241, 0.25);
-    transform: translateX(4px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
-
-    &::before {
-      opacity: 0.5;
-    }
+    background: #f8fafc;
   }
 
   &:last-child {
@@ -793,13 +709,8 @@ const CoverageLinkItem = styled.label`
   }
 
   &:has(input:checked) {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
-    border-color: rgba(99, 102, 241, 0.3);
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
-
-    &::before {
-      opacity: 1;
-    }
+    background: rgba(79, 70, 229, 0.04);
+    border-color: rgba(79, 70, 229, 0.25);
   }
 `;
 
@@ -832,12 +743,12 @@ const CoverageLabel = styled.span`
 const SelectedBadge = styled.span`
   display: inline-flex;
   align-items: center;
-  padding: 4px 12px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  padding: 3px 10px;
+  background: #4f46e5;
   color: white;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 600;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
   margin-left: auto;
 `;
 
@@ -851,7 +762,7 @@ const Actions = styled.div`
 // Note: Stats dashboard is now in EnhancedRatingBuilder component
 
 // StepModal Component
-function StepModal({ onClose, onSubmit, editingStep, coverages, dataCodes }) {
+function StepModal({ onClose, onSubmit, editingStep, steps: _steps, coverages, dataCodes, orgId }: { onClose: any; onSubmit: any; editingStep: any; steps?: any; coverages: any; dataCodes: any; orgId: any }) {
   const defaultStep = useMemo(() => ({
     stepType: 'factor',
     coverages: [],
@@ -865,8 +776,8 @@ function StepModal({ onClose, onSubmit, editingStep, coverages, dataCodes }) {
     value: 1
   }), []);
 
-  const [stepData, setStepData] = useState(editingStep ? { ...editingStep } : { ...defaultStep });
-  const [errors, setErrors] = useState({});
+  const [stepData, setStepData] = useState<Record<string, any>>(editingStep ? { ...editingStep } : { ...defaultStep });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [comment, setComment] = useState('');
 
   useEffect(() => {
@@ -914,7 +825,7 @@ function StepModal({ onClose, onSubmit, editingStep, coverages, dataCodes }) {
   };
 
   const validate = () => {
-    const newErrors = {};
+    const newErrors: Record<string, string> = {};
     if (stepData.stepType === 'factor') {
       if (!stepData.stepName) newErrors.stepName = 'Step Name is required';
       if (stepData.coverages.length === 0) newErrors.coverages = 'At least one coverage is required';
@@ -1011,20 +922,31 @@ function StepModal({ onClose, onSubmit, editingStep, coverages, dataCodes }) {
                 <Tooltip>
                   <InformationCircleIcon style={{ width: 16, height: 16 }} />
                   <span className="tooltip-content">
-                    Link this step to an IT data code for integration with upstream systems.
+                    Link this step to a Data Dictionary field code. Only valid field codes from your organization's Data Dictionary are allowed.
                   </span>
                 </Tooltip>
               </label>
-              <ModernSelect
-                name="upstreamId"
-                value={stepData.upstreamId}
-                onChange={handleChange}
-              >
-                <option value="">Select IT Code (Optional)</option>
-                {dataCodes.map(code => (
-                  <option key={code} value={code}>{code}</option>
-                ))}
-              </ModernSelect>
+              {orgId ? (
+                <FieldCodeInput
+                  orgId={orgId}
+                  value={stepData.upstreamId || ''}
+                  onChange={(code) => setStepData(prev => ({ ...prev, upstreamId: code }))}
+                  placeholder="Select or type field code..."
+                  allowEmpty={true}
+                  showValidation={true}
+                />
+              ) : (
+                <ModernSelect
+                  name="upstreamId"
+                  value={stepData.upstreamId}
+                  onChange={handleChange}
+                >
+                  <option value="">Select IT Code (Optional)</option>
+                  {dataCodes.map(code => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </ModernSelect>
+              )}
             </FormGroup>
 
             <FormGroup>
@@ -1183,11 +1105,60 @@ function StepModal({ onClose, onSubmit, editingStep, coverages, dataCodes }) {
   );
 }
 
+// Table row styling - must be defined outside component to avoid hooks issues
+const FactorRow = styled(TableRow)`
+  background-color: #F0F5FF;
+  td {
+    padding: 8px 12px;
+  }
+  &:hover {
+    background: #E6EEFF;
+  }
+`;
+
+const OperandRow = styled(TableRow)`
+  background: #fff;
+  border-top: 2px solid #E5E7EB;
+  border-bottom: 2px solid #E5E7EB;
+  td {
+    padding: 0px 2px;
+  }
+  &:hover {
+    background: rgba(228, 188, 255, 0.49);
+  }
+`;
+
+// Center the operand perfectly in its column
+const OperandStepCell = styled(TableCell)`
+  padding: 0;
+  vertical-align: middle;
+  text-align: center;
+`;
+
+// Helper to render operand icon/glyph
+function operandGlyph(op: string) {
+  switch (op) {
+    case '+':
+      return <PlusIcon width={16} height={16} />;
+    case '-':
+      return <MinusIcon width={16} height={16} />;
+    case '*':
+      return <XMarkIcon width={16} height={16} />;
+    case '/':
+      return <span style={{ fontSize: 16, fontWeight: 700 }}>/</span>;
+    case '=':
+      return <span style={{ fontSize: 16, fontWeight: 700 }}>=</span>;
+    default:
+      return op;
+  }
+}
+
 // Main PricingScreen Component
 function PricingScreen() {
   const [loading, setLoading] = useState(true);
   const { productId } = useParams();
   const navigate = useNavigate();
+  const { primaryOrgId } = useAuth();
   const [productName, setProductName] = useState('');
   const [coverages, setCoverages] = useState([]);
   const [steps, setSteps] = useState([]);
@@ -1199,10 +1170,13 @@ function PricingScreen() {
   const [price, setPrice] = useState('N/A');
   const [selectedCoverage, setSelectedCoverage] = useState(null);
   const [selectedStates, setSelectedStates] = useState([]);
-  const [dataCodes, setDataCodes] = useState([]);
+  const [dictionaryFields, setDictionaryFields] = useState<DataDictionaryField[]>([]);
   // Step Details Modal state
   const [stepDetailsOpen, setStepDetailsOpen] = useState(false);
   const [detailsStep, setDetailsStep] = useState(null);
+
+  // Scenario Runner state
+  const [showScenarioRunner, setShowScenarioRunner] = useState(false);
 
   // Handle URL query parameters for coverage filtering
   useEffect(() => {
@@ -1215,18 +1189,81 @@ function PricingScreen() {
 
   const fileInputRef = useRef(null);
 
+  // Fetch org-scoped data dictionary fields
   useEffect(() => {
-    const fetchDictionary = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, 'dataDictionary'));
-        const codes = snapshot.docs.map(d => d.data().code).filter(Boolean).sort();
-        setDataCodes(codes);
-      } catch (err) {
-        console.error('Unable to load data‑dictionary codes', err);
+    if (!primaryOrgId) return;
+
+    const unsubscribe = orgDataDictionaryService.subscribeToFields(
+      primaryOrgId,
+      (fields) => {
+        setDictionaryFields(fields.filter(f => f.status === 'active'));
+      },
+      (err) => {
+        console.error('Unable to load data dictionary fields', err);
       }
-    };
-    fetchDictionary();
-  }, []);
+    );
+
+    return () => unsubscribe();
+  }, [primaryOrgId]);
+
+  // Derive dataCodes from dictionaryFields for backward compatibility
+  const dataCodes = useMemo(() =>
+    dictionaryFields.map(f => f.code).sort(),
+    [dictionaryFields]
+  );
+
+  // Filter steps by selected coverage and states
+  const filteredSteps = useMemo(() => {
+    return steps
+      .filter(step =>
+        (!selectedCoverage || (step.coverages && step.coverages.includes(selectedCoverage)))
+      )
+      .filter(step =>
+        (selectedStates.length === 0
+            || selectedStates.every(s => step.states && step.states.includes(s)))
+      );
+  }, [steps, selectedCoverage, selectedStates]);
+
+  // Convert existing pricing steps to RatingStep format for the engine
+  const engineSteps = useMemo((): EngineRatingStep[] => {
+    const factorSteps = filteredSteps.filter(s => s.stepType === 'factor');
+    let runningOrder = 0;
+
+    return factorSteps.map((step, index) => {
+      runningOrder++;
+      // Find the operand that follows this step
+      const stepIndex = filteredSteps.indexOf(step);
+      const nextStep = filteredSteps[stepIndex + 1];
+      const operand = nextStep?.stepType === 'operand' ? nextStep.operand : null;
+
+      // Determine step type for engine
+      let type: EngineRatingStep['type'] = 'factor';
+      if (step.type === 'Fixed Value') type = 'constant';
+      else if (step.table) type = 'tableLookup';
+
+      // Build expression if there's an operand
+      let expression: string | undefined;
+      if (index > 0 && operand) {
+        expression = `previous ${operand} current`;
+      }
+
+      return {
+        id: step.id,
+        rateProgramVersionId: productId || 'temp',
+        order: runningOrder,
+        type,
+        name: step.stepName || `Step ${runningOrder}`,
+        description: step.description,
+        outputFieldCode: step.upstreamId || `step_${step.id}`,
+        inputs: step.upstreamId ? [step.upstreamId] : [],
+        enabled: true,
+        constantValue: type === 'constant' ? step.value : undefined,
+        factorValue: type === 'factor' ? step.value : undefined,
+        roundingMode: step.rounding || 'nearest',
+        roundingPrecision: 2,
+      } as EngineRatingStep;
+    });
+  }, [filteredSteps, productId]);
 
   const [covModalOpen, setCovModalOpen] = useState(false);
 
@@ -1343,7 +1380,7 @@ function PricingScreen() {
         setCoverages(coverageList);
 
         const stepsSnapshot = await getDocs(collection(db, `products/${productId}/steps`));
-        const stepList = stepsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const stepList: any[] = stepsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         stepList.sort((a, b) => a.order - b.order);
         setSteps(stepList);
       } catch (error) {
@@ -1403,25 +1440,14 @@ function PricingScreen() {
     setPrice(calculatePricing());
   }, [steps]);
 
-  const filteredSteps = useMemo(() => {
-    return steps
-      .filter(step =>
-        (!selectedCoverage || (step.coverages && step.coverages.includes(selectedCoverage)))
-      )
-      .filter(step =>
-        (selectedStates.length === 0
-            || selectedStates.every(s => step.states && step.states.includes(s)))
-      );
-  }, [steps, selectedCoverage, selectedStates]);
-
   if (loading) {
     return (
-      <PageContainer>
+      <PageShell>
         <MainNavigation />
-        <PageContent>
+        <PageBody>
           <Spinner />
-        </PageContent>
-      </PageContainer>
+        </PageBody>
+      </PageShell>
     );
   }
 
@@ -1703,53 +1729,6 @@ function PricingScreen() {
     }
   };
 
-// Table row styling
-const FactorRow = styled(TableRow)`
-  background-color: #F0F5FF;
-  td {
-    padding: 8px 12px;
-  }
-  &:hover {
-    background: #E6EEFF;
-  }
-`;
-const OperandRow = styled(TableRow)`
-  background: #fff;
-  border-top: 2px solid #E5E7EB;
-  border-bottom: 2px solid #E5E7EB;
-  td {
-    padding: 0px 2px;
-  }
-  &:hover {
-    background: rgba(228, 188, 255, 0.49);
-  }
-`;
-
-// Center the operand perfectly in its column
-const OperandStepCell = styled(TableCell)`
-  padding: 0;
-  vertical-align: middle;
-  text-align: center;
-`;
-
-// Helper to render operand icon/glyph
-function operandGlyph(op) {
-  switch (op) {
-    case '+':
-      return <PlusIcon width={16} height={16} />;
-    case '-':
-      return <MinusIcon width={16} height={16} />;
-    case '*':
-      return <XMarkIcon width={16} height={16} />;
-    case '/':
-      return <span style={{ fontSize: 16, fontWeight: 700 }}>/</span>;
-    case '=':
-      return <span style={{ fontSize: 16, fontWeight: 700 }}>=</span>;
-    default:
-      return op;
-  }
-}
-
   const moveStep = async (id, idx, dir) => {
     const target = dir === 'up' ? idx - 1 : idx + 1;
     if (target < 0 || target >= steps.length) return;
@@ -1853,7 +1832,7 @@ function operandGlyph(op) {
             </TableRow>
           </TableHead>
           <tbody>
-            {Array(3).fill().map((_, i) => (
+            {Array(3).fill(null).map((_, i) => (
               <TableRow key={i}>
                 <TableCell><Skeleton /></TableCell>
                 <TableCell><Skeleton /></TableCell>
@@ -1960,7 +1939,7 @@ function operandGlyph(op) {
                       onBlur={(e) => handleValueUpdate(step.id, e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
-                          e.target.blur();
+                          (e.target as HTMLInputElement).blur();
                         }
                       }}
                     />
@@ -2044,16 +2023,43 @@ function operandGlyph(op) {
   };
 
   return (
-    <PageContainer>
+    <PageShell>
       <MainNavigation />
-      <PageContent>
+      <PageBody>
         <EnhancedHeader
           title={`${productName} - Pricing`}
           subtitle={`Manage pricing steps and calculations`}
           icon={CurrencyDollarIcon}
           showBackButton
           onBackClick={() => navigate(-1)}
-        />
+        >
+          <Button
+            onClick={() => setShowScenarioRunner(!showScenarioRunner)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: showScenarioRunner ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : undefined,
+              color: showScenarioRunner ? 'white' : undefined,
+            }}
+          >
+            <BeakerIcon style={{ width: 16, height: 16 }} />
+            {showScenarioRunner ? 'Hide Scenario Runner' : 'Scenario Runner'}
+          </Button>
+        </EnhancedHeader>
+
+        {/* Scenario Runner Panel */}
+        {showScenarioRunner && (
+          <div style={{ marginBottom: '24px' }}>
+            <ScenarioRunner
+              steps={engineSteps}
+              dictionaryFields={dictionaryFields}
+              tables={new Map()}
+              rateProgramVersionId={productId || 'temp'}
+              state={selectedStates.length === 1 ? selectedStates[0] : undefined}
+            />
+          </div>
+        )}
 
         {/* Enhanced Rating Algorithm Builder */}
         <EnhancedRatingBuilder
@@ -2071,6 +2077,7 @@ function operandGlyph(op) {
                 await handleDeleteStep(stepId);
               }
             }}
+            onUpdateStep={handleUpdateStep}
             onUpdateStepValue={handleValueUpdate}
             onReorderStepsByIndex={reorderStepsByIndex}
             onAddOperand={addOperand}
@@ -2090,6 +2097,7 @@ function operandGlyph(op) {
             steps={steps}
             coverages={coverages}
             dataCodes={dataCodes}
+            orgId={primaryOrgId}
           />
         )}
         {covModalOpen && (
@@ -2267,8 +2275,8 @@ function operandGlyph(op) {
           </OverlayFixed>
         )}
 
-      </PageContent>
-    </PageContainer>
+      </PageBody>
+    </PageShell>
   );
 }
 

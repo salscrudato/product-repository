@@ -119,8 +119,7 @@ export const StateAvailabilityMatrix: React.FC<StateAvailabilityMatrixProps> = (
       // Create override with opposite of inherited
       await setCoverageStateAvailability(productId, coverageId, stateCode, {
         isAvailable: !inheritedAvailable,
-        inheritFromProduct: false,
-      });
+      } as Omit<CoverageStateAvailability, 'id' | 'stateCode' | 'createdAt' | 'updatedAt'>);
     }
     
     await loadData();

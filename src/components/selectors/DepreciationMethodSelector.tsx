@@ -12,7 +12,9 @@ interface DepreciationMethodSelectorProps {
   onChange: (method: DepreciationMethod) => void;
 }
 
-const DEPRECIATION_OPTIONS: { value: DepreciationMethod; label: string; description: string }[] = [
+type ExtendedDepreciationMethod = DepreciationMethod | 'unitsOfProduction' | 'sumOfYearsDigits';
+
+const DEPRECIATION_OPTIONS: { value: ExtendedDepreciationMethod; label: string; description: string }[] = [
   {
     value: 'straightLine',
     label: 'Straight-Line',
@@ -107,7 +109,7 @@ export const DepreciationMethodSelector: React.FC<DepreciationMethodSelectorProp
         </InfoBox>
       )}
 
-      {value === 'unitsOfProduction' && (
+      {(value as string) === 'unitsOfProduction' && (
         <InfoBox>
           <InfoTitle>Units of Production Depreciation Formula</InfoTitle>
           <InfoText>
@@ -126,7 +128,7 @@ export const DepreciationMethodSelector: React.FC<DepreciationMethodSelectorProp
         </InfoBox>
       )}
 
-      {value === 'sumOfYearsDigits' && (
+      {(value as string) === 'sumOfYearsDigits' && (
         <InfoBox>
           <InfoTitle>Sum of Years Digits Depreciation Formula</InfoTitle>
           <InfoText>

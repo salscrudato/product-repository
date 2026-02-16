@@ -5,9 +5,8 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  onSnapshot
 } from 'firebase/firestore';
-import { db } from '@/firebase';
+import { db, isAuthReady, safeOnSnapshot } from '@/firebase';
 import { Button } from '@components/ui/Button';
 import { TextInput } from '@components/ui/Input';
 import MainNavigation from './ui/Navigation';
@@ -54,16 +53,14 @@ const ViewToggle = styled.div`
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 `;
 
-const ViewToggleButton = styled.button.withConfig({
-  shouldForwardProp: (prop) => !['active'].includes(prop),
-})`
+const ViewToggleButton = styled.button<{ $active?: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
   border: none;
-  background: ${props => props.active ? 'rgba(99, 102, 241, 0.1)' : 'transparent'};
-  color: ${props => props.active ? '#6366f1' : '#64748b'};
+  background: ${props => props.$active ? 'rgba(99, 102, 241, 0.1)' : 'transparent'};
+  color: ${props => props.$active ? '#6366f1' : '#64748b'};
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
@@ -71,7 +68,7 @@ const ViewToggleButton = styled.button.withConfig({
   transition: all 0.2s ease;
 
   &:hover {
-    background: ${props => props.active ? 'rgba(99, 102, 241, 0.15)' : 'rgba(99, 102, 241, 0.05)'};
+    background: ${props => props.$active ? 'rgba(99, 102, 241, 0.15)' : 'rgba(99, 102, 241, 0.05)'};
     color: #6366f1;
   }
 `;
@@ -258,7 +255,10 @@ export default function DataDictionary() {
 
   // Subscribe to the 'dataDictionary' collection in Firestore
   useEffect(() => {
-    const unsubscribe = onSnapshot(
+    // Wait for auth to fully propagate before subscribing
+    if (!isAuthReady()) return;
+
+    const unsubscribe = safeOnSnapshot(
       collection(db, 'dataDictionary'),
       snapshot => {
         const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -345,14 +345,14 @@ export default function DataDictionary() {
           <ActionGroup>
             <ViewToggle>
               <ViewToggleButton
-                active={viewMode === 'cards'}
+                $active={viewMode === 'cards'}
                 onClick={() => setViewMode('cards')}
               >
                 <Squares2X2Icon width={16} height={16} />
                 Cards
               </ViewToggleButton>
               <ViewToggleButton
-                active={viewMode === 'table'}
+                $active={viewMode === 'table'}
                 onClick={() => setViewMode('table')}
               >
                 <TableCellsIcon width={16} height={16} />

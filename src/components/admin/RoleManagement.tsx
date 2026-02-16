@@ -22,6 +22,7 @@ import {
 } from '../../services/roleService';
 import { useRoleContext } from '../../context/RoleContext';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import MainNavigation from '../ui/Navigation';
 
 const Container = styled.div`
   padding: 24px;
@@ -151,16 +152,21 @@ const RoleManagement: React.FC = () => {
 
   if (!isAdmin) {
     return (
+      <>
+      <MainNavigation />
       <Container>
         <Message $type="error">
           <ExclamationCircleIcon width={20} />
           You do not have permission to access this page.
         </Message>
       </Container>
+      </>
     );
   }
 
   return (
+    <>
+    <MainNavigation />
     <Container>
       <Header>
         <ShieldCheckIcon width={32} color="#6366f1" />
@@ -219,6 +225,7 @@ const RoleManagement: React.FC = () => {
         </tbody>
       </UserTable>
     </Container>
+    </>
   );
 };
 

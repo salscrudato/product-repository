@@ -12,6 +12,10 @@ import React from 'react';
 import styled from 'styled-components';
 import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import logger, { LOG_CATEGORIES } from '@utils/logger';
+import {
+  color, neutral, accent, semantic, space, radius, shadow,
+  fontFamily, transition,
+} from '../ui/tokens';
 
 const ErrorContainer = styled.div`
   display: flex;
@@ -19,95 +23,89 @@ const ErrorContainer = styled.div`
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  padding: 40px 20px;
+  padding: ${space[10]} ${space[5]};
   text-align: center;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  margin: 20px;
+  background: ${neutral[0]};
+  border-radius: ${radius.xl};
+  border: 1px solid ${neutral[200]};
+  box-shadow: ${shadow.card};
+  margin: ${space[5]};
 `;
 
 const ErrorIcon = styled.div`
   width: 80px;
   height: 80px;
-  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  background: ${semantic.errorLight};
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24px;
+  margin-bottom: ${space[6]};
   
   svg {
     width: 40px;
     height: 40px;
-    color: #dc2626;
+    color: ${semantic.error};
   }
 `;
 
 const ErrorTitle = styled.h2`
   font-size: 24px;
   font-weight: 600;
-  color: #111827;
-  margin: 0 0 12px 0;
+  font-family: ${fontFamily.sans};
+  color: ${color.text};
+  margin: 0 0 ${space[3]} 0;
 `;
 
 const ErrorMessage = styled.p`
   font-size: 16px;
-  color: #6b7280;
-  margin: 0 0 32px 0;
+  color: ${neutral[500]};
+  margin: 0 0 ${space[8]} 0;
   max-width: 500px;
   line-height: 1.6;
 `;
 
 const ErrorDetails = styled.details`
-  margin: 20px 0;
-  padding: 16px;
-  background: #f9fafb;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  margin: ${space[5]} 0;
+  padding: ${space[4]};
+  background: ${neutral[50]};
+  border-radius: ${radius.md};
+  border: 1px solid ${neutral[200]};
   max-width: 600px;
   text-align: left;
   
   summary {
     cursor: pointer;
     font-weight: 500;
-    color: #374151;
-    margin-bottom: 8px;
+    color: ${neutral[700]};
+    margin-bottom: ${space[2]};
   }
   
   pre {
     font-size: 12px;
-    color: #6b7280;
+    color: ${neutral[500]};
     white-space: pre-wrap;
     word-break: break-word;
-    margin: 8px 0 0 0;
+    margin: ${space[2]} 0 0 0;
   }
 `;
 
 const RetryButton = styled.button`
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
+  gap: ${space[2]};
+  padding: ${space[3]} ${space[6]};
+  background: ${accent[600]};
+  color: ${neutral[0]};
   border: none;
-  border-radius: 12px;
+  border-radius: ${radius.lg};
   font-size: 16px;
   font-weight: 500;
+  font-family: ${fontFamily.sans};
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background ${transition.fast};
   
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
-  }
-  
-  &:active {
-    transform: translateY(0);
-  }
+  &:hover { background: ${accent[700]}; }
   
   svg {
     width: 18px;

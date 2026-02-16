@@ -28,7 +28,8 @@ import { AISuggestionsPanel } from './AISuggestionsPanel';
 import { SPLIT_LIMIT_PRESETS, LimitOptionTemplate } from '@app-types';
 import { getSplitComponentsForTemplate } from '../../data/limitTemplates';
 import { colors } from '../common/DesignSystem';
-import { v4 as uuidv4 } from 'uuid';
+// Use native crypto.randomUUID() instead of the uuid package to avoid
+// Vite "504 Outdated Optimize Dep" errors when this module is lazy-loaded.
 
 // ============ Premium Animations ============
 const modalEnter = keyframes`
@@ -189,7 +190,7 @@ export const LimitOptionsModal: React.FC<LimitOptionsModalProps> = ({
 
   const handleAddSublimit = useCallback(async () => {
     const newSublimit: SublimitEntry = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       label: '',
       amount: 0,
       appliesTo: '',

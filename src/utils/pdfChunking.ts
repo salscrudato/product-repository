@@ -162,7 +162,7 @@ export async function extractPdfText(source, timeout = 30000) {
         // It's a Firebase Storage path, get the download URL
         url = await Promise.race([
           getDownloadURL(ref(storage, source)),
-          new Promise((_, reject) =>
+          new Promise<string>((_, reject) =>
             setTimeout(() => reject(new Error('Firebase URL fetch timeout')), urlTimeout)
           )
         ]);
@@ -170,7 +170,7 @@ export async function extractPdfText(source, timeout = 30000) {
 
       const response = await Promise.race([
         fetch(url),
-        new Promise((_, reject) =>
+        new Promise<Response>((_, reject) =>
           setTimeout(() => reject(new Error('PDF fetch timeout')), fetchTimeout)
         )
       ]);
@@ -181,7 +181,7 @@ export async function extractPdfText(source, timeout = 30000) {
 
       pdfData = await Promise.race([
         response.arrayBuffer(),
-        new Promise((_, reject) =>
+        new Promise<ArrayBuffer>((_, reject) =>
           setTimeout(() => reject(new Error('PDF download timeout')), fetchTimeout)
         )
       ]);

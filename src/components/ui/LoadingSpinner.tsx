@@ -1,6 +1,8 @@
 import React from 'react';
 import styled, { css } from 'styled-components';
 import { spin, pulseDots as pulse, fadeIn } from '@/styles/animations';
+import { color, neutral, accent, space, radius, shadow, transition, z, reducedMotion } from '../../ui/tokens';
+import { type as typeScale } from '../../ui/tokens';
 
 /* ---------- Types ---------- */
 type SpinnerType = 'circular' | 'dots' | 'bars' | 'ring';
@@ -19,11 +21,11 @@ interface LoadingSpinnerProps {
 
 /* ---------- Size Presets ---------- */
 const sizePresets: Record<string, { size: string; borderWidth: string; dotSize: string; gap: string }> = {
-  xs: { size: '12px', borderWidth: '1.5px', dotSize: '3px', gap: '2px' },
-  sm: { size: '16px', borderWidth: '2px', dotSize: '4px', gap: '2px' },
-  md: { size: '24px', borderWidth: '2.5px', dotSize: '5px', gap: '3px' },
-  lg: { size: '32px', borderWidth: '3px', dotSize: '6px', gap: '4px' },
-  xl: { size: '48px', borderWidth: '4px', dotSize: '8px', gap: '5px' },
+  xs: { size: '12px', borderWidth: '1.5px', dotSize: '3px', gap: space[0.5] },
+  sm: { size: space[4], borderWidth: '2px', dotSize: space[1], gap: space[0.5] },
+  md: { size: space[6], borderWidth: '2.5px', dotSize: space[1], gap: space[1] },
+  lg: { size: space[8], borderWidth: '3px', dotSize: space[1.5], gap: space[1] },
+  xl: { size: space[12], borderWidth: '4px', dotSize: space[2], gap: space[1] },
 };
 
 const getSizeConfig = (size: SpinnerSize) => {
@@ -46,7 +48,7 @@ const SpinnerContainer = styled.div<{ $centered?: boolean }>`
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  gap: 12px;
+  gap: ${space[3]};
 
   ${({ $centered }) => $centered && css`
     width: 100%;
@@ -65,11 +67,15 @@ const OverlayContainer = styled.div<{ $fullScreen?: boolean }>`
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  gap: 16px;
-  background: rgba(255, 255, 255, 0.85);
+  gap: ${space[4]};
+  background: ${neutral[0]}d9;
   backdrop-filter: blur(4px);
-  z-index: ${({ theme }) => theme.zIndex?.overlay || 300};
+  z-index: ${z.overlay};
   animation: ${fadeIn} 0.2s ease-out;
+
+  @media ${reducedMotion} {
+    animation: none;
+  }
 `;
 
 const CircularSpinner = styled.div.withConfig({
@@ -77,10 +83,14 @@ const CircularSpinner = styled.div.withConfig({
 })<{ $size: string; $color: string; $borderWidth: string }>`
   width: ${props => props.$size};
   height: ${props => props.$size};
-  border: ${props => props.$borderWidth} solid rgba(0, 0, 0, 0.1);
+  border: ${props => props.$borderWidth} solid ${neutral[200]};
   border-top-color: ${props => props.$color};
-  border-radius: 50%;
+  border-radius: ${radius.full};
   animation: ${spin} 0.8s linear infinite;
+
+  @media ${reducedMotion} {
+    animation-duration: 1.5s;
+  }
 `;
 
 const RingSpinner = styled.div.withConfig({
@@ -91,23 +101,28 @@ const RingSpinner = styled.div.withConfig({
   border: ${props => props.$borderWidth} solid transparent;
   border-top-color: ${props => props.$color};
   border-bottom-color: ${props => props.$color};
-  border-radius: 50%;
+  border-radius: ${radius.full};
   animation: ${spin} 1s linear infinite;
   position: relative;
 
   &::before {
     content: '';
     position: absolute;
-    top: 2px;
-    left: 2px;
-    right: 2px;
-    bottom: 2px;
+    top: ${space[0.5]};
+    left: ${space[0.5]};
+    right: ${space[0.5]};
+    bottom: ${space[0.5]};
     border: ${props => props.$borderWidth} solid transparent;
     border-left-color: ${props => props.$color};
     border-right-color: ${props => props.$color};
-    border-radius: 50%;
+    border-radius: ${radius.full};
     animation: ${spin} 0.5s linear infinite reverse;
     opacity: 0.6;
+  }
+
+  @media ${reducedMotion} {
+    animation-duration: 1.5s;
+    &::before { animation-duration: 1s; }
   }
 `;
 
@@ -123,9 +138,14 @@ const Dot = styled.div.withConfig({
   width: ${props => props.$size};
   height: ${props => props.$size};
   background-color: ${props => props.$color};
-  border-radius: 50%;
+  border-radius: ${radius.full};
   animation: ${pulse} 1.4s ease-in-out infinite both;
   animation-delay: ${props => props.$delay};
+
+  @media ${reducedMotion} {
+    animation: none;
+    opacity: 0.7;
+  }
 `;
 
 const BarsContainer = styled.div.withConfig({
@@ -143,15 +163,20 @@ const Bar = styled.div.withConfig({
   width: ${props => props.$width};
   height: 100%;
   background-color: ${props => props.$color};
-  border-radius: 2px;
+  border-radius: ${radius.xs};
   animation: ${pulse} 1.2s ease-in-out infinite;
   animation-delay: ${props => props.$delay};
+
+  @media ${reducedMotion} {
+    animation: none;
+    opacity: 0.7;
+  }
 `;
 
 const Label = styled.span`
-  font-size: 14px;
-  font-weight: 500;
-  color: #6b7280;
+  font-size: ${typeScale.bodySm.size};
+  font-weight: ${typeScale.label.weight};
+  color: ${color.textSecondary};
   text-align: center;
 `;
 
@@ -159,7 +184,7 @@ const Label = styled.span`
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   type = 'circular',
   size = 'md',
-  color = '#6366f1',
+  color: spinnerColor = accent[500],
   className = '',
   label,
   overlay = false,
@@ -173,19 +198,19 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
       case 'dots':
         return (
           <DotsContainer $gap={sizeConfig.gap}>
-            <Dot $color={color} $delay="0s" $size={sizeConfig.dotSize} />
-            <Dot $color={color} $delay="0.16s" $size={sizeConfig.dotSize} />
-            <Dot $color={color} $delay="0.32s" $size={sizeConfig.dotSize} />
+            <Dot $color={spinnerColor} $delay="0s" $size={sizeConfig.dotSize} />
+            <Dot $color={spinnerColor} $delay="0.16s" $size={sizeConfig.dotSize} />
+            <Dot $color={spinnerColor} $delay="0.32s" $size={sizeConfig.dotSize} />
           </DotsContainer>
         );
 
       case 'bars':
         return (
           <BarsContainer $size={sizeConfig.size} $gap={sizeConfig.gap}>
-            <Bar $color={color} $delay="0s" $width={sizeConfig.gap} />
-            <Bar $color={color} $delay="0.1s" $width={sizeConfig.gap} />
-            <Bar $color={color} $delay="0.2s" $width={sizeConfig.gap} />
-            <Bar $color={color} $delay="0.3s" $width={sizeConfig.gap} />
+            <Bar $color={spinnerColor} $delay="0s" $width={sizeConfig.gap} />
+            <Bar $color={spinnerColor} $delay="0.1s" $width={sizeConfig.gap} />
+            <Bar $color={spinnerColor} $delay="0.2s" $width={sizeConfig.gap} />
+            <Bar $color={spinnerColor} $delay="0.3s" $width={sizeConfig.gap} />
           </BarsContainer>
         );
 
@@ -193,7 +218,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
         return (
           <RingSpinner
             $size={sizeConfig.size}
-            $color={color}
+            $color={spinnerColor}
             $borderWidth={sizeConfig.borderWidth}
           />
         );
@@ -203,7 +228,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
         return (
           <CircularSpinner
             $size={sizeConfig.size}
-            $color={color}
+            $color={spinnerColor}
             $borderWidth={sizeConfig.borderWidth}
           />
         );

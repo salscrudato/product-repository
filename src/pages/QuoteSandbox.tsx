@@ -5,21 +5,28 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import MainNavigation from '../components/ui/Navigation';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
 import { DataDictionaryField, RatingInput } from '../types/pricing';
 import dataDictionaryService from '../services/dataDictionaryService';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
 
+const PageWrapper = styled.div`
+  min-height: 100vh;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+`;
+
 const Container = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 20px;
   padding: 20px;
-  height: 100vh;
-  background: #f5f5f5;
+  flex: 1;
 `;
 
 const Panel = styled.div`
@@ -222,6 +229,8 @@ const QuoteSandbox: React.FC<QuoteSandboxProps> = () => {
   };
 
   return (
+    <PageWrapper>
+    <MainNavigation />
     <Container>
       {/* Left Panel: Inputs */}
       <Panel>
@@ -237,7 +246,7 @@ const QuoteSandbox: React.FC<QuoteSandboxProps> = () => {
                 <Label>{field.label}</Label>
                 {field.type === 'enum' && field.enumOptions ? (
                   <Select
-                    value={inputs[field.name] || ''}
+                    value={String(inputs[field.name] ?? '')}
                     onChange={(e) => handleInputChange(field.name, e.target.value)}
                   >
                     <option value="">Select...</option>
@@ -256,7 +265,7 @@ const QuoteSandbox: React.FC<QuoteSandboxProps> = () => {
                 ) : (
                   <Input
                     type={field.type === 'number' ? 'number' : 'text'}
-                    value={inputs[field.name] || ''}
+                    value={String(inputs[field.name] ?? '')}
                     onChange={(e) => handleInputChange(field.name, 
                       field.type === 'number' ? Number(e.target.value) : e.target.value
                     )}
@@ -318,6 +327,7 @@ const QuoteSandbox: React.FC<QuoteSandboxProps> = () => {
         )}
       </Panel>
     </Container>
+    </PageWrapper>
   );
 };
 

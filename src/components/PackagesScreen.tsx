@@ -8,6 +8,7 @@ import { useCoveragePackages, generatePackageRecommendations } from '../hooks/us
 import { PackageCard } from './packages/PackageCard';
 import { PackageBuilder } from './packages/PackageBuilder';
 import { PlusIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import MainNavigation from './ui/Navigation';
 
 const PackagesScreen: React.FC = () => {
   const { productId } = useParams<{ productId: string }>();
@@ -85,6 +86,8 @@ const PackagesScreen: React.FC = () => {
 
   if (showBuilder) {
     return (
+      <>
+      <MainNavigation />
       <Container>
         <PackageBuilder
           availableCoverages={coverages}
@@ -97,10 +100,13 @@ const PackagesScreen: React.FC = () => {
           productId={productId}
         />
       </Container>
+      </>
     );
   }
 
   return (
+    <>
+    <MainNavigation />
     <Container>
       <Header>
         <HeaderLeft>
@@ -196,6 +202,7 @@ const PackagesScreen: React.FC = () => {
         </RecommendationsSection>
       )}
     </Container>
+    </>
   );
 };
 

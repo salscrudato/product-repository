@@ -30,3 +30,9 @@ export { default as StepGroups } from './StepGroups';
 
 // Live Mode Toggle
 export { default as LiveModeToggle } from './LiveModeToggle';
+
+// Scenario Runner (Deterministic Rating Engine UI)
+export { ScenarioRunner } from './ScenarioRunner';
+
+// Pricing QA Tab (Scenario Library + Regression Runner)
+export { default as PricingQATab } from './PricingQATab';

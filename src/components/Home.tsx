@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import {
+  color, neutral, accent, space, radius, shadow, semantic, border as borderToken,
+  fontFamily, duration,
+} from '../ui/tokens';
+import {
   SparklesIcon,
   TrashIcon,
   ArrowUpIcon,
@@ -34,6 +38,7 @@ interface ChatMessage {
     tokensUsed?: number;
     processingTime?: number;
     sources?: string[];
+    isStructured?: boolean;
   };
 }
 
@@ -46,28 +51,16 @@ type QueryType =
   | 'task_management'
   | 'strategic_insight'
   | 'data_query'
+  | 'claims_analysis'
+  | 'form_analysis'
   | 'general';
 
 /* ---------- styled components ---------- */
 const Page = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  background: ${neutral[50]};
   display: flex;
   flex-direction: column;
-  position: relative;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 300px;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-    opacity: 0.08;
-    z-index: 0;
-    pointer-events: none;
-  }
 `;
 
 const MainContent = styled.main<{ $isEmpty: boolean }>`
@@ -101,14 +94,14 @@ const MainContent = styled.main<{ $isEmpty: boolean }>`
 const ChatContainer = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: 24px 16px;
+  padding: ${space[6]} ${space[4]};
   display: flex;
   flex-direction: column;
   gap: 0;
 
   /* Custom scrollbar - minimal */
   &::-webkit-scrollbar {
-    width: 6px;
+    width: ${space[1.5]};
   }
 
   &::-webkit-scrollbar-track {
@@ -117,7 +110,7 @@ const ChatContainer = styled.div`
 
   &::-webkit-scrollbar-thumb {
     background: rgba(0, 0, 0, 0.15);
-    border-radius: 3px;
+    border-radius: ${radius.xs};
   }
 
   &::-webkit-scrollbar-thumb:hover {
@@ -125,8 +118,8 @@ const ChatContainer = styled.div`
   }
 
   @media (max-width: 768px) {
-    padding: 16px;
-    gap: 16px;
+    padding: ${space[4]};
+    gap: ${space[4]};
   }
 `;
 
@@ -135,40 +128,40 @@ const EmptyState = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 24px 24px;
+  padding: ${space[8]} ${space[6]} ${space[6]};
   text-align: center;
-  gap: 12px;
+  gap: ${space[3]};
   width: 100%;
   max-width: 700px;
 
   svg {
-    width: 48px;
-    height: 48px;
-    color: #94a3b8;
-    margin-bottom: 4px;
+    width: ${space[12]};
+    height: ${space[12]};
+    color: ${neutral[400]};
+    margin-bottom: ${space[1]};
   }
 
   h2 {
     font-size: 22px;
     font-weight: 600;
-    color: #1e293b;
+    color: ${color.text};
     margin: 0;
   }
 
   p {
     font-size: 14px;
-    color: #64748b;
+    color: ${color.textSecondary};
     margin: 0;
     max-width: 480px;
     line-height: 1.6;
   }
 
   @media (max-width: 768px) {
-    padding: 24px 16px 20px;
+    padding: ${space[6]} ${space[4]} ${space[5]};
 
     svg {
-      width: 40px;
-      height: 40px;
+      width: ${space[10]};
+      height: ${space[10]};
     }
 
     h2 {
@@ -185,21 +178,21 @@ const CenteredContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 32px;
+  gap: ${space[8]};
   width: 100%;
   max-width: 700px;
-  padding: 0 24px;
+  padding: 0 ${space[6]};
 
   @media (max-width: 768px) {
-    padding: 0 16px;
-    gap: 24px;
+    padding: 0 ${space[4]};
+    gap: ${space[6]};
   }
 `;
 
 const MessageGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: ${space[2]};
   max-width: 800px;
   margin: 0 auto;
   width: 100%;
@@ -209,73 +202,70 @@ const MessageGroup = styled.div`
 const UserMessage = styled.div`
   display: flex;
   justify-content: flex-end;
-  padding: 8px 0;
+  padding: ${space[2]} 0;
   animation: ${slideInRight} 0.25s ease-out;
 
   .content {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    color: #ffffff;
-    padding: 14px 18px;
-    border-radius: 20px 20px 4px 20px;
+    background: ${accent[600]};
+    color: ${neutral[0]};
+    padding: ${space[3]} ${space[4]};
+    border-radius: ${radius.xl} ${radius.xl} ${radius.xs} ${radius.xl};
     max-width: 75%;
-    font-size: 15px;
-    line-height: 1.6;
+    font-size: 14px;
+    line-height: 1.55;
     word-wrap: break-word;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
   }
 
   @media (max-width: 768px) {
     .content {
       max-width: 90%;
       font-size: 14px;
-      padding: 12px 14px;
+      padding: ${space[3]} 14px;
     }
   }
 `;
 
 const AssistantMessage = styled.div`
   display: flex;
-  gap: 16px;
+  gap: ${space[4]};
   align-items: flex-start;
-  padding: 16px 0;
+  padding: ${space[4]} 0;
   animation: ${slideInLeft} 0.25s ease-out;
 
   .avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    width: 28px;
+    height: 28px;
+    border-radius: ${radius.md};
+    background: ${accent[600]};
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    margin-top: 2px;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    margin-top: ${space[0.5]};
 
     svg {
-      width: 16px;
-      height: 16px;
-      color: white;
+      width: 14px;
+      height: 14px;
+      color: ${neutral[0]};
     }
   }
 
   .content {
     flex: 1;
     min-width: 0;
-    background: rgba(255, 255, 255, 0.95);
-    color: #1e293b;
-    padding: 18px 22px;
-    border-radius: 4px 20px 20px 20px;
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    background: ${color.bg};
+    color: ${color.text};
+    padding: 14px 18px;
+    border-radius: ${radius.xs} ${radius.xl} ${radius.xl} ${radius.xl};
+    border: 1px solid ${neutral[200]};
   }
 
   .message-actions {
     display: flex;
-    gap: 4px;
-    margin-top: 12px;
+    gap: ${space[1]};
+    margin-top: ${space[3]};
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: opacity ${duration.normal} ease;
   }
 
   &:hover .message-actions {
@@ -283,7 +273,7 @@ const AssistantMessage = styled.div`
   }
 
   @media (max-width: 768px) {
-    gap: 12px;
+    gap: ${space[3]};
 
     .avatar {
       width: 28px;
@@ -296,7 +286,7 @@ const AssistantMessage = styled.div`
     }
 
     .content {
-      padding: 14px 16px;
+      padding: 14px ${space[4]};
     }
 
     .message-actions {
@@ -309,16 +299,16 @@ const ActionButton = styled.button<{ $active?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 6px 10px;
-  border-radius: 6px;
+  gap: ${space[1]};
+  padding: ${space[1.5]} ${space[2.5]};
+  border-radius: ${radius.sm};
   border: none;
   background: transparent;
-  color: ${({ $active }) => $active ? '#10b981' : '#64748b'};
+  color: ${({ $active }) => $active ? semantic.success : color.textSecondary};
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all ${duration.fast} ease;
 
   svg {
     width: 14px;
@@ -327,12 +317,12 @@ const ActionButton = styled.button<{ $active?: boolean }>`
 
   &:hover {
     background: rgba(0, 0, 0, 0.05);
-    color: ${({ $active }) => $active ? '#10b981' : '#1e293b'};
+    color: ${({ $active }) => $active ? semantic.success : color.text};
   }
 `;
 
 const InputContainer = styled.div<{ $isCentered: boolean }>`
-  padding: 16px 24px;
+  padding: ${space[4]} ${space[6]};
   background: transparent;
 
   /* Center the input when no chat history */
@@ -342,7 +332,7 @@ const InputContainer = styled.div<{ $isCentered: boolean }>`
   `}
 
   @media (max-width: 768px) {
-    padding: 12px 16px;
+    padding: ${space[3]} ${space[4]};
   }
 `;
 
@@ -356,37 +346,37 @@ const InputWrapper = styled.div`
 
 const InputField = styled.textarea`
   width: 100%;
-  padding: 14px 56px 14px 20px;
-  border: 1px solid #e2e8f0;
+  padding: 14px 56px 14px ${space[5]};
+  border: 1px solid ${neutral[200]};
   border-radius: 28px;
   font-size: 14px;
-  font-family: inherit;
+  font-family: ${fontFamily.sans};
   resize: none;
-  min-height: 48px;
+  min-height: ${space[12]};
   max-height: 200px;
-  background: #ffffff;
-  color: #1e293b;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: ${color.bg};
+  color: ${color.text};
+  transition: all ${duration.normal} cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: ${shadow.sm};
   box-sizing: border-box;
 
   &:hover:not(:focus):not(:disabled) {
-    border-color: #cbd5e1;
+    border-color: ${neutral[300]};
   }
 
   &:focus {
     outline: none;
-    border-color: #a78bfa;
-    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.15), 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-color: ${accent[400]};
+    box-shadow: 0 0 0 3px ${accent[100]}, ${shadow.sm};
   }
 
   &::placeholder {
-    color: #94a3b8;
+    color: ${neutral[400]};
     font-size: 14px;
   }
 
   &:focus::placeholder {
-    color: #cbd5e1;
+    color: ${neutral[300]};
   }
 
   &:disabled {
@@ -396,7 +386,7 @@ const InputField = styled.textarea`
 
   @media (max-width: 768px) {
     font-size: 14px;
-    padding: 12px 52px 12px 16px;
+    padding: ${space[3]} 52px ${space[3]} ${space[4]};
     min-height: 44px;
     border-radius: 24px;
   }
@@ -404,50 +394,42 @@ const InputField = styled.textarea`
 
 const SendButton = styled.button`
   position: absolute;
-  right: 6px;
+  right: ${space[1.5]};
   top: 50%;
   transform: translateY(-50%);
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #7c3aed;
+  width: ${space[8]};
+  height: ${space[8]};
+  border-radius: ${radius.full};
+  background: ${accent[600]};
   border: none;
-  color: white;
+  color: ${neutral[0]};
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3);
+  transition: background ${duration.fast} ease;
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: ${space[4]};
+    height: ${space[4]};
     stroke-width: 2.5;
   }
 
   &:hover:not(:disabled) {
-    background: #6d28d9;
-    transform: translateY(-50%) scale(1.05);
-    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(-50%) scale(0.95);
+    background: ${accent[700]};
   }
 
   &:disabled {
-    opacity: 0.4;
+    opacity: 0.35;
     cursor: not-allowed;
     transform: translateY(-50%);
-    background: #cbd5e1;
-    box-shadow: none;
+    background: ${neutral[300]};
   }
 
   @media (max-width: 768px) {
-    width: 32px;
-    height: 32px;
-    right: 6px;
+    width: ${space[8]};
+    height: ${space[8]};
+    right: ${space[1.5]};
 
     svg {
       width: 14px;
@@ -459,35 +441,35 @@ const SendButton = styled.button`
 const ClearButton = styled.button`
   position: fixed;
   bottom: 100px;
-  right: 24px;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  color: #64748b;
+  right: ${space[6]};
+  width: ${space[12]};
+  height: ${space[12]};
+  border-radius: ${radius.full};
+  background: ${color.bg};
+  border: 1px solid ${neutral[200]};
+  color: ${color.textSecondary};
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all ${duration.normal} ease;
+  box-shadow: ${shadow.md};
   z-index: 10;
 
   svg {
-    width: 20px;
-    height: 20px;
+    width: ${space[5]};
+    height: ${space[5]};
   }
 
   &:hover {
-    background: #f8fafc;
+    background: ${neutral[50]};
     transform: scale(1.05);
-    color: #ef4444;
+    color: ${semantic.error};
   }
 
   @media (max-width: 768px) {
     bottom: 80px;
-    right: 16px;
+    right: ${space[4]};
     width: 44px;
     height: 44px;
 
@@ -507,8 +489,8 @@ const LoadingIndicator = styled.div`
   .avatar {
     width: 36px;
     height: 36px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: ${radius.lg};
+    background: linear-gradient(135deg, ${accent[500]}, ${accent[400]});
     display: flex;
     align-items: center;
     justify-content: center;
@@ -518,36 +500,36 @@ const LoadingIndicator = styled.div`
     svg {
       width: 18px;
       height: 18px;
-      color: white;
+      color: ${neutral[0]};
     }
   }
 
   .typing-container {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: ${space[2]};
     background: rgba(255, 255, 255, 0.95);
-    border: 1px solid #e2e8f0;
-    border-radius: 4px 20px 20px 20px;
-    padding: 16px 20px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid ${neutral[200]};
+    border-radius: ${radius.xs} 20px 20px 20px;
+    padding: ${space[4]} ${space[5]};
+    box-shadow: ${shadow.md};
   }
 
   .typing-text {
     font-size: 13px;
-    color: #64748b;
+    color: ${color.textSecondary};
     font-weight: 500;
   }
 
   .dots {
     display: flex;
-    gap: 6px;
+    gap: ${space[1.5]};
 
     span {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      width: ${space[2]};
+      height: ${space[2]};
+      border-radius: ${radius.full};
+      background: linear-gradient(135deg, ${accent[500]}, ${accent[400]});
       animation: ${typingDots} 1.4s infinite ease-in-out;
 
       &:nth-child(1) {
@@ -591,7 +573,7 @@ export default function Home() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Data for context - comprehensive application data
-  const { products, loading: productsLoading } = useProducts();
+  const { data: products, loading: productsLoading } = useProducts();
   const [coverages, setCoverages] = useState([]);
   const [forms, setForms] = useState([]);
   const [rules, setRules] = useState([]);
@@ -629,7 +611,7 @@ export default function Home() {
 
         // Use optimized Firebase service with caching
         // Note: Coverages are subcollections under products, so we use collectionGroup
-        const [coverageList, formList, rulesList, pricingList, dictList, formCoverageList, taskList] = await Promise.all([
+        const [coverageList, formList, rulesList, pricingList, dictList, formCoverageList, taskList] = await Promise.all<any[]>([
           firebaseOptimized.getCollectionGroup('coverages', { useCache: true }),
           firebaseOptimized.getCollection('forms', { useCache: true }),
           firebaseOptimized.getCollection('rules', { useCache: true }),
@@ -920,7 +902,7 @@ export default function Home() {
       logger.logAIOperation('Home chat query', AI_MODELS.HOME_CHAT, query.substring(0, 100), '', 0);
 
       // Call Cloud Function (secure proxy to OpenAI)
-      const generateChat = httpsCallable(functions, 'generateChatResponse');
+      const generateChat = httpsCallable<any, { success: boolean; content?: string; usage?: { total_tokens?: number } }>(functions, 'generateChatResponse');
 
       // Build conversation history for context (last 5 messages)
       const recentHistory = chatHistory.slice(-5).map(msg => ({

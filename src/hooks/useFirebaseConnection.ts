@@ -12,7 +12,12 @@ import connectionMonitor from '../services/firebaseConnectionMonitor';
  * @returns {Object} Connection state and controls
  */
 export const useFirebaseConnection = () => {
-  const [connectionState, setConnectionState] = useState({
+  const [connectionState, setConnectionState] = useState<{
+    isConnected: boolean;
+    state: string;
+    reconnectAttempts: number;
+    timestamp: string | null;
+  }>({
     isConnected: true,
     state: 'connected',
     reconnectAttempts: 0,
@@ -21,8 +26,10 @@ export const useFirebaseConnection = () => {
 
   useEffect(() => {
     // Subscribe to connection state changes
-    const unsubscribe = connectionMonitor.addListener((state) => {
-      setConnectionState(state);
+    const unsubscribe = connectionMonitor.addListener((stateUpdate) => {
+      if (stateUpdate && typeof stateUpdate === 'object' && 'state' in stateUpdate) {
+        setConnectionState(stateUpdate);
+      }
     });
 
     // Cleanup on unmount

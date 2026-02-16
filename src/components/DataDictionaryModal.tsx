@@ -8,9 +8,8 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  onSnapshot
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, isAuthReady, safeOnSnapshot } from '../firebase';
 // Shared UI primitives
 import {
   Table,
@@ -68,11 +67,13 @@ export default function DataDictionaryModal({ open, onClose }: DataDictionaryMod
 
   // Subscribe to the 'dataDictionary' collection in Firestore
   useEffect(() => {
-    if (!open) return; // only subscribe when modal is open
-    const unsubscribe = onSnapshot(
+    // Wait for auth to fully propagate before subscribing
+    if (!open || !isAuthReady()) return;
+
+    const unsubscribe = safeOnSnapshot(
       collection(db, 'dataDictionary'),
       snapshot => {
-        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as DataDictionaryRow));
         setRows(data);
       },
       error => {

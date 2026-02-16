@@ -140,7 +140,7 @@ const StepIndicator = styled.button<{
         `;
       default:
         return css`
-          background: ${theme.colours.surface};
+          background: ${theme.colours.background};
           color: ${theme.colours.textMuted};
           border: 1.5px solid ${theme.colours.border};
         `;

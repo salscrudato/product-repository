@@ -91,7 +91,7 @@ export const PackageCard = memo<PackageCardProps>(({
               <CoverageItem key={coverage.id}>
                 <CheckCircleIcon width={16} height={16} />
                 <CoverageName>{coverage.name}</CoverageName>
-                <CoverageType>{coverage.coverageType}</CoverageType>
+                <CoverageType>{coverage.type}</CoverageType>
               </CoverageItem>
             ))}
           </CoverageList>

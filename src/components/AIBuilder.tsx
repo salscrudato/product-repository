@@ -26,6 +26,7 @@ import { sanitizeMarkdownWithLimit } from '@utils/markdownSanitizer';
 import { withTimeout, DEFAULT_AI_RETRY_OPTIONS } from '@utils/aiTimeout';
 import { AI_MODELS, AI_PARAMETERS, AI_PROMPTS } from '@config/aiConfig';
 import { colors } from '@components/common/DesignSystem';
+import MainNavigation from './ui/Navigation';
 
 // ============ Animations ============
 const fadeIn = keyframes`
@@ -886,6 +887,7 @@ You can reference these existing products and coverages when making recommendati
 
   return (
     <PageContainer>
+      <MainNavigation />
       {/* Top Bar */}
       <TopBar>
         <BackButton onClick={() => navigate('/builder')}>
@@ -912,6 +914,10 @@ You can reference these existing products and coverages when making recommendati
               New Chat
             </ActionButton>
           )}
+          <ActionButton onClick={() => navigate('/ai-builder/plan')}>
+            <BoltIcon />
+            Plan Builder
+          </ActionButton>
           <ActionButton $primary onClick={() => navigate('/builder')}>
             <PlusIcon />
             Create Product

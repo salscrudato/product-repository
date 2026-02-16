@@ -14,7 +14,8 @@ export type AuditAction =
   | 'APPROVE'
   | 'REJECT'
   | 'PUBLISH'
-  | 'ARCHIVE';
+  | 'ARCHIVE'
+  | 'UNARCHIVE';
 
 export type AuditEntity =
   | 'PRODUCT'
@@ -31,6 +32,8 @@ export interface AuditChange {
 }
 
 export interface AuditLogEntry {
+  id?: string;
+
   // Who
   userId: string;
   userEmail: string;
@@ -128,9 +131,9 @@ export async function getAuditHistory(
 
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
+      ...doc.data(),
       id: doc.id,
-      ...doc.data()
-    })) as AuditLogEntry[];
+    } as AuditLogEntry));
   } catch (error) {
     logger.error(LOG_CATEGORIES.ERROR, 'Failed to fetch audit history', { entityType, entityId }, error as Error);
     return [];
@@ -154,9 +157,9 @@ export async function getProductAuditActivity(
 
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
+      ...doc.data(),
       id: doc.id,
-      ...doc.data()
-    })) as AuditLogEntry[];
+    } as AuditLogEntry));
   } catch (error) {
     logger.error(LOG_CATEGORIES.ERROR, 'Failed to fetch product audit activity', { productId }, error as Error);
     return [];
@@ -180,9 +183,9 @@ export async function getUserActivity(
 
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
+      ...doc.data(),
       id: doc.id,
-      ...doc.data()
-    })) as AuditLogEntry[];
+    } as AuditLogEntry));
   } catch (error) {
     logger.error(LOG_CATEGORIES.ERROR, 'Failed to fetch user activity', { userId }, error as Error);
     return [];

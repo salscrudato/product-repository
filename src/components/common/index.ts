@@ -57,7 +57,6 @@ export {
   StatCard,
   StatValue,
   StatLabel,
-  StatTrend,
   // Card Components
   EnhancedCard,
   CardHeader,
@@ -81,30 +80,16 @@ export {
   LoadingText,
   // Action Bar
   ActionBar,
-  ActionBarCount,
-  ActionBarButton,
-  // Slider
-  SliderContainer,
-  SliderTrack,
-  SliderFill,
-  SliderThumb,
-  SliderLabels,
   // Quick Amounts
   QuickAmountContainer,
   QuickAmountButton,
   // Section Header
   SectionHeader,
   SectionTitle,
-  SectionSubtitle,
-  // Filters
-  FilterChipsContainer,
-  FilterChip,
   // Gradient
   GradientBar,
   // Page Layout Components
-  PageActionBar,
   FilterBar,
   FilterSelect,
   CommandBar,
-  CommandBarSection
 } from './DesignSystem';

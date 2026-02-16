@@ -5,13 +5,12 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
-  onSnapshot, 
   query, 
   orderBy,
   Timestamp,
   where
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, isAuthReady, safeOnSnapshot } from '../firebase';
 import { CoveragePackage } from '../types';
 
 /**
@@ -25,7 +24,8 @@ export const useCoveragePackages = (productId: string | undefined) => {
 
   // Real-time listener for packages
   useEffect(() => {
-    if (!productId) {
+    // Wait for auth to fully propagate before subscribing
+    if (!isAuthReady() || !productId) {
       setPackages([]);
       setLoading(false);
       return;
@@ -37,7 +37,7 @@ export const useCoveragePackages = (productId: string | undefined) => {
     const packagesRef = collection(db, 'products', productId, 'packages');
     const q = query(packagesRef, orderBy('name', 'asc'));
 
-    const unsubscribe = onSnapshot(
+    const unsubscribe = safeOnSnapshot(
       q,
       (snapshot) => {
         const packagesList: CoveragePackage[] = [];

@@ -9,8 +9,8 @@
  */
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { collection, onSnapshot, query, orderBy, limit, QueryConstraint } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, getDocs, query, orderBy, limit, QueryConstraint } from 'firebase/firestore';
+import { db, auth, isAuthReady, isFirestoreTerminated, safeOnSnapshot } from '../firebase';
 import { normalizeFirestoreData } from '../utils/firestoreHelpers';
 import { Product } from '../types';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
@@ -76,6 +76,13 @@ export default function useProducts<T extends Product = Product>(
   }, []);
 
   useEffect(() => {
+    // Don't run until auth is fully propagated to avoid permission-denied during re-auth
+    if (!isAuthReady() || !auth.currentUser) {
+      setProducts([]);
+      setLoading(false);
+      return;
+    }
+
     // Check cache first if enabled
     if (enableCache && productsCache.data && productsCache.timestamp) {
       const cacheAge = Date.now() - productsCache.timestamp;
@@ -90,57 +97,63 @@ export default function useProducts<T extends Product = Product>(
     setLoading(true);
     setError(null);
 
-    // Clean up previous subscription
-    if (unsubscribeRef.current) {
-      unsubscribeRef.current();
-    }
+    let cancelled = false;
 
-    unsubscribeRef.current = onSnapshot(
-      productsQuery,
-      (snap) => {
-        try {
-          const productsData = snap.docs.map(d => {
-            const data = d.data();
-            return {
-              id: d.id,
-              ...normalizeFirestoreData(data)
-            } as T;
-          });
+    const applySnapshot = (snap: { docs: Array<{ id: string; data: () => Record<string, unknown> }> }) => {
+      const productsData = snap.docs.map(d => {
+        const data = d.data();
+        return { id: d.id, ...normalizeFirestoreData(data) } as T;
+      });
+      const filteredProducts = filterArchivedProducts(productsData);
+      if (!cancelled) {
+        setProducts(filteredProducts);
+        setLoading(false);
+        setError(null);
+      }
+      if (enableCache) {
+        productsCache.data = filteredProducts;
+        productsCache.timestamp = Date.now();
+      }
+      logger.debug(LOG_CATEGORIES.DATA, 'Products fetched successfully', {
+        count: filteredProducts.length,
+        totalCount: productsData.length
+      });
+    };
 
-          // Filter out archived products
-          const filteredProducts = filterArchivedProducts(productsData);
-
-          setProducts(filteredProducts);
-          setLoading(false);
-          setError(null);
-
-          // Update cache
-          if (enableCache) {
-            productsCache.data = filteredProducts;
-            productsCache.timestamp = Date.now();
+    // One-shot read first so we only attach onSnapshot after Firestore is ready.
+    // Avoids permission-denied on the listener and subsequent SDK internal assertion.
+    getDocs(productsQuery)
+      .then((snap) => {
+        if (cancelled) return;
+        applySnapshot(snap);
+        // Attach live listener only after successful read so stream is authenticated.
+        if (cancelled) return;
+        if (unsubscribeRef.current) unsubscribeRef.current();
+        unsubscribeRef.current = safeOnSnapshot(
+          productsQuery,
+          (nextSnap) => {
+            if (!cancelled) applySnapshot(nextSnap);
+          },
+          (err) => {
+            if (cancelled) return;
+            if (isFirestoreTerminated()) return;
+            const error = err instanceof Error ? err : new Error(String(err));
+            logger.error(LOG_CATEGORIES.ERROR, 'Products subscription failed', {}, error);
+            setError(error);
+            setLoading(false);
           }
-
-          logger.debug(LOG_CATEGORIES.DATA, 'Products fetched successfully', {
-            count: filteredProducts.length,
-            totalCount: productsData.length
-          });
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error(String(err));
-          logger.error(LOG_CATEGORIES.ERROR, 'Error processing products snapshot', {}, error);
-          setError(error);
-          setLoading(false);
-        }
-      },
-      (err) => {
+        );
+      })
+      .catch((err) => {
+        if (cancelled) return;
         const error = err instanceof Error ? err : new Error(String(err));
-        logger.error(LOG_CATEGORIES.ERROR, 'Products subscription failed', {}, error);
+        logger.error(LOG_CATEGORIES.ERROR, 'Products fetch failed', {}, error);
         setError(error);
         setLoading(false);
-      }
-    );
+      });
 
-    // Cleanup function
     return () => {
+      cancelled = true;
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
         unsubscribeRef.current = null;
@@ -158,7 +171,7 @@ export default function useProducts<T extends Product = Product>(
   }, []);
 
   // Optimized: Return memoized result
-  return useMemo(() => ({
+  return useMemo<UseProductsResult<T>>(() => ({
     data: products,
     loading,
     error,

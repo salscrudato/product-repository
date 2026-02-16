@@ -20,13 +20,13 @@ const HiddenSpan = styled.span`
 
 interface VisuallyHiddenProps {
   children: React.ReactNode;
-  as?: keyof JSX.IntrinsicElements;
+  as?: keyof React.JSX.IntrinsicElements;
 }
 
 export const VisuallyHidden: React.FC<VisuallyHiddenProps> = ({ 
   children, 
   as = 'span' 
 }) => {
-  return <HiddenSpan as={as}>{children}</HiddenSpan>;
+  return <HiddenSpan as={as as any}>{children}</HiddenSpan>;
 };
 

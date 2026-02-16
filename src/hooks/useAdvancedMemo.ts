@@ -54,7 +54,7 @@ function deepEqual(a: any, b: any): boolean {
  * }, data);
  */
 export function useDeepMemo<T>(factory: () => T, deps: any): T {
-  const ref = useRef<{ deps: any; value: T }>();
+  const ref = useRef<{ deps: any; value: T }>(undefined);
   
   if (!ref.current || !deepEqual(deps, ref.current.deps)) {
     ref.current = {

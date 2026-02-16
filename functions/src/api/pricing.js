@@ -18,6 +18,7 @@ const db = admin.firestore();
  */
 const rateCoverage = onCall(
   withErrorHandling(async (request) => {
+    const auth = requireAuth(request);
     const { productId, coverageId, inputs } = request.data;
 
     if (!productId || !coverageId || !inputs) {
@@ -28,7 +29,7 @@ const rateCoverage = onCall(
     }
 
     logger.info('Rating coverage', {
-      userId: request.auth?.uid || 'anonymous',
+      userId: auth.uid,
       productId,
       coverageId
     });
@@ -99,6 +100,7 @@ const rateCoverage = onCall(
  */
 const ratePackage = onCall(
   withErrorHandling(async (request) => {
+    const auth = requireAuth(request);
     const { productId, packageId, inputs } = request.data;
 
     if (!productId || !packageId || !inputs) {
@@ -109,7 +111,7 @@ const ratePackage = onCall(
     }
 
     logger.info('Rating package', {
-      userId: request.auth?.uid || 'anonymous',
+      userId: auth.uid,
       productId,
       packageId
     });

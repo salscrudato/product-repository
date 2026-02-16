@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
+import logger, { LOG_CATEGORIES } from '../utils/logger';
 import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import {
   TrashIcon,
@@ -8,7 +9,10 @@ import {
   XMarkIcon,
   ArrowLeftIcon,
   TableCellsIcon,
-  PlusIcon
+  PlusIcon,
+  ArrowUpTrayIcon,
+  ArrowDownTrayIcon,
+  ArrowsRightLeftIcon,
 } from '@heroicons/react/24/solid';
 
 import { Button } from '../components/ui/Button';
@@ -25,6 +29,17 @@ import {
   CloseBtn
 } from '../components/ui/Table';
 import MainNavigation from './ui/Navigation';
+import { useAuth } from '../context/AuthContext';
+import { orgDataDictionaryService } from '../services/orgDataDictionaryService';
+import { DataDictionaryField } from '../types/dataDictionary';
+import { FieldCodeInput } from './ui/FieldCodeInput';
+import { VirtualizedTableEditor } from './tables/VirtualizedTableEditor';
+import { TableCSVImport } from './tables/TableCSVImport';
+import { exportToCSV } from '../services/tableService';
+import type { TableVersion, TableDimension, TableCell, TableVersionStatus } from '../types/table';
+
+// ── Design System v2 ──
+import { PageShell, PageBody } from '@/ui/components';
 
 import styled, { keyframes } from 'styled-components';
 
@@ -275,7 +290,7 @@ const ExcelCell = styled.div<{ isHeader?: boolean; isRowHeader?: boolean }>`
 `;
 
 // Enhanced dimension selection styling
-const DimensionCard = styled.div`
+const DimensionCard = styled.div<{ selected?: boolean; disabled?: boolean }>`
   padding: 16px;
   border: 2px solid ${props => props.selected ? '#6366f1' : '#e5e7eb'};
   border-radius: 12px;
@@ -380,8 +395,9 @@ const getDimValues = (dim) => {
 };
 
 function TableScreen() {
-  const { productId, stepId } = useParams();
+  const { productId, stepId } = useParams<{ productId: string; stepId: string }>();
   const navigate = useNavigate();
+  const { primaryOrgId } = useAuth();
   const [step, setStep] = useState(null);
   const [dimensions, setDimensions] = useState([]);
   const [newDimension, setNewDimension] = useState({ name: '', values: [], technicalCode: '' });
@@ -391,12 +407,28 @@ function TableScreen() {
   const [editingDimensionId, setEditingDimensionId] = useState(null);
   const [tableData, setTableData] = useState({});
   const [modalOpen, setModalOpen] = useState(false);
-  // list of IT codes from data dictionary
-  const [itCodes, setItCodes] = useState([]);
+  // Org-scoped data dictionary fields
+  const [dictionaryFields, setDictionaryFields] = useState<DataDictionaryField[]>([]);
 
+  // New virtualized table UI state
+  const [useVirtualizedEditor, setUseVirtualizedEditor] = useState(false);
+  const [showCSVImport, setShowCSVImport] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Subscribe to org-scoped data dictionary fields
+  useEffect(() => {
+    if (!primaryOrgId) return;
+    const unsubscribe = orgDataDictionaryService.subscribeToFields(
+      primaryOrgId,
+      (fields) => setDictionaryFields(fields.filter(f => f.status === 'active')),
+      (err) => logger.warn(LOG_CATEGORIES.DATA, 'Unable to load data dictionary fields', { error: String(err) })
+    );
+    return () => unsubscribe();
+  }, [primaryOrgId]);
 
   useEffect(() => {
+    if (!productId || !stepId) return;
     const fetchData = async () => {
       try {
         const stepDoc = await getDoc(doc(db, `products/${productId}/steps`, stepId));
@@ -427,11 +459,6 @@ function TableScreen() {
           };
         });
 
-        // pull IT codes from dataDictionary collection
-        const codesSnap = await getDocs(collection(db, 'dataDictionary'));
-        const codeList = codesSnap.docs.map(d => (d.data().code || '').trim()).filter(Boolean);
-        setItCodes(codeList);
-
         setDimensions(dimensionList);
 
         // Auto-select dimensions by default (first two dimensions)
@@ -441,8 +468,8 @@ function TableScreen() {
           setSelectedDimensions([dimensionList[0]]);
         }
       } catch (error) {
-        console.error("Error fetching data:", error);
-        alert("Failed to load table data. Please try again.");
+        logger.error(LOG_CATEGORIES.ERROR, 'Error fetching table data', { productId, stepId }, error as Error);
+        setErrorMessage("Failed to load table data. Please check your permissions and try again.");
       }
     };
     fetchData();
@@ -468,7 +495,7 @@ function TableScreen() {
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error("Error saving table data:", error);
+      logger.error(LOG_CATEGORIES.ERROR, 'Error saving table data', { productId, stepId }, error as Error);
     }
   };
 
@@ -511,10 +538,11 @@ function TableScreen() {
 
   const handleAddDimension = async () => {
     if (!newDimension.name || newDimension.values.length === 0) {
-      alert('Please fill in the Name and Values fields');
+      setErrorMessage('Please fill in the Name and Values fields.');
       return;
     }
     try {
+      setErrorMessage(null);
       const docRef = await addDoc(collection(db, `products/${productId}/steps/${stepId}/dimensions`), {
         name: newDimension.name,
         values: newDimension.values.join(', '),
@@ -541,17 +569,18 @@ function TableScreen() {
       });
       setTableData(newTableData);
     } catch (error) {
-      console.error("Error adding dimension:", error);
-      alert("Failed to add dimension. Please try again.");
+      logger.error(LOG_CATEGORIES.ERROR, 'Error adding dimension', { productId, stepId }, error as Error);
+      setErrorMessage("Failed to add dimension. Please check your permissions and try again.");
     }
   };
 
   const handleUpdateDimension = async () => {
     if (!newDimension.name || newDimension.values.length === 0) {
-      alert('Please fill in the Name and Values fields');
+      setErrorMessage('Please fill in the Name and Values fields.');
       return;
     }
     try {
+      setErrorMessage(null);
       await updateDoc(doc(db, `products/${productId}/steps/${stepId}/dimensions`, editingDimensionId), {
         name: newDimension.name,
         values: newDimension.values.join(', '),
@@ -579,8 +608,8 @@ function TableScreen() {
       });
       setTableData(newTableData);
     } catch (error) {
-      console.error("Error updating dimension:", error);
-      alert("Failed to update dimension. Please try again.");
+      logger.error(LOG_CATEGORIES.ERROR, 'Error updating dimension', { productId, stepId }, error as Error);
+      setErrorMessage("Failed to update dimension. Please check your permissions and try again.");
     }
   };
 
@@ -604,23 +633,142 @@ function TableScreen() {
         });
         setTableData(newTableData);
       } catch (error) {
-        console.error("Error deleting dimension:", error);
-        alert("Failed to delete dimension. Please try again.");
+        logger.error(LOG_CATEGORIES.ERROR, 'Error deleting dimension', { productId, stepId }, error as Error);
+        setErrorMessage("Failed to delete dimension. Please check your permissions and try again.");
       }
     }
   };
 
+  // ============================================================================
+  // CSV Import/Export Handlers
+  // ============================================================================
 
+  // Convert current tableData to TableVersion format for virtualized editor
+  const getTableVersionFromData = useCallback((): TableVersion | null => {
+    if (selectedDimensions.length !== 2) return null;
+
+    const rowDimension = selectedDimensions[0];
+    const colDimension = selectedDimensions[1];
+    const rowValues = getDimValues(rowDimension);
+    const colValues = getDimValues(colDimension);
+
+    // Convert tableData (using row-col key format) to cells (using pipe format)
+    const cells: Record<string, TableCell> = {};
+    for (const [key, value] of Object.entries(tableData)) {
+      if (value === '' || value === undefined || value === null) continue;
+      // Convert from "row-col" format to "row|col" format
+      const [row, col] = key.split('-');
+      const cellKey = `${row}|${col}`;
+      const numValue = parseFloat(value as string);
+      cells[cellKey] = { value: isNaN(numValue) ? null : numValue };
+    }
+
+    return {
+      id: 'current',
+      tableId: stepId || '',
+      versionNumber: 1,
+      status: 'draft' as TableVersionStatus,
+      dimensions: [
+        {
+          id: 'row',
+          name: rowDimension.name,
+          fieldCode: rowDimension.technicalCode || '',
+          position: 0,
+          values: rowValues,
+          valueType: 'string',
+        },
+        {
+          id: 'col',
+          name: colDimension.name,
+          fieldCode: colDimension.technicalCode || '',
+          position: 1,
+          values: colValues,
+          valueType: 'string',
+        },
+      ],
+      cellStorage: {
+        mode: 'sparse',
+        cells,
+      },
+      createdAt: new Date(),
+      createdBy: '',
+      updatedAt: new Date(),
+      updatedBy: '',
+    };
+  }, [selectedDimensions, tableData, stepId]);
+
+  // Handle cell change from virtualized editor (convert back to legacy format)
+  const handleVirtualizedCellChange = useCallback((cellKey: string, value: number | null) => {
+    const [row, col] = cellKey.split('|');
+    const legacyKey = `${row}-${col}`;
+    setTableData(prev => ({ ...prev, [legacyKey]: value?.toString() ?? '' }));
+  }, []);
+
+  // Handle batch changes from virtualized editor
+  const handleVirtualizedBatchChange = useCallback((changes: Record<string, TableCell>) => {
+    setTableData(prev => {
+      const newData = { ...prev };
+      for (const [cellKey, cell] of Object.entries(changes)) {
+        const [row, col] = cellKey.split('|');
+        const legacyKey = `${row}-${col}`;
+        newData[legacyKey] = cell.value?.toString() ?? '';
+      }
+      return newData;
+    });
+  }, []);
+
+  // Handle CSV import
+  const handleCSVImport = useCallback((data: { dimensions: TableDimension[]; cells: Record<string, TableCell> }) => {
+    // Convert imported cells to legacy tableData format
+    const newTableData: Record<string, string> = {};
+    for (const [cellKey, cell] of Object.entries(data.cells)) {
+      const [row, col] = cellKey.split('|');
+      const legacyKey = `${row}-${col}`;
+      newTableData[legacyKey] = cell.value?.toString() ?? '';
+    }
+    setTableData(newTableData);
+    setShowCSVImport(false);
+
+    // Also update dimensions if they don't exist
+    // For now, we'll just update the table data
+    setErrorMessage(null); // Clear any previous errors on success
+  }, []);
+
+  // Handle CSV export
+  const handleCSVExport = useCallback(() => {
+    const version = getTableVersionFromData();
+    if (!version) {
+      setErrorMessage('Please select 2 dimensions first.');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const csv = exportToCSV(version);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `table_${step?.stepName || 'export'}_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      logger.error(LOG_CATEGORIES.ERROR, 'Export error', { productId, stepId }, err as Error);
+      setErrorMessage('Failed to export CSV. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [getTableVersionFromData, step]);
 
   // Loading spinner
   if(!dimensions.length && !step){
     return (
-      <ModernContainer>
+      <PageShell>
         <MainNavigation />
-        <MainContent>
+        <PageBody>
           <Spinner/>
-        </MainContent>
-      </ModernContainer>
+        </PageBody>
+      </PageShell>
     );
   }
 
@@ -695,9 +843,9 @@ function TableScreen() {
   };
 
   return (
-    <ModernContainer>
+    <PageShell>
       <MainNavigation />
-      <MainContent>
+      <PageBody>
         <CoveragePageHeaderSection>
           <BackButton onClick={() => navigate(`/pricing/${productId}`)}>
             <ArrowLeftIcon />
@@ -712,29 +860,120 @@ function TableScreen() {
           </TitleContainer>
         </CoveragePageHeaderSection>
 
+        {/* Error Banner */}
+        {errorMessage && (
+          <div style={{
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '12px',
+            padding: '12px 16px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+          }}>
+            <span style={{ color: '#991b1b', fontSize: '14px' }}>{errorMessage}</span>
+            <button
+              onClick={() => setErrorMessage(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#991b1b',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <XMarkIcon width={16} height={16} />
+            </button>
+          </div>
+        )}
+
+        {/* CSV Import Modal */}
+        {showCSVImport && (
+          <Overlay onClick={() => setShowCSVImport(false)}>
+            <div onClick={e => e.stopPropagation()} style={{ maxWidth: 700, width: '90%' }}>
+              <TableCSVImport
+                onImport={handleCSVImport}
+                onCancel={() => setShowCSVImport(false)}
+              />
+            </div>
+          </Overlay>
+        )}
+
         {/* Enhanced Excel-like Table */}
         {selectedDimensions.length === 2 ? (
           <Card>
             <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#374151', marginBottom: '12px' }}>
-                Data Table
-              </h3>
-              <div style={{ display: 'flex', gap: '24px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                 <div>
-                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Rows: </span>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
-                    {selectedDimensions[0]?.name} ({getDimValues(selectedDimensions[0]).length} values)
-                  </span>
+                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#374151', marginBottom: '12px' }}>
+                    Data Table
+                  </h3>
+                  <div style={{ display: 'flex', gap: '24px' }}>
+                    <div>
+                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Rows: </span>
+                      <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                        {selectedDimensions[0]?.name} ({getDimValues(selectedDimensions[0]).length} values)
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Columns: </span>
+                      <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                        {selectedDimensions[1]?.name} ({getDimValues(selectedDimensions[1]).length} values)
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Columns: </span>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
-                    {selectedDimensions[1]?.name} ({getDimValues(selectedDimensions[1]).length} values)
-                  </span>
+
+                {/* Table Toolbar */}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowCSVImport(true)}
+                    title="Import CSV"
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px' }}
+                  >
+                    <ArrowUpTrayIcon width={16} height={16} />
+                    Import
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={handleCSVExport}
+                    disabled={isExporting}
+                    title="Export CSV"
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px' }}
+                  >
+                    <ArrowDownTrayIcon width={16} height={16} />
+                    {isExporting ? 'Exporting...' : 'Export'}
+                  </Button>
+                  <Button
+                    variant={useVirtualizedEditor ? 'primary' : 'secondary'}
+                    onClick={() => setUseVirtualizedEditor(!useVirtualizedEditor)}
+                    title={useVirtualizedEditor ? 'Switch to standard editor' : 'Switch to virtualized editor (for large tables)'}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px' }}
+                  >
+                    <ArrowsRightLeftIcon width={16} height={16} />
+                    {useVirtualizedEditor ? 'Standard' : 'Virtualized'}
+                  </Button>
                 </div>
               </div>
             </div>
-            {renderExcelTable()}
+
+            {/* Render virtualized or standard editor */}
+            {useVirtualizedEditor && getTableVersionFromData() ? (
+              <VirtualizedTableEditor
+                version={getTableVersionFromData()!}
+                onCellChange={handleVirtualizedCellChange}
+                onBatchChange={handleVirtualizedBatchChange}
+                width={Math.min(1200, window.innerWidth - 100)}
+                height={500}
+              />
+            ) : (
+              renderExcelTable()
+            )}
           </Card>
         ) : (
           <Card style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>
@@ -917,22 +1156,33 @@ function TableScreen() {
                   ))}
                 </div>
 
-                {/* IT Code select moved below states */}
+                {/* IT Code - validated against org-scoped data dictionary */}
                 <label style={{ fontSize: 14, color: '#374151', marginBottom: 2, width: '100%' }}>IT&nbsp;Code (optional)</label>
-                <TextInput
-                  as="select"
-                  name="technicalCode"
-                  value={newDimension.technicalCode}
-                  onChange={handleInputChange}
-                  style={{ minWidth: 180, fontSize: 13 }}
-                >
-                  <option value="" disabled style={{ color: '#6B7280', fontSize: 13 }}>
-                    Select IT Code
-                  </option>
-                  {itCodes.map(code => (
-                    <option key={code} value={code}>{code}</option>
-                  ))}
-                </TextInput>
+                {primaryOrgId ? (
+                  <FieldCodeInput
+                    orgId={primaryOrgId}
+                    value={newDimension.technicalCode || ''}
+                    onChange={(code) => setNewDimension(prev => ({ ...prev, technicalCode: code }))}
+                    placeholder="Select IT Code..."
+                    allowEmpty={true}
+                    showValidation={true}
+                  />
+                ) : (
+                  <TextInput
+                    as="select"
+                    name="technicalCode"
+                    value={newDimension.technicalCode}
+                    onChange={handleInputChange}
+                    style={{ minWidth: 180, fontSize: 13 }}
+                  >
+                    <option value="" disabled style={{ color: '#6B7280', fontSize: 13 }}>
+                      Select IT Code
+                    </option>
+                    {dictionaryFields.map(field => (
+                      <option key={field.id} value={field.code}>{field.code}</option>
+                    ))}
+                  </TextInput>
+                )}
                 <ModernButton
                   onClick={editingDimensionId ? handleUpdateDimension : handleAddDimension}
                   style={{ minWidth: 160, marginTop: 4 }}
@@ -943,8 +1193,8 @@ function TableScreen() {
             </Modal>
           </Overlay>
         )}
-      </MainContent>
-    </ModernContainer>
+      </PageBody>
+    </PageShell>
   );
 }
 

@@ -253,7 +253,7 @@ const sparkle = keyframes`
 
 // Styled Components
 const Container = styled.div`
-  background: ${({ theme }) => theme.colours.surface};
+  background: ${({ theme }) => theme.colours.background};
   border: 1px solid ${({ theme }) => theme.colours.border};
   border-radius: 16px;
   overflow: hidden;
@@ -304,7 +304,7 @@ const ScoreRing = styled.div<{ $score: number }>`
     content: '';
     position: absolute;
     inset: 10px;
-    background: ${({ theme }) => theme.colours.surface};
+    background: ${({ theme }) => theme.colours.background};
     border-radius: 50%;
     box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
   }
@@ -370,7 +370,7 @@ const RecommendationsHeader = styled.div`
 
 const RecommendationCard = styled.div<{ $delay: number }>`
   display: flex; align-items: center; justify-content: space-between; padding: 12px 14px;
-  background: ${({ theme }) => theme.colours.surface}; border: 1px solid ${({ theme }) => theme.colours.border};
+  background: ${({ theme }) => theme.colours.background}; border: 1px solid ${({ theme }) => theme.colours.border};
   border-radius: 10px; margin-bottom: 8px;
   animation: ${fadeIn} 0.2s ease-out; animation-delay: ${({ $delay }) => $delay * 60}ms; animation-fill-mode: both;
   &:last-child { margin-bottom: 0; }

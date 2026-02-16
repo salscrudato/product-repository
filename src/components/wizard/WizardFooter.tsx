@@ -82,7 +82,7 @@ const NavButton = styled.button`
   transition: all 0.15s ease;
 
   &:hover {
-    background: ${({ theme }) => theme.colours.surface};
+    background: ${({ theme }) => theme.colours.backgroundAlt};
   }
 
   svg {

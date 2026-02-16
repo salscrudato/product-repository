@@ -2,10 +2,16 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styled, { keyframes, css } from 'styled-components';
 import { signOut } from 'firebase/auth';
-import { auth } from '../../firebase';
-import { UserIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, Bars3Icon, XMarkIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { auth, prepareFirestoreForLogout } from '../../firebase';
+import { UserIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, Bars3Icon, XMarkIcon, SparklesIcon, BuildingOffice2Icon, UserGroupIcon, ChevronDownIcon, ClipboardDocumentListIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import logger, { LOG_CATEGORIES } from '../../utils/logger';
 import { Tooltip } from './Tooltip';
+import CommandPalette, { useCommandPalette } from './CommandPalette';
+import { NotificationBell } from '../collaboration';
+import { useRoleContext } from '../../context/RoleContext';
+import { useChangeSet } from '../../context/ChangeSetContext';
+import { ORG_ROLE_DISPLAY_NAMES } from '../../services/orgService';
+import { color, neutral, accent, semantic, space, radius, shadow, fontFamily, type as typeScale, transition, duration, easing, z, layout, focusRingStyle, reducedMotion } from '../../ui/tokens';
 
 /* ---------- animations ---------- */
 const slideDown = keyframes`
@@ -55,57 +61,34 @@ const gradientFlow = keyframes`
 const NavigationWrapper = styled.div<{ $scrolled?: boolean }>`
   position: sticky;
   top: 0;
-  z-index: 100;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.95));
+  z-index: ${z.dropdown};
+  background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-bottom: 1px solid ${({ $scrolled }) => $scrolled ? neutral[200] : 'transparent'};
+  transition: border-color ${transition.normal};
 
-  ${props => props.$scrolled && css`
-    box-shadow:
-      0 1px 0 rgba(0, 0, 0, 0.04),
-      0 4px 24px rgba(0, 0, 0, 0.06);
-    background: rgba(255, 255, 255, 0.92);
-  `}
-
-  &::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(99, 102, 241, 0.15) 20%,
-      rgba(139, 92, 246, 0.2) 50%,
-      rgba(99, 102, 241, 0.15) 80%,
-      transparent 100%
-    );
-    opacity: ${props => props.$scrolled ? 1 : 0.5};
-    transition: opacity 0.3s ease;
-  }
+  @media ${reducedMotion} { transition: none; }
 `;
 
 const Navigation = styled.nav`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 40px;
+  padding: ${space[2]} ${space[10]};
   position: relative;
-  z-index: 10;
-  max-width: 1600px;
+  z-index: ${z.raised};
+  max-width: ${layout.maxWidthWide};
   margin: 0 auto;
-  gap: 32px;
+  gap: ${space[8]};
 
   @media (max-width: 1200px) {
-    padding: 8px 24px;
-    gap: 20px;
+    padding: ${space[2]} ${space[6]};
+    gap: ${space[5]};
   }
 
   @media (max-width: 768px) {
-    padding: 8px 16px;
+    padding: ${space[2]} ${space[4]};
   }
 `;
 
@@ -113,59 +96,46 @@ const Navigation = styled.nav`
 const LogoSection = styled(Link)`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: ${space[2.5]};
   text-decoration: none;
-  padding: 6px 8px;
-  margin: -6px -8px;
-  border-radius: 12px;
-  transition: all 0.2s ease;
+  padding: ${space[1.5]} ${space[2]};
+  margin: -${space[1.5]} -${space[2]};
+  border-radius: ${radius.lg};
+  transition: all ${transition.fast};
   flex-shrink: 0;
 
   &:hover {
-    background: rgba(99, 102, 241, 0.04);
+    background: ${color.accentMuted};
   }
 
   &:active {
     transform: scale(0.98);
   }
+
+  &:focus-visible {
+    ${focusRingStyle}
+  }
+
+  @media ${reducedMotion} {
+    transition: none;
+    &:active { transform: none; }
+  }
 `;
 
 const LogoIcon = styled.div`
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
-  background-size: 200% 200%;
+  width: 30px;
+  height: 30px;
+  border-radius: ${radius.md};
+  background: ${accent[600]};
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  box-shadow:
-    0 2px 8px rgba(99, 102, 241, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
-
-  ${LogoSection}:hover & {
-    animation: ${gradientFlow} 3s ease infinite;
-    box-shadow:
-      0 4px 16px rgba(99, 102, 241, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
-    transform: translateY(-1px);
-  }
+  color: ${color.textInverse};
+  flex-shrink: 0;
 
   svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  @media (max-width: 768px) {
-    width: 32px;
-    height: 32px;
-
-    svg {
-      width: 18px;
-      height: 18px;
-    }
+    width: 16px;
+    height: 16px;
   }
 `;
 
@@ -180,27 +150,24 @@ const LogoText = styled.div`
 `;
 
 const LogoBrand = styled.span`
-  font-weight: 600;
-  font-size: 15px;
-  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.015em;
+  font-weight: ${typeScale.headingSm.weight};
+  font-size: ${typeScale.bodyMd.size};
+  color: ${color.text};
+  letter-spacing: ${typeScale.headingSm.letterSpacing};
   white-space: nowrap;
 
   @media (max-width: 900px) {
-    font-size: 14px;
+    font-size: ${typeScale.bodySm.size};
   }
 `;
 
 const LogoTagline = styled.span`
-  font-size: 9px;
-  font-weight: 600;
-  color: #94a3b8;
-  letter-spacing: 0.04em;
+  font-size: ${typeScale.overline.size};
+  font-weight: ${typeScale.overline.weight};
+  color: ${neutral[400]};
+  letter-spacing: ${typeScale.overline.letterSpacing};
   text-transform: uppercase;
-  margin-top: 1px;
+  margin-top: ${space.px};
 `;
 
 /* ---------- Nav List ---------- */
@@ -208,24 +175,10 @@ const NavList = styled.ul`
   display: flex;
   list-style: none;
   margin: 0;
-  padding: 5px 6px;
-  gap: 2px;
-  background: rgba(241, 245, 249, 0.7);
-  border-radius: 14px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
+  padding: 0;
+  gap: ${space[0.5]};
   flex: 1;
   justify-content: center;
-  max-width: 800px;
-
-  @media (max-width: 1200px) {
-    max-width: 680px;
-  }
-
-  @media (max-width: 1024px) {
-    gap: 0;
-    padding: 4px;
-    max-width: 580px;
-  }
 
   @media (max-width: 768px) {
     display: none;
@@ -237,13 +190,13 @@ const NavItem = styled.li``;
 /* ---------- Mobile Menu Components ---------- */
 const MobileMenuButton = styled.button`
   display: none;
-  background: rgba(241, 245, 249, 0.8);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  padding: 8px;
+  background: ${neutral[100]}cc;
+  border: 1px solid ${neutral[200]}99;
+  padding: ${space[2]};
   cursor: pointer;
-  color: #64748b;
-  border-radius: 10px;
-  transition: all 0.2s ease;
+  color: ${color.textMuted};
+  border-radius: ${radius.md};
+  transition: all ${transition.fast};
 
   @media (max-width: 768px) {
     display: flex;
@@ -252,9 +205,9 @@ const MobileMenuButton = styled.button`
   }
 
   &:hover {
-    background: rgba(99, 102, 241, 0.1);
-    border-color: rgba(99, 102, 241, 0.2);
-    color: #6366f1;
+    background: ${accent[50]};
+    border-color: ${accent[200]};
+    color: ${color.accent};
     transform: scale(1.02);
   }
 
@@ -263,13 +216,17 @@ const MobileMenuButton = styled.button`
   }
 
   &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    ${focusRingStyle}
   }
 
   svg {
     width: 22px;
     height: 22px;
+  }
+
+  @media ${reducedMotion} {
+    transition: none;
+    &:hover, &:active { transform: none; }
   }
 `;
 
@@ -283,11 +240,15 @@ const MobileMenuOverlay = styled.div<{ $isOpen: boolean }>`
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(15, 23, 42, 0.5);
+    background: ${color.overlay};
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    z-index: 998;
-    animation: ${fadeIn} 0.25s ease-out;
+    z-index: ${z.overlay};
+    animation: ${fadeIn} ${duration.normal} ${easing.out};
+  }
+
+  @media ${reducedMotion} {
+    animation: none;
   }
 `;
 
@@ -306,12 +267,14 @@ const MobileMenu = styled.div<{ $isOpen: boolean }>`
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     flex-direction: column;
-    z-index: 999;
-    animation: ${slideIn} 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-    box-shadow:
-      -16px 0 48px rgba(0, 0, 0, 0.12),
-      -4px 0 16px rgba(0, 0, 0, 0.06);
+    z-index: ${z.modal};
+    animation: ${slideIn} ${duration.slow} ${easing.springCalm};
+    box-shadow: ${shadow.overlay};
     overflow-y: auto;
+  }
+
+  @media ${reducedMotion} {
+    animation: none;
   }
 `;
 
@@ -319,75 +282,73 @@ const MobileMenuHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-  background: linear-gradient(to bottom, white, rgba(248, 250, 252, 0.5));
+  padding: ${space[4]} ${space[5]};
+  border-bottom: 1px solid ${neutral[100]};
 `;
 
 const MobileMenuTitle = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: ${space[2.5]};
 `;
 
 const MobileLogoIcon = styled.div`
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+  width: 28px;
+  height: 28px;
+  border-radius: ${radius.md};
+  background: ${accent[600]};
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  color: ${color.textInverse};
 
-  svg {
-    width: 18px;
-    height: 18px;
-  }
+  svg { width: 14px; height: 14px; }
 `;
 
 const MobileMenuBrand = styled.span`
   font-weight: 700;
-  font-size: 15px;
-  color: #1e293b;
-  letter-spacing: -0.01em;
+  font-size: ${typeScale.bodyMd.size};
+  color: ${neutral[800]};
+  letter-spacing: ${typeScale.headingSm.letterSpacing};
 `;
 
 const MobileCloseButton = styled.button`
-  background: rgba(241, 245, 249, 0.8);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  padding: 8px;
+  background: ${neutral[100]}cc;
+  border: 1px solid ${neutral[200]}99;
+  padding: ${space[2]};
   cursor: pointer;
-  color: #64748b;
-  border-radius: 10px;
-  transition: all 0.2s ease;
+  color: ${color.textMuted};
+  border-radius: ${radius.md};
+  transition: all ${transition.fast};
 
   &:hover {
-    background: rgba(239, 68, 68, 0.1);
-    border-color: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
+    background: ${color.errorLight};
+    border-color: ${semantic.error}33;
+    color: ${color.error};
   }
 
   &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    ${focusRingStyle}
   }
 
   svg {
     width: 18px;
     height: 18px;
+  }
+
+  @media ${reducedMotion} {
+    transition: none;
   }
 `;
 
 const MobileNavList = styled.ul`
   list-style: none;
   margin: 0;
-  padding: 16px 12px;
+  padding: ${space[4]} ${space[3]};
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: ${space[1]};
 `;
 
 const MobileNavItem = styled.li``;
@@ -395,14 +356,14 @@ const MobileNavItem = styled.li``;
 const MobileNavLink = styled(Link)<{ $isActive?: boolean }>`
   display: flex;
   align-items: center;
-  padding: 14px 16px;
+  padding: ${space[3]} ${space[4]};
   text-decoration: none;
-  color: ${({ $isActive }) => $isActive ? '#6366f1' : '#374151'};
-  font-weight: ${({ $isActive }) => $isActive ? '600' : '500'};
-  font-size: 15px;
-  border-radius: 12px;
-  transition: all 0.2s ease;
-  background: ${({ $isActive }) => $isActive ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%)' : 'transparent'};
+  color: ${({ $isActive }) => $isActive ? accent[500] : neutral[700]};
+  font-weight: ${({ $isActive }) => $isActive ? 600 : 500};
+  font-size: ${typeScale.bodyMd.size};
+  border-radius: ${radius.lg};
+  transition: all ${transition.fast};
+  background: ${({ $isActive }) => $isActive ? accent[50] : 'transparent'};
   position: relative;
 
   ${({ $isActive }) => $isActive && css`
@@ -412,190 +373,196 @@ const MobileNavLink = styled(Link)<{ $isActive?: boolean }>`
       left: 0;
       top: 50%;
       transform: translateY(-50%);
-      width: 4px;
-      height: 24px;
-      background: linear-gradient(180deg, #6366f1, #8b5cf6);
-      border-radius: 0 4px 4px 0;
+      width: ${space[1]};
+      height: ${space[6]};
+      background: ${accent[500]};
+      border-radius: 0 ${radius.xs} ${radius.xs} 0;
     }
   `}
 
   &:hover {
-    background: rgba(99, 102, 241, 0.08);
-    color: #6366f1;
-    transform: translateX(4px);
+    background: ${accent[50]};
+    color: ${accent[500]};
+    transform: translateX(${space[1]});
   }
 
   &:active {
-    transform: translateX(2px) scale(0.99);
+    transform: translateX(${space[0.5]}) scale(0.99);
   }
 
   &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    ${focusRingStyle}
+  }
+
+  @media ${reducedMotion} {
+    transition: none;
+    &:hover, &:active { transform: none; }
   }
 `;
 
 const MobileMenuFooter = styled.div`
-  padding: 20px 24px;
-  border-top: 1px solid rgba(226, 232, 240, 0.6);
-  background: linear-gradient(to top, rgba(248, 250, 252, 0.9), white);
+  padding: ${space[4]} ${space[5]};
+  border-top: 1px solid ${neutral[100]};
 `;
 
 const NavLink = styled(Link)`
   text-decoration: none;
-  color: #6b7280;
-  font-weight: 500;
-  font-size: 14px;
-  padding: 9px 16px;
-  border-radius: 10px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: ${neutral[500]};
+  font-weight: 400;
+  font-size: ${typeScale.bodySm.size};
+  padding: ${space[1.5]} ${space[3]};
+  border-radius: ${radius.sm};
+  transition: color ${transition.fast};
   position: relative;
-  letter-spacing: -0.01em;
+  letter-spacing: ${typeScale.bodySm.letterSpacing};
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${space[1.5]};
   white-space: nowrap;
 
   &:hover {
-    color: #1f2937;
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  }
-
-  &:active {
-    transform: scale(0.98);
+    color: ${color.text};
   }
 
   &.active {
-    color: #111827;
-    background: white;
-    font-weight: 600;
-    box-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.08),
-      0 2px 8px rgba(0, 0, 0, 0.04);
+    color: ${color.text};
+    font-weight: 500;
 
     &::before {
       content: '';
       position: absolute;
-      bottom: 5px;
+      bottom: -${space[2]};
       left: 50%;
       transform: translateX(-50%);
-      width: 18px;
-      height: 3px;
-      background: linear-gradient(90deg, #6366f1, #8b5cf6);
-      border-radius: 2px;
+      width: 16px;
+      height: 2px;
+      background: ${accent[500]};
+      border-radius: ${radius.full};
     }
 
     &:hover {
-      box-shadow:
-        0 2px 6px rgba(0, 0, 0, 0.1),
-        0 4px 12px rgba(0, 0, 0, 0.05);
+      box-shadow: ${shadow.md};
     }
   }
 
+  &:focus-visible {
+    ${focusRingStyle}
+  }
+
   @media (max-width: 1200px) {
-    font-size: 13px;
-    padding: 8px 12px;
+    font-size: ${typeScale.labelSm.size};
+    padding: ${space[2]} ${space[3]};
   }
 
   @media (max-width: 1024px) {
-    padding: 7px 10px;
-    font-size: 12px;
+    padding: ${space[1.5]} ${space[2.5]};
+    font-size: ${typeScale.captionSm.size};
   }
+
+  @media ${reducedMotion} {
+    transition: none;
+    &:active { transform: none; }
+  }
+`;
+
+/* ---------- Search Trigger ---------- */
+const SearchTrigger = styled.button`
+  display: flex;
+  align-items: center;
+  gap: ${space[2]};
+  padding: ${space[1.5]} ${space[3]};
+  background: ${neutral[100]};
+  border: none;
+  border-radius: ${radius.sm};
+  cursor: pointer;
+  font-family: inherit;
+  font-size: ${typeScale.caption.size};
+  color: ${neutral[400]};
+  transition: background ${transition.fast};
+  white-space: nowrap;
+
+  &:hover { background: ${neutral[150]}; }
+  &:focus-visible { ${focusRingStyle} }
+
+  svg { width: 15px; height: 15px; }
+
+  @media (max-width: 768px) {
+    padding: ${space[1.5]};
+    span, kbd { display: none; }
+  }
+`;
+
+const KbdHint = styled.kbd`
+  display: inline-flex;
+  align-items: center;
+  padding: ${space.px} ${space[1]};
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid ${neutral[200]}cc;
+  border-radius: ${radius.xs};
+  font-family: inherit;
+  font-size: ${typeScale.overline.size};
+  font-weight: ${typeScale.label.weight};
+  color: ${neutral[400]};
+  line-height: 1;
 `;
 
 /* ---------- Profile Components ---------- */
 const ProfileSection = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: ${space[3]};
   position: relative;
   flex-shrink: 0;
 
   @media (max-width: 768px) {
-    gap: 8px;
+    gap: ${space[2]};
   }
 `;
 
 const ProfileButton = styled.button<{ $isOpen?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: ${props => props.$isOpen ? 'rgba(99, 102, 241, 0.08)' : 'rgba(241, 245, 249, 0.6)'};
-  border: 1px solid ${props => props.$isOpen ? 'rgba(99, 102, 241, 0.2)' : 'rgba(226, 232, 240, 0.6)'};
-  padding: 5px 12px 5px 5px;
-  border-radius: 50px;
+  gap: ${space[2]};
+  background: transparent;
+  border: none;
+  padding: ${space[1]};
+  border-radius: ${radius.md};
   cursor: pointer;
-  transition: all 0.2s ease;
-  color: #475569;
+  transition: background ${transition.fast};
+  color: ${neutral[600]};
 
   &:hover {
-    background: rgba(99, 102, 241, 0.08);
-    border-color: rgba(99, 102, 241, 0.2);
-    color: #1e293b;
-  }
-
-  &:active {
-    transform: scale(0.98);
+    background: ${neutral[100]};
   }
 
   &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    ${focusRingStyle}
   }
 
   @media (max-width: 768px) {
-    padding: 4px;
-    border-radius: 12px;
-
-    span {
-      display: none;
-    }
+    span { display: none; }
   }
 `;
 
 const UserAvatar = styled.div`
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
-  background-size: 200% 200%;
+  width: 28px;
+  height: 28px;
+  border-radius: ${radius.full};
+  background: ${neutral[200]};
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: ${neutral[600]};
   font-weight: 600;
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.02em;
-  box-shadow:
-    0 2px 6px rgba(99, 102, 241, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: all 0.2s ease;
-  position: relative;
-
-  &::after {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    border-radius: 50%;
-    border: 2px solid transparent;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.3)) border-box;
-    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-  }
-
-  ${ProfileButton}:hover &::after {
-    opacity: 1;
-  }
+  flex-shrink: 0;
 `;
 
 const ProfileName = styled.span`
-  font-size: 13px;
-  font-weight: 500;
+  font-size: ${typeScale.labelSm.size};
+  font-weight: ${typeScale.label.weight};
   max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -604,33 +571,31 @@ const ProfileName = styled.span`
 
 const ProfileDropdown = styled.div`
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + ${space[2]});
   right: 0;
-  min-width: 240px;
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 16px;
-  box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.12),
-    0 8px 24px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
-  z-index: 1000;
-  animation: ${slideDown} 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  min-width: 220px;
+  background: ${neutral[0]};
+  border: 1px solid ${neutral[200]};
+  border-radius: ${radius.lg};
+  box-shadow: ${shadow.lg};
+  z-index: ${z.popover};
+  animation: ${slideDown} ${duration.fast} ${easing.out};
   overflow: hidden;
+
+  @media ${reducedMotion} {
+    animation: none;
+  }
 `;
 
 const DropdownHeader = styled.div`
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.8), white);
+  padding: ${space[3]} ${space[4]};
+  border-bottom: 1px solid ${neutral[100]};
 `;
 
 const UserInfo = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: ${space[3]};
 `;
 
 const UserDetails = styled.div`
@@ -640,66 +605,104 @@ const UserDetails = styled.div`
 
 const UserName = styled.div`
   font-weight: 600;
-  color: #1e293b;
-  font-size: 14px;
+  color: ${neutral[800]};
+  font-size: ${typeScale.bodySm.size};
   line-height: 1.3;
 `;
 
 const UserEmail = styled.div`
-  font-size: 12px;
-  color: #64748b;
-  margin-top: 2px;
+  font-size: ${typeScale.captionSm.size};
+  color: ${color.textMuted};
+  margin-top: ${space[0.5]};
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 `;
 
+const OrgBadge = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${space[1.5]};
+  margin-top: ${space[2]};
+  padding: ${space[1.5]} ${space[2.5]};
+  background: ${accent[50]};
+  border-radius: ${radius.md};
+  border: 1px solid ${accent[100]};
+
+  svg { width: 14px; height: 14px; color: ${accent[500]}; }
+`;
+
+const OrgName = styled.span`
+  font-size: ${typeScale.captionSm.size};
+  font-weight: ${typeScale.label.weight};
+  color: ${accent[600]};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const RoleBadge = styled.span`
+  font-size: 10px;
+  font-weight: 600;
+  padding: ${space[0.5]} ${space[1.5]};
+  background: ${accent[100]};
+  color: ${accent[600]};
+  border-radius: ${radius.xs};
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+`;
+
 const DropdownSection = styled.div`
-  padding: 8px;
+  padding: ${space[2]};
 `;
 
 const DropdownItem = styled.button`
   width: 100%;
   background: none;
   border: none;
-  padding: 10px 12px;
+  padding: ${space[2.5]} ${space[3]};
   text-align: left;
-  font-size: 14px;
+  font-size: ${typeScale.bodySm.size};
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: #475569;
-  border-radius: 10px;
-  transition: all 0.15s ease;
+  gap: ${space[2.5]};
+  color: ${neutral[600]};
+  border-radius: ${radius.md};
+  transition: all ${transition.fast};
   position: relative;
 
   &:hover {
-    background: rgba(99, 102, 241, 0.08);
-    color: #1e293b;
+    background: ${accent[50]};
+    color: ${neutral[800]};
 
     svg {
-      color: #6366f1;
+      color: ${accent[500]};
       transform: scale(1.1);
     }
   }
 
   &:active {
-    background: rgba(99, 102, 241, 0.12);
+    background: ${accent[100]};
     transform: scale(0.98);
   }
 
   &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+    ${focusRingStyle}
   }
 
   svg {
     width: 18px;
     height: 18px;
-    color: #94a3b8;
-    transition: all 0.15s ease;
+    color: ${neutral[400]};
+    transition: all ${transition.fast};
     flex-shrink: 0;
+  }
+
+  @media ${reducedMotion} {
+    transition: none;
+    &:active { transform: none; }
+    svg { transition: none; }
   }
 `;
 
@@ -708,27 +711,92 @@ const DropdownItemLabel = styled.span`
 `;
 
 const DropdownItemHint = styled.span`
-  font-size: 11px;
-  color: #94a3b8;
-  font-weight: 500;
+  font-size: ${typeScale.overline.size};
+  color: ${neutral[400]};
+  font-weight: ${typeScale.label.weight};
 `;
 
 const Divider = styled.div`
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(226, 232, 240, 0.8), transparent);
-  margin: 4px 16px;
+  height: ${space.px};
+  background: linear-gradient(90deg, transparent, ${neutral[200]}cc, transparent);
+  margin: ${space[1]} ${space[4]};
+`;
+
+/* ---------- Active ChangeSet Pill ---------- */
+const ChangeSetPill = styled(Link)`
+  display: flex;
+  align-items: center;
+  gap: ${space[2]};
+  padding: ${space[1.5]} ${space[3]};
+  background: ${accent[50]};
+  border: 1px solid ${accent[200]};
+  border-radius: ${radius.full};
+  text-decoration: none;
+  transition: all ${transition.fast};
+  margin-right: ${space[3]};
+
+  &:hover {
+    background: ${accent[100]};
+    border-color: ${accent[300]};
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px ${accent[500]}26;
+  }
+
+  &:focus-visible {
+    ${focusRingStyle}
+  }
+
+  svg {
+    width: ${space[4]};
+    height: ${space[4]};
+    color: ${accent[500]};
+  }
+
+  @media (max-width: 900px) {
+    padding: ${space[1]} ${space[2.5]};
+    margin-right: ${space[2]};
+
+    span { display: none; }
+  }
+
+  @media ${reducedMotion} {
+    transition: none;
+    &:hover { transform: none; }
+  }
+`;
+
+const ChangeSetPillText = styled.span`
+  font-size: ${typeScale.captionSm.size};
+  font-weight: 600;
+  color: ${accent[500]};
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const ChangeSetItemCount = styled.span`
+  font-size: 10px;
+  font-weight: 700;
+  background: ${accent[500]};
+  color: ${color.textInverse};
+  padding: ${space[0.5]} ${space[1.5]};
+  border-radius: ${radius.full};
+  min-width: 18px;
+  text-align: center;
 `;
 
 /* ---------- Navigation Items Config ---------- */
 const navItems = [
-  { path: '/', label: 'Home', tooltip: 'AI-powered product assistant and insights dashboard' },
-  { path: '/products', label: 'Products', tooltip: 'Manage insurance products, coverages, and forms' },
-  { path: '/ai-builder', label: 'AI Builder', tooltip: 'AI-powered product builder' },
-  { path: '/builder', label: 'Builder', tooltip: 'Build new insurance products' },
-  { path: '/product-explorer', label: 'Explorer', tooltip: 'Explore product hierarchies and relationships', matchPrefix: true },
-  { path: '/tasks', label: 'Tasks', tooltip: 'Manage workflow tasks and assignments' },
-  { path: '/data-dictionary', label: 'Data Dictionary', tooltip: 'Browse insurance terminology and definitions' },
-  { path: '/claims-analysis', label: 'Claims Analysis', tooltip: 'Analyze claims data and policy coverage' },
+  { path: '/', label: 'Home', tooltip: 'AI assistant' },
+  { path: '/products', label: 'Products', tooltip: 'Products, coverages, and pricing' },
+  { path: '/forms-repository', label: 'Forms', tooltip: 'Form editions and jurisdictions', matchPrefix: true },
+  { path: '/underwriting-rules', label: 'Rules', tooltip: 'Underwriting rules' },
+  { path: '/clauses', label: 'Clauses', tooltip: 'Reusable clause library' },
+  { path: '/changesets', label: 'Changes', tooltip: 'Change sets and approvals' },
+  { path: '/filings', label: 'Filings', tooltip: 'Filing packages' },
+  { path: '/tasks', label: 'Tasks', tooltip: 'Workflow tasks' },
+  { path: '/analytics', label: 'Analytics', tooltip: 'Portfolio analytics' },
 ];
 
 /* ---------- component ---------- */
@@ -740,6 +808,15 @@ export default function MainNavigation() {
   const [scrolled, setScrolled] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Get org and role context
+  const { currentOrg, orgRole, user, isOrgAdmin, hasOrg } = useRoleContext();
+
+  // Get active change set from context
+  const { activeChangeSet, activeItems } = useChangeSet();
+
+  // Command palette
+  const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
 
   // Handle scroll effect for sticky nav
   useEffect(() => {
@@ -808,21 +885,8 @@ export default function MainNavigation() {
 
   // Get user initials for avatar
   const getUserInitials = () => {
-    // Check for admin or guest session first
-    const sessionStatus = sessionStorage.getItem('ph-authed');
-    const storedUsername = sessionStorage.getItem('ph-username');
-
-    if (sessionStatus === 'admin' && storedUsername) {
-      return storedUsername.substring(0, 2).toUpperCase();
-    }
-
-    if (sessionStatus === 'guest') {
-      return 'GU';
-    }
-
-    const user = auth.currentUser;
     if (user?.displayName) {
-      return user.displayName.split(' ').map(n => n[0]).join('').toUpperCase();
+      return user.displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     }
     if (user?.email) {
       return user.email.substring(0, 2).toUpperCase();
@@ -831,85 +895,37 @@ export default function MainNavigation() {
   };
 
   const getUserEmail = () => {
-    // Check for admin or guest session first
-    const sessionStatus = sessionStorage.getItem('ph-authed');
-    const storedUsername = sessionStorage.getItem('ph-username');
-
-    if (sessionStatus === 'admin' && storedUsername) {
-      return `${storedUsername}@admin.local`;
-    }
-
-    if (sessionStatus === 'guest') {
-      return 'guest@temporary.local';
-    }
-
-    const user = auth.currentUser;
-    return user?.email || 'Guest User';
+    return user?.email || '';
   };
 
   const getUserName = () => {
-    // Check for admin or guest session first
-    const sessionStatus = sessionStorage.getItem('ph-authed');
-    const storedUsername = sessionStorage.getItem('ph-username');
-
-    if (sessionStatus === 'admin' && storedUsername) {
-      return storedUsername;
-    }
-
-    if (sessionStatus === 'guest') {
-      return 'Guest User';
-    }
-
-    const user = auth.currentUser;
-    return user?.displayName || user?.email?.split('@')[0] || 'Guest User';
+    return user?.displayName || user?.email?.split('@')[0] || 'User';
   };
 
   const handleSignOut = async () => {
-    const startTime = Date.now();
-    const sessionStatus = sessionStorage.getItem('ph-authed');
-    const username = sessionStorage.getItem('ph-username');
-
     logger.logUserAction('Logout attempt started', {
-      sessionType: sessionStatus,
-      username: username,
+      userEmail: user?.email,
       timestamp: new Date().toISOString()
     });
 
     try {
-      // Check if this is an admin or guest session
-      if (sessionStatus === 'admin' || sessionStatus === 'guest') {
-        logger.info(LOG_CATEGORIES.AUTH, 'Session logout', {
-          sessionType: sessionStatus,
-          username: username
-        });
+      logger.info(LOG_CATEGORIES.AUTH, 'Firebase logout', {
+        userEmail: user?.email
+      });
 
-        // Admin/Guest logout - just clear session storage
-        sessionStorage.removeItem('ph-authed');
-        sessionStorage.removeItem('ph-username');
+      // Block new Firestore subscriptions BEFORE signOut.
+      // This prevents new listeners from being created while auth is clearing.
+      // We do NOT terminate the Firestore client — it is a module singleton
+      // and cannot be re-created after termination.
+      await prepareFirestoreForLogout();
+      await signOut(auth);
 
-        logger.info(LOG_CATEGORIES.AUTH, 'Session logout successful', {
-          sessionType: sessionStatus
-        });
-
-        logger.logNavigation(location.pathname, '/login', { reason: 'logout' });
-        navigate('/login', { replace: true });
-      } else {
-        logger.info(LOG_CATEGORIES.AUTH, 'Firebase logout', {
-          userEmail: auth.currentUser?.email
-        });
-
-        // Firebase logout
-        await signOut(auth);
-
-        logger.info(LOG_CATEGORIES.AUTH, 'Firebase logout successful');
-
-        logger.logNavigation(location.pathname, '/login', { reason: 'firebase_logout' });
-        navigate('/login', { replace: true });
-      }
+      logger.info(LOG_CATEGORIES.AUTH, 'Firebase logout successful');
+      logger.logNavigation(location.pathname, '/login', { reason: 'logout' });
+      navigate('/login', { replace: true });
     } catch (error) {
       logger.error(LOG_CATEGORIES.AUTH, 'Logout failed', {
-        sessionType: sessionStatus,
-        duration
+        userEmail: user?.email
       }, error);
     }
   };
@@ -957,6 +973,34 @@ export default function MainNavigation() {
             <Bars3Icon />
           </MobileMenuButton>
 
+          {/* Global Search Trigger */}
+          <Tooltip content="Search everything (⌘K)" position="bottom">
+            <SearchTrigger
+              onClick={() => setPaletteOpen(true)}
+              aria-label="Open search (⌘K)"
+            >
+              <MagnifyingGlassIcon />
+              <span>Search…</span>
+              <KbdHint>⌘K</KbdHint>
+            </SearchTrigger>
+          </Tooltip>
+
+          {/* Notification Bell */}
+          <NotificationBell />
+
+          {/* Active ChangeSet Pill */}
+          {activeChangeSet && (
+            <Tooltip content={`Active Change Set: ${activeChangeSet.name}`} position="bottom">
+              <ChangeSetPill to={`/changesets/${activeChangeSet.id}`}>
+                <ClipboardDocumentListIcon />
+                <ChangeSetPillText>{activeChangeSet.name}</ChangeSetPillText>
+                {activeItems.length > 0 && (
+                  <ChangeSetItemCount>{activeItems.length}</ChangeSetItemCount>
+                )}
+              </ChangeSetPill>
+            </Tooltip>
+          )}
+
           <ProfileSection data-profile-menu>
             <ProfileButton
               onClick={() => setProfileOpen(!profileOpen)}
@@ -976,6 +1020,13 @@ export default function MainNavigation() {
                     <UserDetails>
                       <UserName>{getUserName()}</UserName>
                       <UserEmail>{getUserEmail()}</UserEmail>
+                      {hasOrg && currentOrg && (
+                        <OrgBadge>
+                          <BuildingOffice2Icon />
+                          <OrgName>{currentOrg.name}</OrgName>
+                          {orgRole && <RoleBadge>{ORG_ROLE_DISPLAY_NAMES[orgRole]}</RoleBadge>}
+                        </OrgBadge>
+                      )}
                     </UserDetails>
                   </UserInfo>
                 </DropdownHeader>
@@ -995,6 +1046,24 @@ export default function MainNavigation() {
                     <Cog6ToothIcon />
                     <DropdownItemLabel>Account Settings</DropdownItemLabel>
                   </DropdownItem>
+                  {isOrgAdmin && (
+                    <DropdownItem
+                      onClick={() => { setProfileOpen(false); navigate('/admin/members'); }}
+                      role="menuitem"
+                    >
+                      <UserGroupIcon />
+                      <DropdownItemLabel>Team Members</DropdownItemLabel>
+                    </DropdownItem>
+                  )}
+                  {hasOrg && (
+                    <DropdownItem
+                      onClick={() => { setProfileOpen(false); navigate('/org/select'); }}
+                      role="menuitem"
+                    >
+                      <BuildingOffice2Icon />
+                      <DropdownItemLabel>Switch Organization</DropdownItemLabel>
+                    </DropdownItem>
+                  )}
                 </DropdownSection>
 
                 <Divider />
@@ -1064,10 +1133,20 @@ export default function MainNavigation() {
             <UserDetails>
               <UserName>{getUserName()}</UserName>
               <UserEmail>{getUserEmail()}</UserEmail>
+              {hasOrg && currentOrg && (
+                <OrgBadge>
+                  <BuildingOffice2Icon />
+                  <OrgName>{currentOrg.name}</OrgName>
+                  {orgRole && <RoleBadge>{ORG_ROLE_DISPLAY_NAMES[orgRole]}</RoleBadge>}
+                </OrgBadge>
+              )}
             </UserDetails>
           </UserInfo>
         </MobileMenuFooter>
       </MobileMenu>
+
+      {/* Command Palette (⌘K) */}
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </>
   );
 }

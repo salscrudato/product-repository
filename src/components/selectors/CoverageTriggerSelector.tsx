@@ -97,14 +97,14 @@ const TriggerCard = styled.div<{ $selected: boolean; $color: string }>`
   transition: all 0.2s ease;
 
   background: ${({ $selected, theme }) =>
-    $selected ? theme.colours.surface : theme.colours.background};
+    $selected ? (theme.colours as any).surface || '#f9fafb' : theme.colours.background};
 
   border: 1.5px solid ${({ $selected, $color, theme }) =>
     $selected ? $color : theme.colours.border};
 
   &:hover {
     border-color: ${({ $color }) => $color};
-    background: ${({ theme }) => theme.colours.surface};
+    background: ${({ theme }) => (theme.colours as any).surface || '#f9fafb'};
   }
 
   &:focus {
@@ -148,7 +148,7 @@ const TriggerLabel = styled.div`
 const TriggerDescription = styled.div`
   font-size: 13px;
   line-height: 1.4;
-  color: ${({ theme }) => theme.colours.textMuted};
+  color: ${({ theme }) => theme.colours?.textMuted || '#6b7280'};
 `;
 
 const RadioIndicator = styled.div<{ $selected: boolean; $color: string }>`

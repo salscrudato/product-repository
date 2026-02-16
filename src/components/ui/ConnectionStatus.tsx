@@ -24,7 +24,7 @@ const slideIn = keyframes`
   }
 `;
 
-const StatusBar = styled.div`
+const StatusBar = styled.div<{ $state?: string }>`
   position: fixed;
   top: 0;
   left: 0;
@@ -50,7 +50,7 @@ const StatusBar = styled.div`
   animation: ${slideIn} 0.3s ease-out;
 `;
 
-const StatusDot = styled.div`
+const StatusDot = styled.div<{ $pulse?: boolean }>`
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -153,31 +153,31 @@ export const ConnectionStatus = ({ showWhenConnected = false }) => {
 /**
  * Compact connection indicator (for header/footer)
  */
+const IndicatorDot = styled.div<{ $connected?: boolean; $pulse?: boolean }>`
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: ${props => props.$connected ? '#10b981' : '#ef4444'};
+  animation: ${props => props.$pulse ? pulse : 'none'} 2s ease-in-out infinite;
+  box-shadow: 0 0 0 2px ${props => props.$connected ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'};
+`;
+
+const IndicatorContainer = styled.div<{ $connected?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: ${props => props.$connected 
+    ? 'rgba(16, 185, 129, 0.1)' 
+    : 'rgba(239, 68, 68, 0.1)'};
+  font-size: 12px;
+  font-weight: 500;
+  color: ${props => props.$connected ? '#059669' : '#dc2626'};
+`;
+
 export const ConnectionIndicator = () => {
   const { isConnected, state } = useFirebaseConnection();
-
-  const IndicatorDot = styled.div`
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: ${props => props.$connected ? '#10b981' : '#ef4444'};
-    animation: ${props => props.$pulse ? pulse : 'none'} 2s ease-in-out infinite;
-    box-shadow: 0 0 0 2px ${props => props.$connected ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'};
-  `;
-
-  const IndicatorContainer = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    border-radius: 20px;
-    background: ${props => props.$connected 
-      ? 'rgba(16, 185, 129, 0.1)' 
-      : 'rgba(239, 68, 68, 0.1)'};
-    font-size: 12px;
-    font-weight: 500;
-    color: ${props => props.$connected ? '#059669' : '#dc2626'};
-  `;
 
   return (
     <IndicatorContainer $connected={isConnected} title={isConnected ? 'Connected' : 'Disconnected'}>

@@ -1795,7 +1795,7 @@ export const RatingAlgorithmBuilder: React.FC<RatingAlgorithmBuilderProps> = ({
                 Create a step-by-step calculation flow to determine premiums.
                 Add rating factors, connect them with operators, and watch your algorithm come to life.
               </EmptyStateDescription>
-              <AddStepButton onClick={onAddStep}>
+              <AddStepButton onClick={() => onAddStep()}>
                 <PlusIcon />
                 <span>Add First Step</span>
               </AddStepButton>
@@ -1965,7 +1965,7 @@ export const RatingAlgorithmBuilder: React.FC<RatingAlgorithmBuilderProps> = ({
                 </OperandButtonStyled>
               ))}
             </OperandButtonGroup>
-            <AddStepButton onClick={onAddStep} style={{ marginLeft: 8 }}>
+            <AddStepButton onClick={() => onAddStep()} style={{ marginLeft: 8 }}>
               <PlusIcon />
               <span>Add Step</span>
             </AddStepButton>

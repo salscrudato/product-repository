@@ -153,7 +153,7 @@ export const PackageBuilder: React.FC<PackageBuilderProps> = ({
             {selectedCoverages.map((coverage) => (
               <CoverageItem key={coverage.id}>
                 <CoverageName>{coverage.name}</CoverageName>
-                <CoverageType>{coverage.coverageType}</CoverageType>
+                <CoverageType>{coverage.type}</CoverageType>
               </CoverageItem>
             ))}
           </SelectedCoveragesList>

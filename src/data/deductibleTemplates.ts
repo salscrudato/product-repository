@@ -14,7 +14,7 @@ export interface DeductibleOptionTemplate {
   id: string;
   name: string;
   description: string;
-  category: 'Property' | 'Liability' | 'Auto' | 'Workers Comp' | 'Professional' | 'Specialty';
+  category: 'Property' | 'Liability' | 'Auto' | 'Workers Comp' | 'WC' | 'Professional' | 'Specialty';
   structure: DeductibleStructure;
   options: Partial<CoverageDeductibleOption>[];
 }
@@ -127,11 +127,11 @@ export const DISABILITY_WAITING: DeductibleOptionTemplate = {
   category: 'Specialty',
   structure: 'waitingPeriod',
   options: [
-    { label: '7 Days', structure: 'waitingPeriod', waitingPeriodDays: 7, isDefault: false, isEnabled: true, displayOrder: 0 },
-    { label: '14 Days', structure: 'waitingPeriod', waitingPeriodDays: 14, isDefault: true, isEnabled: true, displayOrder: 1 },
-    { label: '30 Days', structure: 'waitingPeriod', waitingPeriodDays: 30, isDefault: false, isEnabled: true, displayOrder: 2 },
-    { label: '60 Days', structure: 'waitingPeriod', waitingPeriodDays: 60, isDefault: false, isEnabled: true, displayOrder: 3 },
-    { label: '90 Days', structure: 'waitingPeriod', waitingPeriodDays: 90, isDefault: false, isEnabled: true, displayOrder: 4 },
+    { label: '7 Days', structure: 'waitingPeriod', duration: 7, unit: 'days', isDefault: false, isEnabled: true, displayOrder: 0 },
+    { label: '14 Days', structure: 'waitingPeriod', duration: 14, unit: 'days', isDefault: true, isEnabled: true, displayOrder: 1 },
+    { label: '30 Days', structure: 'waitingPeriod', duration: 30, unit: 'days', isDefault: false, isEnabled: true, displayOrder: 2 },
+    { label: '60 Days', structure: 'waitingPeriod', duration: 60, unit: 'days', isDefault: false, isEnabled: true, displayOrder: 3 },
+    { label: '90 Days', structure: 'waitingPeriod', duration: 90, unit: 'days', isDefault: false, isEnabled: true, displayOrder: 4 },
   ]
 };
 

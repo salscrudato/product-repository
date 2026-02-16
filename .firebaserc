@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "insurance-product-hub"
+    "default": "insurance-product-hub",
+    "dev": "insurance-product-hub",
+    "staging": "insurance-product-hub-staging",
+    "prod": "insurance-product-hub-prod"
   }
 }

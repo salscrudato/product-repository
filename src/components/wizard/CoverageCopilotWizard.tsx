@@ -398,7 +398,7 @@ const IconButton = styled.button`
   transition: all 0.15s ease;
 
   &:hover {
-    background: ${({ theme }) => theme.colours.surface};
+    background: ${({ theme }) => theme.colours.backgroundAlt};
     color: ${({ theme }) => theme.colours.text};
   }
 
@@ -450,7 +450,7 @@ const AISidebar = styled.div`
   flex-shrink: 0;
   overflow-y: auto;
   padding: 20px;
-  background: ${({ theme }) => theme.colours.surface};
+  background: ${({ theme }) => theme.colours.backgroundAlt};
   border-left: 1px solid ${({ theme }) => theme.colours.border};
   display: flex;
   flex-direction: column;
@@ -651,7 +651,7 @@ const ShortcutHint = styled.div`
   bottom: calc(100% + 8px);
   right: 0;
   padding: 8px 12px;
-  background: ${({ theme }) => theme.colours.surface};
+  background: ${({ theme }) => theme.colours.background};
   border: 1px solid ${({ theme }) => theme.colours.border};
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -748,7 +748,7 @@ const MobileAIPanelClose = styled.button`
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: ${({ theme }) => theme.colours.surface};
+  background: ${({ theme }) => theme.colours.background};
   border: 1px solid ${({ theme }) => theme.colours.border};
   border-radius: 8px;
   cursor: pointer;
@@ -871,7 +871,7 @@ const SkeletonField = styled.div`
 
 const SkeletonCard = styled.div`
   padding: 24px;
-  background: ${({ theme }) => theme.colours.surface};
+  background: ${({ theme }) => theme.colours.background};
   border: 1px solid ${({ theme }) => theme.colours.border};
   border-radius: 12px;
   margin-bottom: 16px;
@@ -894,7 +894,7 @@ const Input = styled.input`
   padding: 12px 16px;
   border: 1px solid ${({ theme }) => theme.colours.border};
   border-radius: 8px;
-  background: ${({ theme }) => theme.colours.surface};
+  background: ${({ theme }) => theme.colours.background};
   color: ${({ theme }) => theme.colours.text};
   font-size: 14px;
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -1035,7 +1035,7 @@ const CompletenessRing = styled.div<{ $percentage: number }>`
     position: absolute;
     width: 38px;
     height: 38px;
-    background: ${({ theme }) => theme.colours.surface};
+    background: ${({ theme }) => theme.colours.background};
     border-radius: 50%;
   }
 
@@ -1072,7 +1072,7 @@ const ReviewSectionCard = styled.div<{ $complete: boolean; $delay: number }>`
   gap: 8px;
   padding: 16px;
   background: ${({ theme, $complete }) =>
-    $complete ? 'rgba(16, 185, 129, 0.08)' : theme.colours.surface};
+    $complete ? 'rgba(16, 185, 129, 0.08)' : theme.colours.background};
   border: 1px solid ${({ $complete }) =>
     $complete ? 'rgba(16, 185, 129, 0.3)' : 'rgba(156, 163, 175, 0.2)'};
   border-radius: 12px;
@@ -1107,7 +1107,7 @@ const SectionStatus = styled.div<{ $complete: boolean }>`
 `;
 
 const ReviewCard = styled.div`
-  background: ${({ theme }) => theme.colours.surface};
+  background: ${({ theme }) => theme.colours.background};
   border: 1px solid ${({ theme }) => theme.colours.border};
   border-radius: 16px;
   padding: 24px;
@@ -1418,7 +1418,7 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
       const newAISuggestedFields = new Set(aiSuggestedFields);
       Object.entries(fields).forEach(([key, value]) => {
         if (draft[key as keyof Coverage] === undefined || draft[key as keyof Coverage] === null || draft[key as keyof Coverage] === '') {
-          fieldsToApply[key as keyof Coverage] = value;
+          (fieldsToApply as Record<string, unknown>)[key] = value;
           newAISuggestedFields.add(key);
         }
       });
@@ -1443,7 +1443,7 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
           : nameLower.split(' ').some(word => draftNameLower.includes(word))
             ? 60
             : 0;
-        return { coverageId: c.id!, name: c.name || '', similarity };
+        return { coverageId: c.id!, name: c.name || '', similarity, why: 'Name similarity', matchedFields: ['name'] };
       })
       .filter(m => m.similarity > 50)
       .sort((a, b) => b.similarity - a.similarity)
@@ -1775,7 +1775,7 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
                     draft={draft}
                     updateDraft={updateDraft}
                     existingCoverageNames={existingCoverages?.map(c => c.name || '').filter(Boolean) || []}
-                    productLineOfBusiness={product?.lineOfBusiness || 'property'}
+                    productLineOfBusiness={product?.category || 'property'}
                   />
                 )}
                 {currentStep === 1 && (
@@ -1787,7 +1787,7 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
                     onRejectField={handleRejectAISuggestion}
                     isAIUpdating={isAutoDrafting}
                     productName={product?.name}
-                    productLineOfBusiness={product?.lineOfBusiness}
+                    productLineOfBusiness={product?.category}
                   />
                 )}
                 {currentStep === 2 && (
@@ -1799,7 +1799,7 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
                     onRejectField={handleRejectAISuggestion}
                     isAIUpdating={isAutoDrafting}
                     productName={product?.name}
-                    productLineOfBusiness={product?.lineOfBusiness}
+                    productLineOfBusiness={product?.category}
                   />
                 )}
                 {currentStep === 3 && (
@@ -1811,7 +1811,7 @@ export const CoverageCopilotWizard: React.FC<CoverageCopilotWizardProps> = ({
                     onRejectField={handleRejectAISuggestion}
                     isAIUpdating={isAutoDrafting}
                     productName={product?.name}
-                    productLineOfBusiness={product?.lineOfBusiness}
+                    productLineOfBusiness={product?.category}
                   />
                 )}
                 {currentStep === 4 && (
@@ -2252,7 +2252,7 @@ const TriggerMainContent = styled.div`
 const WaitingPeriodSection = styled.div`
   margin-top: 20px;
   padding: 14px 16px;
-  background: ${({ theme }) => theme.colours.surface};
+  background: ${({ theme }) => theme.colours.background};
   border: 1px solid ${({ theme }) => theme.colours.border};
   border-radius: 10px;
 `;
@@ -2326,7 +2326,7 @@ const TriggerDescription = styled.p`
 `;
 
 const TriggerAISidebar = styled.div`
-  background: ${({ theme }) => theme.colours.surface};
+  background: ${({ theme }) => theme.colours.background};
   border: 1px solid ${({ theme }) => theme.colours.border};
   border-radius: 12px;
   padding: 16px;
@@ -3110,7 +3110,7 @@ const UnderwritingToggleDesc = styled.span`
 const ConditionalFieldsContainer = styled.div`
   margin-top: 20px;
   padding: 24px;
-  background: ${({ theme }) => theme.colours?.surface || '#fafafa'};
+  background: ${({ theme }) => theme.colours?.background || '#fafafa'};
   border: 1px solid ${({ theme }) => theme.colours?.border || '#e5e7eb'};
   border-radius: 16px;
   animation: ${slideUp} 0.3s ease;
@@ -3533,7 +3533,7 @@ const EnhancedReviewStep: React.FC<EnhancedReviewStepProps> = ({ draft, validati
 
 // AI Contribution styled components - clean and subtle
 const AIContributionCard = styled.div`
-  background: ${({ theme }) => theme.colours.surface};
+  background: ${({ theme }) => theme.colours.background};
   border: 1px solid ${({ theme }) => theme.colours.border};
   border-radius: 10px;
   padding: 14px;
@@ -3635,7 +3635,7 @@ const FieldLabel = styled.label`
 `;
 
 const SimpleReviewCard = styled.div`
-  background: ${({ theme }) => theme.colours.surface};
+  background: ${({ theme }) => theme.colours.background};
   border: 1px solid ${({ theme }) => theme.colours.border};
   border-radius: 12px;
   padding: 24px;
@@ -3813,8 +3813,8 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ draft, validation, selectedForm
     { name: 'Basics', complete: !!(draft.name && draft.coverageCode), icon: 'clipboard' },
     { name: 'Triggers', complete: !!draft.coverageTrigger, icon: 'bolt' },
     { name: 'Valuation', complete: !!(draft.valuationMethod && draft.coinsurancePercentage), icon: 'currency' },
-    { name: 'Underwriting', complete: !!(draft.eligibilityCriteria || draft.riskFactors), icon: 'chart' },
-    { name: 'Claims', complete: !!draft.claimsProcedure, icon: 'document' },
+    { name: 'Underwriting', complete: !!(draft.eligibilityCriteria || draft.underwriterApprovalType), icon: 'chart' },
+    { name: 'Claims', complete: !!(draft.claimsReportingPeriod || draft.proofOfLossDeadline), icon: 'document' },
     { name: 'Forms', complete: linkedForms.length > 0, icon: 'file' },
   ];
   const completedSections = sections.filter(s => s.complete).length;

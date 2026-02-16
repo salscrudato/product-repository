@@ -13,7 +13,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
-import { Product, Coverage, FormTemplate, Rule, PricingStep } from '@types/index';
+import { Product, Coverage, FormTemplate, Rule, PricingStep } from '../types';
 
 interface ProductContextType {
   // Current product

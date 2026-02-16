@@ -20,13 +20,16 @@ import {
   ArrowPathIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { CoverageRule, RuleType } from '@app-types';
+import type { CoverageRule } from '@app-types';
 import {
   fetchCoverageRules,
   deleteRule,
   toggleRuleEnabled,
   getRuleTypeInfo,
 } from '../../services/coverageRulesService';
+
+/** Local rule type matching the service's superset */
+type RuleType = CoverageRule['ruleType'] | 'dependency' | 'validation' | 'workflow';
 import { colors } from '../common/DesignSystem';
 
 interface CoverageRulesPanelProps {
@@ -36,7 +39,7 @@ interface CoverageRulesPanelProps {
   onEditRule?: (rule: CoverageRule) => void;
 }
 
-const RULE_TYPES: RuleType[] = ['eligibility', 'dependency', 'validation', 'rating', 'workflow'];
+const RULE_TYPES: RuleType[] = ['eligibility', 'dependency', 'validation', 'pricing', 'workflow'];
 
 export const CoverageRulesPanel: React.FC<CoverageRulesPanelProps> = ({
   productId,
@@ -47,7 +50,7 @@ export const CoverageRulesPanel: React.FC<CoverageRulesPanelProps> = ({
   const [rules, setRules] = useState<CoverageRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedTypes, setExpandedTypes] = useState<Set<RuleType>>(new Set(['eligibility', 'dependency']));
+  const [expandedTypes, setExpandedTypes] = useState<Set<RuleType>>(new Set(['eligibility', 'dependency'] as RuleType[]));
 
   const loadRules = useCallback(async () => {
     setLoading(true);
@@ -81,7 +84,7 @@ export const CoverageRulesPanel: React.FC<CoverageRulesPanelProps> = ({
 
   const handleToggleEnabled = async (rule: CoverageRule) => {
     try {
-      await toggleRuleEnabled(productId, coverageId, rule.id, !rule.isEnabled);
+      await toggleRuleEnabled(productId, coverageId, rule.id, !rule.isActive);
       await loadRules();
     } catch (err) {
       console.error('Error toggling rule:', err);
@@ -99,7 +102,7 @@ export const CoverageRulesPanel: React.FC<CoverageRulesPanelProps> = ({
     }
   };
 
-  const getRulesByType = (type: RuleType) => rules.filter(r => r.type === type);
+  const getRulesByType = (type: RuleType) => rules.filter(r => r.ruleType === type);
 
   if (loading) {
     return (
@@ -161,15 +164,15 @@ export const CoverageRulesPanel: React.FC<CoverageRulesPanelProps> = ({
                     </EmptyState>
                   ) : (
                     typeRules.map(rule => (
-                      <RuleCard key={rule.id} $enabled={rule.isEnabled}>
+                      <RuleCard key={rule.id} $enabled={rule.isActive}>
                         <RuleHeader>
                           <RuleName>{rule.name}</RuleName>
                           <RuleActions>
                             <ToggleSwitch
-                              $enabled={rule.isEnabled}
+                              $enabled={rule.isActive}
                               onClick={() => handleToggleEnabled(rule)}
                             >
-                              <ToggleKnob $enabled={rule.isEnabled} />
+                              <ToggleKnob $enabled={rule.isActive} />
                             </ToggleSwitch>
                             {onEditRule && (
                               <ActionButton onClick={() => onEditRule(rule)}>
@@ -182,10 +185,10 @@ export const CoverageRulesPanel: React.FC<CoverageRulesPanelProps> = ({
                           </RuleActions>
                         </RuleHeader>
 
-                        {rule.conditions && rule.conditions.length > 0 && (
+                        {rule.conditionGroup?.conditions && rule.conditionGroup.conditions.length > 0 && (
                           <RuleConditions>
                             <ConditionLabel>When:</ConditionLabel>
-                            {rule.conditions.map((cond, idx) => (
+                            {rule.conditionGroup.conditions.map((cond, idx) => (
                               <ConditionChip key={idx}>
                                 {cond.field} {cond.operator} {String(cond.value)}
                               </ConditionChip>
@@ -197,8 +200,8 @@ export const CoverageRulesPanel: React.FC<CoverageRulesPanelProps> = ({
                           <RuleActionsDisplay>
                             <ActionLabel>Then:</ActionLabel>
                             {rule.actions.map((action, idx) => (
-                              <ActionChip key={idx} $type={action.type}>
-                                {action.type}: {action.message || action.value}
+                              <ActionChip key={idx} $type={String(action.type)}>
+                                {action.type}: {action.message || String(action.value ?? '')}
                               </ActionChip>
                             ))}
                           </RuleActionsDisplay>

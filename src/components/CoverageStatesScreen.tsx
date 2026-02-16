@@ -21,6 +21,7 @@ import {
 import { CheckCircleIcon as CheckCircleSolidIcon } from '@heroicons/react/24/solid';
 import { colors, gradients } from '@components/common/DesignSystem';
 import { useToast, createToastHelpers } from '@components/common/Toast';
+import MainNavigation from './ui/Navigation';
 
 // Region icon components
 const RegionIcons: Record<string, React.FC<{ className?: string }>> = {
@@ -1095,10 +1096,13 @@ export default function CoverageStatesScreen() {
   // Loading state
   if (loading) {
     return (
+      <>
+      <MainNavigation />
       <LoadingContainer>
         <LoadingSpinner />
         <LoadingText>Loading state configuration...</LoadingText>
       </LoadingContainer>
+      </>
     );
   }
 
@@ -1106,6 +1110,7 @@ export default function CoverageStatesScreen() {
 
   return (
     <PageContainer>
+      <MainNavigation />
       {/* Top Navigation Bar */}
       <TopBar>
         <BackButton onClick={() => navigate(-1)}>

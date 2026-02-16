@@ -400,3 +400,58 @@ exports.listUsersWithRoles = adminAPI.listUsersWithRoles;
 // AI Gateway - Centralized AI with guardrails
 const aiGateway = require('./aiGateway');
 exports.aiGateway = aiGateway.aiGateway;
+
+// Organization Management
+const orgAPI = require('./src/api/org');
+exports.createOrganization = orgAPI.createOrganization;
+exports.listUserOrgs = orgAPI.listUserOrgs;
+exports.inviteToOrg = orgAPI.inviteToOrg;
+exports.acceptOrgInvite = orgAPI.acceptOrgInvite;
+exports.updateMemberRole = orgAPI.updateMemberRole;
+exports.removeMember = orgAPI.removeMember;
+
+// Versioning API
+const versioningAPI = require('./src/api/versioning');
+exports.listVersions = versioningAPI.listVersions;
+exports.getVersion = versioningAPI.getVersion;
+exports.createDraftVersion = versioningAPI.createDraftVersion;
+exports.cloneVersion = versioningAPI.cloneVersion;
+exports.transitionVersionStatus = versioningAPI.transitionVersionStatus;
+exports.updateDraftVersion = versioningAPI.updateDraftVersion;
+exports.compareVersions = versioningAPI.compareVersions;
+
+// ChangeSet API - Governed approval/publish workflow
+const changeSetAPI = require('./src/api/changeSet');
+exports.submitChangeSetForReview = changeSetAPI.submitChangeSetForReview;
+exports.returnChangeSetToDraft = changeSetAPI.returnChangeSetToDraft;
+exports.approveChangeSet = changeSetAPI.approveChangeSet;
+exports.rejectChangeSet = changeSetAPI.rejectChangeSet;
+exports.publishChangeSet = changeSetAPI.publishChangeSet;
+exports.removeChangeSetItem = changeSetAPI.removeChangeSetItem;
+exports.getPublishPreflight = changeSetAPI.getPublishPreflight;
+
+// Search Index – Firestore triggers (automatic cross-artifact indexing)
+const searchIndex = require('./src/api/searchIndex');
+exports.onProductWrite       = searchIndex.onProductWrite;
+exports.onCoverageWrite      = searchIndex.onCoverageWrite;
+exports.onFormWrite          = searchIndex.onFormWrite;
+exports.onFormVersionWrite   = searchIndex.onFormVersionWrite;
+exports.onRuleWrite          = searchIndex.onRuleWrite;
+exports.onRateProgramWrite   = searchIndex.onRateProgramWrite;
+exports.onTableWrite         = searchIndex.onTableWrite;
+exports.onChangeSetWrite     = searchIndex.onChangeSetWrite;
+exports.onStateProgramWrite  = searchIndex.onStateProgramWrite;
+
+// Collaboration – comment notifications + change-set transition notifications
+const collaboration = require('./src/api/collaboration');
+exports.onCommentCreated        = collaboration.onCommentCreated;
+exports.onChangeSetStatusChange = collaboration.onChangeSetStatusChange;
+
+// Task Automation – review tasks on CS submit, filing tasks on state pending_filing
+const taskAutomation = require('./src/api/taskAutomation');
+exports.onChangeSetReview    = taskAutomation.onChangeSetReview;
+exports.onStateProgramFiling = taskAutomation.onStateProgramFiling;
+
+// Filing Packages – generate filing-ready export bundles
+const filingPackage = require('./src/api/filingPackage');
+exports.buildFilingPackage = filingPackage.buildFilingPackage;

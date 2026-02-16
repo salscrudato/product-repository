@@ -3,8 +3,8 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
+import { doc } from 'firebase/firestore';
+import { db, isAuthReady, safeOnSnapshot } from '../firebase';
 import { normalizeFirestoreData } from '../utils/firestoreHelpers';
 import type { Product } from '../types';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
@@ -35,7 +35,8 @@ export function useProduct(productId: string | null | undefined): UseProductResu
   }, [productId]);
 
   useEffect(() => {
-    if (!productId) {
+    // Wait for auth to fully propagate before subscribing
+    if (!isAuthReady() || !productId) {
       setProduct(null);
       setLoading(false);
       return;
@@ -55,7 +56,7 @@ export function useProduct(productId: string | null | undefined): UseProductResu
 
     const productRef = doc(db, 'products', productId);
     
-    const unsubscribe = onSnapshot(
+    const unsubscribe = safeOnSnapshot(
       productRef,
       (snapshot) => {
         try {
@@ -91,7 +92,7 @@ export function useProduct(productId: string | null | undefined): UseProductResu
     return () => unsubscribe();
   }, [productId]);
 
-  return useMemo(() => ({
+  return useMemo<UseProductResult>(() => ({
     product,
     loading,
     error,

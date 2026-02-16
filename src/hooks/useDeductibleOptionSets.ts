@@ -10,9 +10,9 @@ import {
   collection,
   query,
   orderBy,
-  onSnapshot,
+  getDocs,
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, isAuthReady, safeOnSnapshot } from '../firebase';
 import {
   CoverageDeductibleOptionSet,
   CoverageDeductibleOption,
@@ -65,14 +65,15 @@ export function useDeductibleOptionSets(
 
   // Subscribe to option sets
   useEffect(() => {
-    if (!productId || !coverageId) {
+    // Wait for auth to fully propagate before subscribing
+    if (!isAuthReady() || !productId || !coverageId) {
       setOptionSets([]);
       setLoading(false);
       return;
     }
 
     const path = `products/${productId}/coverages/${coverageId}/deductibleOptionSets`;
-    const unsubscribe = onSnapshot(
+    const unsubscribe = safeOnSnapshot(
       collection(db, path),
       async (snapshot) => {
         const sets = snapshot.docs.map(doc => ({
@@ -82,16 +83,17 @@ export function useDeductibleOptionSets(
         
         setOptionSets(sets);
         
-        // If no option sets exist, check for legacy data
+        // If no option sets exist, check for legacy data using getDocs (one-shot)
+        // to avoid creating short-lived onSnapshot listeners that contribute to
+        // the ca9 race condition.
         if (sets.length === 0) {
-          const legacyPath = `products/${productId}/coverages/${coverageId}/deductibles`;
-          const legacySnap = await new Promise<any>((resolve) => {
-            const unsub = onSnapshot(collection(db, legacyPath), (snap) => {
-              unsub();
-              resolve(snap);
-            });
-          });
-          setHasLegacyData(legacySnap.docs.length > 0);
+          try {
+            const legacyPath = `products/${productId}/coverages/${coverageId}/deductibles`;
+            const legacySnap = await getDocs(collection(db, legacyPath));
+            setHasLegacyData(legacySnap.docs.length > 0);
+          } catch {
+            setHasLegacyData(false);
+          }
         } else {
           setHasLegacyData(false);
           // Auto-select first set if none selected
@@ -120,7 +122,7 @@ export function useDeductibleOptionSets(
     }
 
     const path = `products/${productId}/coverages/${coverageId}/deductibleOptionSets/${currentSetId}/options`;
-    const unsubscribe = onSnapshot(
+    const unsubscribe = safeOnSnapshot(
       query(collection(db, path), orderBy('displayOrder')),
       (snapshot) => {
         const opts = snapshot.docs.map(doc => ({

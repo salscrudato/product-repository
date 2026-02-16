@@ -1,46 +1,23 @@
 import React from 'react';
-import styled, { keyframes, css } from 'styled-components';
+import styled, { css, keyframes } from 'styled-components';
+import {
+  color, neutral, accent, space, radius,
+  type as typeScale, transition, duration, easing,
+  focusRingStyle, reducedMotion,
+} from '../../ui/tokens';
 
-/* ---------- Animations ---------- */
-const fadeInUp = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-`;
-
-const float = keyframes`
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
-`;
-
-const pulse = keyframes`
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+/* ── Entrance ── */
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 `;
 
 const shimmer = keyframes`
-  0% {
-    background-position: -200% center;
-  }
-  100% {
-    background-position: 200% center;
-  }
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
 `;
 
-/* ---------- Types ---------- */
+/* ── Types ── */
 interface EmptyStateProps {
   icon?: React.ReactNode;
   title: string;
@@ -61,287 +38,133 @@ interface EmptyStateProps {
   illustration?: React.ReactNode;
 }
 
-/* ---------- Styled Components ---------- */
-const Container = styled.div<{ $variant?: 'default' | 'compact' | 'minimal' | 'card'; $isLoading?: boolean }>`
+/* ── Container ── */
+const Container = styled.div<{ $variant?: string; $isLoading?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  animation: ${fadeInUp} 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  transition: all 0.3s ease;
+  animation: ${fadeIn} ${duration.normal} ${easing.out};
 
   ${({ $variant }) => {
     switch ($variant) {
       case 'compact':
-        return css`
-          padding: 32px 20px;
-          background: rgba(255, 255, 255, 0.5);
-          border-radius: 12px;
-          border: 2px dashed rgba(226, 232, 240, 0.8);
-          margin: 16px 0;
-        `;
+        return css`padding: ${space[8]} ${space[5]};`;
       case 'minimal':
-        return css`
-          padding: 48px 24px;
-          background: transparent;
-          border: none;
-          margin: 24px 0;
-        `;
+        return css`padding: ${space[10]} ${space[6]};`;
       case 'card':
         return css`
-          padding: 48px 32px;
-          background: white;
-          border-radius: 16px;
-          border: 1px solid rgba(226, 232, 240, 0.8);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-          margin: 24px 0;
+          padding: ${space[10]} ${space[8]};
+          background: ${neutral[0]};
+          border-radius: ${radius.xl};
+          border: 1px solid ${neutral[200]};
         `;
       default:
-        return css`
-          padding: 64px 32px;
-          background: rgba(255, 255, 255, 0.5);
-          border-radius: 16px;
-          border: 2px dashed rgba(226, 232, 240, 0.8);
-          margin: 32px 0;
-        `;
+        return css`padding: ${space[12]} ${space[8]};`;
     }
   }}
-
-  ${({ $variant }) => ($variant === 'default' || $variant === 'compact') && css`
-    &:hover {
-      border-color: rgba(99, 102, 241, 0.3);
-      background: rgba(255, 255, 255, 0.7);
-    }
-  `}
 
   ${({ $isLoading }) => $isLoading && css`
     pointer-events: none;
-    opacity: 0.7;
+    opacity: 0.6;
   `}
 
-  @media (max-width: 768px) {
-    padding: ${({ $variant }) => $variant === 'compact' ? '24px 16px' : '40px 20px'};
-  }
+  @media ${reducedMotion} { animation: none; }
 `;
 
-const IconWrapper = styled.div<{ $isLoading?: boolean; $size?: 'sm' | 'md' | 'lg' }>`
+/* ── Icon ── */
+const IconWrapper = styled.div<{ $isLoading?: boolean; $size?: string }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: ${({ theme }) => theme.colours.gradientSubtle};
-  border-radius: 20px;
-  margin-bottom: 20px;
-  transition: all 0.3s ease;
+  width: 52px;
+  height: 52px;
+  background: ${neutral[100]};
+  border-radius: ${radius.xl};
+  margin-bottom: ${space[4]};
+  color: ${neutral[400]};
 
-  ${({ $size = 'md' }) => {
-    switch ($size) {
-      case 'sm':
-        return css`
-          width: 48px;
-          height: 48px;
-          border-radius: 14px;
-          svg { width: 24px; height: 24px; }
-        `;
-      case 'lg':
-        return css`
-          width: 80px;
-          height: 80px;
-          border-radius: 24px;
-          svg { width: 40px; height: 40px; }
-        `;
-      default:
-        return css`
-          width: 64px;
-          height: 64px;
-          border-radius: 18px;
-          svg { width: 32px; height: 32px; }
-        `;
-    }
-  }}
-
-  svg {
-    color: ${({ theme }) => theme.colours.primary};
-    transition: all 0.3s ease;
-  }
-
-  &:hover svg {
-    animation: ${float} 2s ease-in-out infinite;
-  }
-
-  ${({ $isLoading }) => $isLoading && css`
-    animation: ${pulse} 1.5s ease-in-out infinite;
-  `}
+  svg { width: 24px; height: 24px; }
 `;
 
 const IllustrationWrapper = styled.div`
-  margin-bottom: 24px;
-  max-width: 200px;
-  animation: ${float} 4s ease-in-out infinite;
-
-  img, svg {
-    width: 100%;
-    height: auto;
-  }
+  margin-bottom: ${space[5]};
+  max-width: 160px;
+  img, svg { width: 100%; height: auto; }
 `;
 
-const Title = styled.h3<{ $size?: 'sm' | 'md' | 'lg' }>`
-  font-weight: 600;
-  color: ${({ theme }) => theme.colours.text};
-  margin: 0 0 8px 0;
-  letter-spacing: -0.02em;
-
-  ${({ $size = 'md' }) => {
-    switch ($size) {
-      case 'sm':
-        return css`font-size: 16px;`;
-      case 'lg':
-        return css`font-size: 24px;`;
-      default:
-        return css`font-size: 20px;`;
-    }
-  }}
+const Title = styled.h3`
+  font-size: ${typeScale.headingSm.size};
+  font-weight: ${typeScale.headingSm.weight};
+  letter-spacing: ${typeScale.headingSm.letterSpacing};
+  color: ${color.text};
+  margin: 0 0 ${space[1.5]};
 `;
 
-const Description = styled.p<{ $size?: 'sm' | 'md' | 'lg' }>`
-  color: ${({ theme }) => theme.colours.textSecondary};
-  margin: 0 0 24px 0;
-  max-width: 420px;
-  line-height: 1.6;
-
-  ${({ $size = 'md' }) => {
-    switch ($size) {
-      case 'sm':
-        return css`font-size: 13px; max-width: 320px;`;
-      case 'lg':
-        return css`font-size: 16px; max-width: 500px;`;
-      default:
-        return css`font-size: 15px;`;
-    }
-  }}
+const Description = styled.p`
+  color: ${neutral[500]};
+  margin: 0 0 ${space[5]};
+  max-width: 360px;
+  font-size: ${typeScale.bodySm.size};
+  line-height: ${typeScale.bodySm.lineHeight};
 `;
 
 const ActionsContainer = styled.div`
   display: flex;
-  gap: 12px;
+  gap: ${space[2]};
   align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
 `;
 
 const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  border-radius: ${({ theme }) => theme.radiusMd};
-  font-size: 14px;
-  font-weight: 600;
+  gap: ${space[1.5]};
+  padding: ${space[2]} ${space[4]};
+  border-radius: ${radius.md};
+  font-size: ${typeScale.bodySm.size};
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
+  transition: background ${transition.fast}, border-color ${transition.fast};
 
-  ${({ $variant, theme }) => $variant === 'secondary' ? css`
-    background: ${theme.colours.background};
-    color: ${theme.colours.primary};
-    border: 1.5px solid ${theme.colours.focusRing};
-    box-shadow: ${theme.shadowSm};
-
-    &:hover {
-      background: ${theme.colours.hoverSubtle};
-      border-color: ${theme.colours.primary};
-      transform: translateY(-2px);
-      box-shadow: ${theme.shadowMd};
-    }
-
-    &:active {
-      transform: translateY(0);
-    }
-
-    &:focus-visible {
-      outline: none;
-      box-shadow: 0 0 0 3px ${theme.colours.focusRing};
-    }
+  ${({ $variant }) => $variant === 'secondary' ? css`
+    background: ${neutral[0]};
+    color: ${color.text};
+    border: 1px solid ${neutral[200]};
+    &:hover { background: ${neutral[50]}; border-color: ${neutral[300]}; }
   ` : css`
-    background: ${theme.colours.gradient};
-    color: ${theme.colours.textInverse};
-    border: none;
-    box-shadow: ${theme.shadowPrimary};
-
-    &:hover {
-      filter: brightness(1.05);
-      transform: translateY(-2px);
-      box-shadow: ${theme.shadowPrimaryHover};
-    }
-
-    &:active {
-      transform: translateY(0);
-      box-shadow: ${theme.shadowPrimary};
-    }
-
-    &:focus-visible {
-      outline: none;
-      box-shadow: 0 0 0 3px ${theme.colours.focusRing}, ${theme.shadowPrimary};
-    }
-
-    /* Shimmer effect */
-    &::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(
-        90deg,
-        transparent,
-        ${theme.colours.shimmer},
-        transparent
-      );
-      transition: left 0.5s ease;
-    }
-
-    &:hover::before {
-      left: 100%;
-    }
+    background: ${accent[600]};
+    color: ${color.textInverse};
+    border: 1px solid transparent;
+    &:hover { background: ${accent[700]}; }
   `}
 
-  svg {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-  }
+  &:focus-visible { ${focusRingStyle} }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-  }
+  svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+  @media ${reducedMotion} { transition: none; }
 `;
 
 const LoadingPlaceholder = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: ${space[2]};
 `;
 
 const LoadingBar = styled.div<{ $width: string }>`
-  height: 12px;
+  height: 10px;
   width: ${({ $width }) => $width};
-  background: linear-gradient(
-    90deg,
-    ${({ theme }) => theme.colours.border} 0%,
-    ${({ theme }) => theme.colours.backgroundSubtle} 50%,
-    ${({ theme }) => theme.colours.border} 100%
-  );
+  background: linear-gradient(90deg, ${neutral[100]} 0%, ${neutral[200]} 50%, ${neutral[100]} 100%);
   background-size: 200% 100%;
   animation: ${shimmer} 1.5s infinite;
-  border-radius: ${({ theme }) => theme.radiusSm};
+  border-radius: ${radius.sm};
+  @media ${reducedMotion} { animation: none; }
 `;
 
-/* ---------- Main Component ---------- */
+/* ── Component ── */
 export const EmptyState: React.FC<EmptyStateProps> = ({
   icon,
   title,
@@ -350,20 +173,16 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   secondaryAction,
   variant = 'default',
   isLoading = false,
-  illustration
+  illustration,
 }) => {
-  const size = variant === 'compact' ? 'sm' : variant === 'minimal' ? 'md' : 'md';
-
   if (isLoading) {
     return (
       <Container $variant={variant} $isLoading>
-        <IconWrapper $isLoading $size={size}>
-          {icon}
-        </IconWrapper>
+        <IconWrapper $isLoading>{icon}</IconWrapper>
         <LoadingPlaceholder>
-          <LoadingBar $width="180px" />
-          <LoadingBar $width="260px" />
-          <LoadingBar $width="220px" />
+          <LoadingBar $width="160px" />
+          <LoadingBar $width="240px" />
+          <LoadingBar $width="200px" />
         </LoadingPlaceholder>
       </Container>
     );
@@ -371,32 +190,20 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 
   return (
     <Container $variant={variant}>
-      {illustration && (
-        <IllustrationWrapper>{illustration}</IllustrationWrapper>
-      )}
-      {icon && !illustration && (
-        <IconWrapper $size={size}>{icon}</IconWrapper>
-      )}
-      <Title $size={size}>{title}</Title>
-      <Description $size={size}>{description}</Description>
+      {illustration && <IllustrationWrapper>{illustration}</IllustrationWrapper>}
+      {icon && !illustration && <IconWrapper>{icon}</IconWrapper>}
+      <Title>{title}</Title>
+      <Description>{description}</Description>
       {(action || secondaryAction) && (
         <ActionsContainer>
           {action && (
-            <ActionButton
-              onClick={action.onClick}
-              $variant={action.variant || 'primary'}
-              type="button"
-            >
+            <ActionButton onClick={action.onClick} $variant={action.variant || 'primary'} type="button">
               {action.icon}
               {action.label}
             </ActionButton>
           )}
           {secondaryAction && (
-            <ActionButton
-              onClick={secondaryAction.onClick}
-              $variant="secondary"
-              type="button"
-            >
+            <ActionButton onClick={secondaryAction.onClick} $variant="secondary" type="button">
               {secondaryAction.icon}
               {secondaryAction.label}
             </ActionButton>

@@ -73,7 +73,8 @@ async function validateCoverageIntegrity(productId, coverageId) {
  * Cascade delete coverage and all related entities
  */
 async function cascadeDeleteCoverage(productId, coverageId) {
-  const batch = db.batch();
+  const MAX_BATCH_SIZE = 450;
+  const allRefs = [];
   const deletedEntities = {
     coverage: 0,
     limits: 0,
@@ -84,57 +85,63 @@ async function cascadeDeleteCoverage(productId, coverageId) {
   };
 
   try {
-    // Delete coverage limits
+    // Collect coverage limits
     const limitsSnap = await db.collection('products').doc(productId)
       .collection('coverages').doc(coverageId)
       .collection('limits').get();
     limitsSnap.docs.forEach(doc => {
-      batch.delete(doc.ref);
+      allRefs.push(doc.ref);
       deletedEntities.limits++;
     });
 
-    // Delete coverage deductibles
+    // Collect coverage deductibles
     const deductiblesSnap = await db.collection('products').doc(productId)
       .collection('coverages').doc(coverageId)
       .collection('deductibles').get();
     deductiblesSnap.docs.forEach(doc => {
-      batch.delete(doc.ref);
+      allRefs.push(doc.ref);
       deletedEntities.deductibles++;
     });
 
-    // Delete form-coverage mappings
+    // Collect form-coverage mappings
     const mappingsSnap = await db.collection('formCoverages')
       .where('coverageId', '==', coverageId)
       .where('productId', '==', productId).get();
     mappingsSnap.docs.forEach(doc => {
-      batch.delete(doc.ref);
+      allRefs.push(doc.ref);
       deletedEntities.formMappings++;
     });
 
-    // Delete rules for this coverage
+    // Collect rules for this coverage
     const rulesSnap = await db.collection('rules')
       .where('productId', '==', productId)
       .where('targetId', '==', coverageId).get();
     rulesSnap.docs.forEach(doc => {
-      batch.delete(doc.ref);
+      allRefs.push(doc.ref);
       deletedEntities.rules++;
     });
 
-    // Delete sub-coverages
+    // Collect sub-coverages
     const subCoveragesSnap = await db.collection('products').doc(productId)
       .collection('coverages')
       .where('parentCoverageId', '==', coverageId).get();
     subCoveragesSnap.docs.forEach(doc => {
-      batch.delete(doc.ref);
+      allRefs.push(doc.ref);
       deletedEntities.subCoverages++;
     });
 
     // Delete the coverage itself
-    batch.delete(db.collection('products').doc(productId)
+    allRefs.push(db.collection('products').doc(productId)
       .collection('coverages').doc(coverageId));
     deletedEntities.coverage++;
 
-    await batch.commit();
+    // Split into batches to stay within Firestore's 500-operation limit
+    for (let i = 0; i < allRefs.length; i += MAX_BATCH_SIZE) {
+      const batchRefs = allRefs.slice(i, i + MAX_BATCH_SIZE);
+      const batch = db.batch();
+      batchRefs.forEach(ref => batch.delete(ref));
+      await batch.commit();
+    }
 
     logger.info('Cascade delete completed', {
       productId,

@@ -20,6 +20,7 @@ import useDebounce from '@hooks/useDebounce';
 import MainNavigation from '../components/ui/Navigation';
 import { PageContainer, PageContent } from '../components/ui/PageContainer';
 import EnhancedHeader from '../components/ui/EnhancedHeader';
+import { neutral, radius, shadow, space } from '../ui/tokens';
 
 import { LimitOptionsModal } from '../components/limits/LimitOptionsModal';
 import { DeductibleOptionsModal } from '../components/deductibles/DeductibleOptionsModal';
@@ -27,6 +28,9 @@ import { CoverageCopilotWizard } from '../components/wizard/CoverageCopilotWizar
 
 // Lazy-load LinkFormsModal for better code splitting
 const LinkFormsModal = lazy(() => import('./coverage/LinkFormsModal'));
+
+import { SupportingClauses } from './tracing/SupportingClauses';
+import { useRoleContext } from '../context/RoleContext';
 
 import {
   PencilIcon,
@@ -41,7 +45,8 @@ import {
   ClipboardDocumentCheckIcon,
   BanknotesIcon,
   SparklesIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/solid';
 
 // Import styled components from extracted styles file (form-related moved to LinkFormsModal)
@@ -91,6 +96,8 @@ export default function CoverageScreen() {
   const { productId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { currentOrgId, user } = useRoleContext();
+  const [clausesCoverageId, setClausesCoverageId] = useState<string | null>(null);
 
   // nested path => parentCoverageId
   const segs = location.pathname.split('/').filter(Boolean);
@@ -623,6 +630,14 @@ export default function CoverageScreen() {
                                 {getRuleCount(parent.id)}
                               </MetricBadge>
                             </MetricItem>
+                            <MetricItem
+                              $hasValue={false}
+                              onClick={() => setClausesCoverageId(parent.id)}
+                              title="View supporting clauses"
+                            >
+                              <DocumentTextIcon />
+                              <MetricLabel>Clauses</MetricLabel>
+                            </MetricItem>
                           </CardMetrics>
 
                         {/* P&C Attributes Row - Shows key coverage configuration */}
@@ -874,6 +889,43 @@ export default function CoverageScreen() {
             onSave={reloadCoverages}
           />
         </Suspense>
+      )}
+      {/* Supporting Clauses Modal */}
+      {clausesCoverageId && currentOrgId && user && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+          }}
+          onClick={() => setClausesCoverageId(null)}
+        >
+          <div
+            style={{
+              background: neutral[0], borderRadius: 14, boxShadow: shadow.overlay,
+              padding: parseInt(space[6]), width: 520, maxHeight: '80vh', overflowY: 'auto' as const,
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <SupportingClauses
+              orgId={currentOrgId}
+              targetType="coverage_version"
+              targetId={clausesCoverageId}
+              targetLabel={coverages.find(c => c.id === clausesCoverageId)?.name || ''}
+              userId={user.uid}
+            />
+            <div style={{ textAlign: 'right', marginTop: parseInt(space[4]) }}>
+              <button
+                style={{
+                  padding: `${space[1.5]} 14px`, fontSize: 13, fontWeight: 500, color: neutral[700],
+                  background: neutral[100], border: `1px solid ${neutral[200]}`, borderRadius: parseInt(radius.sm), cursor: 'pointer',
+                }}
+                onClick={() => setClausesCoverageId(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </PageContainer>
   );

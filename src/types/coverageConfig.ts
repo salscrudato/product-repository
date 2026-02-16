@@ -381,6 +381,35 @@ export const STATE_NAMES: Record<string, string> = {
   'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming'
 };
 
+// ============================================================================
+// State Availability Types
+// ============================================================================
+
+/**
+ * State-specific availability configuration for a coverage
+ */
+export interface CoverageStateAvailability {
+  id: string;
+  stateCode: string;
+  isAvailable: boolean;
+  effectiveDate?: Timestamp | Date;
+  expirationDate?: Timestamp | Date;
+  overrides?: StateOverride[];
+  notes?: string;
+  createdAt?: Timestamp | Date;
+  updatedAt?: Timestamp | Date;
+}
+
+/**
+ * State-level override for limits, deductibles, or forms
+ */
+export interface StateOverride {
+  id: string;
+  field: string;
+  value: unknown;
+  reason?: string;
+}
+
 /**
  * Rating factor for coverage
  */

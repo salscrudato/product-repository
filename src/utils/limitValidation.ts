@@ -133,12 +133,15 @@ export function validateLimitOption(
   switch (structure) {
     case 'single':
     case 'csl':
-      if (mode === 'publish' && (!option.amount || option.amount <= 0)) {
-        errors.push({
-          field: 'amount',
-          message: 'Limit amount must be greater than 0',
-          code: 'INVALID_AMOUNT'
-        });
+      if (mode === 'publish') {
+        const amt = (option as { amount?: number }).amount;
+        if (!amt || amt <= 0) {
+          errors.push({
+            field: 'amount',
+            message: 'Limit amount must be greater than 0',
+            code: 'INVALID_AMOUNT'
+          });
+        }
       }
       break;
 

@@ -15,14 +15,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
-  onSnapshot,
   getDocs,
   query,
   orderBy,
   where
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, isAuthReady, safeOnSnapshot } from '../firebase';
 import { Coverage } from '../types';
+import logger, { LOG_CATEGORIES } from '../utils/logger';
+
+/** True if the error is Firestore permission-denied (auth race or missing access). */
+function isPermissionError(err: unknown): boolean {
+  const code = (err as { code?: string }).code;
+  const msg = err instanceof Error ? err.message : String(err);
+  return code === 'permission-denied' || msg.includes('Missing or insufficient permissions');
+}
 
 interface EnrichedCoverage extends Coverage {
   formIds: string[];
@@ -121,7 +128,10 @@ export default function useCoverages(productId: string | null | undefined): UseC
               deductiblesCount
             };
           } catch (err) {
-            console.error(`Error enriching coverage ${coverage.id}:`, err);
+            // Permission errors are expected during auth propagation or when user lacks access; skip noisy logs
+            if (!isPermissionError(err)) {
+              logger.warn(LOG_CATEGORIES.DATA, `Error enriching coverage ${coverage.id}`, { error: String(err) });
+            }
             return {
               ...coverage,
               formIds: formsByCoverage[coverage.id] || [],
@@ -134,7 +144,9 @@ export default function useCoverages(productId: string | null | undefined): UseC
 
       return enrichedCoverages;
     } catch (err) {
-      console.error('Error enriching coverages with forms:', err);
+      if (!isPermissionError(err)) {
+        logger.warn(LOG_CATEGORIES.DATA, 'Error enriching coverages with forms', { error: String(err) });
+      }
       // Return with default enrichment values when error occurs
       return coveragesList.map(c => ({
         ...c,
@@ -147,7 +159,8 @@ export default function useCoverages(productId: string | null | undefined): UseC
 
   // real‑time listener
   useEffect(() => {
-    if (!productId) return;      // guard for first render
+    // Wait for auth to fully propagate before subscribing
+    if (!isAuthReady() || !productId) return;
     setLoading(true);
 
     const q = query(
@@ -155,7 +168,7 @@ export default function useCoverages(productId: string | null | undefined): UseC
       orderBy('coverageCode')      // stable sort
     );
 
-    const unsub = onSnapshot(
+    const unsub = safeOnSnapshot(
       q,
       async snap => {
         const baseCoverages = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coverage));
@@ -164,7 +177,7 @@ export default function useCoverages(productId: string | null | undefined): UseC
         setLoading(false);
       },
       err => {
-        console.error('Coverages snapshot failed:', err);
+        logger.error(LOG_CATEGORIES.ERROR, 'Coverages snapshot failed', {}, err as Error);
         setError(err as Error);
         setLoading(false);
       }
@@ -186,7 +199,7 @@ export default function useCoverages(productId: string | null | undefined): UseC
       setCoverages(enriched);
       setLoading(false);
     } catch (err) {
-      console.error('Coverages reload failed:', err);
+      logger.error(LOG_CATEGORIES.ERROR, 'Coverages reload failed', {}, err as Error);
       setError(err as Error);
       setLoading(false);
     }

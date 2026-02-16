@@ -1,17 +1,20 @@
 import React, { useCallback, useRef } from 'react';
-import styled, { keyframes, css } from 'styled-components';
-import { MagnifyingGlassIcon, ArrowUpIcon, ArrowLeftIcon, ChevronRightIcon, HomeIcon } from '@heroicons/react/24/outline';
+import styled, { css, keyframes } from 'styled-components';
+import { MagnifyingGlassIcon, ArrowUpIcon, ArrowLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
+import {
+  color, neutral, accent, space, radius, shadow,
+  border as borderToken, fontFamily, type as typeScale,
+  transition, focusRingStyle, reducedMotion, layout,
+} from '../../ui/tokens';
 
 /* ---------- Animations ---------- */
 const spin = keyframes`
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 `;
 
 const fadeIn = keyframes`
-  from { opacity: 0; transform: translateY(-8px); }
+  from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 `;
 
@@ -30,47 +33,48 @@ interface BreadcrumbItem {
 const BreadcrumbNav = styled.nav`
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: ${space[2]};
+  margin-bottom: ${space[3]};
   animation: ${fadeIn} 0.3s ease-out;
+  @media ${reducedMotion} { animation: none; }
 `;
 
 const BreadcrumbList = styled.ol`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: ${space[1]};
   list-style: none;
   margin: 0;
   padding: 0;
   flex-wrap: wrap;
 `;
 
-const BreadcrumbItem = styled.li`
+const BreadcrumbItemStyled = styled.li`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: ${space[1]};
 `;
 
 const BreadcrumbLink = styled(Link)`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  font-size: 14px;
+  gap: ${space[1.5]};
+  padding: ${space[1]} ${space[2]};
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.bodySm.size};
   font-weight: 500;
-  color: #64748b;
+  color: ${color.textMuted};
   text-decoration: none;
-  border-radius: 8px;
-  transition: all 0.2s ease;
+  border-radius: ${radius.sm};
+  transition: color ${transition.fast}, background-color ${transition.fast};
 
   &:hover {
-    color: #6366f1;
-    background: rgba(99, 102, 241, 0.08);
+    color: ${accent[600]};
+    background: ${accent[50]};
   }
 
   &:focus-visible {
-    outline: 2px solid rgba(99, 102, 241, 0.4);
-    outline-offset: 2px;
+    ${focusRingStyle}
   }
 
   svg {
@@ -82,25 +86,24 @@ const BreadcrumbLink = styled(Link)`
 const BreadcrumbCurrent = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  font-size: 14px;
+  gap: ${space[1.5]};
+  padding: ${space[1]} ${space[2]};
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.bodySm.size};
   font-weight: 600;
-  color: #1f2937;
-  background: rgba(99, 102, 241, 0.08);
-  border-radius: 8px;
+  color: ${color.text};
 
   svg {
     width: 14px;
     height: 14px;
-    color: #6366f1;
+    color: ${accent[500]};
   }
 `;
 
 const BreadcrumbSeparator = styled(ChevronRightIcon)`
   width: 14px;
   height: 14px;
-  color: #cbd5e1;
+  color: ${neutral[300]};
   flex-shrink: 0;
 `;
 
@@ -108,32 +111,28 @@ const BreadcrumbSeparator = styled(ChevronRightIcon)`
 const BackButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  color: #64748b;
-  font-size: 14px;
+  gap: ${space[2]};
+  padding: ${space[2]} ${space[3]};
+  border: ${borderToken.default};
+  border-radius: ${radius.md};
+  background: ${color.bg};
+  color: ${color.textSecondary};
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.bodySm.size};
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-  margin-bottom: 16px;
+  transition: color ${transition.fast}, background-color ${transition.fast}, border-color ${transition.fast};
+  margin-bottom: ${space[3]};
   align-self: flex-start;
 
   &:hover {
-    background: rgba(99, 102, 241, 0.1);
-    color: #6366f1;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.2);
+    background: ${accent[50]};
+    color: ${accent[600]};
+    border-color: ${accent[200]};
   }
 
   &:focus-visible {
-    outline: 2px solid rgba(99, 102, 241, 0.4);
-    outline-offset: 2px;
+    ${focusRingStyle}
   }
 
   &:active {
@@ -148,134 +147,90 @@ const BackButton = styled.button`
 
 const HeaderSection = styled.section`
   width: 100%;
-  padding: 24px 32px;
-  border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(12px);
-  margin-bottom: 32px;
+  padding: ${space[6]} 0 ${space[5]} 0;
+  margin-bottom: ${space[6]};
+  border-bottom: ${borderToken.light};
   position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-  }
-
-  @media (max-width: 768px) {
-    padding: 20px 24px;
-    margin-bottom: 24px;
-  }
 `;
 
 const HeaderContent = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  max-width: 1400px;
+  gap: ${space[3]};
+  max-width: ${layout.maxWidth};
   margin: 0 auto;
-  text-align: center;
+`;
+
+const TitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${space[4]};
 `;
 
 const TitleGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
-`;
-
-const PageTitle = styled.h1`
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-
-  @media (max-width: 768px) {
-    font-size: 2rem;
-  }
-
-  @media (max-width: 480px) {
-    font-size: 1.75rem;
-  }
-`;
-
-const PageSubtitle = styled.p`
-  font-size: 1.125rem;
-  color: #6b7280;
-  margin: 0;
-  font-weight: 500;
-  line-height: 1.4;
-
-  @media (max-width: 768px) {
-    font-size: 1rem;
-  }
-`;
-
-const float = keyframes`
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
+  gap: ${space[1.5]};
 `;
 
 const IconTitleGroup = styled.div`
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: ${space[3]};
 
   svg {
-    width: 32px;
-    height: 32px;
-    color: #6366f1;
-    transition: all 0.3s ease;
-
-    &:hover {
-      animation: ${float} 2s ease-in-out infinite;
-      color: #8b5cf6;
-    }
-
-    @media (max-width: 768px) {
-      width: 28px;
-      height: 28px;
-    }
+    width: 28px;
+    height: 28px;
+    color: ${accent[500]};
+    flex-shrink: 0;
   }
+`;
+
+const PageTitle = styled.h1`
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.displaySm.size};
+  font-weight: ${typeScale.displaySm.weight};
+  line-height: ${typeScale.displaySm.lineHeight};
+  letter-spacing: ${typeScale.displaySm.letterSpacing};
+  color: ${color.text};
+  margin: 0;
+
+  @media (max-width: 768px) {
+    font-size: ${typeScale.headingLg.size};
+  }
+`;
+
+const PageSubtitle = styled.p`
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.bodyMd.size};
+  font-weight: ${typeScale.bodyMd.weight};
+  line-height: ${typeScale.bodyMd.lineHeight};
+  letter-spacing: ${typeScale.bodyMd.letterSpacing};
+  color: ${color.textSecondary};
+  margin: 0;
 `;
 
 const ContextInfo = styled.div`
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 16px;
-  margin-top: 12px;
+  gap: ${space[3]};
+  margin-top: ${space[1]};
   flex-wrap: wrap;
-
-  @media (max-width: 768px) {
-    gap: 12px;
-  }
 `;
 
 const ContextBadge = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(59, 130, 246, 0.1);
-  color: #1d4ed8;
-  font-size: 0.875rem;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 20px;
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  gap: ${space[1.5]};
+  background: ${accent[50]};
+  color: ${accent[700]};
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.caption.size};
+  font-weight: ${typeScale.caption.weight};
+  padding: ${space[1]} ${space[2.5]};
+  border-radius: ${radius.full};
+  border: 1px solid ${accent[100]};
 
   svg {
     width: 14px;
@@ -284,88 +239,87 @@ const ContextBadge = styled.span`
 `;
 
 const CountBadge = styled.span`
-  background: rgba(16, 185, 129, 0.1);
-  color: #047857;
-  font-size: 0.875rem;
+  background: ${color.successLight};
+  color: ${color.successDark};
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.caption.size};
   font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 12px;
+  padding: ${space[1]} ${space[2.5]};
+  border-radius: ${radius.lg};
   border: 1px solid rgba(16, 185, 129, 0.2);
 `;
 
 /* ---------- Enhanced Search Components ---------- */
 const SearchSection = styled.div`
   width: 100%;
-  max-width: 600px;
-  margin: 0 auto;
+  max-width: 560px;
   position: relative;
+  margin-top: ${space[2]};
 `;
 
 const SearchContainer = styled.div`
   position: relative;
   display: flex;
   align-items: center;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  transition: all 0.3s ease;
+  background: ${color.bg};
+  border-radius: ${radius.lg};
+  border: ${borderToken.default};
+  transition: border-color ${transition.fast}, box-shadow ${transition.fast};
   overflow: hidden;
 
   &:focus-within {
-    border-color: #6366f1;
-    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
-    transform: translateY(-1px);
+    border-color: ${accent[500]};
+    box-shadow: ${shadow.focus};
   }
 `;
 
 const SearchInput = styled.input`
   flex: 1;
-  padding: 16px 20px;
+  padding: ${space[3]} ${space[4]};
   border: none;
   outline: none;
-  font-size: 1rem;
-  color: #1f2937;
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.bodyMd.size};
+  color: ${color.text};
   background: transparent;
 
   &::placeholder {
-    color: #9ca3af;
-    font-weight: 500;
+    color: ${color.textMuted};
+    font-weight: 400;
   }
 
   @media (max-width: 768px) {
-    padding: 14px 16px;
-    font-size: 0.95rem;
+    padding: ${space[2.5]} ${space[3]};
+    font-size: ${typeScale.bodySm.size};
   }
 `;
 
 const SearchButton = styled.button<{ $isLoading?: boolean }>`
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: white;
+  background: ${accent[500]};
+  color: ${color.textInverse};
   border: none;
-  padding: 12px 20px;
-  margin: 4px;
-  border-radius: 8px;
+  padding: ${space[2.5]} ${space[4]};
+  margin: ${space[1]};
+  border-radius: ${radius.md};
+  font-family: ${fontFamily.sans};
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: ${typeScale.bodySm.size};
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  transition: all 0.3s ease;
+  gap: ${space[1.5]};
+  transition: background-color ${transition.fast}, box-shadow ${transition.fast};
   min-width: 80px;
   justify-content: center;
   position: relative;
 
   &:hover:not(:disabled) {
-    background: linear-gradient(135deg, #5b5bf6, #7c3aed);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    background: ${accent[600]};
+    box-shadow: ${shadow.sm};
   }
 
   &:focus-visible {
-    outline: 2px solid rgba(99, 102, 241, 0.4);
-    outline-offset: 2px;
+    ${focusRingStyle}
   }
 
   &:disabled {
@@ -374,7 +328,7 @@ const SearchButton = styled.button<{ $isLoading?: boolean }>`
   }
 
   ${({ $isLoading }) => $isLoading && css`
-    background: linear-gradient(90deg, #6366f1, #8b5cf6, #6366f1);
+    background: linear-gradient(90deg, ${accent[500]}, ${accent[400]}, ${accent[500]});
     background-size: 200% auto;
     animation: ${shimmer} 1.5s linear infinite;
   `}
@@ -385,16 +339,16 @@ const SearchButton = styled.button<{ $isLoading?: boolean }>`
   }
 
   @media (max-width: 768px) {
-    padding: 10px 16px;
+    padding: ${space[2]} ${space[3]};
     min-width: 70px;
   }
 `;
 
 const SearchIcon = styled(MagnifyingGlassIcon)`
-  width: 20px;
-  height: 20px;
-  color: #9ca3af;
-  margin-left: 16px;
+  width: 18px;
+  height: 18px;
+  color: ${color.textMuted};
+  margin-left: ${space[3]};
   flex-shrink: 0;
 `;
 
@@ -409,21 +363,22 @@ const LoadingSpinner = styled.div`
 
 const SearchHint = styled.span`
   position: absolute;
-  bottom: -24px;
+  bottom: -22px;
   left: 0;
-  font-size: 12px;
-  color: #64748b;
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.captionSm.size};
+  color: ${color.textMuted};
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: ${space[1]};
 
   kbd {
-    background: rgba(0, 0, 0, 0.06);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: inherit;
+    background: ${color.bgMuted};
+    padding: ${space[0.5]} ${space[1.5]};
+    border-radius: ${radius.xs};
+    font-family: ${fontFamily.mono};
     font-size: 11px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid ${neutral[200]};
   }
 
   @media (max-width: 768px) {
@@ -470,13 +425,11 @@ const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 }) => {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Handle keyboard shortcut for search focus
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && searchProps?.onSearch && searchProps.value?.trim()) {
       e.preventDefault();
       searchProps.onSearch();
     }
-    // Call the original onKeyPress if provided
     searchProps?.onKeyPress?.(e);
   }, [searchProps]);
 
@@ -492,7 +445,7 @@ const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
                 const IconComponent = crumb.icon;
 
                 return (
-                  <BreadcrumbItem key={crumb.path || crumb.label}>
+                  <BreadcrumbItemStyled key={crumb.path || crumb.label}>
                     {!isLast && crumb.path ? (
                       <>
                         <BreadcrumbLink to={crumb.path}>
@@ -507,7 +460,7 @@ const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
                         {crumb.label}
                       </BreadcrumbCurrent>
                     )}
-                  </BreadcrumbItem>
+                  </BreadcrumbItemStyled>
                 );
               })}
             </BreadcrumbList>
@@ -525,34 +478,40 @@ const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
           </BackButton>
         )}
 
-        <TitleGroup>
-          {Icon && (
-            <IconTitleGroup>
-              <Icon aria-hidden="true" />
+        <TitleRow>
+          <TitleGroup>
+            {Icon ? (
+              <IconTitleGroup>
+                <Icon aria-hidden="true" />
+                <PageTitle id="page-title">{title}</PageTitle>
+              </IconTitleGroup>
+            ) : (
               <PageTitle id="page-title">{title}</PageTitle>
-            </IconTitleGroup>
-          )}
-          {!Icon && <PageTitle id="page-title">{title}</PageTitle>}
-          {subtitle && <PageSubtitle>{subtitle}</PageSubtitle>}
-        </TitleGroup>
+            )}
+            {subtitle && <PageSubtitle>{subtitle}</PageSubtitle>}
 
-        {contextInfo.length > 0 && (
-          <ContextInfo role="status" aria-label="Page context information">
-            {contextInfo.map((info, index) => (
-              <React.Fragment key={index}>
-                {info.type === 'badge' && (
-                  <ContextBadge>
-                    {info.icon && <info.icon aria-hidden="true" />}
-                    {info.text}
-                  </ContextBadge>
-                )}
-                {info.type === 'count' && (
-                  <CountBadge>{info.text}</CountBadge>
-                )}
-              </React.Fragment>
-            ))}
-          </ContextInfo>
-        )}
+            {contextInfo.length > 0 && (
+              <ContextInfo role="status" aria-label="Page context information">
+                {contextInfo.map((info, index) => (
+                  <React.Fragment key={index}>
+                    {info.type === 'badge' && (
+                      <ContextBadge>
+                        {info.icon && <info.icon aria-hidden="true" />}
+                        {info.text}
+                      </ContextBadge>
+                    )}
+                    {info.type === 'count' && (
+                      <CountBadge>{info.text}</CountBadge>
+                    )}
+                  </React.Fragment>
+                ))}
+              </ContextInfo>
+            )}
+          </TitleGroup>
+
+          {/* Action slot — children render right-aligned */}
+          {children && <div style={{ display: 'flex', alignItems: 'center', gap: space[2], flexShrink: 0 }}>{children}</div>}
+        </TitleRow>
 
         {searchProps && (
           <SearchSection role="search" aria-label={searchProps.ariaLabel || 'Search'}>
@@ -597,8 +556,6 @@ const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
             )}
           </SearchSection>
         )}
-
-        {children}
       </HeaderContent>
     </HeaderSection>
   );

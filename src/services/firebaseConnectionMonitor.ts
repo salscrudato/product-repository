@@ -4,17 +4,20 @@
  * Monitors Firebase connection state and provides reconnection logic
  */
 
-import { onSnapshot, doc } from 'firebase/firestore';
-import { db } from '../firebase';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
 
-type ConnectionListener = (isConnected: boolean) => void;
+interface ConnectionState {
+  state: string;
+  isConnected: boolean;
+  reconnectAttempts: number;
+  timestamp: string | null;
+}
+
+type ConnectionListener = (state: ConnectionState) => void;
 
 class FirebaseConnectionMonitor {
   isConnected: boolean;
   listeners: Set<ConnectionListener>;
-  connectionCheckInterval: ReturnType<typeof setInterval> | null;
-  unsubscribeConnectionListener: (() => void) | null;
   reconnectAttempts: number;
   maxReconnectAttempts: number;
   reconnectDelay: number;
@@ -24,67 +27,26 @@ class FirebaseConnectionMonitor {
   constructor() {
     this.isConnected = true;
     this.listeners = new Set();
-    this.connectionCheckInterval = null;
-    this.unsubscribeConnectionListener = null;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
-    this.reconnectDelay = 2000; // Start with 2 seconds
-    this.maxReconnectDelay = 30000; // Max 30 seconds
+    this.reconnectDelay = 2000;
+    this.maxReconnectDelay = 30000;
     this.networkListenersAdded = false;
   }
 
   /**
    * Start monitoring Firebase connection
+   *
+   * Uses the browser's online/offline events which are reliable and
+   * don't require any Firestore reads (avoiding permission-denied errors
+   * from dummy snapshot listeners).
    */
   startMonitoring() {
-    if (this.unsubscribeConnectionListener) {
-      // Connection monitor already running (reduced logging noise)
+    if (this.networkListenersAdded) {
       return;
     }
 
-    // Starting Firebase connection monitor (reduced logging noise)
-
-    // Firestore doesn't have a .info/connected path like Realtime Database
-    // Instead, we'll use network events and onSnapshot error handling
-    // to detect connection state
-
-    // Setup network monitoring as primary detection method
     this.setupNetworkMonitoring();
-
-    // Also use a dummy snapshot listener to detect Firestore connectivity
-    // This will fail gracefully if there's no connection
-    try {
-      // Create a minimal listener that will error if disconnected
-      const dummyRef = doc(db, '_connection_test_', 'status');
-
-      this.unsubscribeConnectionListener = onSnapshot(
-        dummyRef,
-        () => {
-          // Successfully listening means we're connected
-          if (!this.isConnected) {
-            this.handleConnectionChange(true);
-          }
-        },
-        (error) => {
-          // Snapshot error might indicate connection issues
-          // But don't treat all errors as disconnection
-          // Suppress permission errors - they're expected for guest users
-          if (error.code !== 'permission-denied') {
-            logger.warn(
-              LOG_CATEGORIES.FIREBASE,
-              'Firestore snapshot listener error (may indicate connection issue)',
-              { error: error.message }
-            );
-          }
-        }
-      );
-    } catch (error) {
-      logger.warn(
-        LOG_CATEGORIES.FIREBASE,
-        'Could not setup Firestore connection listener, using network events only',
-        { error: error.message }
-      );
-    }
   }
 
   /**
@@ -119,7 +81,7 @@ class FirebaseConnectionMonitor {
   /**
    * Handle connection state change
    */
-  handleConnectionChange(connected) {
+  handleConnectionChange(connected: boolean) {
     const wasConnected = this.isConnected;
     this.isConnected = connected;
 
@@ -176,9 +138,21 @@ class FirebaseConnectionMonitor {
   }
 
   /**
+   * Build a state snapshot for listeners
+   */
+  private buildStateSnapshot(state: string) {
+    return {
+      state,
+      isConnected: this.isConnected,
+      reconnectAttempts: this.reconnectAttempts,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
    * Add connection state listener
    */
-  addListener(callback) {
+  addListener(callback: ConnectionListener) {
     if (typeof callback !== 'function') {
       logger.error(LOG_CATEGORIES.FIREBASE, 'Connection listener must be a function');
       return () => {};
@@ -187,11 +161,10 @@ class FirebaseConnectionMonitor {
     this.listeners.add(callback);
 
     // Immediately notify of current state
-    callback({
-      state: this.isConnected ? 'connected' : 'disconnected',
-      isConnected: this.isConnected,
-      reconnectAttempts: this.reconnectAttempts
-    });
+    const currentState = this.isConnected ? 'connected' : 'disconnected';
+    try {
+      callback(this.buildStateSnapshot(currentState));
+    } catch { /* ignore */ }
 
     // Return unsubscribe function
     return () => {
@@ -202,13 +175,8 @@ class FirebaseConnectionMonitor {
   /**
    * Notify all listeners of connection state change
    */
-  notifyListeners(state) {
-    const eventData = {
-      state,
-      isConnected: this.isConnected,
-      reconnectAttempts: this.reconnectAttempts,
-      timestamp: new Date().toISOString()
-    };
+  notifyListeners(state: string) {
+    const eventData = this.buildStateSnapshot(state);
 
     this.listeners.forEach(listener => {
       try {
@@ -228,18 +196,6 @@ class FirebaseConnectionMonitor {
    * Stop monitoring
    */
   stopMonitoring() {
-    // Stopping Firebase connection monitor (reduced logging noise)
-
-    if (this.unsubscribeConnectionListener) {
-      this.unsubscribeConnectionListener();
-      this.unsubscribeConnectionListener = null;
-    }
-
-    if (this.connectionCheckInterval) {
-      clearInterval(this.connectionCheckInterval);
-      this.connectionCheckInterval = null;
-    }
-
     this.listeners.clear();
   }
 

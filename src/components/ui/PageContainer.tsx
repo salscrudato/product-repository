@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { neutral, accent, space, layout } from '../../ui/tokens';
 
 interface PageContainerProps {
   withOverlay?: boolean;
@@ -8,7 +9,7 @@ interface PageContainerProps {
 
 const StyledPageContainer = styled.div<{ $withOverlay: boolean }>`
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  background: linear-gradient(135deg, ${neutral[50]} 0%, ${neutral[200]} 50%, ${neutral[100]} 100%);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -21,8 +22,8 @@ const StyledPageContainer = styled.div<{ $withOverlay: boolean }>`
       left: 0;
       right: 0;
       height: 300px;
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-      opacity: 0.08;
+      background: linear-gradient(135deg, ${accent[500]} 0%, ${accent[400]} 100%);
+      opacity: 0.06;
       z-index: 0;
     }
   `}
@@ -32,15 +33,15 @@ const MainContent = styled.main.attrs({
   id: 'main-content',
 })`
   flex: 1;
-  padding: 32px 32px 80px;
-  max-width: 1400px;
+  padding: ${space[8]} ${space[8]} ${layout.pagePaddingY};
+  max-width: ${layout.maxWidth};
   margin: 0 auto;
   width: 100%;
   position: relative;
   z-index: 1;
 
   @media (max-width: 768px) {
-    padding: 24px 20px 60px;
+    padding: ${space[6]} ${space[5]} ${space[16]};
   }
 `;
 
@@ -56,4 +57,3 @@ export const PageContainer: React.FC<PageContainerProps> = ({
 };
 
 export const PageContent = MainContent;
-

@@ -20,6 +20,10 @@ import MainNavigation from '@components/ui/Navigation';
 import EnhancedHeader from '@components/ui/EnhancedHeader';
 import MarkdownRenderer from '@utils/markdownParser';
 import { cloneProduct } from '@utils/productClone';
+import {
+  color, neutral, accent, semantic, space, radius, shadow,
+  fontFamily, transition, focusRingStyle, layout,
+} from '../ui/tokens';
 
 /* ---------- Modern Styled Components ---------- */
 
@@ -31,10 +35,10 @@ const GlobalStyle = `
   }
 `;
 
-// Page - Clean gradient background with overlay
+// Page
 const Page = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  background: linear-gradient(135deg, ${neutral[50]} 0%, ${neutral[200]} 50%, ${neutral[100]} 100%);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -46,76 +50,54 @@ const Page = styled.div`
     left: 0;
     right: 0;
     height: 300px;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-    opacity: 0.08;
+    background: linear-gradient(135deg, ${accent[500]} 0%, ${accent[400]} 100%);
+    opacity: 0.06;
     z-index: 0;
   }
 `;
 
-// Main Content - Modern layout
 const MainContent = styled.main`
   flex: 1;
-  padding: 32px 32px 80px;
-  max-width: 1400px;
+  padding: ${space[8]} ${space[8]} ${layout.pagePaddingY};
+  max-width: ${layout.maxWidth};
   margin: 0 auto;
   width: 100%;
   position: relative;
   z-index: 1;
 
   @media (max-width: 768px) {
-    padding: 24px 20px 60px;
+    padding: ${space[6]} ${space[5]} ${space[16]};
   }
 `;
 
-// AI Chat Container - Revolutionary product builder interface
 const AIBuilderContainer = styled.div`
   width: 100%;
   max-width: 1000px;
-  margin: 0 auto 40px;
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(226, 232, 240, 0.4);
-  border-radius: 20px;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.08);
+  margin: 0 auto ${space[10]};
+  background: ${neutral[0]};
+  border: 1px solid ${neutral[200]};
+  border-radius: ${radius.xl};
+  box-shadow: ${shadow.card};
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: box-shadow ${transition.normal};
 
   &:hover {
-    box-shadow: 0 16px 64px rgba(99, 102, 241, 0.12);
-    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: ${shadow.lg};
   }
 
   @media (max-width: 768px) {
     max-width: 100%;
-    margin-bottom: 32px;
+    margin-bottom: ${space[8]};
   }
 `;
 
 const ChatHeader = styled.div`
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
-  padding: 20px 24px;
+  background: ${accent[600]};
+  color: ${neutral[0]};
+  padding: ${space[5]} ${space[6]};
   display: flex;
   align-items: center;
-  gap: 12px;
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-    animation: shimmer 3s infinite;
-  }
-
-  @keyframes shimmer {
-    0% { left: -100%; }
-    100% { left: 100%; }
-  }
+  gap: ${space[3]};
 `;
 
 const ChatTitle = styled.h3`
@@ -125,186 +107,134 @@ const ChatTitle = styled.h3`
   letter-spacing: -0.01em;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${space[2]};
 `;
 
 const ChatMessages = styled.div`
   height: 400px;
   overflow-y: auto;
-  padding: 24px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: ${space[6]};
+  background: ${neutral[50]};
 
-  /* Custom scrollbar */
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: rgba(226, 232, 240, 0.3);
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgba(99, 102, 241, 0.3);
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: rgba(99, 102, 241, 0.5);
-  }
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: ${neutral[100]}; border-radius: 3px; }
+  &::-webkit-scrollbar-thumb { background: ${neutral[300]}; border-radius: 3px; }
+  &::-webkit-scrollbar-thumb:hover { background: ${neutral[400]}; }
 `;
 
-const ChatMessage = styled.div`
-  margin-bottom: 16px;
+const ChatMessage = styled.div<{ $isUser?: boolean }>`
+  margin-bottom: ${space[4]};
   display: flex;
-  justify-content: ${props => props.isUser ? 'flex-end' : 'flex-start'};
-  animation: fadeInUp 0.3s ease;
-
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+  justify-content: ${props => props.$isUser ? 'flex-end' : 'flex-start'};
 `;
 
-const MessageBubble = styled.div`
+const MessageBubble = styled.div<{ $isUser?: boolean }>`
   max-width: 80%;
-  padding: 16px 20px;
-  border-radius: ${props => props.isUser ? '20px 20px 4px 20px' : '20px 20px 20px 4px'};
-  background: ${props => props.isUser
-    ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
-    : '#ffffff'};
-  color: ${props => props.isUser ? '#ffffff' : '#374151'};
-  border: ${props => props.isUser ? 'none' : '1px solid rgba(226, 232, 240, 0.6)'};
+  padding: ${space[4]} ${space[5]};
+  border-radius: ${radius.xl};
+  background: ${props => props.$isUser ? accent[600] : neutral[0]};
+  color: ${props => props.$isUser ? neutral[0] : neutral[700]};
+  border: ${props => props.$isUser ? 'none' : `1px solid ${neutral[200]}`};
   font-size: 14px;
   line-height: 1.6;
-  box-shadow: ${props => props.isUser
-    ? '0 4px 16px rgba(99, 102, 241, 0.25)'
-    : '0 2px 8px rgba(0, 0, 0, 0.08)'};
-  position: relative;
-
-  ${props => !props.isUser && `
-    &::before {
-      content: '';
-      position: absolute;
-      top: 8px;
-      left: -6px;
-      width: 12px;
-      height: 12px;
-      background: #ffffff;
-      border: 1px solid rgba(226, 232, 240, 0.6);
-      border-right: none;
-      border-bottom: none;
-      transform: rotate(-45deg);
-    }
-  `}
+  box-shadow: ${shadow.sm};
 `;
 
 const ChatInputContainer = styled.div`
-  padding: 20px 24px;
-  background: #ffffff;
-  border-top: 1px solid rgba(226, 232, 240, 0.6);
+  padding: ${space[5]} ${space[6]};
+  background: ${neutral[0]};
+  border-top: 1px solid ${neutral[200]};
   display: flex;
-  gap: 12px;
+  gap: ${space[3]};
   align-items: flex-end;
 `;
 
 const ChatInput = styled.textarea`
   flex: 1;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 12px;
-  padding: 12px 16px;
+  border: 1px solid ${neutral[200]};
+  border-radius: ${radius.lg};
+  padding: ${space[3]} ${space[4]};
   font-size: 14px;
-  font-family: inherit;
+  font-family: ${fontFamily.sans};
   resize: none;
   min-height: 44px;
   max-height: 120px;
-  background: rgba(248, 250, 252, 0.8);
-  transition: all 0.3s ease;
+  background: ${neutral[50]};
+  transition: border-color ${transition.fast}, box-shadow ${transition.fast};
 
   &:focus {
     outline: none;
-    border-color: #6366f1;
-    background: #ffffff;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    border-color: ${accent[500]};
+    background: ${neutral[0]};
+    box-shadow: 0 0 0 3px ${accent[500]}1a;
   }
 
   &::placeholder {
-    color: #94a3b8;
+    color: ${neutral[400]};
   }
 `;
 
 const SendButton = styled.button`
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
+  background: ${accent[600]};
+  color: ${neutral[0]};
   border: none;
-  border-radius: 12px;
-  padding: 12px 16px;
+  border-radius: ${radius.lg};
+  padding: ${space[3]} ${space[4]};
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${space[2]};
   font-weight: 600;
   font-size: 14px;
-  transition: all 0.3s ease;
+  font-family: ${fontFamily.sans};
+  transition: background ${transition.fast};
   min-height: 44px;
 
   &:hover:not(:disabled) {
-    background: linear-gradient(135deg, #5b5bf6 0%, #7c3aed 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+    background: ${accent[700]};
   }
 
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    transform: none;
   }
 
-  svg {
-    width: 16px;
-    height: 16px;
-  }
+  svg { width: 16px; height: 16px; }
 `;
 
 const WelcomeMessage = styled.div`
   text-align: center;
-  padding: 40px 20px;
-  color: #6b7280;
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  margin-bottom: 16px;
+  padding: ${space[10]} ${space[5]};
+  color: ${neutral[500]};
+  background: ${neutral[0]};
+  border-radius: ${radius.xl};
+  border: 1px solid ${neutral[200]};
+  margin-bottom: ${space[4]};
 `;
 
 const SuggestionChips = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
+  gap: ${space[2]};
+  margin-top: ${space[4]};
   justify-content: center;
 `;
 
 const SuggestionChip = styled.button`
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  border-radius: 20px;
-  padding: 8px 16px;
+  background: ${accent[50]};
+  color: ${accent[600]};
+  border: 1px solid ${accent[200]};
+  border-radius: ${radius.full};
+  padding: ${space[2]} ${space[4]};
   font-size: 13px;
   font-weight: 500;
+  font-family: ${fontFamily.sans};
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all ${transition.fast};
 
   &:hover {
-    background: rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.3);
-    transform: translateY(-1px);
+    background: ${accent[100]};
+    border-color: ${accent[300]};
   }
 `;
 
@@ -364,240 +294,198 @@ const SearchFilterContainer = styled.div`
 
 const SearchInput = styled.input`
   width: 100%;
-  padding: 12px 16px 12px 40px;
+  padding: ${space[3]} ${space[4]} ${space[3]} ${space[10]};
   font-size: 14px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  transition: all 0.3s ease;
-  position: relative;
+  font-family: ${fontFamily.sans};
+  border: 1px solid ${neutral[200]};
+  border-radius: ${radius.lg};
+  background: ${neutral[0]};
+  transition: border-color ${transition.fast}, box-shadow ${transition.fast};
 
   &:focus {
     outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    border-color: ${accent[500]};
+    box-shadow: 0 0 0 3px ${accent[500]}1a;
   }
 
-  &::placeholder {
-    color: #94a3b8;
-  }
+  &::placeholder { color: ${neutral[400]}; }
 `;
 
 const SearchIconWrapper = styled.div`
   position: absolute;
-  left: 12px;
+  left: ${space[3]};
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: ${neutral[400]};
   pointer-events: none;
 `;
 
 const FilterRow = styled.div`
   display: flex;
-  gap: 8px;
+  gap: ${space[2]};
   flex-wrap: wrap;
 `;
 
 const FilterSelect = styled.select`
-  padding: 8px 12px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 8px;
-  background: white;
+  padding: ${space[2]} ${space[3]};
+  border: 1px solid ${neutral[200]};
+  border-radius: ${radius.md};
+  background: ${neutral[0]};
   font-size: 13px;
-  color: #374151;
+  font-family: ${fontFamily.sans};
+  color: ${neutral[700]};
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: border-color ${transition.fast};
 
   &:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: ${accent[500]};
   }
 `;
 
-// Coverage Cards Grid
 const CoverageCardsGrid = styled.div`
-  padding: 16px;
+  padding: ${space[4]};
   max-height: 600px;
   overflow-y: auto;
   display: grid;
-  gap: 12px;
+  gap: ${space[3]};
 
-  /* Custom scrollbar */
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: rgba(226, 232, 240, 0.3);
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgba(99, 102, 241, 0.3);
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: rgba(99, 102, 241, 0.5);
-  }
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: ${neutral[100]}; border-radius: 3px; }
+  &::-webkit-scrollbar-thumb { background: ${neutral[300]}; border-radius: 3px; }
+  &::-webkit-scrollbar-thumb:hover { background: ${neutral[400]}; }
 `;
 
-// Individual Coverage Card
-const CoverageCard = styled.div`
-  padding: 16px;
-  border: 1px solid ${props => props.selected ? '#6366f1' : 'rgba(226, 232, 240, 0.6)'};
-  border-radius: 12px;
-  background: ${props => props.selected ? 'rgba(99, 102, 241, 0.05)' : 'white'};
+const CoverageCard = styled.div<{ $selected?: boolean }>`
+  padding: ${space[4]};
+  border: 1px solid ${props => props.$selected ? accent[500] : neutral[200]};
+  border-radius: ${radius.lg};
+  background: ${props => props.$selected ? accent[50] : neutral[0]};
   cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
+  transition: all ${transition.fast};
 
   &:hover {
-    border-color: #6366f1;
-    background: rgba(99, 102, 241, 0.02);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: ${accent[400]};
+    background: ${neutral[50]};
   }
-
-  ${props => props.selected && `
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
-  `}
 `;
 
 const CoverageCardHeader = styled.div`
   display: flex;
-  justify-content: between;
+  justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 8px;
+  margin-bottom: ${space[2]};
 `;
 
 const CoverageCardTitle = styled.h4`
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: ${neutral[700]};
   line-height: 1.3;
   flex: 1;
 `;
 
 const CoverageCardBadge = styled.span`
-  padding: 2px 8px;
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
-  border-radius: 12px;
+  padding: 2px ${space[2]};
+  background: ${accent[50]};
+  color: ${accent[600]};
+  border-radius: ${radius.full};
   font-size: 11px;
   font-weight: 500;
-  margin-left: 8px;
+  margin-left: ${space[2]};
 `;
 
 const CoverageCardMeta = styled.div`
   font-size: 12px;
-  color: #6b7280;
-  margin-bottom: 8px;
+  color: ${neutral[500]};
+  margin-bottom: ${space[2]};
 `;
 
 const CoverageCardActions = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 12px;
+  margin-top: ${space[3]};
 `;
 
 const FormCount = styled.span`
   font-size: 11px;
-  color: #6b7280;
-  background: rgba(107, 114, 128, 0.1);
-  padding: 2px 6px;
-  border-radius: 8px;
+  color: ${neutral[500]};
+  background: ${neutral[100]};
+  padding: 2px ${space[1.5]};
+  border-radius: ${radius.md};
 `;
 
-const SelectButton = styled.button`
-  padding: 4px 12px;
-  background: ${props => props.selected ? '#6366f1' : 'transparent'};
-  color: ${props => props.selected ? 'white' : '#6366f1'};
-  border: 1px solid #6366f1;
-  border-radius: 6px;
+const SelectButton = styled.button<{ $selected?: boolean }>`
+  padding: ${space[1]} ${space[3]};
+  background: ${props => props.$selected ? accent[600] : 'transparent'};
+  color: ${props => props.$selected ? neutral[0] : accent[600]};
+  border: 1px solid ${accent[500]};
+  border-radius: ${radius.sm};
   font-size: 11px;
   font-weight: 500;
+  font-family: ${fontFamily.sans};
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all ${transition.fast};
 
   &:hover {
-    background: ${props => props.selected ? '#4f46e5' : 'rgba(99, 102, 241, 0.1)'};
+    background: ${props => props.$selected ? accent[700] : accent[50]};
   }
 `;
 
-// Product Builder Panel
 const ProductBuilderPanel = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  background: ${neutral[0]};
+  border-radius: ${radius.xl};
+  border: 1px solid ${neutral[200]};
+  box-shadow: ${shadow.card};
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: box-shadow ${transition.normal};
 
-  &:hover {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
-    border-color: rgba(99, 102, 241, 0.3);
-  }
+  &:hover { box-shadow: ${shadow.lg}; }
 `;
 
 const ProductBuilderHeader = styled.div`
-  padding: 24px 24px 16px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  padding: ${space[6]} ${space[6]} ${space[4]};
+  border-bottom: 1px solid ${neutral[200]};
+  background: ${neutral[50]};
 `;
 
 const ProductBuilderContent = styled.div`
-  padding: 24px;
+  padding: ${space[6]};
 `;
 
-// Selected Coverages Display
 const SelectedCoveragesContainer = styled.div`
-  margin-bottom: 24px;
+  margin-bottom: ${space[6]};
 `;
 
 const SelectedCoveragesList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: ${space[2]};
   max-height: 300px;
   overflow-y: auto;
-  padding: 12px;
-  background: rgba(248, 250, 252, 0.8);
-  border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
+  padding: ${space[3]};
+  background: ${neutral[50]};
+  border-radius: ${radius.lg};
+  border: 1px solid ${neutral[200]};
 
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: rgba(226, 232, 240, 0.3);
-    border-radius: 2px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgba(99, 102, 241, 0.3);
-    border-radius: 2px;
-  }
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: ${neutral[100]}; border-radius: 2px; }
+  &::-webkit-scrollbar-thumb { background: ${neutral[300]}; border-radius: 2px; }
 `;
 
 const SelectedCoverageItem = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  transition: all 0.2s ease;
+  padding: ${space[2]} ${space[3]};
+  background: ${neutral[0]};
+  border-radius: ${radius.md};
+  border: 1px solid ${neutral[200]};
+  transition: border-color ${transition.fast};
 
-  &:hover {
-    border-color: rgba(99, 102, 241, 0.3);
-  }
+  &:hover { border-color: ${accent[300]}; }
 `;
 
 const SelectedCoverageInfo = styled.div`
@@ -607,79 +495,75 @@ const SelectedCoverageInfo = styled.div`
 const SelectedCoverageName = styled.div`
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: ${neutral[700]};
   margin-bottom: 2px;
 `;
 
 const SelectedCoverageProduct = styled.div`
   font-size: 11px;
-  color: #6b7280;
+  color: ${neutral[500]};
 `;
 
 const RemoveCoverageButton = styled.button`
-  padding: 4px;
+  padding: ${space[1]};
   background: none;
   border: none;
-  color: #ef4444;
+  color: ${semantic.error};
   cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+  border-radius: ${radius.sm};
+  transition: background ${transition.fast};
 
-  &:hover {
-    background: rgba(239, 68, 68, 0.1);
-  }
+  &:hover { background: ${semantic.errorLight}; }
 `;
 
-// Product Details Form
 const ProductDetailsForm = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: ${space[4]};
 `;
 
 const FormGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: ${space[1.5]};
 `;
 
 const FormLabel = styled.label`
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: ${neutral[700]};
 `;
 
 const CompactFormInput = styled.input`
-  padding: 10px 12px;
+  padding: ${space[2.5]} ${space[3]};
   font-size: 14px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.9);
-  transition: all 0.3s ease;
+  font-family: ${fontFamily.sans};
+  border: 1px solid ${neutral[200]};
+  border-radius: ${radius.md};
+  background: ${neutral[0]};
+  transition: border-color ${transition.fast}, box-shadow ${transition.fast};
 
   &:focus {
     outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    border-color: ${accent[500]};
+    box-shadow: 0 0 0 3px ${accent[500]}1a;
   }
 
-  &::placeholder {
-    color: #94a3b8;
-  }
+  &::placeholder { color: ${neutral[400]}; }
 `;
 
 const FileUploadArea = styled.div`
-  border: 2px dashed rgba(226, 232, 240, 0.8);
-  border-radius: 12px;
-  padding: 20px;
+  border: 2px dashed ${neutral[300]};
+  border-radius: ${radius.lg};
+  padding: ${space[5]};
   text-align: center;
-  background: rgba(248, 250, 252, 0.5);
-  transition: all 0.3s ease;
+  background: ${neutral[50]};
+  transition: all ${transition.fast};
   cursor: pointer;
 
   &:hover {
-    border-color: rgba(99, 102, 241, 0.5);
-    background: rgba(99, 102, 241, 0.02);
+    border-color: ${accent[400]};
+    background: ${accent[50]};
   }
 
   &.dragover {
@@ -698,95 +582,75 @@ const FileUploadInput = styled.input`
   display: none;
 `;
 
-// Preview Panel
 const PreviewPanel = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  background: ${neutral[0]};
+  border-radius: ${radius.xl};
+  border: 1px solid ${neutral[200]};
+  box-shadow: ${shadow.card};
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: box-shadow ${transition.normal};
 
-  &:hover {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
-    border-color: rgba(99, 102, 241, 0.3);
-  }
+  &:hover { box-shadow: ${shadow.lg}; }
 `;
 
 const PreviewHeader = styled.div`
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  padding: ${space[5]} ${space[6]} ${space[4]};
+  border-bottom: 1px solid ${neutral[200]};
+  background: ${neutral[50]};
 `;
 
 const PreviewContent = styled.div`
-  padding: 20px;
+  padding: ${space[5]};
   max-height: 500px;
   overflow-y: auto;
 
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: rgba(226, 232, 240, 0.3);
-    border-radius: 2px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgba(99, 102, 241, 0.3);
-    border-radius: 2px;
-  }
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: ${neutral[100]}; border-radius: 2px; }
+  &::-webkit-scrollbar-thumb { background: ${neutral[300]}; border-radius: 2px; }
 `;
 
 const PreviewSection = styled.div`
-  margin-bottom: 20px;
-  padding: 16px;
-  background: rgba(248, 250, 252, 0.8);
-  border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
+  margin-bottom: ${space[5]};
+  padding: ${space[4]};
+  background: ${neutral[50]};
+  border-radius: ${radius.lg};
+  border: 1px solid ${neutral[200]};
 
-  &:last-child {
-    margin-bottom: 0;
-  }
+  &:last-child { margin-bottom: 0; }
 `;
 
 const PreviewSectionTitle = styled.h4`
-  margin: 0 0 12px 0;
+  margin: 0 0 ${space[3]} 0;
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: ${neutral[700]};
 `;
 
 const PreviewItem = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
+  padding: ${space[1.5]} 0;
   font-size: 13px;
-  color: #6b7280;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.4);
+  color: ${neutral[500]};
+  border-bottom: 1px solid ${neutral[100]};
 
-  &:last-child {
-    border-bottom: none;
-  }
+  &:last-child { border-bottom: none; }
 `;
 
 const PreviewLabel = styled.span`
   font-weight: 500;
-  color: #374151;
+  color: ${neutral[700]};
 `;
 
 const PreviewValue = styled.span`
-  color: #6b7280;
+  color: ${neutral[500]};
 `;
 
-// Action Buttons
 const ActionButtonsContainer = styled.div`
   display: flex;
-  gap: 12px;
-  margin-top: 24px;
+  gap: ${space[3]};
+  margin-top: ${space[6]};
 `;
 
 const PrimaryActionButton = styled.button`
@@ -799,24 +663,20 @@ const PrimaryActionButton = styled.button`
   font-size: 14px;
   font-weight: 600;
   border: none;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
+  border-radius: ${radius.lg};
+  background: ${accent[600]};
+  color: ${neutral[0]};
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+  transition: background ${transition.fast};
 
   &:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+    background: ${accent[700]};
   }
 
   &:disabled {
-    background: #e5e7eb;
-    color: #9ca3af;
+    background: ${neutral[200]};
+    color: ${neutral[400]};
     cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
   }
 `;
 
@@ -824,75 +684,57 @@ const SecondaryActionButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 20px;
+  gap: ${space[2]};
+  padding: ${space[3]} ${space[5]};
   font-size: 14px;
   font-weight: 600;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 12px;
-  background: white;
-  color: #374151;
+  font-family: ${fontFamily.sans};
+  border: 1px solid ${neutral[200]};
+  border-radius: ${radius.lg};
+  background: ${neutral[0]};
+  color: ${neutral[700]};
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all ${transition.fast};
 
   &:hover {
-    border-color: rgba(99, 102, 241, 0.3);
-    background: rgba(99, 102, 241, 0.02);
+    border-color: ${accent[300]};
+    background: ${accent[50]};
   }
 `;
 
-// Section Title - Modern section headers
 const SectionTitle = styled.h2`
   font-size: 1.5rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #1e293b 0%, #475569 50%, #64748b 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0 0 24px 0;
+  color: ${color.text};
+  margin: 0 0 ${space[6]} 0;
   letter-spacing: -0.01em;
 `;
 
 
-
-
-
-// Modern Button
 const ModernButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 24px;
+  gap: ${space[2]};
+  padding: ${space[3]} ${space[6]};
   font-size: 16px;
   font-weight: 600;
+  font-family: ${fontFamily.sans};
   border: none;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
+  border-radius: ${radius.lg};
+  background: ${accent[600]};
+  color: ${neutral[0]};
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+  transition: background ${transition.fast};
 
-  &:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(-1px);
-  }
+  &:hover:not(:disabled) { background: ${accent[700]}; }
 
   &:disabled {
-    background: #e5e7eb;
-    color: #9ca3af;
+    background: ${neutral[200]};
+    color: ${neutral[400]};
     cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
   }
 `;
-
-
 
 // Loading Container
 const LoadingContainer = styled.div`
@@ -1014,8 +856,8 @@ Respond in a helpful, professional tone and use markdown formatting for better r
 const ProductBuilder = () => {
   const [coverages, setCoverages] = useState([]);
   const [forms, setForms] = useState([]);
-  const [products, setProducts] = useState({});
-  const [selectedCoverages, setSelectedCoverages] = useState({});
+  const [products, setProducts] = useState<Record<string, string>>({});
+  const [selectedCoverages, setSelectedCoverages] = useState<Record<string, string[]>>({});
   const [newProductName, setNewProductName] = useState('');
   const [formNumber, setFormNumber] = useState('');
   const [productCode, setProductCode] = useState('');
@@ -1156,7 +998,7 @@ const ProductBuilder = () => {
       const context = prepareAIContext();
 
       // Call Cloud Function (secure proxy to OpenAI)
-      const generateChat = httpsCallable(functions, 'generateChatResponse');
+      const generateChat = httpsCallable<unknown, { success: boolean; content?: string }>(functions, 'generateChatResponse');
       const result = await generateChat({
         messages: [
           { role: 'system', content: AI_SYSTEM_PROMPT },
@@ -1253,13 +1095,13 @@ const ProductBuilder = () => {
   });
 
   // Get unique product names for filter
-  const uniqueProducts = [...new Set(coverages.map(c => c.productId))]
+  const uniqueProducts = Array.from(new Set(coverages.map(c => c.productId)))
     .map(id => ({ id, name: products[id] }))
     .filter(p => p.name)
     .sort((a, b) => a.name.localeCompare(b.name));
 
   // Get unique categories for filter
-  const uniqueCategories = [...new Set(coverages.map(c => c.category))]
+  const uniqueCategories = Array.from(new Set(coverages.map(c => c.category)))
     .filter(Boolean)
     .sort();
 
@@ -1278,11 +1120,11 @@ const ProductBuilder = () => {
 
   // Helper to get relevant rules for selected coverages
   const getRelevantRules = () => {
-    const selectedProductIds = [...new Set(
+    const selectedProductIds = Array.from(new Set(
       Object.keys(selectedCoverages).map(covId =>
         coverages.find(c => c.id === covId)?.productId
       ).filter(Boolean)
-    )];
+    ));
     return rules.filter(rule => selectedProductIds.includes(rule.productId));
   };
 
@@ -1356,7 +1198,7 @@ const ProductBuilder = () => {
       }
 
       // Clone associated forms
-      const allFormIds = [...new Set(Object.values(selectedCoverages).flat())];
+      const allFormIds = Array.from(new Set(Object.values(selectedCoverages).flat()));
       for (const formId of allFormIds) {
         const form = forms.find(f => f.id === formId);
         if (form) {
@@ -1521,8 +1363,8 @@ const ProductBuilder = () => {
               </WelcomeMessage>
             ) : (
               chatMessages.map((message, index) => (
-                <ChatMessage key={index} isUser={message.role === 'user'}>
-                  <MessageBubble isUser={message.role === 'user'}>
+                <ChatMessage key={index} $isUser={message.role === 'user'}>
+                  <MessageBubble $isUser={message.role === 'user'}>
                     {message.role === 'user' ? (
                       message.content
                     ) : (
@@ -1534,8 +1376,8 @@ const ProductBuilder = () => {
             )}
 
             {chatLoading && (
-              <ChatMessage isUser={false}>
-                <MessageBubble isUser={false}>
+              <ChatMessage $isUser={false}>
+                <MessageBubble $isUser={false}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{
                       width: '16px',
@@ -1622,7 +1464,7 @@ const ProductBuilder = () => {
                 return (
                   <CoverageCard
                     key={coverage.id}
-                    selected={isSelected}
+                    $selected={isSelected}
                     onClick={() => handleSmartCoverageSelect(coverage)}
                   >
                     <CoverageCardHeader>
@@ -1653,7 +1495,7 @@ const ProductBuilder = () => {
 
                     <CoverageCardActions>
                       <FormCount>{associatedForms.length} forms</FormCount>
-                      <SelectButton selected={isSelected}>
+                      <SelectButton $selected={isSelected}>
                         {isSelected ? 'Selected' : 'Select'}
                       </SelectButton>
                     </CoverageCardActions>
@@ -1833,7 +1675,7 @@ const ProductBuilder = () => {
                 <PreviewItem>
                   <PreviewLabel>Total Forms:</PreviewLabel>
                   <PreviewValue>
-                    {[...new Set(Object.values(selectedCoverages).flat())].length}
+                    {Array.from(new Set(Object.values(selectedCoverages).flat())).length}
                   </PreviewValue>
                 </PreviewItem>
                 <PreviewItem>

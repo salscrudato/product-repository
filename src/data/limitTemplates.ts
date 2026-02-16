@@ -6,10 +6,11 @@
  */
 
 import {
-  LimitOptionTemplate,
-  CoverageLimitOption,
-  LimitStructure,
-  SplitLimitComponent
+  type LimitOptionTemplate,
+  type LimitOptionTemplateEntry,
+  type CoverageLimitOption,
+  type LimitStructure,
+  type SplitLimitComponent
 } from '../types';
 
 // ============================================================================
@@ -37,7 +38,7 @@ export const PROPERTY_SUBLIMITS: LimitOptionTemplate = {
   name: 'Property - Common Sublimits',
   description: 'Sublimits for specific perils within property coverage',
   category: 'Property',
-  structure: 'sublimit',
+  structure: 'single' as LimitStructure, // sublimits are now a toggle, not a primary structure
   options: [
     { label: '$25,000 – Theft', structure: 'sublimit', amount: 25000, sublimitTag: 'Theft', isDefault: false, isEnabled: true, displayOrder: 0 },
     { label: '$50,000 – Theft', structure: 'sublimit', amount: 50000, sublimitTag: 'Theft', isDefault: true, isEnabled: true, displayOrder: 1 },
@@ -202,7 +203,7 @@ export function getTemplateById(id: string): LimitOptionTemplate | undefined {
  */
 export function generateOptionsFromTemplate(
   template: LimitOptionTemplate
-): Omit<CoverageLimitOption, 'id' | 'createdAt' | 'updatedAt'>[] {
+): LimitOptionTemplateEntry[] {
   return template.options.map((opt, index) => ({
     ...opt,
     displayOrder: index
@@ -216,10 +217,10 @@ export function getSplitComponentsForTemplate(templateId: string): Omit<SplitLim
   const template = getTemplateById(templateId);
   if (!template || template.structure !== 'split') return [];
 
-  const firstOption = template.options[0];
+  const firstOption = template.options[0] as any;
   if (firstOption.structure !== 'split' || !firstOption.components) return [];
 
-  return firstOption.components.map(c => ({
+  return (firstOption.components as SplitLimitComponent[]).map((c: SplitLimitComponent) => ({
     key: c.key,
     label: c.label,
     order: c.order

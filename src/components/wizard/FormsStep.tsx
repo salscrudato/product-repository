@@ -221,7 +221,7 @@ const SelectionSummary = styled.div`
   padding: 12px 16px;
   background: linear-gradient(135deg,
     ${({ theme }) => theme.colours.backgroundAlt},
-    ${({ theme }) => theme.colours.surface}
+    ${({ theme }) => theme.colours.background}
   );
   border: 1px solid ${({ theme }) => theme.colours.border};
   border-radius: 12px;

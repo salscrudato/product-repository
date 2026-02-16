@@ -18,10 +18,9 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  onSnapshot,
   serverTimestamp
 } from 'firebase/firestore';
-import { db } from '@/firebase';
+import { db, isAuthReady, safeOnSnapshot } from '@/firebase';
 import MainNavigation from './ui/Navigation';
 import EnhancedHeader from './ui/EnhancedHeader';
 import { PageContainer, PageContent } from './ui/PageContainer';
@@ -305,7 +304,7 @@ const TaskMeta = styled.div`
   color: #9ca3af;
 `;
 
-const PriorityBadge = styled.span`
+const PriorityBadge = styled.span<{ priority?: string }>`
   background: ${props => {
     switch (props.priority) {
       case 'high': return '#fee2e2';
@@ -516,7 +515,10 @@ export default function TaskManagement() {
 
   // Load tasks from Firestore
   useEffect(() => {
-    const unsubscribe = onSnapshot(
+    // Wait for auth to fully propagate before subscribing
+    if (!isAuthReady()) return;
+
+    const unsubscribe = safeOnSnapshot(
       collection(db, 'tasks'),
       (snapshot) => {
         const taskList = snapshot.docs.map(doc => ({

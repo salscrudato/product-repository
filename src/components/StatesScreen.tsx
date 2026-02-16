@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '@/firebase';
+import logger, { LOG_CATEGORIES } from '@/utils/logger';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import styled, { keyframes, css } from 'styled-components';
@@ -14,6 +15,7 @@ import {
 import { CheckCircleIcon as CheckCircleSolidIcon } from '@heroicons/react/24/solid';
 import { colors } from '@components/common/DesignSystem';
 import { createDirtyState, updateDirtyState, resetDirtyState, buildSaveConfirmation } from '@utils/stateGuards';
+import MainNavigation from './ui/Navigation';
 
 // ============ Animations ============
 const fadeIn = keyframes`
@@ -616,6 +618,7 @@ function StatesScreen() {
   };
 
   useEffect(() => {
+    if (!productId) return;
     const fetchProduct = async () => {
       setLoading(true);
       try {
@@ -630,7 +633,7 @@ function StatesScreen() {
           throw new Error("Product not found");
         }
       } catch (error) {
-        console.error("Error fetching product:", error);
+        logger.error(LOG_CATEGORIES.ERROR, 'Error fetching product', { productId }, error as Error);
       } finally {
         setLoading(false);
       }
@@ -666,7 +669,7 @@ function StatesScreen() {
       await updateDoc(productRef, { availableStates: selectedStates });
       setDirtyState(resetDirtyState(dirtyState));
     } catch (error) {
-      console.error("Error saving states:", error);
+      logger.error(LOG_CATEGORIES.ERROR, 'Error saving states', { productId }, error as Error);
     } finally {
       setSaving(false);
     }
@@ -685,6 +688,7 @@ function StatesScreen() {
   if (loading) {
     return (
       <PageContainer>
+        <MainNavigation />
         <Spinner />
       </PageContainer>
     );
@@ -692,6 +696,7 @@ function StatesScreen() {
 
   return (
     <PageContainer>
+      <MainNavigation />
       {/* Top Bar */}
       <TopBar>
         <BackButton onClick={() => navigate(-1)}>

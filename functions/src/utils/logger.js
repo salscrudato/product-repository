@@ -1,9 +1,10 @@
 /**
  * Logging Utility
- * Centralized logging with structured output
+ * Centralized logging with structured output and correlation ID support
  */
 
 const functions = require('firebase-functions');
+const crypto = require('crypto');
 
 const LOG_LEVELS = {
   DEBUG: 'debug',
@@ -13,11 +14,61 @@ const LOG_LEVELS = {
 };
 
 /**
+ * Generate a correlation ID (matches the client-side format).
+ * @returns {string} e.g. "corr-lx3f9k2-a8b3c1"
+ */
+function generateCorrelationId() {
+  const ts = Date.now().toString(36);
+  const rand = crypto.randomBytes(3).toString('hex');
+  return `corr-${ts}-${rand}`;
+}
+
+/**
+ * Extract (or generate) a correlation ID from an incoming request / callable context.
+ *
+ * Priority:
+ *   1. `x-correlation-id` header (HTTP callable / REST)
+ *   2. `correlationId` field inside the callable data payload
+ *   3. Auto-generate a new one
+ *
+ * @param {Object} dataOrReq - Callable data object or Express-like request
+ * @returns {string} correlationId
+ */
+function extractCorrelationId(dataOrReq) {
+  // HTTP / Express-style request
+  if (dataOrReq && typeof dataOrReq.get === 'function') {
+    const fromHeader = dataOrReq.get('x-correlation-id');
+    if (fromHeader) return fromHeader;
+  }
+
+  // Callable data object
+  if (dataOrReq && dataOrReq.correlationId) {
+    return dataOrReq.correlationId;
+  }
+
+  return generateCorrelationId();
+}
+
+/**
  * Logger class for structured logging
  */
 class Logger {
   constructor() {
     this.isDevelopment = process.env.NODE_ENV === 'development';
+    this._correlationId = null;
+  }
+
+  /**
+   * Return a scoped logger that automatically includes the given correlationId.
+   * The returned object has the same API (info / warn / error / debug).
+   *
+   * @param {string} correlationId
+   * @returns {Logger} scoped logger instance
+   */
+  withCorrelation(correlationId) {
+    const scoped = new Logger();
+    scoped._correlationId = correlationId;
+    return scoped;
   }
 
   /**
@@ -28,12 +79,16 @@ class Logger {
    * @returns {Object} Formatted log object
    */
   formatLog(level, message, metadata = {}) {
-    return {
+    const entry = {
       timestamp: new Date().toISOString(),
       level,
       message,
       ...metadata
     };
+    if (this._correlationId) {
+      entry.correlationId = this._correlationId;
+    }
+    return entry;
   }
 
   /**
@@ -85,6 +140,8 @@ const logger = new Logger();
 
 module.exports = {
   logger,
-  LOG_LEVELS
+  LOG_LEVELS,
+  generateCorrelationId,
+  extractCorrelationId,
 };
 

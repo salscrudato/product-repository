@@ -324,14 +324,6 @@ function convertLegacyToOptionValue(
     case 'csl':
       return { structure: 'csl', amount: primary?.amount || 0 };
 
-    case 'sublimit':
-      // Deprecated: sublimit structure is now handled as single + sublimitsEnabled
-      // This case is kept for backward compatibility during migration
-      return {
-        structure: 'single',
-        amount: primary?.amount || 0
-      };
-
     case 'split': {
       // Try to parse split from displayValue like "100/300/100"
       const displayMatch = primary?.displayValue?.match(/(\d+)\/(\d+)\/(\d+)/);
@@ -347,6 +339,8 @@ function convertLegacyToOptionValue(
     }
 
     default:
+      // Handles 'sublimit' (deprecated) and other legacy structures
+      // Deprecated: sublimit structure is now handled as single + sublimitsEnabled
       return { structure: 'single', amount: primary?.amount || 0 };
   }
 }
@@ -377,11 +371,6 @@ export function generateDisplayValue(value: LimitOptionValue): string {
       return amounts.join('/');
     }
 
-    case 'sublimit':
-      return value.sublimitTag
-        ? `${formatCurrency(value.amount)} – ${value.sublimitTag}`
-        : formatCurrency(value.amount);
-
     case 'scheduled':
       if (value.totalCap) return `Up to ${formatCurrency(value.totalCap)}`;
       if (value.perItemMax) return `${formatCurrency(value.perItemMax)} per item`;
@@ -390,8 +379,16 @@ export function generateDisplayValue(value: LimitOptionValue): string {
     case 'custom':
       return value.description || 'Custom Limit';
 
-    default:
+    default: {
+      // Handle legacy 'sublimit' structure (deprecated but still in data)
+      const v = value as any;
+      if (v.structure === 'sublimit') {
+        return v.sublimitTag
+          ? `${formatCurrency(v.amount)} – ${v.sublimitTag}`
+          : formatCurrency(v.amount);
+      }
       return '';
+    }
   }
 }
 
@@ -450,7 +447,7 @@ export async function migrateLegacyLimitsToOptionSet(
         displayValue: generateDisplayValue(value),
         applicability: occ.states ? { states: occ.states } : undefined,
         ...value
-      });
+      } as CoverageLimitOption);
     });
   } else {
     // Each legacy limit becomes one option
@@ -468,7 +465,7 @@ export async function migrateLegacyLimitsToOptionSet(
           ? { min: limit.minAmount, max: limit.maxAmount }
           : undefined,
         ...value
-      });
+      } as CoverageLimitOption);
     });
   }
 
@@ -579,18 +576,22 @@ export async function syncToLegacyLimits(
         legacyLimit.limitType = 'perOccurrence';
         legacyLimit.amount = opt.perOccurrence;
         break;
-      case 'sublimit':
-        legacyLimit.limitType = 'sublimit';
-        legacyLimit.amount = opt.amount;
-        legacyLimit.appliesTo = opt.sublimitTag ? [opt.sublimitTag] : undefined;
-        break;
       case 'split':
         legacyLimit.limitType = 'split';
         legacyLimit.amount = opt.components?.[0]?.amount || 0;
         break;
-      default:
-        legacyLimit.limitType = 'perOccurrence';
-        legacyLimit.amount = 0;
+      default: {
+        // Handle legacy 'sublimit' structure (deprecated but still in data)
+        const optAny = opt as any;
+        if (optAny.structure === 'sublimit') {
+          legacyLimit.limitType = 'sublimit';
+          legacyLimit.amount = optAny.amount;
+          legacyLimit.appliesTo = optAny.sublimitTag ? [optAny.sublimitTag] : undefined;
+        } else {
+          legacyLimit.limitType = 'perOccurrence';
+          legacyLimit.amount = 0;
+        }
+      }
     }
 
     const newRef = doc(collection(db, legacyPath));
@@ -687,11 +688,12 @@ function areOptionsEqual(a: CoverageLimitOption, b: CoverageLimitOption): boolea
         (a as any).perClaim === (b as any).perClaim &&
         (a as any).aggregate === (b as any).aggregate
       );
-    case 'split':
+    case 'split': {
       const aComps = (a as SplitLimitValue).components || [];
       const bComps = (b as SplitLimitValue).components || [];
       if (aComps.length !== bComps.length) return false;
       return aComps.every((comp, idx) => comp.amount === bComps[idx]?.amount);
+    }
     default:
       return false;
   }

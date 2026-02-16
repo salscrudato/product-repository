@@ -459,7 +459,7 @@ const CardMetrics = styled.div`
   flex-wrap: wrap;
 `;
 
-const MetricBadge = styled.div`
+const MetricBadge = styled.div<{ type?: string }>`
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1327,6 +1327,21 @@ export default function RulesScreen() {
         {/* Command Bar with Search, Filters, and AI Builder */}
         <CommandBar>
           <CommandBarLeft>
+            {!preselectedProductId && (
+              <FilterGroup>
+                <FilterLabel>Product:</FilterLabel>
+                <FilterSelect
+                  value={selectedProductFilter}
+                  onChange={(e) => setSelectedProductFilter(e.target.value)}
+                >
+                  <option value="">All Products</option>
+                  {uniqueProducts.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </FilterSelect>
+              </FilterGroup>
+            )}
+
             <FilterGroup>
               <FilterLabel>Category:</FilterLabel>
               <FilterSelect

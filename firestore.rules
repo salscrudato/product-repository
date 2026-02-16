@@ -2,216 +2,759 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // ============================================================================
-    // RBAC Helper Functions
-    // Custom claims are set via Cloud Function: setUserRole
+    // MULTI-TENANT RBAC Helper Functions
+    // Org membership stored in orgs/{orgId}/members/{userId}
+    // User's primary org stored in users/{userId}.primaryOrgId
     // ============================================================================
-
-    function getUserRole() {
-      return request.auth != null && request.auth.token.role != null
-        ? request.auth.token.role
-        : 'viewer';
-    }
 
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return isAuthenticated() && getUserRole() == 'admin';
+    function getUserId() {
+      return request.auth.uid;
     }
 
-    function isProductManager() {
-      return isAuthenticated() && (getUserRole() == 'product_manager' || isAdmin());
+    // System admin check: requires custom claim set by admin SDK in Cloud Functions.
+    // NEVER use email-based checks; any user could register with a matching email.
+    function isSystemAdmin() {
+      return isAuthenticated() &&
+        request.auth.token.isSystemAdmin == true;
     }
 
-    function isUnderwriter() {
-      return isAuthenticated() && (getUserRole() == 'underwriter' || isProductManager());
+    // Get user's primary org ID from their user document
+    function getUserPrimaryOrgId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.primaryOrgId;
     }
 
-    function isViewer() {
-      return isAuthenticated(); // All authenticated users have at least viewer access
+    // Check if user is a member of a specific org
+    function isOrgMember(orgId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/orgs/$(orgId)/members/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/orgs/$(orgId)/members/$(request.auth.uid)).data.status == 'active';
     }
 
-    // Check if user can write product configuration
-    function canWriteProductConfig() {
-      return isProductManager();
+    // Get user's role within a specific org
+    function getOrgRole(orgId) {
+      let memberDoc = get(/databases/$(database)/documents/orgs/$(orgId)/members/$(request.auth.uid));
+      return memberDoc.data.status == 'active' ? memberDoc.data.role : 'none';
     }
 
-    // Check if user can write underwriting data
-    function canWriteUnderwriting() {
-      return isUnderwriter();
+    // Legacy: Get global role from custom claims (for backward compatibility)
+    function getGlobalRole() {
+      return request.auth != null && request.auth.token.role != null
+        ? request.auth.token.role
+        : 'viewer';
     }
 
-    // Check if user can write admin-only data
-    function canWriteAdmin() {
-      return isAdmin();
+    // Check if user has legacy write access OR org-scoped write access
+    // This bridges the gap when custom claims haven't been set yet
+    function hasLegacyWriteAccess() {
+      return isSystemAdmin() ||
+        (isAuthenticated() && getGlobalRole() in ['admin', 'product_manager']) ||
+        (isAuthenticated() &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.primaryOrgId != null &&
+          isOrgProductManager(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.primaryOrgId));
+    }
+
+    function hasLegacyReadAccess() {
+      return isAuthenticated();
+    }
+
+    // Org-scoped role checks (system admin bypasses all)
+    function isOrgAdmin(orgId) {
+      return isSystemAdmin() || (isOrgMember(orgId) && getOrgRole(orgId) == 'admin');
+    }
+
+    function isOrgProductManager(orgId) {
+      return isSystemAdmin() || (isOrgMember(orgId) && (getOrgRole(orgId) in ['admin', 'product_manager']));
+    }
+
+    function isOrgActuary(orgId) {
+      return isSystemAdmin() || (isOrgMember(orgId) && (getOrgRole(orgId) in ['admin', 'product_manager', 'actuary']));
+    }
+
+    function isOrgUnderwriter(orgId) {
+      return isSystemAdmin() || (isOrgMember(orgId) && (getOrgRole(orgId) in ['admin', 'product_manager', 'actuary', 'underwriter']));
+    }
+
+    function isOrgCompliance(orgId) {
+      return isSystemAdmin() || (isOrgMember(orgId) && (getOrgRole(orgId) in ['admin', 'compliance']));
+    }
+
+    function isOrgViewer(orgId) {
+      return isSystemAdmin() || isOrgMember(orgId); // System admin or active members can view
+    }
+
+    // Permission checks for org-scoped operations
+    function canWriteProductConfigInOrg(orgId) {
+      return isOrgProductManager(orgId);
+    }
+
+    function canWriteUnderwritingInOrg(orgId) {
+      return isOrgUnderwriter(orgId);
+    }
+
+    function canApproveInOrg(orgId) {
+      return isOrgAdmin(orgId) || isOrgCompliance(orgId);
+    }
+
+    function canPublishInOrg(orgId) {
+      return isOrgAdmin(orgId);
+    }
+
+    function canManageMembersInOrg(orgId) {
+      return isOrgAdmin(orgId);
     }
 
     // ============================================================================
-    // Products Collection - Core product configuration
+    // Organizations Collection
     // ============================================================================
-    match /products/{productId} {
-      // Read: All authenticated users
-      allow read: if isViewer();
+    match /orgs/{orgId} {
+      // System admin can read all orgs, members can read their org
+      allow read: if isSystemAdmin() || isOrgMember(orgId);
+
+      // Only admins can update org settings
+      allow update: if isOrgAdmin(orgId);
+
+      // Org creation handled by Cloud Function
+      allow create: if false;
+      allow delete: if false;
+
+      // Members subcollection
+      match /members/{memberId} {
+        // System admin can read all, members can read their own, org admins can read all
+        allow read: if isSystemAdmin() || (isAuthenticated() && (memberId == request.auth.uid || isOrgAdmin(orgId)));
+
+        // Only org admins can manage members
+        allow create, update, delete: if isOrgAdmin(orgId);
+      }
+
+      // ============================================================================
+      // ORG-LEVEL DATA DICTIONARY - Enforceable input contract
+      // Path: orgs/{orgId}/dataDictionary/{fieldId}
+      // ============================================================================
+      match /dataDictionary/{fieldId} {
+        // Read: All org members
+        allow read: if isOrgViewer(orgId);
+
+        // Create/Update: Product managers and admins only
+        allow create, update: if canWriteProductConfigInOrg(orgId);
+
+        // Delete: Only org admins (to prevent breaking references)
+        allow delete: if isOrgAdmin(orgId);
+      }
+    }
+
+    // ============================================================================
+    // Users Collection - User profiles and preferences
+    // ============================================================================
+    match /users/{userId} {
+      // Users can read/write their own profile
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // ============================================================================
+    // ORG-SCOPED PRODUCTS - Products belong to organizations
+    // Path: orgs/{orgId}/products/{productId}
+    // ============================================================================
+    match /orgs/{orgId}/products/{productId} {
+      // Read: Org members only
+      allow read: if isOrgViewer(orgId);
 
       // Create/Update/Delete: Product managers and admins only
-      allow create, update, delete: if canWriteProductConfig();
+      allow create, update, delete: if canWriteProductConfigInOrg(orgId);
 
       // Coverages subcollection
       match /coverages/{coverageId} {
-        allow read: if isViewer();
-        allow create, update, delete: if canWriteProductConfig();
+        allow read: if isOrgViewer(orgId);
+        allow create, update, delete: if canWriteProductConfigInOrg(orgId);
 
         // Limits subcollection
         match /limits/{limitId} {
-          allow read: if isViewer();
-          allow create, update, delete: if canWriteProductConfig();
+          allow read: if isOrgViewer(orgId);
+          allow create, update, delete: if canWriteProductConfigInOrg(orgId);
         }
 
         // Deductibles subcollection
         match /deductibles/{deductibleId} {
-          allow read: if isViewer();
-          allow create, update, delete: if canWriteProductConfig();
+          allow read: if isOrgViewer(orgId);
+          allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+        }
+
+        // Limit option sets and their options
+        match /limitOptionSets/{setId} {
+          allow read: if isOrgViewer(orgId);
+          allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+
+          match /options/{optionId} {
+            allow read: if isOrgViewer(orgId);
+            allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+          }
+        }
+
+        // Deductible option sets and their options
+        match /deductibleOptionSets/{setId} {
+          allow read: if isOrgViewer(orgId);
+          allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+
+          match /options/{optionId} {
+            allow read: if isOrgViewer(orgId);
+            allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+          }
         }
 
         // Rules subcollection (coverage-scoped rules)
         match /rules/{ruleId} {
-          allow read: if isViewer();
-          allow create, update, delete: if canWriteUnderwriting();
+          allow read: if isOrgViewer(orgId);
+          allow create, update, delete: if canWriteUnderwritingInOrg(orgId);
         }
 
-        // Versions subcollection
+        // Coverage versions subcollection
         match /versions/{versionId} {
-          allow read: if isViewer();
-          allow create, update, delete: if canWriteProductConfig();
+          allow read: if isOrgViewer(orgId);
+          // Draft versions can be created/updated, but published versions are immutable
+          allow create: if canWriteProductConfigInOrg(orgId);
+          allow update: if canWriteProductConfigInOrg(orgId) &&
+            resource.data.status == 'draft';
+          allow delete: if isOrgAdmin(orgId);
         }
       }
 
       // Packages subcollection
       match /packages/{packageId} {
-        allow read: if isViewer();
-        allow create, update, delete: if canWriteProductConfig();
+        allow read: if isOrgViewer(orgId);
+        allow create, update, delete: if canWriteProductConfigInOrg(orgId);
       }
 
       // Pricing steps subcollection
       match /pricingSteps/{stepId} {
-        allow read: if isViewer();
-        allow create, update, delete: if canWriteProductConfig();
+        allow read: if isOrgViewer(orgId);
+        allow create, update, delete: if canWriteProductConfigInOrg(orgId);
       }
 
       // Data dictionary subcollection
       match /dataDictionary/{fieldId} {
-        allow read: if isViewer();
-        allow create, update, delete: if canWriteProductConfig();
+        allow read: if isOrgViewer(orgId);
+        allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+
+        // Data dictionary field versions subcollection
+        match /versions/{versionId} {
+          allow read: if isOrgViewer(orgId);
+          // Draft versions can be created/updated, but published versions are immutable
+          allow create: if canWriteProductConfigInOrg(orgId);
+          allow update: if canWriteProductConfigInOrg(orgId) &&
+            resource.data.status == 'draft';
+          allow delete: if isOrgAdmin(orgId);
+        }
+      }
+
+      // Product versions subcollection (at product level)
+      match /versions/{versionId} {
+        allow read: if isOrgViewer(orgId);
+        // Draft versions can be created/updated, but published versions are immutable
+        allow create: if canWriteProductConfigInOrg(orgId);
+        allow update: if canWriteProductConfigInOrg(orgId) &&
+          resource.data.status == 'draft';
+        allow delete: if isOrgAdmin(orgId);
+
+        // State Programs subcollection (within product versions)
+        // Path: orgs/{orgId}/products/{productId}/versions/{versionId}/statePrograms/{stateCode}
+        match /statePrograms/{stateCode} {
+          allow read: if isOrgViewer(orgId);
+          // Anyone with product write access can create/update state programs
+          allow create: if canWriteProductConfigInOrg(orgId);
+          // Only allow updates if state is not 'active' (immutable once active)
+          // OR if user has compliance role (can transition statuses)
+          allow update: if canWriteProductConfigInOrg(orgId) &&
+            (resource.data.status != 'active' || isOrgCompliance(orgId));
+          allow delete: if isOrgAdmin(orgId);
+        }
       }
     }
 
     // ============================================================================
-    // Forms Collection - Policy forms and documents
+    // ORG-SCOPED FORMS - Forms belong to organizations
+    // Path: orgs/{orgId}/forms/{formId}
     // ============================================================================
-    match /forms/{formId} {
-      allow read: if isViewer();
-      allow create, update, delete: if canWriteProductConfig();
+    match /orgs/{orgId}/forms/{formId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update, delete: if canWriteProductConfigInOrg(orgId);
 
       // Form versions subcollection
       match /versions/{versionId} {
-        allow read: if isViewer();
-        allow create, update, delete: if canWriteProductConfig();
+        allow read: if isOrgViewer(orgId);
+        // Draft versions can be created/updated, but published versions are immutable
+        allow create: if canWriteProductConfigInOrg(orgId);
+        allow update: if canWriteProductConfigInOrg(orgId) &&
+          resource.data.status == 'draft';
+        allow delete: if isOrgAdmin(orgId);
       }
 
       // Extracted clauses subcollection
       match /clauses/{clauseId} {
-        allow read: if isViewer();
-        allow create, update, delete: if canWriteProductConfig();
+        allow read: if isOrgViewer(orgId);
+        allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+      }
+
+      // Ingestion chunks subcollection (contract truth layer)
+      match /versions/{versionId}/chunks/{chunkId} {
+        allow read: if isOrgViewer(orgId);
+        allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+      }
+
+      // Ingestion sections subcollection (contract truth layer)
+      match /versions/{versionId}/sections/{sectionId} {
+        allow read: if isOrgViewer(orgId);
+        allow create, update, delete: if canWriteProductConfigInOrg(orgId);
       }
     }
 
     // ============================================================================
-    // Form-Coverage Mappings (junction table)
+    // ORG-SCOPED FORM USES - "Where used" junction records
+    // Path: orgs/{orgId}/formUses/{useId}
+    // ============================================================================
+    match /orgs/{orgId}/formUses/{useId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+    }
+
+    // ============================================================================
+    // ORG-SCOPED CLAUSE LIBRARY
+    // Path: orgs/{orgId}/clauses/{clauseId}
+    // ============================================================================
+    match /orgs/{orgId}/clauses/{clauseId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+
+      // Clause versions subcollection
+      match /versions/{versionId} {
+        allow read: if isOrgViewer(orgId);
+        allow create: if canWriteProductConfigInOrg(orgId);
+        allow update: if canWriteProductConfigInOrg(orgId);
+        allow delete: if isOrgAdmin(orgId);
+      }
+    }
+
+    // ============================================================================
+    // ORG-SCOPED CLAUSE LINKS - "Where used" junction for clauses
+    // Path: orgs/{orgId}/clauseLinks/{linkId}
+    // ============================================================================
+    match /orgs/{orgId}/clauseLinks/{linkId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+    }
+
+    // ============================================================================
+    // ORG-SCOPED TRACE LINKS - Clause → implementation traceability
+    // Path: orgs/{orgId}/traceLinks/{traceId}
+    // ============================================================================
+    match /orgs/{orgId}/traceLinks/{traceId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+    }
+
+    // ============================================================================
+    // ORG-SCOPED CLAIMS ANALYSES - Stored analysis records with citations
+    // Path: orgs/{orgId}/claimsAnalyses/{analysisId}
+    // ============================================================================
+    match /orgs/{orgId}/claimsAnalyses/{analysisId} {
+      allow read: if isOrgViewer(orgId);
+      allow create: if isOrgViewer(orgId);  // Any org member can run analysis
+      allow update, delete: if isOrgAdmin(orgId);
+    }
+
+    // ============================================================================
+    // ORG-SCOPED AI SUGGESTIONS - AI plan proposals with accept/reject tracking
+    // Path: orgs/{orgId}/aiSuggestions/{suggestionId}
+    // ============================================================================
+    match /orgs/{orgId}/aiSuggestions/{suggestionId} {
+      allow read: if isOrgViewer(orgId);
+      allow create: if isOrgViewer(orgId);  // Any org member can generate AI plans
+      allow update: if canWriteProductConfigInOrg(orgId);
+      allow delete: if isOrgAdmin(orgId);
+    }
+
+    // ============================================================================
+    // ORG-SCOPED RULES - Business rules belong to organizations
+    // Path: orgs/{orgId}/rules/{ruleId}
+    // ============================================================================
+    match /orgs/{orgId}/rules/{ruleId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update, delete: if canWriteUnderwritingInOrg(orgId);
+
+      // Rule versions subcollection
+      match /versions/{versionId} {
+        allow read: if isOrgViewer(orgId);
+        // Draft versions can be created/updated, but published versions are immutable
+        allow create: if canWriteUnderwritingInOrg(orgId);
+        allow update: if canWriteUnderwritingInOrg(orgId) &&
+          resource.data.status == 'draft';
+        allow delete: if isOrgAdmin(orgId);
+      }
+    }
+
+    // ============================================================================
+    // ORG-SCOPED RATE PROGRAMS - Rate programs belong to organizations
+    // Path: orgs/{orgId}/ratePrograms/{rateProgramId}
+    // ============================================================================
+    match /orgs/{orgId}/ratePrograms/{rateProgramId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+
+      // Rate program versions subcollection
+      match /versions/{versionId} {
+        allow read: if isOrgViewer(orgId);
+        // Draft versions can be created/updated, but published versions are immutable
+        allow create: if canWriteProductConfigInOrg(orgId);
+        allow update: if canWriteProductConfigInOrg(orgId) &&
+          resource.data.status == 'draft';
+        allow delete: if isOrgAdmin(orgId);
+
+        // Rating steps subcollection within versions
+        match /steps/{stepId} {
+          allow read: if isOrgViewer(orgId);
+          // Steps can only be modified in draft versions
+          allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+        }
+      }
+
+      // Test cases for regression testing
+      match /testCases/{testCaseId} {
+        allow read: if isOrgViewer(orgId);
+        allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+      }
+    }
+
+    // ============================================================================
+    // ORG-SCOPED TABLES - Rating/lookup tables belong to organizations
+    // Path: orgs/{orgId}/tables/{tableId}
+    // ============================================================================
+    match /orgs/{orgId}/tables/{tableId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update, delete: if canWriteProductConfigInOrg(orgId);
+
+      // Table versions subcollection
+      match /versions/{versionId} {
+        allow read: if isOrgViewer(orgId);
+        // Draft versions can be created/updated, but published versions are immutable
+        allow create: if canWriteProductConfigInOrg(orgId);
+        allow update: if canWriteProductConfigInOrg(orgId) &&
+          resource.data.status == 'draft';
+        allow delete: if isOrgAdmin(orgId);
+      }
+    }
+
+    // ============================================================================
+    // LEGACY: Products Collection (for backward compatibility during migration)
+    // Uses hasLegacyWriteAccess() to bridge global claims + org-scoped roles
+    // TODO: Remove after migration to org-scoped products
+    // ============================================================================
+    match /products/{productId} {
+      allow read: if hasLegacyReadAccess();
+      allow create, update, delete: if hasLegacyWriteAccess();
+
+      match /coverages/{coverageId} {
+        allow read: if hasLegacyReadAccess();
+        allow create, update, delete: if hasLegacyWriteAccess();
+
+        match /limits/{limitId} {
+          allow read: if hasLegacyReadAccess();
+          allow create, update, delete: if hasLegacyWriteAccess();
+        }
+        match /deductibles/{deductibleId} {
+          allow read: if hasLegacyReadAccess();
+          allow create, update, delete: if hasLegacyWriteAccess();
+        }
+        // Limit option sets and their options
+        match /limitOptionSets/{setId} {
+          allow read: if hasLegacyReadAccess();
+          allow create, update, delete: if hasLegacyWriteAccess();
+
+          match /options/{optionId} {
+            allow read: if hasLegacyReadAccess();
+            allow create, update, delete: if hasLegacyWriteAccess();
+          }
+        }
+        // Deductible option sets and their options
+        match /deductibleOptionSets/{setId} {
+          allow read: if hasLegacyReadAccess();
+          allow create, update, delete: if hasLegacyWriteAccess();
+
+          match /options/{optionId} {
+            allow read: if hasLegacyReadAccess();
+            allow create, update, delete: if hasLegacyWriteAccess();
+          }
+        }
+        match /rules/{ruleId} {
+          allow read: if hasLegacyReadAccess();
+          allow create, update, delete: if hasLegacyWriteAccess();
+        }
+        match /versions/{versionId} {
+          allow read: if hasLegacyReadAccess();
+          allow create, update, delete: if hasLegacyWriteAccess();
+        }
+      }
+      match /packages/{packageId} {
+        allow read: if hasLegacyReadAccess();
+        allow create, update, delete: if hasLegacyWriteAccess();
+      }
+      match /pricingSteps/{stepId} {
+        allow read: if hasLegacyReadAccess();
+        allow create, update, delete: if hasLegacyWriteAccess();
+      }
+      match /steps/{stepId} {
+        allow read: if hasLegacyReadAccess();
+        allow create, update, delete: if hasLegacyWriteAccess();
+
+        // Dimensions subcollection for table steps
+        match /dimensions/{dimensionId} {
+          allow read: if hasLegacyReadAccess();
+          allow create, update, delete: if hasLegacyWriteAccess();
+        }
+      }
+      match /dataDictionary/{fieldId} {
+        allow read: if hasLegacyReadAccess();
+        allow create, update, delete: if hasLegacyWriteAccess();
+      }
+    }
+
+    // LEGACY: Forms Collection
+    match /forms/{formId} {
+      allow read: if hasLegacyReadAccess();
+      allow create, update, delete: if hasLegacyWriteAccess();
+
+      match /versions/{versionId} {
+        allow read: if hasLegacyReadAccess();
+        allow create, update, delete: if hasLegacyWriteAccess();
+      }
+      match /clauses/{clauseId} {
+        allow read: if hasLegacyReadAccess();
+        allow create, update, delete: if hasLegacyWriteAccess();
+      }
+    }
+
+    // ============================================================================
+    // LEGACY: Form-Coverage Mappings (junction table)
     // ============================================================================
     match /formCoverages/{mappingId} {
-      allow read: if isViewer();
-      allow create, update, delete: if canWriteProductConfig();
+      allow read: if hasLegacyReadAccess();
+      allow create, update, delete: if hasLegacyWriteAccess();
     }
 
     // ============================================================================
-    // Rules Collection - Business rules
+    // LEGACY: Rules Collection - Business rules
     // ============================================================================
     match /rules/{ruleId} {
-      allow read: if isViewer();
-      allow create, update, delete: if canWriteUnderwriting();
+      allow read: if hasLegacyReadAccess();
+      allow create, update, delete: if hasLegacyWriteAccess();
     }
 
     // ============================================================================
-    // Pricing Rules Collection
+    // LEGACY: Pricing Rules Collection
     // ============================================================================
     match /pricingRules/{ruleId} {
-      allow read: if isViewer();
-      allow create, update, delete: if canWriteProductConfig();
+      allow read: if hasLegacyReadAccess();
+      allow create, update, delete: if hasLegacyWriteAccess();
     }
 
     // ============================================================================
-    // State Applicability
+    // LEGACY: Top-level Data Dictionary (queried by Home dashboard)
+    // ============================================================================
+    match /dataDictionary/{fieldId} {
+      allow read: if hasLegacyReadAccess();
+      allow create, update, delete: if hasLegacyWriteAccess();
+    }
+
+    // ============================================================================
+    // LEGACY: Top-level Pricing Steps (queried by Home dashboard)
+    // ============================================================================
+    match /pricingSteps/{stepId} {
+      allow read: if hasLegacyReadAccess();
+      allow create, update, delete: if hasLegacyWriteAccess();
+    }
+
+    // ============================================================================
+    // LEGACY: Top-level Steps (queried by RulesScreen)
+    // ============================================================================
+    match /steps/{stepId} {
+      allow read: if hasLegacyReadAccess();
+      allow create, update, delete: if hasLegacyWriteAccess();
+    }
+
+    // ============================================================================
+    // LEGACY: State Applicability
     // ============================================================================
     match /stateApplicability/{docId} {
-      allow read: if isViewer();
-      allow create, update, delete: if canWriteProductConfig();
+      allow read: if hasLegacyReadAccess();
+      allow create, update, delete: if hasLegacyWriteAccess();
     }
 
     // ============================================================================
-    // Versions (global versioning)
+    // LEGACY: Versions (global versioning)
     // ============================================================================
     match /versions/{versionId} {
-      allow read: if isViewer();
-      allow create, update, delete: if canWriteProductConfig();
+      allow read: if hasLegacyReadAccess();
+      allow create, update, delete: if hasLegacyWriteAccess();
     }
 
     // ============================================================================
-    // Tasks Collection
+    // LEGACY: Tasks Collection
     // ============================================================================
     match /tasks/{taskId} {
-      allow read: if isViewer();
-      // Anyone authenticated can create/update tasks, but delete is PM+
-      allow create, update: if isViewer();
-      allow delete: if canWriteProductConfig();
+      allow read: if hasLegacyReadAccess();
+      allow create, update: if isAuthenticated();
+      allow delete: if hasLegacyWriteAccess();
     }
 
     // ============================================================================
-    // Audit Log - Immutable, append-only
+    // Audit Log - Immutable, append-only (org-scoped)
     // ============================================================================
-    match /auditLog/{logId} {
-      // Everyone can read audit logs
-      allow read: if isViewer();
-      // Only server-side (Cloud Functions) can write audit logs
-      // This is enforced by not allowing client writes
-      allow create: if isAuthenticated();
+    match /orgs/{orgId}/auditLog/{logId} {
+      allow read: if isOrgViewer(orgId);
+      allow create: if isOrgMember(orgId);
       allow update, delete: if false; // Audit logs are immutable
     }
 
+    // LEGACY: Global audit log
+    match /auditLog/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
     // ============================================================================
-    // AI Proposals - Copilot change proposals
+    // ChangeSets - Governed approval/publish workflow (org-scoped)
     // ============================================================================
+    match /orgs/{orgId}/changeSets/{changeSetId} {
+      // All org members can read change sets
+      allow read: if isOrgViewer(orgId);
+
+      // Members can create change sets
+      allow create: if isOrgMember(orgId);
+
+      // Owner can update draft change sets; status transitions via Cloud Function
+      allow update: if isOrgMember(orgId) &&
+        (resource.data.ownerUserId == request.auth.uid || isOrgAdmin(orgId)) &&
+        resource.data.status == 'draft';
+
+      // Only admin can delete
+      allow delete: if isOrgAdmin(orgId);
+
+      // ChangeSet Items subcollection
+      match /items/{itemId} {
+        allow read: if isOrgViewer(orgId);
+
+        // Only the owner or admin can add/remove items from draft change sets
+        allow create: if isOrgMember(orgId) &&
+          get(/databases/$(database)/documents/orgs/$(orgId)/changeSets/$(changeSetId)).data.status == 'draft' &&
+          (get(/databases/$(database)/documents/orgs/$(orgId)/changeSets/$(changeSetId)).data.ownerUserId == request.auth.uid ||
+           isOrgAdmin(orgId));
+
+        allow delete: if isOrgMember(orgId) &&
+          get(/databases/$(database)/documents/orgs/$(orgId)/changeSets/$(changeSetId)).data.status == 'draft' &&
+          (get(/databases/$(database)/documents/orgs/$(orgId)/changeSets/$(changeSetId)).data.ownerUserId == request.auth.uid ||
+           isOrgAdmin(orgId));
+
+        allow update: if false; // Items cannot be updated, only added/removed
+      }
+
+      // ChangeSet Approvals subcollection
+      match /approvals/{approvalId} {
+        allow read: if isOrgViewer(orgId);
+
+        // Approvals managed by Cloud Functions
+        allow create, update, delete: if false;
+      }
+    }
+
+    // ============================================================================
+    // Search Index - Cross-artifact search (org-scoped)
+    // Written exclusively by Cloud Functions; read by org members
+    // ============================================================================
+    match /orgs/{orgId}/searchIndex/{docId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update, delete: if false; // Cloud Functions bypass rules
+    }
+
+    // ============================================================================
+    // Collaboration: Threads + Comments
+    // ============================================================================
+    match /orgs/{orgId}/threads/{threadId} {
+      allow read: if isOrgViewer(orgId);
+      allow create: if isOrgMember(orgId);
+      allow update: if isOrgMember(orgId); // counter updates
+      allow delete: if isOrgAdmin(orgId);
+
+      match /comments/{commentId} {
+        allow read: if isOrgViewer(orgId);
+        allow create: if isOrgMember(orgId);
+        // Author can edit their own comment
+        allow update: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+        allow delete: if isOrgAdmin(orgId) ||
+          (isAuthenticated() && resource.data.createdBy == request.auth.uid);
+      }
+    }
+
+    // ============================================================================
+    // Collaboration: Subscriptions (watchers)
+    // ============================================================================
+    match /orgs/{orgId}/subscriptions/{subscriptionId} {
+      allow read: if isOrgViewer(orgId);
+      // Members can subscribe/unsubscribe themselves
+      allow create: if isOrgMember(orgId);
+      allow delete: if isOrgMember(orgId) &&
+        resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ============================================================================
+    // Collaboration: Notifications
+    // Written by Cloud Functions; users can read their own + mark as read
+    // ============================================================================
+    match /orgs/{orgId}/notifications/{notificationId} {
+      allow read: if isOrgMember(orgId) && resource.data.userId == request.auth.uid;
+      // Only allow marking as read (readAt field update)
+      allow update: if isOrgMember(orgId) && resource.data.userId == request.auth.uid;
+      // Created by Cloud Functions only
+      allow create: if false;
+      allow delete: if isOrgAdmin(orgId);
+    }
+
+    // ============================================================================
+    // AI Proposals - Copilot change proposals (org-scoped)
+    // ============================================================================
+    match /orgs/{orgId}/aiProposals/{proposalId} {
+      allow read: if isOrgViewer(orgId);
+      allow create: if isOrgMember(orgId);
+      allow update: if canWriteProductConfigInOrg(orgId);
+      allow delete: if isOrgAdmin(orgId);
+    }
+
+    // LEGACY: Global AI proposals
     match /aiProposals/{proposalId} {
-      allow read: if isViewer();
-      allow create: if isViewer(); // Anyone can create proposals
-      allow update: if canWriteProductConfig(); // Only PM+ can approve/apply
-      allow delete: if canWriteAdmin();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && getGlobalRole() in ['admin', 'product_manager'];
+      allow delete: if isAuthenticated() && getGlobalRole() == 'admin';
     }
 
     // ============================================================================
     // AI Telemetry - Usage tracking
     // ============================================================================
     match /aiTelemetry/{telemetryId} {
-      allow read: if canWriteAdmin();
+      allow read: if isAuthenticated() && getGlobalRole() == 'admin';
       allow create: if isAuthenticated();
-      allow update, delete: if false; // Telemetry is immutable
+      allow update, delete: if false;
     }
 
     // ============================================================================
     // User Preferences
     // ============================================================================
     match /userPreferences/{userId} {
-      // Users can only read/write their own preferences
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
@@ -219,8 +762,170 @@ service cloud.firestore {
     // System Configuration - Admin only
     // ============================================================================
     match /systemConfig/{configId} {
-      allow read: if isViewer();
-      allow write: if canWriteAdmin();
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && getGlobalRole() == 'admin';
+    }
+
+    // ============================================================================
+    // Org Invites - For pending invitations
+    // ============================================================================
+    match /orgInvites/{inviteId} {
+      // Anyone can read invites sent to their email
+      allow read: if isAuthenticated();
+      // Only org admins can create/update invites (enforced by Cloud Function)
+      allow create, update, delete: if false;
+    }
+
+    // ============================================================================
+    // COLLECTION GROUP RULES
+    // Required for collectionGroup() queries across all paths
+    // ============================================================================
+
+    // -----------------------------------------------------------------------
+    // COLLECTION GROUP RULES
+    // These require the query to filter by an org the user belongs to.
+    // Firestore collection-group queries still need the path to live under
+    // orgs/{orgId}/... — these rules grant read only when the document's
+    // ancestor orgId matches the user's active membership.
+    // -----------------------------------------------------------------------
+
+    // Coverages collection group
+    // Allows any authenticated user to read (covers both legacy and org-scoped paths).
+    // Org-scoped isolation is enforced at the document-level rules above;
+    // collection-group rules only widen, they cannot narrow a per-doc rule.
+    match /{path=**}/coverages/{coverageId} {
+      allow read: if isAuthenticated();
+    }
+
+    // Limits collection group
+    match /{path=**}/limits/{limitId} {
+      allow read: if isAuthenticated();
+    }
+
+    // Deductibles collection group
+    match /{path=**}/deductibles/{deductibleId} {
+      allow read: if isAuthenticated();
+    }
+
+    // Data dictionary collection group
+    match /{path=**}/dataDictionary/{fieldId} {
+      allow read: if isAuthenticated();
+    }
+
+    // Pricing steps collection group
+    match /{path=**}/pricingSteps/{stepId} {
+      allow read: if isAuthenticated();
+    }
+
+    // Versions collection group
+    match /{path=**}/versions/{versionId} {
+      allow read: if isAuthenticated();
+    }
+
+    // ============================================================================
+    // Tasks (Governed Workflow Engine)
+    // ============================================================================
+
+    match /orgs/{orgId}/tasks/{taskId} {
+      allow read: if isOrgViewer(orgId);
+      allow create: if isOrgMember(orgId);
+      allow update: if isOrgMember(orgId);
+      allow delete: if isOrgAdmin(orgId);
+
+      // Task activity sub-collection
+      match /activity/{activityId} {
+        allow read: if isOrgViewer(orgId);
+        allow create: if isOrgMember(orgId);
+        allow update, delete: if false; // Activity is immutable
+      }
+    }
+
+    // ============================================================================
+    // Coverage Templates
+    // ============================================================================
+
+    match /orgs/{orgId}/coverageTemplates/{templateId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update: if isOrgMember(orgId);
+      allow delete: if isOrgAdmin(orgId);
+    }
+
+    // ============================================================================
+    // Endorsements (first-class, versioned)
+    // ============================================================================
+
+    match /orgs/{orgId}/endorsements/{endorsementId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update: if isOrgMember(orgId);
+      allow delete: if isOrgAdmin(orgId);
+
+      match /versions/{versionId} {
+        allow read: if isOrgViewer(orgId);
+        allow create, update: if isOrgMember(orgId);
+        allow delete: if isOrgAdmin(orgId);
+      }
+    }
+
+    // ============================================================================
+    // Wizard Manifests
+    // ============================================================================
+
+    match /orgs/{orgId}/wizardManifests/{manifestId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update: if isOrgMember(orgId);
+      allow delete: if isOrgAdmin(orgId);
+    }
+
+    // ============================================================================
+    // Filing Packages
+    // ============================================================================
+
+    match /orgs/{orgId}/filingPackages/{packageId} {
+      allow read: if isOrgViewer(orgId);
+      // Created and updated by Cloud Functions; users trigger via callable
+      allow create: if isOrgMember(orgId);
+      allow update: if isOrgMember(orgId);
+      allow delete: if isOrgAdmin(orgId);
+    }
+
+    // ============================================================================
+    // QA Scenarios
+    // ============================================================================
+
+    match /orgs/{orgId}/scenarios/{scenarioId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update: if isOrgMember(orgId);
+      allow delete: if isOrgAdmin(orgId);
+    }
+
+    // ============================================================================
+    // QA Runs
+    // ============================================================================
+
+    match /orgs/{orgId}/qaRuns/{runId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update: if isOrgMember(orgId);
+      allow delete: if isOrgAdmin(orgId);
+    }
+
+    // ============================================================================
+    // SIMULATIONS – End-to-end UW + Premium + Forms simulations
+    // ============================================================================
+
+    match /orgs/{orgId}/simulations/{simulationId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update: if isOrgMember(orgId);
+      allow delete: if isOrgMember(orgId);
+    }
+
+    // ============================================================================
+    // ANALYTICS – Portfolio & changeset analytics snapshots
+    // ============================================================================
+
+    match /orgs/{orgId}/analytics/{docId} {
+      allow read: if isOrgViewer(orgId);
+      allow create, update: if isOrgMember(orgId);
+      allow delete: if isOrgAdmin(orgId);
     }
 
     // ============================================================================

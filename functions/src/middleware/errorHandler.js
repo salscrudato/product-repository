@@ -1,24 +1,29 @@
 /**
  * Error Handling Middleware
- * Centralized error handling and logging
+ * Centralized error handling and logging with correlation ID support
  */
 
 const { https } = require('firebase-functions');
-const { logger } = require('../utils/logger');
+const { logger, extractCorrelationId } = require('../utils/logger');
 
 /**
  * Handle and format errors
  * @param {Error} error - Error object
  * @param {string} context - Context where error occurred
+ * @param {string} [correlationId] - Optional correlation ID for tracing
  * @returns {https.HttpsError} Formatted error
  */
-const handleError = (error, context = 'unknown') => {
-  // Log the error
-  logger.error(`Error in ${context}:`, {
+const handleError = (error, context = 'unknown', correlationId) => {
+  const meta = {
     message: error.message,
     stack: error.stack,
-    code: error.code
-  });
+    code: error.code,
+  };
+  if (correlationId) meta.correlationId = correlationId;
+
+  // Log with a scoped logger when correlation ID is available
+  const log = correlationId ? logger.withCorrelation(correlationId) : logger;
+  log.error(`Error in ${context}:`, meta);
 
   // If it's already an HttpsError, return it
   if (error instanceof https.HttpsError) {
@@ -69,17 +74,37 @@ const handleError = (error, context = 'unknown') => {
 };
 
 /**
- * Wrap async function with error handling
+ * Wrap async function with error handling and automatic correlation ID extraction.
+ *
+ * The wrapper:
+ *   1. Extracts / generates a correlationId from the callable data
+ *   2. Creates a scoped logger and injects it as `data.__scopedLogger`
+ *   3. Catches errors and logs them with the same correlationId
+ *   4. Returns `{ ..result, correlationId }` so the client can log it too
+ *
  * @param {Function} fn - Async function to wrap
  * @param {string} context - Context name for logging
  * @returns {Function} Wrapped function
  */
 const withErrorHandling = (fn, context) => {
   return async (data, contextObj) => {
+    const correlationId = extractCorrelationId(data);
+    const scopedLog = logger.withCorrelation(correlationId);
+
+    scopedLog.info(`${context} started`, { caller: contextObj?.auth?.uid || 'anonymous' });
+
     try {
-      return await fn(data, contextObj);
+      const result = await fn({ ...data, __scopedLogger: scopedLog, __correlationId: correlationId }, contextObj);
+
+      scopedLog.info(`${context} completed`);
+
+      // If the result is a plain object, attach the correlationId for the client
+      if (result && typeof result === 'object' && !Array.isArray(result)) {
+        return { ...result, correlationId };
+      }
+      return result;
     } catch (error) {
-      throw handleError(error, context);
+      throw handleError(error, context, correlationId);
     }
   };
 };

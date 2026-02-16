@@ -1,4 +1,8 @@
 import styled, { css, keyframes } from 'styled-components';
+import {
+  color, neutral, accent, space, radius, shadow, border as borderToken,
+  fontFamily, type as typeScale, transition, focusRingStyle, reducedMotion,
+} from '../../ui/tokens';
 
 /* ---------- Subtle entrance animation ---------- */
 const fadeInUp = keyframes`
@@ -26,41 +30,41 @@ interface CardProps {
   $animate?: boolean;
 }
 
-/* ---------- Size Styles - Refined ---------- */
+/* ---------- Size Styles — token-based ---------- */
 const sizeStyles = {
   sm: css`
-    padding: 16px;
-    border-radius: 10px;
+    padding: ${space[4]};
+    border-radius: ${radius.md};
   `,
   md: css`
-    padding: 24px;
-    border-radius: 14px;
+    padding: ${space[6]};
+    border-radius: ${radius.lg};
   `,
   lg: css`
-    padding: 32px;
-    border-radius: 18px;
+    padding: ${space[8]};
+    border-radius: ${radius.xl};
   `,
 };
 
-/* ---------- Variant Styles - Enhanced ---------- */
+/* ---------- Variant Styles — token-based ---------- */
 const variantStyles = {
   default: css`
-    background: ${({ theme }) => theme.colours.background};
-    border: 1px solid ${({ theme }) => theme.colours.border};
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.03);
+    background: ${color.bg};
+    border: ${borderToken.default};
+    box-shadow: ${shadow.card};
   `,
   elevated: css`
-    background: ${({ theme }) => theme.colours.background};
-    border: 1px solid rgba(226, 232, 240, 0.5);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.03);
+    background: ${color.bg};
+    border: 1px solid ${neutral[150]};
+    box-shadow: ${shadow.md};
   `,
   outlined: css`
     background: transparent;
-    border: 1.5px solid ${({ theme }) => theme.colours.border};
+    border: 1.5px solid ${neutral[200]};
     box-shadow: none;
   `,
   flat: css`
-    background: ${({ theme }) => theme.colours.backgroundAlt};
+    background: ${color.bgSubtle};
     border: 1px solid transparent;
     box-shadow: none;
   `,
@@ -69,25 +73,31 @@ const variantStyles = {
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
+    box-shadow: ${shadow.md};
   `,
 };
 
-/* ---------- Main Card Component - Enhanced ---------- */
+/* ---------- Main Card Component ---------- */
 export const Card = styled.div.withConfig({
   shouldForwardProp: (prop) => !['$variant', '$size', '$interactive', '$selected', '$disabled', '$fullHeight', '$animate'].includes(prop as string),
 })<CardProps>`
   position: relative;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
-              box-shadow 0.2s ease,
-              border-color 0.2s ease,
-              background 0.2s ease;
+  font-family: ${fontFamily.sans};
+  transition: transform ${transition.spring},
+              box-shadow ${transition.normal},
+              border-color ${transition.fast},
+              background ${transition.fast};
+
+  @media ${reducedMotion} {
+    transition: none;
+  }
 
   ${({ $size = 'md' }) => sizeStyles[$size]}
   ${({ $variant = 'default' }) => variantStyles[$variant]}
 
   ${({ $animate }) => $animate && css`
     animation: ${fadeInUp} 0.35s ease forwards;
+    @media ${reducedMotion} { animation: none; }
   `}
 
   ${({ $fullHeight }) => $fullHeight && css`
@@ -100,45 +110,36 @@ export const Card = styled.div.withConfig({
     cursor: pointer;
 
     &:hover {
-      transform: translateY(-3px);
-      ${$variant === 'elevated' && css`
-        box-shadow: 0 8px 24px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
-        border-color: rgba(99, 102, 241, 0.15);
-      `}
-      ${$variant === 'default' && css`
-        box-shadow: 0 6px 20px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
-        border-color: rgba(99, 102, 241, 0.25);
-      `}
+      transform: translateY(-2px);
+      box-shadow: ${shadow.cardHover};
       ${$variant === 'outlined' && css`
-        border-color: ${({ theme }) => theme.colours.primary};
-        background: rgba(99, 102, 241, 0.03);
+        border-color: ${accent[400]};
+        background: ${color.accentLight};
       `}
       ${$variant === 'flat' && css`
-        background: ${({ theme }) => theme.colours.hover};
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        background: ${color.bgMuted};
+        box-shadow: ${shadow.card};
       `}
       ${$variant === 'glass' && css`
-        box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
-        border-color: rgba(99, 102, 241, 0.2);
+        box-shadow: ${shadow.cardHover};
+        border-color: ${accent[200]};
       `}
     }
 
     &:active {
-      transform: translateY(-1px) scale(0.995);
+      transform: translateY(0) scale(0.995);
       transition: transform 0.1s ease;
     }
 
     &:focus-visible {
-      outline: none;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
-      border-color: ${({ theme }) => theme.colours.primary};
+      ${focusRingStyle}
     }
   `}
 
-  ${({ $selected, theme }) => $selected && css`
-    border-color: ${theme.colours.primary};
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2), 0 4px 12px rgba(99, 102, 241, 0.1);
-    background: rgba(99, 102, 241, 0.03);
+  ${({ $selected }) => $selected && css`
+    border-color: ${accent[500]};
+    box-shadow: 0 0 0 2px ${color.focusRing}, ${shadow.card};
+    background: ${color.accentLight};
   `}
 
   ${({ $disabled }) => $disabled && css`
@@ -149,15 +150,15 @@ export const Card = styled.div.withConfig({
   `}
 `;
 
-/* ---------- Card Header - Enhanced ---------- */
+/* ---------- Card Header ---------- */
 export const CardHeader = styled.div<{ $noBorder?: boolean }>`
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-  padding-bottom: ${({ $noBorder }) => $noBorder ? '0' : '16px'};
-  border-bottom: ${({ $noBorder, theme }) => $noBorder ? 'none' : `1px solid ${theme.colours.border}`};
+  gap: ${space[4]};
+  margin-bottom: ${space[5]};
+  padding-bottom: ${({ $noBorder }) => $noBorder ? '0' : space[4]};
+  border-bottom: ${({ $noBorder }) => $noBorder ? 'none' : borderToken.light};
 `;
 
 export const CardHeaderContent = styled.div`
@@ -167,29 +168,39 @@ export const CardHeaderContent = styled.div`
 
 export const CardTitle = styled.h3`
   margin: 0;
-  font-size: 17px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.colours.text};
-  line-height: 1.35;
-  letter-spacing: -0.01em;
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.headingSm.size};
+  font-weight: ${typeScale.headingSm.weight};
+  line-height: ${typeScale.headingSm.lineHeight};
+  letter-spacing: ${typeScale.headingSm.letterSpacing};
+  color: ${color.text};
 `;
 
 export const CardDescription = styled.p`
-  margin: 6px 0 0 0;
-  font-size: 14px;
-  color: ${({ theme }) => theme.colours.textSecondary};
-  line-height: 1.55;
+  margin: ${space[1.5]} 0 0 0;
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.bodySm.size};
+  font-weight: ${typeScale.bodySm.weight};
+  line-height: ${typeScale.bodySm.lineHeight};
+  letter-spacing: ${typeScale.bodySm.letterSpacing};
+  color: ${color.textSecondary};
 `;
 
 export const CardActions = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${space[2]};
   flex-shrink: 0;
 `;
 
 /* ---------- Card Body ---------- */
 export const CardBody = styled.div<{ $grow?: boolean }>`
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.bodyMd.size};
+  line-height: ${typeScale.bodyMd.lineHeight};
+  letter-spacing: ${typeScale.bodyMd.letterSpacing};
+  color: ${color.text};
+
   ${({ $grow }) => $grow && css`
     flex: 1;
   `}
@@ -200,20 +211,20 @@ export const CardFooter = styled.div<{ $noBorder?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 16px;
-  padding-top: ${({ $noBorder }) => $noBorder ? '0' : '16px'};
-  border-top: ${({ $noBorder, theme }) => $noBorder ? 'none' : `1px solid ${theme.colours.border}`};
+  gap: ${space[3]};
+  margin-top: ${space[4]};
+  padding-top: ${({ $noBorder }) => $noBorder ? '0' : space[4]};
+  border-top: ${({ $noBorder }) => $noBorder ? 'none' : borderToken.light};
 `;
 
 /* ---------- Card Media (for images) ---------- */
 export const CardMedia = styled.div<{ $height?: string; $rounded?: boolean }>`
-  width: calc(100% + 48px);
-  margin: -24px -24px 16px -24px;
+  width: calc(100% + ${space[12]});
+  margin: -${space[6]} -${space[6]} ${space[4]} -${space[6]};
   height: ${({ $height }) => $height || '200px'};
   overflow: hidden;
   ${({ $rounded }) => $rounded && css`
-    border-radius: ${({ theme }) => theme.radius} ${({ theme }) => theme.radius} 0 0;
+    border-radius: ${radius.lg} ${radius.lg} 0 0;
   `}
 
   img {
@@ -226,24 +237,26 @@ export const CardMedia = styled.div<{ $height?: string; $rounded?: boolean }>`
 /* ---------- Card Badge ---------- */
 export const CardBadge = styled.span<{ $variant?: 'primary' | 'success' | 'warning' | 'error' | 'info' }>`
   position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 20px;
+  top: ${space[3]};
+  right: ${space[3]};
+  padding: ${space[1]} ${space[2.5]};
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.captionSm.size};
+  font-weight: ${typeScale.captionSm.weight};
+  line-height: ${typeScale.captionSm.lineHeight};
+  border-radius: ${radius.full};
 
-  ${({ $variant = 'primary', theme }) => {
+  ${({ $variant = 'primary' }) => {
     const colors = {
-      primary: { bg: theme.colours.primaryLight, color: theme.colours.primary },
-      success: { bg: theme.colours.successLight, color: theme.colours.successDark || theme.colours.success },
-      warning: { bg: theme.colours.warningLight, color: theme.colours.warningDark || theme.colours.warning },
-      error: { bg: theme.colours.errorLight, color: theme.colours.errorDark || theme.colours.error },
-      info: { bg: theme.colours.infoLight, color: theme.colours.infoDark || theme.colours.info },
+      primary: { bg: accent[50], fg: accent[600] },
+      success: { bg: color.successLight, fg: color.successDark },
+      warning: { bg: color.warningLight, fg: color.warningDark },
+      error:   { bg: color.errorLight,   fg: color.errorDark },
+      info:    { bg: color.infoLight,    fg: color.infoDark },
     };
     return css`
       background: ${colors[$variant].bg};
-      color: ${colors[$variant].color};
+      color: ${colors[$variant].fg};
     `;
   }}
 `;
@@ -251,30 +264,31 @@ export const CardBadge = styled.span<{ $variant?: 'primary' | 'success' | 'warni
 /* ---------- Input component (kept for backwards compatibility) ---------- */
 export const Input = styled.input`
   width: 100%;
-  padding: 12px 16px;
-  border: 1.5px solid ${({ theme }) => theme.colours.border};
-  border-radius: ${({ theme }) => theme.radius};
-  background: ${({ theme }) => theme.colours.background};
-  color: ${({ theme }) => theme.colours.text};
-  font-size: 14px;
-  transition: all 0.2s ease;
+  padding: ${space[3]} ${space[4]};
+  border: 1.5px solid ${neutral[200]};
+  border-radius: ${radius.md};
+  background: ${color.bg};
+  color: ${color.text};
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.bodySm.size};
+  transition: ${transition.colors}, box-shadow ${transition.fast};
 
   &:hover:not(:disabled):not(:focus) {
-    border-color: ${({ theme }) => theme.colours.textSecondary};
+    border-color: ${neutral[400]};
   }
 
   &:focus {
     outline: none;
-    border-color: ${({ theme }) => theme.colours.primary};
-    box-shadow: 0 0 0 3px ${({ theme }) => theme.colours.focusRing || 'rgba(99, 102, 241, 0.15)'};
+    border-color: ${accent[500]};
+    box-shadow: ${shadow.focus};
   }
 
   &::placeholder {
-    color: ${({ theme }) => theme.colours.textMuted || '#9ca3af'};
+    color: ${color.textMuted};
   }
 
   &:disabled {
-    background: ${({ theme }) => theme.colours.backgroundAlt};
+    background: ${color.bgSubtle};
     cursor: not-allowed;
     opacity: 0.7;
   }
@@ -282,26 +296,29 @@ export const Input = styled.input`
 
 /* ---------- Text components ---------- */
 export const Title = styled.h1`
-  color: ${({ theme }) => theme.colours.text};
-  font-size: 2rem;
-  font-weight: 700;
-  margin: 0 0 16px 0;
-  letter-spacing: -0.025em;
-  line-height: 1.2;
+  color: ${color.text};
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.displaySm.size};
+  font-weight: ${typeScale.displaySm.weight};
+  line-height: ${typeScale.displaySm.lineHeight};
+  letter-spacing: ${typeScale.displaySm.letterSpacing};
+  margin: 0 0 ${space[4]} 0;
 `;
 
 export const Subtitle = styled.p`
-  color: ${({ theme }) => theme.colours.textSecondary || theme.colours.secondaryText};
-  font-size: 1rem;
-  margin: 0 0 24px 0;
-  line-height: 1.6;
+  color: ${color.textSecondary};
+  font-family: ${fontFamily.sans};
+  font-size: ${typeScale.bodyLg.size};
+  line-height: ${typeScale.bodyLg.lineHeight};
+  letter-spacing: ${typeScale.bodyLg.letterSpacing};
+  margin: 0 0 ${space[6]} 0;
 `;
 
 /* ---------- Card Group for grid layouts ---------- */
 export const CardGroup = styled.div<{ $columns?: number; $gap?: string }>`
   display: grid;
   grid-template-columns: repeat(${({ $columns = 3 }) => $columns}, 1fr);
-  gap: ${({ $gap = '24px' }) => $gap};
+  gap: ${({ $gap }) => $gap || space[6]};
 
   @media (max-width: 1024px) {
     grid-template-columns: repeat(2, 1fr);

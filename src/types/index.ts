@@ -17,10 +17,71 @@ export * from './limitOptions';
 export * from './deductibleOptions';
 
 // Re-export coverage configuration types
-export * from './coverageConfig';
+// (ConditionOperator and ConditionGroup are excluded to avoid conflict with ./rulesDsl)
+export {
+  type ReadinessStatus,
+  type ConfigAreaStatus,
+  type CoverageReadiness,
+  type FormRole,
+  type CoverageFormLink,
+  type ExposureBasis,
+  type CoveragePricingConfig,
+  type RuleSeverity,
+  type RuleAction,
+  // ConditionOperator — excluded, use the one from rulesDsl
+  type RuleCondition,
+  // ConditionGroup — excluded, use the one from rulesDsl
+  type CoverageRule,
+  type CoverageRuleTemplate,
+  type CopilotConfigMode,
+  type CopilotMessage,
+  type ProposedConfigChange,
+  type CopilotQuestion,
+  type CopilotSession,
+  US_STATE_REGIONS,
+  ALL_US_STATES,
+  STATE_NAMES,
+  type CoverageStateAvailability,
+  type StateOverride,
+  type CoverageRatingFactor,
+} from './coverageConfig';
+export type {
+  ConditionOperator as CoverageConditionOperator,
+  ConditionGroup as CoverageConditionGroup,
+} from './coverageConfig';
 
 // Re-export programmable rules DSL types
 export * from './rulesDsl';
+
+// Re-export versioning types
+export * from './versioning';
+
+// Re-export changeSet types
+export * from './changeSet';
+
+// Re-export rating engine types
+export * from './ratingEngine';
+
+// Re-export stateProgram types
+export * from './stateProgram';
+
+// Re-export dataDictionary types
+// (DataDictionaryField is excluded to avoid conflict with ./pricing)
+export {
+  type DataDictionaryFieldType,
+  type DataDictionaryFieldStatus,
+  type DataDictionaryCategory,
+  type FieldValidation,
+  type DataDictionaryField,
+  type FieldReferenceValidation,
+  type FieldReferenceError,
+  type FieldReferenceWarning,
+  type FieldUsage,
+  type FieldUsageLocation,
+} from './dataDictionary';
+
+// Re-export table types
+export * from './table';
 
 // ============================================================================
 // Product Types
@@ -34,6 +95,8 @@ export interface Product {
   description?: string;
   /** Product category (e.g., 'Commercial Property', 'BOP', 'Auto') */
   category?: string;
+  /** Line of business (e.g., 'Commercial Property', 'General Liability') */
+  lineOfBusiness?: string;
   status?: 'active' | 'inactive' | 'draft';
   /** Whether this product is archived (soft delete) */
   archived?: boolean;
@@ -57,6 +120,12 @@ export interface Product {
   ruleCount?: number;
   /** Count of packages for this product */
   packageCount?: number;
+
+  // Form Reference
+  /** Form number for this product (e.g., 'CP-001-2024') */
+  formNumber?: string;
+  /** URL to download the product form document */
+  formDownloadUrl?: string;
 
   // Relational mappings (normalized for scalability)
   coverageIds?: string[];           // Array of coverage IDs linked to this product
@@ -1131,4 +1200,21 @@ export type AsyncResult<T, E = Error> = Promise<{ data: T; error: null } | { dat
 // ============================================================================
 
 // Pricing Types
-export * from './pricing';
+// (DataDictionaryField is excluded to avoid conflict with ./dataDictionary)
+export {
+  type StepValueType,
+  type StepScope,
+  type StepRoundingMode,
+  type StepTemplate,
+  type StepGroup,
+  type EnhancedRatingStep,
+  type ScenarioInputs,
+  type CalculationTraceStep,
+  type CalculationResult,
+  type ValidationSeverity,
+  type ValidationIssue,
+  // DataDictionaryField — excluded, use the one from ./dataDictionary
+  type RatingInput,
+  type RatingResult,
+} from './pricing';
+export type { DataDictionaryField as PricingDataDictionaryField } from './pricing';

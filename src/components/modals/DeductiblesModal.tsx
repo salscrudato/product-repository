@@ -157,7 +157,7 @@ export const DeductiblesModal: React.FC<DeductiblesModalProps> = ({
         ...editingDeductible,
         coverageId,
         productId,
-      });
+      } as Omit<CoverageDeductible, 'id' | 'createdAt' | 'updatedAt'>);
       setEditingDeductible(null);
       setIsAdding(false);
       if (onSave) onSave();
@@ -218,12 +218,12 @@ export const DeductiblesModal: React.FC<DeductiblesModalProps> = ({
                 {[1, 2, 3, 4].map(i => (
                   <StatCard key={i}>
                     <Skeleton width="60px" height="12px" />
-                    <Skeleton width="80px" height="28px" style={{ marginTop: 8 }} />
+                    <div style={{ marginTop: 8 }}><Skeleton width="80px" height="28px" /></div>
                   </StatCard>
                 ))}
               </StatsDashboard>
               {[1, 2, 3].map(i => (
-                <Skeleton key={i} width="100%" height="80px" borderRadius="12px" style={{ marginBottom: 12 }} />
+                <div key={i} style={{ marginBottom: 12 }}><Skeleton width="100%" height="80px" borderRadius="12px" /></div>
               ))}
             </LoadingContainer>
           ) : (

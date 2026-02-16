@@ -76,17 +76,17 @@ export const formatFirestoreDate = (timestamp: TimestampLike, format: DateFormat
 /**
  * Normalize Firestore document data by converting all Timestamps to dates
  */
-export const normalizeFirestoreData = <T extends Record<string, unknown>>(data: unknown): T | unknown => {
+export const normalizeFirestoreData = <T extends Record<string, unknown> = Record<string, unknown>>(data: unknown): T => {
   if (!data || typeof data !== 'object') {
-    return data;
+    return data as T;
   }
 
   if (Array.isArray(data)) {
-    return data.map(item => normalizeFirestoreData(item));
+    return data.map(item => normalizeFirestoreData(item)) as unknown as T;
   }
 
   if (isFirestoreTimestamp(data)) {
-    return data.toDate();
+    return data.toDate() as unknown as T;
   }
 
   const normalized: Record<string, unknown> = {};

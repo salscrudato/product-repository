@@ -23,7 +23,10 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { CoverageRule, RuleType, RuleCondition, RuleAction } from '../types/coverageConfig';
+import { CoverageRule, RuleAction } from '../types/coverageConfig';
+
+/** Local rule type union used by this service (superset of CoverageRule.ruleType) */
+type RuleType = CoverageRule['ruleType'] | 'dependency' | 'validation' | 'workflow';
 
 // ============================================================================
 // Collection Path Helpers
@@ -134,7 +137,7 @@ export const toggleRuleEnabled = async (
   ruleId: string,
   enabled: boolean
 ): Promise<void> => {
-  await updateRule(productId, coverageId, ruleId, { isEnabled: enabled });
+  await updateRule(productId, coverageId, ruleId, { isActive: enabled });
 };
 
 // ============================================================================
@@ -145,14 +148,14 @@ export const toggleRuleEnabled = async (
  * Get rule type display info
  */
 export const getRuleTypeInfo = (type: RuleType): { label: string; icon: string; color: string } => {
-  const info: Record<RuleType, { label: string; icon: string; color: string }> = {
+  const info: Record<string, { label: string; icon: string; color: string }> = {
     eligibility: { label: 'Eligibility', icon: 'target', color: '#6366f1' },
     dependency: { label: 'Dependency', icon: 'link', color: '#8b5cf6' },
     validation: { label: 'Validation', icon: 'check', color: '#10b981' },
     rating: { label: 'Rating', icon: 'currency', color: '#f59e0b' },
     workflow: { label: 'Workflow', icon: 'cog', color: '#3b82f6' },
   };
-  return info[type] || { label: type, icon: 'clipboard', color: '#64748b' };
+  return info[type] ?? { label: type, icon: 'clipboard', color: '#64748b' };
 };
 
 /**
@@ -163,19 +166,25 @@ export const createDependencyRuleTemplate = (
   dependencyType: 'requires' | 'excludes'
 ): Omit<CoverageRule, 'id' | 'createdAt' | 'updatedAt' | 'productId' | 'coverageId'> => ({
   name: `${dependencyType === 'requires' ? 'Requires' : 'Excludes'} Coverage`,
-  type: 'dependency',
-  conditions: [{
-    field: 'selectedCoverages',
-    operator: dependencyType === 'requires' ? 'notContains' : 'contains',
-    value: targetCoverageId,
-  }],
+  ruleType: 'eligibility',
+  severity: 'block',
+  conditionGroup: {
+    id: 'root',
+    logic: 'AND',
+    conditions: [{
+      id: 'cond-1',
+      field: 'selectedCoverages',
+      operator: dependencyType === 'requires' ? 'not_contains' : 'contains',
+      value: targetCoverageId,
+    }],
+  },
   actions: [{
-    type: dependencyType === 'requires' ? 'block' : 'warn',
+    type: (dependencyType === 'requires' ? 'decline' : 'add_note') as RuleAction,
     message: dependencyType === 'requires' 
       ? 'This coverage requires another coverage to be selected'
       : 'This coverage cannot be combined with another coverage',
   }],
   priority: 100,
-  isEnabled: true,
+  isActive: true,
 });
 

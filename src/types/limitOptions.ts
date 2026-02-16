@@ -331,8 +331,8 @@ export type LimitOptionValue =
 /**
  * @deprecated Use sublimitsEnabled + sublimits[] on CoverageLimitOptionSet instead
  * Kept for backward compatibility during migration
+ * SublimitValue is already exported from its interface definition above.
  */
-export { SublimitValue };
 
 // ============================================================================
 // Coverage Limit Option (Individual selectable option)
@@ -448,13 +448,19 @@ export interface LegacyMigrationResult {
 // Template Types
 // ============================================================================
 
+/**
+ * Template option type — relaxed to allow any limit value shape
+ * without discriminated-union excess-property checks.
+ */
+export type LimitOptionTemplateEntry = Omit<LimitOptionBase, 'id' | 'createdAt' | 'updatedAt'> & Record<string, unknown>;
+
 export interface LimitOptionTemplate {
   id: string;
   name: string;
   description: string;
   category: 'Property' | 'Liability' | 'Auto' | 'WC' | 'Specialty';
   structure: LimitStructure;
-  options: Omit<CoverageLimitOption, 'id' | 'createdAt' | 'updatedAt'>[];
+  options: LimitOptionTemplateEntry[];
 }
 
 // ============================================================================

@@ -3,8 +3,8 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { collection, onSnapshot, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db, isAuthReady, safeOnSnapshot } from '../firebase';
 import { normalizeFirestoreData } from '../utils/firestoreHelpers';
 import type { FormTemplate, FormCoverageMapping } from '../types';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
@@ -31,7 +31,8 @@ export function useForms(productId: string | null | undefined): UseFormsResult {
 
   // Fetch forms and their mappings
   useEffect(() => {
-    if (!productId) {
+    // Wait for auth to fully propagate before subscribing
+    if (!isAuthReady() || !productId) {
       setForms([]);
       setFormMappings([]);
       setLoading(false);
@@ -47,7 +48,7 @@ export function useForms(productId: string | null | undefined): UseFormsResult {
       where('productId', '==', productId)
     );
 
-    const unsubscribeForms = onSnapshot(
+    const unsubscribeForms = safeOnSnapshot(
       formsQuery,
       async (snapshot) => {
         try {
@@ -103,7 +104,7 @@ export function useForms(productId: string | null | undefined): UseFormsResult {
     return forms.filter(f => formIds.includes(f.id));
   }, [forms, formMappings]);
 
-  return useMemo(() => ({
+  return useMemo<UseFormsResult>(() => ({
     forms,
     formMappings,
     loading,

@@ -1,195 +1,191 @@
 import styled, { css } from 'styled-components';
-import { spin, pulse, shimmer } from '../../styles/animations';
+import { spin, pulse } from '../../styles/animations';
+import {
+  color, neutral, accent, semantic,
+  space, radius, fontFamily,
+  type as typeScale, transition, duration, easing,
+  focusRingStyle, reducedMotion,
+} from '../../ui/tokens';
 
-// Re-export shimmer as shine for backward compatibility
-const shine = shimmer;
-
-/* ---------- Button Variants - Enhanced with micro-interactions ---------- */
+/* ---------- Button Variants – Apple-flat, token-driven ---------- */
 const variants = {
   primary: css`
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    color: #fff;
-    border: none;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2), 0 4px 16px rgba(99, 102, 241, 0.15);
+    background: ${accent[500]};
+    color: ${color.textInverse};
+    border: 1px solid transparent;
 
     &:hover:not(:disabled) {
-      background: linear-gradient(135deg, #5b5bf6 0%, #7c3aed 100%);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25), 0 8px 24px rgba(99, 102, 241, 0.2);
+      background: ${accent[600]};
     }
 
     &:active:not(:disabled) {
-      transform: translateY(0) scale(0.98);
-      box-shadow: 0 1px 4px rgba(99, 102, 241, 0.2);
-      transition: all 0.1s ease;
+      background: ${accent[700]};
+      transform: scale(0.98);
+      transition: all ${duration.instant} ${easing.default};
     }
 
     &:focus-visible {
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35), 0 4px 12px rgba(99, 102, 241, 0.2);
+      ${focusRingStyle}
     }
   `,
   secondary: css`
-    background: rgba(255, 255, 255, 0.95);
-    color: #6366f1;
-    border: 1.5px solid rgba(99, 102, 241, 0.2);
-    box-shadow: 0 1px 4px rgba(99, 102, 241, 0.08);
+    background: ${neutral[0]};
+    color: ${color.text};
+    border: 1px solid ${neutral[200]};
 
     &:hover:not(:disabled) {
-      background: rgba(99, 102, 241, 0.06);
-      border-color: rgba(99, 102, 241, 0.35);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.12);
+      background: ${neutral[50]};
+      border-color: ${neutral[300]};
     }
 
     &:active:not(:disabled) {
-      transform: translateY(0) scale(0.98);
-      background: rgba(99, 102, 241, 0.1);
+      background: ${neutral[100]};
+      transform: scale(0.98);
+      transition: all ${duration.instant} ${easing.default};
     }
 
     &:focus-visible {
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-      border-color: #6366f1;
-    }
-  `,
-  success: css`
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: #fff;
-    border: none;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
-
-    &:hover:not(:disabled) {
-      background: linear-gradient(135deg, #059669 0%, #047857 100%);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
-    }
-
-    &:active:not(:disabled) {
-      transform: translateY(0) scale(0.98);
-    }
-
-    &:focus-visible {
-      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35);
-    }
-  `,
-  danger: css`
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    color: #fff;
-    border: none;
-    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
-
-    &:hover:not(:disabled) {
-      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 16px rgba(220, 38, 38, 0.25);
-    }
-
-    &:active:not(:disabled) {
-      transform: translateY(0) scale(0.98);
-    }
-
-    &:focus-visible {
-      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.35);
-    }
-  `,
-  warning: css`
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    color: #fff;
-    border: none;
-    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
-
-    &:hover:not(:disabled) {
-      background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 16px rgba(245, 158, 11, 0.25);
-    }
-
-    &:active:not(:disabled) {
-      transform: translateY(0) scale(0.98);
-    }
-
-    &:focus-visible {
-      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.35);
+      ${focusRingStyle}
     }
   `,
   ghost: css`
     background: transparent;
-    color: ${({ theme }) => theme.colours.primary};
-    border: none;
+    color: ${accent[500]};
+    border: 1px solid transparent;
 
     &:hover:not(:disabled) {
-      background: rgba(99, 102, 241, 0.06);
-      transform: translateY(-1px);
+      background: ${accent[50]};
     }
 
     &:active:not(:disabled) {
-      background: rgba(99, 102, 241, 0.1);
+      background: ${accent[100]};
       transform: scale(0.98);
+      transition: all ${duration.instant} ${easing.default};
     }
 
     &:focus-visible {
-      background: rgba(99, 102, 241, 0.06);
-      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+      ${focusRingStyle}
+    }
+  `,
+  danger: css`
+    background: ${semantic.error};
+    color: ${color.textInverse};
+    border: 1px solid transparent;
+
+    &:hover:not(:disabled) {
+      background: ${semantic.errorDark};
+    }
+
+    &:active:not(:disabled) {
+      background: #b91c1c;
+      transform: scale(0.98);
+      transition: all ${duration.instant} ${easing.default};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${semantic.error};
+      outline-offset: 2px;
+    }
+  `,
+  success: css`
+    background: ${semantic.success};
+    color: ${color.textInverse};
+    border: 1px solid transparent;
+
+    &:hover:not(:disabled) {
+      background: ${semantic.successDark};
+    }
+
+    &:active:not(:disabled) {
+      background: #047857;
+      transform: scale(0.98);
+      transition: all ${duration.instant} ${easing.default};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${semantic.success};
+      outline-offset: 2px;
+    }
+  `,
+  warning: css`
+    background: ${semantic.warning};
+    color: ${color.textInverse};
+    border: 1px solid transparent;
+
+    &:hover:not(:disabled) {
+      background: ${semantic.warningDark};
+    }
+
+    &:active:not(:disabled) {
+      background: #b45309;
+      transform: scale(0.98);
+      transition: all ${duration.instant} ${easing.default};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${semantic.warning};
+      outline-offset: 2px;
     }
   `,
   outline: css`
     background: transparent;
-    color: #6366f1;
-    border: 1.5px solid rgba(99, 102, 241, 0.5);
+    color: ${accent[500]};
+    border: 1px solid ${accent[200]};
 
     &:hover:not(:disabled) {
-      background: rgba(99, 102, 241, 0.06);
-      border-color: #6366f1;
-      transform: translateY(-1px);
+      background: ${accent[50]};
+      border-color: ${accent[500]};
     }
 
     &:active:not(:disabled) {
-      background: rgba(99, 102, 241, 0.1);
+      background: ${accent[100]};
       transform: scale(0.98);
+      transition: all ${duration.instant} ${easing.default};
     }
 
     &:focus-visible {
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+      ${focusRingStyle}
     }
-  `
+  `,
 };
 
-/* ---------- Button Sizes ---------- */
+/* ---------- Button Sizes (sm 32 / md 36 / lg 40) ---------- */
 const sizes = {
   xs: css`
-    padding: 4px 8px;
-    font-size: 12px;
-    gap: 4px;
-    border-radius: 6px;
+    padding: ${space[1]} ${space[2]};
+    font-size: ${typeScale.captionSm.size};
+    gap: ${space[1]};
+    border-radius: ${radius.sm};
     min-height: 28px;
   `,
   sm: css`
-    padding: 6px 12px;
-    font-size: 13px;
-    gap: 6px;
-    border-radius: 8px;
+    padding: ${space[1.5]} ${space[3]};
+    font-size: ${typeScale.labelSm.size};
+    gap: ${space[1.5]};
+    border-radius: ${radius.sm};
     min-height: 32px;
   `,
   md: css`
-    padding: 10px 16px;
-    font-size: 14px;
-    gap: 8px;
-    border-radius: 10px;
-    min-height: 40px;
+    padding: ${space[2]} ${space[4]};
+    font-size: ${typeScale.label.size};
+    gap: ${space[2]};
+    border-radius: ${radius.md};
+    min-height: 36px;
   `,
   lg: css`
-    padding: 12px 24px;
-    font-size: 16px;
-    gap: 8px;
-    border-radius: 12px;
-    min-height: 48px;
+    padding: ${space[2.5]} ${space[5]};
+    font-size: ${typeScale.bodySm.size};
+    gap: ${space[2]};
+    border-radius: ${radius.md};
+    min-height: 40px;
   `,
   xl: css`
-    padding: 16px 32px;
-    font-size: 18px;
-    gap: 10px;
-    border-radius: 14px;
-    min-height: 56px;
-  `
+    padding: ${space[3]} ${space[6]};
+    font-size: ${typeScale.bodyLg.size};
+    gap: ${space[2.5]};
+    border-radius: ${radius.lg};
+    min-height: 48px;
+  `,
 };
 
 /* ---------- Button Props Interface ---------- */
@@ -201,7 +197,7 @@ interface ButtonProps {
   iconOnly?: boolean;
 }
 
-/* ---------- Loading Spinner Styled Component - Enhanced ---------- */
+/* ---------- Loading Spinner ---------- */
 const LoadingSpinnerIcon = styled.span`
   display: inline-flex;
   width: 1.1em;
@@ -210,10 +206,10 @@ const LoadingSpinnerIcon = styled.span`
   border-right-color: transparent;
   border-top-color: transparent;
   border-radius: 50%;
-  animation: ${spin} 0.65s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: ${spin} 0.65s ${easing.default} infinite;
 `;
 
-/* ---------- Main Button Component - Enhanced ---------- */
+/* ---------- Main Button Component ---------- */
 export const Button = styled.button.withConfig({
   shouldForwardProp: (prop) => !['variant', 'size', 'fullWidth', 'isLoading', 'iconOnly'].includes(prop),
 })<ButtonProps>`
@@ -222,30 +218,38 @@ export const Button = styled.button.withConfig({
   justify-content: center;
   border: none;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: ${typeScale.label.weight};
+  font-family: ${fontFamily.sans};
+  letter-spacing: ${typeScale.label.letterSpacing};
   white-space: nowrap;
   user-select: none;
   text-decoration: none;
   vertical-align: middle;
-  ${({ variant='primary' }) => variants[variant]}
-  ${({ size='md' }) => sizes[size]}
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color ${transition.fast},
+              border-color ${transition.fast},
+              color ${transition.fast},
+              transform ${duration.fast} ${easing.default},
+              box-shadow ${transition.fast};
+
+  @media ${reducedMotion} {
+    transition: none;
+  }
+
+  ${({ variant = 'primary' }) => variants[variant]}
+  ${({ size = 'md' }) => sizes[size]}
   ${({ fullWidth }) => fullWidth && 'width: 100%;'}
-  ${({ iconOnly, size='md' }) => iconOnly && css`
+  ${({ iconOnly, size = 'md' }) => iconOnly && css`
     padding: 0;
-    width: ${size === 'xs' ? '28px' : size === 'sm' ? '32px' : size === 'lg' ? '48px' : size === 'xl' ? '56px' : '40px'};
+    width: ${size === 'xs' ? '28px' : size === 'sm' ? '32px' : size === 'lg' ? '40px' : size === 'xl' ? '48px' : '36px'};
     aspect-ratio: 1;
   `}
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  position: relative;
-  overflow: hidden;
-  font-family: ${({ theme }) => theme.font};
-  letter-spacing: -0.01em;
-  -webkit-tap-highlight-color: transparent;
 
-  /* Loading state - enhanced */
+  /* Loading state */
   ${({ isLoading }) => isLoading && css`
     pointer-events: none;
-    animation: ${pulse} 1.5s ease-in-out infinite;
+    opacity: 0.75;
 
     & > *:not(${LoadingSpinnerIcon}) {
       visibility: hidden;
@@ -253,92 +257,36 @@ export const Button = styled.button.withConfig({
   `}
 
   &:disabled {
-    opacity: 0.45;
+    opacity: 0.4;
     cursor: not-allowed;
     transform: none !important;
-    box-shadow: none;
-    filter: grayscale(0.2);
   }
 
   svg {
     flex-shrink: 0;
     width: 1.1em;
     height: 1.1em;
-    transition: transform 0.15s ease;
-  }
-
-  &:hover:not(:disabled) svg {
-    transform: scale(1.05);
-  }
-
-  /* Subtle shine effect on hover for primary buttons */
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 50%;
-    height: 100%;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.15),
-      transparent
-    );
-    transition: left 0.5s ease;
-    pointer-events: none;
-  }
-
-  &:hover:not(:disabled)::before {
-    left: 200%;
-  }
-
-  /* Ripple effect on click - refined */
-  &::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    background: rgba(255, 255, 255, 0.25);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    opacity: 0;
-    transition: width 0.4s ease, height 0.4s ease, opacity 0.4s ease;
-  }
-
-  &:active:not(:disabled)::after {
-    width: 250%;
-    height: 250%;
-    opacity: 0;
-    transition: none;
   }
 `;
 
-/* ---------- Icon Button - Convenience wrapper ---------- */
-export const IconButton = styled(Button).attrs<ButtonProps>({ iconOnly: true })`
-  &::before {
-    display: none;
-  }
-`;
+/* ---------- Icon Button – Convenience wrapper ---------- */
+export const IconButton = styled(Button).attrs<ButtonProps>({ iconOnly: true })``;
 
-/* ---------- Button with Loading State - Enhanced ---------- */
+/* ---------- Button with Loading State ---------- */
 export const ButtonWithLoading = styled(Button)<{ isLoading?: boolean }>`
   ${({ isLoading }) => isLoading && css`
     color: transparent;
 
-    &::before {
+    &::after {
       content: '';
       position: absolute;
       width: 1.1em;
       height: 1.1em;
-      border: 2px solid currentColor;
+      border: 2px solid ${color.textInverse};
       border-right-color: transparent;
       border-top-color: transparent;
       border-radius: 50%;
-      animation: ${spin} 0.65s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-      color: white;
+      animation: ${spin} 0.65s ${easing.default} infinite;
       left: 50%;
       top: 50%;
       transform: translate(-50%, -50%);

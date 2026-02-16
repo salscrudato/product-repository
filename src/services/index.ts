@@ -74,20 +74,20 @@ export { default as firebaseOptimized } from './firebaseOptimized';
 // ============================================================================
 // Coverage Services
 // ============================================================================
-export { coverageRulesService } from './coverageRulesService';
-export { coverageSearch, searchCoverages } from './coverageSearch';
-export { coverageFormLinkService } from './coverageFormLinkService';
-export { getCoverageReadinessScore } from './coverageReadinessService';
+export { fetchCoverageRules, fetchRulesByType, createRule, updateRule, deleteRule, toggleRuleEnabled, getRuleTypeInfo, createDependencyRuleTemplate } from './coverageRulesService';
+export { searchCoverages, getPopularCoverages, getRelatedCoverages, suggestMissingCoverages, getCategories, getCoveragesByCategory } from './coverageSearch';
+export { fetchCoverageFormLinks, fetchFormLinksByRole, createFormLink, updateFormLink, deleteFormLink, batchUpdateFormLinks, getFormRoleDisplayName, getFormRoleColor } from './coverageFormLinkService';
+export { calculateCoverageReadiness, calculateProductCoveragesReadiness, getProductReadinessSummary } from './coverageReadinessService';
 
 // ============================================================================
 // State & Availability Services
 // ============================================================================
-export { stateAvailabilityService } from './stateAvailabilityService';
+export { US_STATES, fetchCoverageStateAvailability, fetchProductStateAvailability, setCoverageStateAvailability, batchUpdateStateAvailability, removeStateAvailability } from './stateAvailabilityService';
 
 // ============================================================================
 // Data Services
 // ============================================================================
-export { dataDictionaryService } from './dataDictionaryService';
+export { default as dataDictionaryService } from './dataDictionaryService';
 
 // ============================================================================
 // Rule Builder Service - AI-powered programmable rules

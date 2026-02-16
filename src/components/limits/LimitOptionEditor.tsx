@@ -246,7 +246,7 @@ export const LimitOptionEditor: React.FC<LimitOptionEditorProps> = ({
   }, [option, onChange]);
 
   const handleSublimitTagChange = useCallback((sublimitTag: string) => {
-    onChange({ ...option, sublimitTag } as Partial<CoverageLimitOption>);
+    onChange({ ...option, sublimitTag } as any);
   }, [option, onChange]);
 
   // Render structure-specific fields
@@ -382,7 +382,7 @@ export const LimitOptionEditor: React.FC<LimitOptionEditorProps> = ({
           </SplitFieldsContainer>
         );
 
-      case 'sublimit':
+      case 'sublimit' as any:
         return (
           <>
             <FieldRow>
@@ -398,7 +398,7 @@ export const LimitOptionEditor: React.FC<LimitOptionEditorProps> = ({
               <FieldGroup>
                 <FieldLabel>Applies To</FieldLabel>
                 <TextInput
-                  value={(option as SublimitValue).sublimitTag || ''}
+                  value={(option as any).sublimitTag || ''}
                   onChange={(e) => handleSublimitTagChange(e.target.value)}
                   placeholder="e.g., Theft, Water Damage"
                 />
@@ -463,8 +463,8 @@ export const LimitOptionEditor: React.FC<LimitOptionEditorProps> = ({
             value={option.applicability || {}}
             onChange={handleApplicabilityChange}
             showStates={true}
-            showCoverageParts={structure === 'sublimit'}
-            showPerils={structure === 'sublimit'}
+            showCoverageParts={(structure as string) === 'sublimit'}
+            showPerils={(structure as string) === 'sublimit'}
           />
         </ApplicabilitySection>
       </Form>

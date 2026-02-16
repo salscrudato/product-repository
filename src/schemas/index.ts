@@ -51,7 +51,7 @@ export const ProductSchema = z.object({
   updatedBy: z.string().optional(),
   changeReason: z.string().optional(),
   
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type ValidatedProduct = z.infer<typeof ProductSchema>;

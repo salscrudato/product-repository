@@ -4,6 +4,11 @@ import { httpsCallable } from 'firebase/functions';
 import type { FormChunk } from '../utils/pdfChunking';
 import logger, { LOG_CATEGORIES } from '../utils/logger';
 
+interface ConversationMessage {
+  role: string;
+  content: string;
+}
+
 const CLAIMS_ANALYSIS_SYSTEM_PROMPT = `
 You are an expert P&C insurance claims analyst. Your role is to analyze claim scenarios against insurance policy forms and determine coverage.
 
@@ -54,10 +59,14 @@ Provide your analysis in the following structured format:
  * @param {Array} conversationHistory - Previous messages in the conversation
  * @returns {Promise<string>} - AI analysis response
  */
-export async function analyzeClaimCoverage(claimDescription, formChunks, conversationHistory = []) {
+export async function analyzeClaimCoverage(
+  claimDescription: string,
+  formChunks: FormChunk[],
+  conversationHistory: ConversationMessage[] = []
+): Promise<string> {
   try {
     // Prepare context from form chunks
-    const formsContext = formChunks.map(chunk => {
+    const formsContext = formChunks.map((chunk: FormChunk) => {
       return `=== FORM: ${chunk.formName} ===
 Form Number: ${chunk.formNumber || 'Not specified'}
 Category: ${chunk.category || 'Not specified'}
@@ -70,11 +79,11 @@ ${chunk.text}
     }).join('\n\n');
 
     // Create forms summary
-    const uniqueForms = [...new Set(formChunks.map(chunk => chunk.formName))];
+    const uniqueForms = [...new Set(formChunks.map((chunk: FormChunk) => chunk.formName))];
     const formsSummary = `FORMS BEING ANALYZED:
-${uniqueForms.map(formName => {
-  const formChunk = formChunks.find(chunk => chunk.formName === formName);
-  return `- ${formName} (${formChunk.formNumber || 'No number'}) - ${formChunk.category || 'Unknown category'}`;
+${uniqueForms.map((formName: string) => {
+  const formChunk = formChunks.find((chunk: FormChunk) => chunk.formName === formName);
+  return `- ${formName} (${formChunk?.formNumber || 'No number'}) - ${formChunk?.category || 'Unknown category'}`;
 }).join('\n')}
 
 TOTAL FORMS: ${uniqueForms.length}
@@ -112,16 +121,18 @@ TOTAL SECTIONS: ${formChunks.length}
         maxTokens: 2000,
         temperature: 0.2
       }),
-      new Promise((_, reject) =>
+      new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Claims analysis request timeout')), 60000)
       )
     ]);
 
-    if (!result.data.success) {
+    const resultData = result.data as { success?: boolean; content?: string };
+
+    if (!resultData.success) {
       throw new Error('Failed to analyze claim');
     }
 
-    const content = result.data.content?.trim();
+    const content = resultData.content?.trim();
 
     if (!content) {
       throw new Error('No analysis content received');
@@ -130,24 +141,20 @@ TOTAL SECTIONS: ${formChunks.length}
     return content;
 
   } catch (error) {
-    logger.error(LOG_CATEGORIES.CLAIMS, 'Error in claim analysis', { error: error.message }, error as Error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error(LOG_CATEGORIES.CLAIMS, 'Error in claim analysis', { error: err.message }, err);
 
     // Provide more specific error messages
-    if (error.message.includes('timeout')) {
+    if (err.message.includes('timeout')) {
       throw new Error('Analysis request timed out. Please try again with fewer forms or a simpler question.');
-    } else if (error.message.includes('API key')) {
+    } else if (err.message.includes('API key')) {
       throw new Error('AI service configuration error. Please contact support.');
-    } else if (error.message.includes('rate limit')) {
+    } else if (err.message.includes('rate limit')) {
       throw new Error('Too many requests. Please wait a moment and try again.');
     } else {
-      throw new Error(`Analysis failed: ${error.message}`);
+      throw new Error(`Analysis failed: ${err.message}`);
     }
   }
-}
-
-interface ConversationMessage {
-  role: string;
-  content: string;
 }
 
 /**
@@ -173,7 +180,7 @@ export async function analyzeClaimWithChunking(
   }
 
   // Group chunks by form to ensure complete form analysis
-  const chunksByForm = validChunks.reduce((acc, chunk) => {
+  const chunksByForm = validChunks.reduce<Record<string, FormChunk[]>>((acc, chunk) => {
     const formKey = `${chunk.formId}-${chunk.formName}`;
     if (!acc[formKey]) {
       acc[formKey] = [];
@@ -209,9 +216,10 @@ export async function analyzeClaimWithChunking(
         chunkCount: formGroup.length
       });
     } catch (error) {
-      logger.error(LOG_CATEGORIES.CLAIMS, `Failed to analyze form ${formName}`, { formName }, error as Error);
+      const analyzeErr = error instanceof Error ? error : new Error(String(error));
+      logger.error(LOG_CATEGORIES.CLAIMS, `Failed to analyze form ${formName}`, { formName }, analyzeErr);
       analyses.push({
-        analysis: `**Error analyzing ${formName}**: ${error.message}`,
+        analysis: `**Error analyzing ${formName}**: ${analyzeErr.message}`,
         formName,
         formNumber: formGroup[0].formNumber,
         category: formGroup[0].category,
@@ -250,7 +258,7 @@ export async function analyzeClaimWithChunking(
  * @param {Array} analyses - Array of analysis objects with formName, analysis, etc.
  * @returns {Promise<string>} - Synthesized response
  */
-async function synthesizeAnalyses(claimDescription, analyses) {
+async function synthesizeAnalyses(claimDescription: string, analyses: Array<{ analysis: string; formName: string; formNumber?: string; category?: string; chunkCount?: number; error?: boolean }>): Promise<string> {
   // Separate successful analyses from errors
   const successfulAnalyses = analyses.filter(a => !a.error);
   const errorAnalyses = analyses.filter(a => a.error);
@@ -317,16 +325,18 @@ Use the standard structured format with clear sections and specific form referen
         maxTokens: 3000,
         temperature: 0.1
       }),
-      new Promise((_, reject) =>
+      new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Synthesis timeout')), 60000)
       )
     ]);
 
-    if (!result.data.success) {
+    const resultData = result.data as { success?: boolean; content?: string };
+
+    if (!resultData.success) {
       throw new Error('Failed to synthesize analyses');
     }
 
-    const content = result.data.content?.trim();
+    const content = resultData.content?.trim();
 
     if (!content) {
       throw new Error('No synthesis content received');
@@ -335,7 +345,8 @@ Use the standard structured format with clear sections and specific form referen
     return content;
 
   } catch (error) {
-    logger.error(LOG_CATEGORIES.CLAIMS, 'Error synthesizing analyses', { error: error.message }, error as Error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error(LOG_CATEGORIES.CLAIMS, 'Error synthesizing analyses', { error: err.message }, err);
 
     // Return a structured fallback synthesis
     return `## Coverage Analysis Summary
@@ -357,7 +368,7 @@ ${errorAnalyses.map(a => a.analysis).join('\n')}
 ` : ''}
 
 ### Final Determination
-**Status:** Requires manual review due to synthesis error: ${error.message}
+**Status:** Requires manual review due to synthesis error: ${err.message}
 
 **Recommendation:** Please review the individual form analyses above and consult with a senior claims examiner for final determination.
 

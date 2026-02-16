@@ -12,19 +12,20 @@ import {
   RuleDraft,
   RuleLogic,
   RuleAIMetadata,
+} from '../types';
+import {
   ConditionGroup,
   Condition,
   Action,
   isConditionGroup,
   isCondition,
-} from '../types';
+} from '../types/rulesDsl';
 import {
   collection,
   doc,
   addDoc,
   updateDoc,
   serverTimestamp,
-  Timestamp,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
@@ -348,7 +349,7 @@ import {
   ConditionEvaluationResult,
   ConditionOperator,
   MessageSeverity,
-} from '../types';
+} from '../types/rulesDsl';
 
 /**
  * Get a nested value from an object using dot notation
@@ -420,7 +421,9 @@ function evaluateCondition(
       break;
     case 'between':
       if (typeof actualValue === 'number' && Array.isArray(expectedValue) && expectedValue.length === 2) {
-        matched = actualValue >= expectedValue[0] && actualValue <= expectedValue[1];
+        const low = typeof expectedValue[0] === 'number' ? expectedValue[0] : Number(expectedValue[0]);
+        const high = typeof expectedValue[1] === 'number' ? expectedValue[1] : Number(expectedValue[1]);
+        matched = actualValue >= low && actualValue <= high;
       }
       break;
     case 'startsWith':

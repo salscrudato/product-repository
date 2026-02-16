@@ -69,7 +69,7 @@ export function createConverter<T extends { id: string }>(
         logger.warn(LOG_CATEGORIES.DATA, 'Schema validation warning', {
           docId: snapshot.id,
           collection: snapshot.ref.path,
-          error: error instanceof z.ZodError ? error.errors : error,
+          error: error instanceof z.ZodError ? error.issues : error,
         });
         // Return data with id even if validation fails (graceful degradation)
         return data as T;

@@ -14,7 +14,7 @@ import {
   collectionGroup
 } from 'firebase/firestore';
 import { db } from '@/firebase';
-import { Product, Coverage, Form } from '@types/index';
+import { Product, Coverage, Form } from '../types';
 import logger, { LOG_CATEGORIES } from '@utils/logger';
 import { performanceMonitor } from '@utils/performanceMonitor';
 import { cacheServices } from '@services/cacheService';
@@ -147,9 +147,9 @@ export async function getProduct360Summary(productId: string): Promise<Product36
       recentActivity: [],
       migrationStatus: {
         total: coverages.length,
-        migrated: coverages.filter(c => c.migrated).length,
+        migrated: coverages.filter(c => (c as any).migrated).length,
         percentage: coverages.length > 0
-          ? Math.round((coverages.filter(c => c.migrated).length / coverages.length) * 100)
+          ? Math.round((coverages.filter(c => (c as any).migrated).length / coverages.length) * 100)
           : 0
       }
     };
@@ -217,8 +217,8 @@ export async function getCoverageSummary(
 
         return {
           id: coverageDoc.id,
-          name: coverage.name || coverage.coverageName || 'Unnamed',
-          type: coverage.type || coverage.coverageType || 'Unknown',
+          name: coverage.name || 'Unnamed',
+          type: coverage.type || 'Unknown',
           formCount: formCoveragesSnap.size
         };
       })
@@ -258,7 +258,7 @@ export async function getFormSummary(
         return {
           id: formDoc.id,
           name: form.name || form.formName || 'Unnamed',
-          number: form.number || form.formNumber || 'N/A',
+          number: form.formNumber || 'N/A',
           coverageCount: formCoveragesSnap.size
         };
       })
